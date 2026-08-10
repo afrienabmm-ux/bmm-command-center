@@ -187,10 +187,16 @@ export async function exportWarrantyClaimsCsv(branch: Branch, status?: ClaimStat
   );
 }
 
-export async function exportGenbluCsv(branch: Branch): Promise<string> {
+export async function exportGenbluCsv(branch: Branch, fromDate?: string, toDate?: string): Promise<string> {
   await requireApproved();
   const registrations = await getGenbluRegistrations(branch);
-  const rows = registrations.map((r) => [
+  const filtered = registrations.filter((r) => {
+    const day = r.createdAt.slice(0, 10);
+    if (fromDate && day < fromDate) return false;
+    if (toDate && day > toDate) return false;
+    return true;
+  });
+  const rows = filtered.map((r) => [
     r.salespersonName,
     r.salespersonCode,
     r.customerPlateNo,

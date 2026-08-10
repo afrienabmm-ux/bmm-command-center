@@ -82,3 +82,37 @@ export async function addGenbluRegistrationAction(formData: FormData): Promise<{
   if (error) return { error: error.message };
   revalidatePath("/genblu");
 }
+
+export async function updateGenbluRegistrationAction(
+  id: string,
+  branch: Branch,
+  input: { salespersonName: string; salespersonCode: string; customerPlateNo: string }
+): Promise<{ error: string } | void> {
+  const user = await requireApproved();
+  assertCanEditBranch(user, branch);
+
+  const salespersonName = input.salespersonName.trim();
+  const customerPlateNo = input.customerPlateNo.trim();
+  if (!salespersonName || !customerPlateNo) {
+    return { error: "Fill in the salesperson name and plate number." };
+  }
+
+  const { error } = await supabaseAdmin
+    .from("cc_genblu_registrations")
+    .update({
+      salesperson_name: salespersonName,
+      salesperson_code: input.salespersonCode.trim().toUpperCase(),
+      customer_plate_no: customerPlateNo,
+    })
+    .eq("id", id);
+  if (error) return { error: error.message };
+  revalidatePath("/genblu");
+}
+
+export async function deleteGenbluRegistrationAction(id: string, branch: Branch): Promise<void> {
+  const user = await requireApproved();
+  assertCanEditBranch(user, branch);
+  const { error } = await supabaseAdmin.from("cc_genblu_registrations").delete().eq("id", id);
+  if (error) throw new Error(error.message);
+  revalidatePath("/genblu");
+}
