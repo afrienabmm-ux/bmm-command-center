@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { supabaseAdmin } from "./supabase-server";
 import { requireManager, requireManagerOrIT } from "./current-user";
 import type { Role, ProfileStatus } from "./current-user";
-import type { Branch } from "./branch";
+import type { BranchSelection } from "./branch";
 import { resolveAllowedPages, type PageKey } from "./permissions";
 
 export type TeamMember = {
@@ -12,7 +12,7 @@ export type TeamMember = {
   email: string;
   name: string;
   role: Role | null;
-  homeBranch: Branch;
+  homeBranch: BranchSelection;
   status: ProfileStatus;
   createdAt: string;
   allowedPages: PageKey[];
@@ -25,7 +25,7 @@ type ProfileRow = {
   email: string;
   name: string;
   role: Role | null;
-  home_branch: Branch;
+  home_branch: BranchSelection;
   status: ProfileStatus;
   created_at: string;
   allowed_pages: string[] | null;
@@ -60,7 +60,7 @@ export async function getTeamMembers(): Promise<TeamMember[]> {
 export async function approveUserAction(
   userId: string,
   role: Role,
-  homeBranch: Branch,
+  homeBranch: BranchSelection,
   positionTitle: string | null = null
 ): Promise<void> {
   const manager = await requireManager();
@@ -82,7 +82,7 @@ export async function approveUserAction(
 export async function updateMemberAction(
   userId: string,
   role: Role,
-  homeBranch: Branch,
+  homeBranch: BranchSelection,
   positionTitle: string | null = null
 ): Promise<void> {
   await requireManager();

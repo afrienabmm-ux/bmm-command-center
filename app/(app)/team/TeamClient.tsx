@@ -13,7 +13,7 @@ import {
   type TeamMember,
 } from "@/lib/user-actions";
 import type { Role } from "@/lib/current-user";
-import { BRANCHES, type Branch } from "@/lib/branch";
+import { BRANCHES, type BranchSelection } from "@/lib/branch";
 import { PAGE_DEFS, type PageKey } from "@/lib/permissions";
 import { formatDate } from "@/lib/format";
 
@@ -85,7 +85,7 @@ export default function TeamClient({
 function PendingRow({ member }: { member: TeamMember }) {
   const [choice, setChoice] = useState<RoleChoice>("Mechanic PIC");
   const [customTitle, setCustomTitle] = useState("");
-  const [branch, setBranch] = useState<Branch>(member.homeBranch);
+  const [branch, setBranch] = useState<BranchSelection>(member.homeBranch === "all" ? "kapar" : member.homeBranch);
   const [isPending, startTransition] = useTransition();
 
   function approve() {
@@ -124,7 +124,7 @@ function PendingRow({ member }: { member: TeamMember }) {
       )}
       <select
         value={branch}
-        onChange={(e) => setBranch(e.target.value as Branch)}
+        onChange={(e) => setBranch(e.target.value as BranchSelection)}
         className="bg-neutral-50 border border-neutral-200 rounded-lg px-3 py-2 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
       >
         {BRANCHES.map((b) => (
@@ -132,6 +132,7 @@ function PendingRow({ member }: { member: TeamMember }) {
             {b.label}
           </option>
         ))}
+        <option value="all">All Branches</option>
       </select>
       <button
         onClick={approve}
@@ -158,7 +159,7 @@ function MemberRow({ member, isSelf, isIT }: { member: TeamMember; isSelf: boole
     startTransition(() => updateMemberAction(member.id, role, member.homeBranch, positionTitle));
   }
 
-  function updateBranch(branch: Branch) {
+  function updateBranch(branch: BranchSelection) {
     const role: Role = choice === "Others" ? "Mechanic PIC" : choice;
     const positionTitle = choice === "Others" ? customTitle.trim() || "Others" : null;
     startTransition(() => updateMemberAction(member.id, role, branch, positionTitle));
@@ -215,12 +216,14 @@ function MemberRow({ member, isSelf, isIT }: { member: TeamMember; isSelf: boole
         </td>
         <td className="px-5 py-3.5">
           {isIT ? (
-            <span className="text-neutral-700">{BRANCHES.find((b) => b.value === member.homeBranch)?.label ?? member.homeBranch}</span>
+            <span className="text-neutral-700">
+              {member.homeBranch === "all" ? "All Branches" : BRANCHES.find((b) => b.value === member.homeBranch)?.label ?? member.homeBranch}
+            </span>
           ) : (
             <select
               value={member.homeBranch}
               disabled={isPending || member.status === "revoked"}
-              onChange={(e) => updateBranch(e.target.value as Branch)}
+              onChange={(e) => updateBranch(e.target.value as BranchSelection)}
               className="bg-neutral-50 border border-neutral-200 rounded-lg px-2.5 py-1.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50 disabled:opacity-50"
             >
               {BRANCHES.map((b) => (
@@ -228,6 +231,7 @@ function MemberRow({ member, isSelf, isIT }: { member: TeamMember; isSelf: boole
                   {b.label}
                 </option>
               ))}
+              <option value="all">All Branches</option>
             </select>
           )}
         </td>

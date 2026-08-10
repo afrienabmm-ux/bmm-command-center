@@ -14,7 +14,7 @@ export type CurrentUser = {
   email: string;
   name: string;
   role: Role | null;
-  homeBranch: Branch;
+  homeBranch: BranchSelection;
   status: ProfileStatus;
   pages: PageKey[];
 };
@@ -95,26 +95,26 @@ export async function requirePage(page: PageKey): Promise<CurrentUser> {
   return user;
 }
 
+// A person can view/switch every branch if their role grants it (Admin,
+// Manager, IT) OR a Manager has explicitly set their individual branch to
+// "All Branches" on the Team page — independent of role.
 export function canViewAllBranches(user: CurrentUser): boolean {
-  return user.role === "Admin" || user.role === "Manager" || user.role === "IT";
+  return user.role === "Admin" || user.role === "Manager" || user.role === "IT" || user.homeBranch === "all";
 }
 
-// Manager, Admin, and IT can all look at every branch at once (the "All
-// Branches" option in the switcher) — Mechanic PIC stays on their own
-// branch.
 export function canViewAllBranchesAtOnce(user: CurrentUser): boolean {
   return canViewAllBranches(user);
 }
 
 export async function getActiveBranch(user: CurrentUser): Promise<Branch> {
-  if (!canViewAllBranches(user)) return user.homeBranch;
-  return getSelectedBranch(user.homeBranch);
+  if (!canViewAllBranches(user)) return user.homeBranch as Branch;
+  return getSelectedBranch(user.homeBranch === "all" ? "kapar" : user.homeBranch);
 }
 
 // For pages that know how to render a combined "All Branches" view.
 export async function getActiveBranchSelection(user: CurrentUser): Promise<BranchSelection> {
   if (!canViewAllBranchesAtOnce(user)) return getActiveBranch(user);
-  return getRawBranchSelection(user.homeBranch);
+  return getRawBranchSelection(user.homeBranch === "all" ? "kapar" : user.homeBranch);
 }
 
 export function assertCanEditBranch(user: CurrentUser, branch: Branch) {
