@@ -4,10 +4,17 @@ import { useState, useTransition } from "react";
 import { Plus, Trash2, Wrench } from "lucide-react";
 import { addMechanicAction, toggleMechanicStatusAction, deleteMechanicAction } from "@/lib/mechanics-actions";
 import type { Mechanic, MechanicStatus } from "@/lib/types";
-import type { Branch } from "@/lib/branch";
+import { BRANCHES, branchLabel, type BranchSelection } from "@/lib/branch";
 
-export default function MechanicsClient({ mechanics, branch }: { mechanics: Mechanic[]; branch: Branch }) {
+export default function MechanicsClient({
+  mechanics,
+  activeBranch,
+}: {
+  mechanics: Mechanic[];
+  activeBranch: BranchSelection;
+}) {
   const [modalOpen, setModalOpen] = useState(false);
+  const showBranch = activeBranch === "all";
 
   return (
     <div>
@@ -22,26 +29,28 @@ export default function MechanicsClient({ mechanics, branch }: { mechanics: Mech
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {mechanics.map((m) => (
-          <MechanicCard key={m.id} mechanic={m} branch={branch} />
+          <MechanicCard key={m.id} mechanic={m} showBranch={showBranch} />
         ))}
         {mechanics.length === 0 && (
           <p className="text-sm text-neutral-500 col-span-full text-center py-10">No mechanics added yet.</p>
         )}
       </div>
 
-      {modalOpen && <AddMechanicModal branch={branch} onClose={() => setModalOpen(false)} />}
+      {modalOpen && (
+        <AddMechanicModal activeBranch={activeBranch} onClose={() => setModalOpen(false)} />
+      )}
     </div>
   );
 }
 
-function MechanicCard({ mechanic, branch }: { mechanic: Mechanic; branch: Branch }) {
+function MechanicCard({ mechanic, showBranch }: { mechanic: Mechanic; showBranch: boolean }) {
   const [isPending, startTransition] = useTransition();
   const [confirmDelete, setConfirmDelete] = useState(false);
   const isActive = mechanic.status === "Active";
 
   function toggle() {
     const next: MechanicStatus = isActive ? "On Leave" : "Active";
-    startTransition(() => toggleMechanicStatusAction(mechanic.id, branch, next));
+    startTransition(() => toggleMechanicStatusAction(mechanic.id, mechanic.branch, next));
   }
 
   return (
@@ -56,6 +65,9 @@ function MechanicCard({ mechanic, branch }: { mechanic: Mechanic; branch: Branch
               {mechanic.shortName} <span className="text-neutral-500 font-normal">({mechanic.shortCode})</span>
             </p>
             <p className="text-xs text-neutral-500">{mechanic.fullName}</p>
+            {showBranch && (
+              <p className="text-xs text-indigo-600 font-medium mt-0.5">{branchLabel(mechanic.branch)}</p>
+            )}
           </div>
         </div>
         <button
@@ -95,7 +107,7 @@ function MechanicCard({ mechanic, branch }: { mechanic: Mechanic; branch: Branch
                 Cancel
               </button>
               <button
-                onClick={() => startTransition(() => deleteMechanicAction(mechanic.id, branch))}
+                onClick={() => startTransition(() => deleteMechanicAction(mechanic.id, mechanic.branch))}
                 disabled={isPending}
                 className="bg-red-500 hover:bg-red-400 disabled:opacity-50 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
               >
@@ -109,10 +121,17 @@ function MechanicCard({ mechanic, branch }: { mechanic: Mechanic; branch: Branch
   );
 }
 
-function AddMechanicModal({ branch, onClose }: { branch: Branch; onClose: () => void }) {
+function AddMechanicModal({
+  activeBranch,
+  onClose,
+}: {
+  activeBranch: BranchSelection;
+  onClose: () => void;
+}) {
   const [fullName, setFullName] = useState("");
   const [shortName, setShortName] = useState("");
   const [shortCode, setShortCode] = useState("");
+  const [branch, setBranch] = useState(activeBranch === "all" ? BRANCHES[0].value : activeBranch);
   const [isPending, startTransition] = useTransition();
 
   const canSave = fullName.trim() !== "" && shortName.trim() !== "" && shortCode.trim() !== "";
@@ -135,6 +154,22 @@ function AddMechanicModal({ branch, onClose }: { branch: Branch; onClose: () => 
       <div className="bg-white border border-neutral-200 rounded-xl w-full max-w-sm p-6">
         <h2 className="text-sm font-semibold text-neutral-900 mb-5">Add Mechanic</h2>
         <div className="space-y-4">
+          {activeBranch === "all" && (
+            <div>
+              <label className="block text-xs font-medium text-neutral-600 mb-1.5">Branch *</label>
+              <select
+                value={branch}
+                onChange={(e) => setBranch(e.target.value as typeof branch)}
+                className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+              >
+                {BRANCHES.map((b) => (
+                  <option key={b.value} value={b.value}>
+                    {b.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
           <div>
             <label className="block text-xs font-medium text-neutral-600 mb-1.5">Full Name *</label>
             <input

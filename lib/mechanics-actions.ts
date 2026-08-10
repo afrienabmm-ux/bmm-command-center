@@ -39,6 +39,17 @@ export async function getMechanics(branch: Branch): Promise<Mechanic[]> {
   return (data as Row[]).map(toMechanic);
 }
 
+export async function getAllMechanics(): Promise<Mechanic[]> {
+  await requireApproved();
+  const { data, error } = await supabaseAdmin
+    .from("cc_mechanics")
+    .select("*")
+    .order("branch")
+    .order("full_name");
+  if (error) throw new Error(error.message);
+  return (data as Row[]).map(toMechanic);
+}
+
 export async function addMechanicAction(input: {
   branch: Branch;
   fullName: string;
