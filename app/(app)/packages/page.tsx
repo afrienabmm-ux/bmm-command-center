@@ -1,0 +1,35 @@
+import { requirePageContext, requirePage } from "@/lib/current-user";
+import { getPackages, getPackageSales, getPackageSoldCounts } from "@/lib/packages-actions";
+import { getMechanics } from "@/lib/mechanics-actions";
+import { branchLabel } from "@/lib/branch";
+import PageHeader from "@/components/PageHeader";
+import PackagesClient from "./PackagesClient";
+
+export const dynamic = "force-dynamic";
+
+export default async function PackagesPage() {
+  await requirePage("packages");
+  const { user, branch } = await requirePageContext();
+  const [packages, sales, soldCounts, mechanics] = await Promise.all([
+    getPackages(),
+    getPackageSales(branch),
+    getPackageSoldCounts(branch),
+    getMechanics(branch),
+  ]);
+
+  return (
+    <div className="flex flex-col h-full">
+      <PageHeader title="Main Packages" subtitle={`${branchLabel(branch)} — service combo packages`} />
+      <div className="p-8 space-y-8">
+        <PackagesClient
+          packages={packages}
+          sales={sales}
+          soldCounts={soldCounts}
+          mechanics={mechanics}
+          branch={branch}
+          isAdmin={user.role === "Admin" || user.role === "Manager"}
+        />
+      </div>
+    </div>
+  );
+}
