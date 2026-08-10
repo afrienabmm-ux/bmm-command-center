@@ -96,11 +96,11 @@ export async function requirePage(page: PageKey): Promise<CurrentUser> {
 }
 
 export function canViewAllBranches(user: CurrentUser): boolean {
-  return user.role === "Admin" || user.role === "Manager";
+  return user.role === "Admin" || user.role === "Manager" || user.role === "IT";
 }
 
-// Manager and Admin can both look at every branch at once (the "All
-// Branches" option in the switcher) — Mechanic PIC and IT stay on their own
+// Manager, Admin, and IT can all look at every branch at once (the "All
+// Branches" option in the switcher) — Mechanic PIC stays on their own
 // branch.
 export function canViewAllBranchesAtOnce(user: CurrentUser): boolean {
   return canViewAllBranches(user);
