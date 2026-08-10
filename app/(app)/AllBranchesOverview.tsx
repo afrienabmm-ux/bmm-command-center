@@ -1,38 +1,15 @@
 import Link from "next/link";
 import { AlertTriangle, ShieldCheck, Wrench, Users, PackageX, Layers } from "lucide-react";
-import { getBranchMonthSummary } from "@/lib/reports-actions";
-import { getActiveRepairJobs } from "@/lib/repairs-actions";
-import { getWarrantyClaims } from "@/lib/claims-actions";
-import { getMechanics } from "@/lib/mechanics-actions";
-import { getLowStockProducts } from "@/lib/catalog-actions";
-import { BRANCHES, branchLabel } from "@/lib/branch";
 import { formatCurrency, monthLabel } from "@/lib/format";
 import StatCard from "@/components/StatCard";
 import CombinedTargetEditor from "./CombinedTargetEditor";
+import BranchBreakdownTable, { getBranchBreakdown } from "./BranchBreakdownTable";
+import AllBranchesMechanicPerformanceTable from "./AllBranchesMechanicPerformanceTable";
 
 export default async function AllBranchesOverview({ year, month }: { year: number; month: number }) {
-  const perBranch = await Promise.all(
-    BRANCHES.map(async ({ value: branch }) => {
-      const [summary, claims, repairs, mechanics, lowStock] = await Promise.all([
-        getBranchMonthSummary(branch, year, month),
-        getWarrantyClaims(branch),
-        getActiveRepairJobs(branch),
-        getMechanics(branch),
-        getLowStockProducts(branch),
-      ]);
-      return {
-        branch,
-        target: summary.targetAmount,
-        achieved: summary.achievedAmount,
-        openClaims: claims.filter((c) => c.status !== "Completed" && c.status !== "Rejected").length,
-        activeRepairs: repairs.length,
-        activeMechanics: mechanics.filter((m) => m.status === "Active").length,
-        lowStock: lowStock.length,
-      };
-    })
-  );
+  const rows = await getBranchBreakdown(year, month);
 
-  const totals = perBranch.reduce(
+  const totals = rows.reduce(
     (acc, b) => ({
       target: acc.target + b.target,
       achieved: acc.achieved + b.achieved,
@@ -90,46 +67,9 @@ export default async function AllBranchesOverview({ year, month }: { year: numbe
         <StatCard icon={PackageX} label="Low Stock Items" value={totals.lowStock} color="text-red-700 bg-red-500/10" href="/catalog" />
       </div>
 
-      <div className="bg-white border border-neutral-200 rounded-xl overflow-hidden">
-        <div className="px-5 py-4 border-b border-neutral-200">
-          <p className="text-sm font-semibold text-neutral-900">Branch Breakdown</p>
-          <p className="text-xs text-neutral-500 mt-0.5">Switch to a branch above to edit its data or its target</p>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="text-left text-xs text-neutral-500 border-b border-neutral-200">
-                <th className="font-medium px-5 py-3 whitespace-nowrap">Branch</th>
-                <th className="font-medium px-5 py-3 whitespace-nowrap">Target</th>
-                <th className="font-medium px-5 py-3 whitespace-nowrap">Achieved</th>
-                <th className="font-medium px-5 py-3 whitespace-nowrap">Open Claims</th>
-                <th className="font-medium px-5 py-3 whitespace-nowrap">Active Repairs</th>
-                <th className="font-medium px-5 py-3 whitespace-nowrap">Active Mechanics</th>
-                <th className="font-medium px-5 py-3 whitespace-nowrap">Low Stock</th>
-              </tr>
-            </thead>
-            <tbody>
-              {perBranch.map((b) => (
-                <tr key={b.branch} className="border-b border-neutral-100 last:border-0 hover:bg-neutral-50">
-                  <td className="px-5 py-3.5 text-neutral-900 font-medium whitespace-nowrap">{branchLabel(b.branch)}</td>
-                  <td className="px-5 py-3.5 text-neutral-700 whitespace-nowrap">{formatCurrency(b.target)}</td>
-                  <td className="px-5 py-3.5 text-neutral-700 whitespace-nowrap">{formatCurrency(b.achieved)}</td>
-                  <td className="px-5 py-3.5 text-neutral-700 whitespace-nowrap">{b.openClaims}</td>
-                  <td className="px-5 py-3.5 text-neutral-700 whitespace-nowrap">{b.activeRepairs}</td>
-                  <td className="px-5 py-3.5 text-neutral-700 whitespace-nowrap">{b.activeMechanics}</td>
-                  <td className="px-5 py-3.5 whitespace-nowrap">
-                    {b.lowStock > 0 ? (
-                      <span className="text-red-700 font-medium">{b.lowStock}</span>
-                    ) : (
-                      <span className="text-neutral-500">0</span>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
+      <BranchBreakdownTable rows={rows} />
+
+      <AllBranchesMechanicPerformanceTable year={year} month={month} />
     </div>
   );
 }

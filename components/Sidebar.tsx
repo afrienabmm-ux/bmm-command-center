@@ -41,10 +41,10 @@ export default function Sidebar({
   pages: PageKey[];
 }) {
   const pathname = usePathname();
-  const isManager = role === "Manager";
+  const canSeeTeam = role === "Manager" || role === "IT";
 
   const visibleLinks = links.filter((l) => l.page === null || pages.includes(l.page));
-  const navLinks = isManager ? [...visibleLinks, { href: "/team", label: "Team", icon: UserCog, page: null }] : visibleLinks;
+  const navLinks = canSeeTeam ? [...visibleLinks, { href: "/team", label: "Team", icon: UserCog, page: null }] : visibleLinks;
 
   return (
     <aside className="w-64 shrink-0 bg-neutral-50 border-r border-neutral-200 flex flex-col">

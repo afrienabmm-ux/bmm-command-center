@@ -5,6 +5,7 @@ import { BRANCHES, branchLabel } from "@/lib/branch";
 import { formatCurrency, monthLabel } from "@/lib/format";
 import PageHeader from "@/components/PageHeader";
 import ReportsClient from "./ReportsClient";
+import AllBranchesReportExport from "./AllBranchesReportExport";
 
 export const dynamic = "force-dynamic";
 
@@ -52,11 +53,14 @@ export default async function ReportsPage({
           </div>
 
           <div className="bg-white border border-neutral-200 rounded-xl overflow-hidden">
-            <div className="px-5 py-4 border-b border-neutral-200">
-              <p className="text-sm font-medium text-neutral-800">Target vs Achieved by Branch</p>
-              <p className="text-xs text-neutral-500 mt-0.5">
-                Switch to a single branch above to see individual mechanic achievement
-              </p>
+            <div className="px-5 py-4 border-b border-neutral-200 flex items-center justify-between flex-wrap gap-3">
+              <div>
+                <p className="text-sm font-medium text-neutral-800">Target vs Achieved by Branch</p>
+                <p className="text-xs text-neutral-500 mt-0.5">
+                  Switch to a single branch above to see individual mechanic achievement
+                </p>
+              </div>
+              <AllBranchesReportExport year={year} month={month} />
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">

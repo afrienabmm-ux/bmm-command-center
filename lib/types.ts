@@ -19,15 +19,20 @@ export type Mechanic = {
   createdAt: string;
 };
 
-export type ClaimStatus = "Submitted" | "Approved" | "Rejected" | "Completed";
-export const CLAIM_STATUSES: ClaimStatus[] = ["Submitted", "Approved", "Rejected", "Completed"];
+export type ClaimStatus = "Pending" | "In Progress" | "Approved";
+export const CLAIM_STATUSES: ClaimStatus[] = ["Pending", "In Progress", "Approved"];
+export type StockStatus = "Sold" | "In Stock";
+export const STOCK_STATUSES: StockStatus[] = ["Sold", "In Stock"];
 export type WarrantyClaim = {
   id: string;
   branch: Branch;
-  claimNo: string;
+  ticketId: string;
   customerName: string;
   plateNo: string;
+  model: string;
+  phone: string;
   description: string;
+  stockStatus: StockStatus;
   status: ClaimStatus;
   submittedDate: string;
   createdAt: string;
@@ -48,10 +53,20 @@ export type RepairJob = {
   description: string;
   status: RepairStatus;
   revenueAmount: number;
+  dealType: string;
   startedDate: string;
   completedDate: string | null;
   createdAt: string;
+  // Restore Bike only — mirrors the "PIC / N.PLATE / MODEL / TAHUN /
+  // CONDITION / MECHANIC / LOCATION / ..." tracking sheet.
+  picName: string;
+  model: string;
+  bikeYear: string;
+  condition: string;
+  location: string;
 };
+
+export const DEAL_TYPES = ["Trade In", "Sell", "Others"] as const;
 
 export type GenbluRegistration = {
   id: string;

@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { supabaseAdmin } from "./supabase-server";
 import { requireApproved, assertCanEditBranch } from "./current-user";
-import type { WarrantyClaim, ClaimStatus } from "./types";
+import type { WarrantyClaim, ClaimStatus, StockStatus } from "./types";
 import type { Branch } from "./branch";
 
 type Row = {
@@ -12,7 +12,10 @@ type Row = {
   claim_no: string;
   customer_name: string;
   plate_no: string;
+  model: string;
+  phone: string;
   description: string;
+  stock_status: StockStatus;
   status: ClaimStatus;
   submitted_date: string;
   created_at: string;
@@ -22,10 +25,13 @@ function toClaim(r: Row): WarrantyClaim {
   return {
     id: r.id,
     branch: r.branch,
-    claimNo: r.claim_no,
+    ticketId: r.claim_no,
     customerName: r.customer_name,
     plateNo: r.plate_no,
+    model: r.model,
+    phone: r.phone,
     description: r.description,
+    stockStatus: r.stock_status,
     status: r.status,
     submittedDate: r.submitted_date,
     createdAt: r.created_at,
@@ -45,29 +51,40 @@ export async function getWarrantyClaims(branch: Branch): Promise<WarrantyClaim[]
 
 export async function addWarrantyClaimAction(input: {
   branch: Branch;
+  ticketId: string;
   customerName: string;
   plateNo: string;
+  model: string;
+  phone: string;
   description: string;
+  stockStatus: StockStatus;
   submittedDate: string;
-}): Promise<void> {
+}): Promise<{ error: string } | void> {
   const user = await requireApproved();
   assertCanEditBranch(user, input.branch);
-  const { count } = await supabaseAdmin
-    .from("cc_warranty_claims")
-    .select("*", { count: "exact", head: true })
-    .eq("branch", input.branch);
-  const claimNo = `WC-${input.branch.toUpperCase()}-${String((count ?? 0) + 1).padStart(4, "0")}`;
+
+  if (!input.description.trim()) {
+    return { error: "Please describe the issue before saving." };
+  }
+  if (!input.ticketId.trim() || !input.customerName.trim() || !input.plateNo.trim()) {
+    return { error: "Ticket ID, customer name, and plate number are required." };
+  }
+
   const { error } = await supabaseAdmin.from("cc_warranty_claims").insert({
     branch: input.branch,
-    claim_no: claimNo,
-    customer_name: input.customerName,
-    plate_no: input.plateNo,
-    description: input.description,
+    claim_no: input.ticketId.trim(),
+    customer_name: input.customerName.trim(),
+    plate_no: input.plateNo.trim(),
+    model: input.model.trim(),
+    phone: input.phone.trim(),
+    description: input.description.trim(),
+    stock_status: input.stockStatus,
     submitted_date: input.submittedDate,
-    status: "Submitted",
+    status: "Pending",
   });
-  if (error) throw new Error(error.message);
+  if (error) return { error: error.message };
   revalidatePath("/warranty-claims");
+  revalidatePath("/");
 }
 
 export async function updateClaimStatusAction(id: string, branch: Branch, status: ClaimStatus): Promise<void> {
@@ -76,4 +93,21 @@ export async function updateClaimStatusAction(id: string, branch: Branch, status
   const { error } = await supabaseAdmin.from("cc_warranty_claims").update({ status }).eq("id", id);
   if (error) throw new Error(error.message);
   revalidatePath("/warranty-claims");
+}
+
+export async function updateClaimStockStatusAction(id: string, branch: Branch, stockStatus: StockStatus): Promise<void> {
+  const user = await requireApproved();
+  assertCanEditBranch(user, branch);
+  const { error } = await supabaseAdmin.from("cc_warranty_claims").update({ stock_status: stockStatus }).eq("id", id);
+  if (error) throw new Error(error.message);
+  revalidatePath("/warranty-claims");
+}
+
+export async function deleteClaimAction(id: string, branch: Branch): Promise<void> {
+  const user = await requireApproved();
+  assertCanEditBranch(user, branch);
+  const { error } = await supabaseAdmin.from("cc_warranty_claims").delete().eq("id", id);
+  if (error) throw new Error(error.message);
+  revalidatePath("/warranty-claims");
+  revalidatePath("/");
 }

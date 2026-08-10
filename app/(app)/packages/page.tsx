@@ -1,6 +1,6 @@
 import { requirePageContext, requirePage } from "@/lib/current-user";
 import { getPackages, getPackageSales, getPackageSoldCounts } from "@/lib/packages-actions";
-import { getMechanics } from "@/lib/mechanics-actions";
+import { getAllMechanics } from "@/lib/mechanics-actions";
 import { branchLabel } from "@/lib/branch";
 import PageHeader from "@/components/PageHeader";
 import PackagesClient from "./PackagesClient";
@@ -14,7 +14,7 @@ export default async function PackagesPage() {
     getPackages(),
     getPackageSales(branch),
     getPackageSoldCounts(branch),
-    getMechanics(branch),
+    getAllMechanics(),
   ]);
 
   return (

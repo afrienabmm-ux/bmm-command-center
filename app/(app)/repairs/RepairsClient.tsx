@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { Plus, Download } from "lucide-react";
 import { addRepairJobAction, updateRepairStatusAction } from "@/lib/repairs-actions";
 import { exportRepairJobsCsv } from "@/lib/export-actions";
-import { JOB_TYPES, REPAIR_STATUSES, type JobType, type RepairStatus, type RepairJob } from "@/lib/types";
+import { JOB_TYPES, REPAIR_STATUSES, DEAL_TYPES, type JobType, type RepairStatus, type RepairJob } from "@/lib/types";
 import type { Mechanic } from "@/lib/types";
 import type { Branch } from "@/lib/branch";
 import { formatCurrency, formatDate, daysBetween } from "@/lib/format";
@@ -123,38 +123,112 @@ export default function RepairsClient({
 
       <div className="bg-white border border-neutral-200 rounded-xl overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="text-left text-xs text-neutral-500 border-b border-neutral-200">
-                <th className="font-medium px-5 py-3 whitespace-nowrap">Job No.</th>
-                <th className="font-medium px-5 py-3 whitespace-nowrap">Customer</th>
-                <th className="font-medium px-5 py-3 whitespace-nowrap">Plate No.</th>
-                <th className="font-medium px-5 py-3 whitespace-nowrap">Type</th>
-                <th className="font-medium px-5 py-3 whitespace-nowrap">Mechanic</th>
-                <th className="font-medium px-5 py-3 whitespace-nowrap">Revenue</th>
-                <th className="font-medium px-5 py-3 whitespace-nowrap">Days</th>
-                <th className="font-medium px-5 py-3 whitespace-nowrap">Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {jobs.map((job) => (
-                <JobRow key={job.id} job={job} branch={branch} mechanicLabel={mechanicLabel(job.mechanicId)} editable={tab === "active"} />
-              ))}
-              {jobs.length === 0 && (
-                <tr>
-                  <td colSpan={8} className="px-5 py-10 text-center text-neutral-500 text-sm">
-                    {tab === "active" ? "No active" : "No completed"}
-                    {typeFilter === "All" ? " repair jobs." : ` ${typeFilter} jobs.`}
-                  </td>
+          {typeFilter === "Restore Bike" ? (
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left text-xs text-neutral-500 border-b border-neutral-200">
+                  <th className="font-medium px-5 py-3 whitespace-nowrap">No.</th>
+                  <th className="font-medium px-5 py-3 whitespace-nowrap">PIC</th>
+                  <th className="font-medium px-5 py-3 whitespace-nowrap">N. Plate</th>
+                  <th className="font-medium px-5 py-3 whitespace-nowrap">Model</th>
+                  <th className="font-medium px-5 py-3 whitespace-nowrap">Tahun</th>
+                  <th className="font-medium px-5 py-3 whitespace-nowrap">Condition</th>
+                  <th className="font-medium px-5 py-3 whitespace-nowrap">Mechanic</th>
+                  <th className="font-medium px-5 py-3 whitespace-nowrap">Location</th>
+                  <th className="font-medium px-5 py-3 whitespace-nowrap">Start Date</th>
+                  <th className="font-medium px-5 py-3 whitespace-nowrap">End Date</th>
+                  <th className="font-medium px-5 py-3 whitespace-nowrap">Cost Restore</th>
+                  <th className="font-medium px-5 py-3 whitespace-nowrap">Remark</th>
+                  <th className="font-medium px-5 py-3 whitespace-nowrap">Trade In / Jual</th>
+                  <th className="font-medium px-5 py-3 whitespace-nowrap">Status</th>
                 </tr>
-              )}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {jobs.map((job, i) => (
+                  <RestoreBikeRow
+                    key={job.id}
+                    no={i + 1}
+                    job={job}
+                    branch={branch}
+                    mechanicLabel={mechanicLabel(job.mechanicId)}
+                    editable={tab === "active"}
+                  />
+                ))}
+                {jobs.length === 0 && (
+                  <tr>
+                    <td colSpan={14} className="px-5 py-10 text-center text-neutral-500 text-sm">
+                      {tab === "active" ? "No active" : "No completed"} Restore Bike jobs.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          ) : (
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left text-xs text-neutral-500 border-b border-neutral-200">
+                  <th className="font-medium px-5 py-3 whitespace-nowrap">Job No.</th>
+                  <th className="font-medium px-5 py-3 whitespace-nowrap">Customer</th>
+                  <th className="font-medium px-5 py-3 whitespace-nowrap">Plate No.</th>
+                  <th className="font-medium px-5 py-3 whitespace-nowrap">Type</th>
+                  <th className="font-medium px-5 py-3 whitespace-nowrap">Mechanic</th>
+                  <th className="font-medium px-5 py-3 whitespace-nowrap">Cost Total</th>
+                  <th className="font-medium px-5 py-3 whitespace-nowrap">Trade-in/Sell</th>
+                  <th className="font-medium px-5 py-3 whitespace-nowrap">Days</th>
+                  <th className="font-medium px-5 py-3 whitespace-nowrap">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {jobs.map((job) => (
+                  <JobRow key={job.id} job={job} branch={branch} mechanicLabel={mechanicLabel(job.mechanicId)} editable={tab === "active"} />
+                ))}
+                {jobs.length === 0 && (
+                  <tr>
+                    <td colSpan={9} className="px-5 py-10 text-center text-neutral-500 text-sm">
+                      {tab === "active" ? "No active" : "No completed"}
+                      {typeFilter === "All" ? " repair jobs." : ` ${typeFilter} jobs.`}
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          )}
         </div>
       </div>
 
       {modalOpen && <AddJobModal branch={branch} mechanics={mechanics} onClose={() => setModalOpen(false)} />}
     </div>
+  );
+}
+
+function StatusCell({
+  job,
+  branch,
+  editable,
+  isPending,
+  startTransition,
+}: {
+  job: RepairJob;
+  branch: Branch;
+  editable: boolean;
+  isPending: boolean;
+  startTransition: (fn: () => void) => void;
+}) {
+  return editable ? (
+    <select
+      value={job.status}
+      disabled={isPending}
+      onChange={(e) => startTransition(() => updateRepairStatusAction(job.id, branch, e.target.value as RepairStatus))}
+      className={`text-xs font-medium px-2.5 py-1.5 rounded-full border focus:outline-none disabled:opacity-50 ${STATUS_STYLES[job.status]}`}
+    >
+      {REPAIR_STATUSES.map((s) => (
+        <option key={s} value={s} className="bg-white text-neutral-800">
+          {s}
+        </option>
+      ))}
+    </select>
+  ) : (
+    <span className={`text-xs font-medium px-2.5 py-1 rounded-full border ${STATUS_STYLES[job.status]}`}>{job.status}</span>
   );
 }
 
@@ -184,28 +258,47 @@ function JobRow({
       </td>
       <td className="px-5 py-3.5 text-neutral-600 whitespace-nowrap">{mechanicLabel}</td>
       <td className="px-5 py-3.5 text-neutral-700 whitespace-nowrap">{formatCurrency(job.revenueAmount)}</td>
+      <td className="px-5 py-3.5 text-neutral-600 whitespace-nowrap">{job.dealType || "—"}</td>
       <td className="px-5 py-3.5 text-neutral-500 whitespace-nowrap">{days ?? 0}d</td>
       <td className="px-5 py-3.5">
-        {editable ? (
-          <select
-            value={job.status}
-            disabled={isPending}
-            onChange={(e) =>
-              startTransition(() => updateRepairStatusAction(job.id, branch, e.target.value as RepairStatus))
-            }
-            className={`text-xs font-medium px-2.5 py-1.5 rounded-full border focus:outline-none disabled:opacity-50 ${STATUS_STYLES[job.status]}`}
-          >
-            {REPAIR_STATUSES.map((s) => (
-              <option key={s} value={s} className="bg-white text-neutral-800">
-                {s}
-              </option>
-            ))}
-          </select>
-        ) : (
-          <span className={`text-xs font-medium px-2.5 py-1 rounded-full border ${STATUS_STYLES[job.status]}`}>
-            {job.status}
-          </span>
-        )}
+        <StatusCell job={job} branch={branch} editable={editable} isPending={isPending} startTransition={startTransition} />
+      </td>
+    </tr>
+  );
+}
+
+function RestoreBikeRow({
+  no,
+  job,
+  branch,
+  mechanicLabel,
+  editable,
+}: {
+  no: number;
+  job: RepairJob;
+  branch: Branch;
+  mechanicLabel: string;
+  editable: boolean;
+}) {
+  const [isPending, startTransition] = useTransition();
+
+  return (
+    <tr className="border-b border-neutral-100 last:border-0 hover:bg-neutral-50">
+      <td className="px-5 py-3.5 text-neutral-500 whitespace-nowrap">{no}</td>
+      <td className="px-5 py-3.5 text-neutral-700 whitespace-nowrap">{job.picName || "—"}</td>
+      <td className="px-5 py-3.5 text-neutral-600 whitespace-nowrap">{job.plateNo}</td>
+      <td className="px-5 py-3.5 text-neutral-600 whitespace-nowrap">{job.model || "—"}</td>
+      <td className="px-5 py-3.5 text-neutral-600 whitespace-nowrap">{job.bikeYear || "—"}</td>
+      <td className="px-5 py-3.5 text-neutral-600 whitespace-nowrap">{job.condition || "—"}</td>
+      <td className="px-5 py-3.5 text-neutral-600 whitespace-nowrap">{mechanicLabel}</td>
+      <td className="px-5 py-3.5 text-neutral-600 whitespace-nowrap">{job.location || "—"}</td>
+      <td className="px-5 py-3.5 text-neutral-500 whitespace-nowrap">{formatDate(job.startedDate)}</td>
+      <td className="px-5 py-3.5 text-neutral-500 whitespace-nowrap">{job.completedDate ? formatDate(job.completedDate) : "—"}</td>
+      <td className="px-5 py-3.5 text-neutral-700 whitespace-nowrap">{formatCurrency(job.revenueAmount)}</td>
+      <td className="px-5 py-3.5 text-neutral-600 max-w-xs truncate">{job.description || "—"}</td>
+      <td className="px-5 py-3.5 text-neutral-600 whitespace-nowrap">{job.dealType || "—"}</td>
+      <td className="px-5 py-3.5">
+        <StatusCell job={job} branch={branch} editable={editable} isPending={isPending} startTransition={startTransition} />
       </td>
     </tr>
   );
@@ -226,8 +319,16 @@ function AddJobModal({
   const [mechanicId, setMechanicId] = useState("");
   const [description, setDescription] = useState("");
   const [revenueAmount, setRevenueAmount] = useState("");
+  const [dealType, setDealType] = useState<(typeof DEAL_TYPES)[number]>("Sell");
+  const [customDealType, setCustomDealType] = useState("");
   const [startedDate, setStartedDate] = useState(new Date().toISOString().slice(0, 10));
+  const [picName, setPicName] = useState("");
+  const [model, setModel] = useState("");
+  const [bikeYear, setBikeYear] = useState("");
+  const [condition, setCondition] = useState("");
+  const [location, setLocation] = useState("");
   const [isPending, startTransition] = useTransition();
+  const isRestoreBike = jobType === "Restore Bike";
 
   const canSave = customerName.trim() !== "" && plateNo.trim() !== "";
 
@@ -242,7 +343,13 @@ function AddJobModal({
         mechanicId: mechanicId || null,
         description: description.trim(),
         revenueAmount: Number(revenueAmount) || 0,
+        dealType: isRestoreBike ? (dealType === "Others" ? customDealType.trim() : dealType) : "",
         startedDate,
+        picName: isRestoreBike ? picName.trim() : "",
+        model: isRestoreBike ? model.trim() : "",
+        bikeYear: isRestoreBike ? bikeYear.trim() : "",
+        condition: isRestoreBike ? condition.trim() : "",
+        location: isRestoreBike ? location.trim() : "",
       });
       onClose();
     });
@@ -285,6 +392,60 @@ function AddJobModal({
               ))}
             </select>
           </div>
+          {isRestoreBike && (
+            <>
+              <div>
+                <label className="block text-xs font-medium text-neutral-600 mb-1.5">PIC</label>
+                <input
+                  type="text"
+                  value={picName}
+                  onChange={(e) => setPicName(e.target.value)}
+                  className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-neutral-600 mb-1.5">Model</label>
+                  <input
+                    type="text"
+                    value={model}
+                    onChange={(e) => setModel(e.target.value)}
+                    placeholder="e.g. Y15ZR"
+                    className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-neutral-600 mb-1.5">Tahun</label>
+                  <input
+                    type="text"
+                    value={bikeYear}
+                    onChange={(e) => setBikeYear(e.target.value)}
+                    placeholder="e.g. 2019"
+                    className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-neutral-600 mb-1.5">Condition</label>
+                <input
+                  type="text"
+                  value={condition}
+                  onChange={(e) => setCondition(e.target.value)}
+                  placeholder="e.g. Engine damaged, needs full service"
+                  className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-neutral-600 mb-1.5">Location</label>
+                <input
+                  type="text"
+                  value={location}
+                  onChange={(e) => setLocation(e.target.value)}
+                  className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+                />
+              </div>
+            </>
+          )}
           <div>
             <label className="block text-xs font-medium text-neutral-600 mb-1.5">Mechanic</label>
             <select
@@ -301,7 +462,7 @@ function AddJobModal({
             </select>
           </div>
           <div>
-            <label className="block text-xs font-medium text-neutral-600 mb-1.5">Description</label>
+            <label className="block text-xs font-medium text-neutral-600 mb-1.5">{isRestoreBike ? "Remark" : "Description"}</label>
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
@@ -311,7 +472,7 @@ function AddJobModal({
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-medium text-neutral-600 mb-1.5">Revenue (RM)</label>
+              <label className="block text-xs font-medium text-neutral-600 mb-1.5">{isRestoreBike ? "Cost Restore (RM)" : "Cost Total (RM)"}</label>
               <input
                 type="number"
                 min={0}
@@ -330,6 +491,31 @@ function AddJobModal({
               />
             </div>
           </div>
+          {jobType === "Restore Bike" && (
+            <div>
+              <label className="block text-xs font-medium text-neutral-600 mb-1.5">Trade-in / Sell</label>
+              <select
+                value={dealType}
+                onChange={(e) => setDealType(e.target.value as (typeof DEAL_TYPES)[number])}
+                className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+              >
+                {DEAL_TYPES.map((t) => (
+                  <option key={t} value={t}>
+                    {t}
+                  </option>
+                ))}
+              </select>
+              {dealType === "Others" && (
+                <input
+                  type="text"
+                  value={customDealType}
+                  onChange={(e) => setCustomDealType(e.target.value)}
+                  placeholder="Type what it is"
+                  className="w-full mt-2 bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+                />
+              )}
+            </div>
+          )}
         </div>
         <div className="flex items-center justify-end gap-3 mt-6">
           <button

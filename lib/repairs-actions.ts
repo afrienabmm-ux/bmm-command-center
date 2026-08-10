@@ -17,9 +17,15 @@ type Row = {
   description: string;
   status: RepairStatus;
   revenue_amount: number;
+  deal_type: string;
   started_date: string;
   completed_date: string | null;
   created_at: string;
+  pic_name: string;
+  model: string;
+  bike_year: string;
+  condition: string;
+  location: string;
 };
 
 function toJob(r: Row): RepairJob {
@@ -34,9 +40,15 @@ function toJob(r: Row): RepairJob {
     description: r.description,
     status: r.status,
     revenueAmount: Number(r.revenue_amount),
+    dealType: r.deal_type,
     startedDate: r.started_date,
     completedDate: r.completed_date,
     createdAt: r.created_at,
+    picName: r.pic_name,
+    model: r.model,
+    bikeYear: r.bike_year,
+    condition: r.condition,
+    location: r.location,
   };
 }
 
@@ -75,7 +87,13 @@ export async function addRepairJobAction(input: {
   mechanicId: string | null;
   description: string;
   revenueAmount: number;
+  dealType: string;
   startedDate: string;
+  picName?: string;
+  model?: string;
+  bikeYear?: string;
+  condition?: string;
+  location?: string;
 }): Promise<void> {
   const user = await requireApproved();
   assertCanEditBranch(user, input.branch);
@@ -93,8 +111,14 @@ export async function addRepairJobAction(input: {
     mechanic_id: input.mechanicId,
     description: input.description,
     revenue_amount: input.revenueAmount,
+    deal_type: input.dealType,
     started_date: input.startedDate,
     status: "Pending",
+    pic_name: input.picName ?? "",
+    model: input.model ?? "",
+    bike_year: input.bikeYear ?? "",
+    condition: input.condition ?? "",
+    location: input.location ?? "",
   });
   if (error) throw new Error(error.message);
   revalidatePath("/repairs");

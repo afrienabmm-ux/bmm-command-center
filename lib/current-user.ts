@@ -6,7 +6,7 @@ import type { Branch, BranchSelection } from "./branch";
 import { getSelectedBranch, getRawBranchSelection } from "./branch-server";
 import { resolveAllowedPages, type PageKey } from "./permissions";
 
-export type Role = "Manager" | "Admin" | "Mechanic PIC";
+export type Role = "Manager" | "Admin" | "Mechanic PIC" | "IT";
 export type ProfileStatus = "pending" | "approved" | "revoked";
 
 export type CurrentUser = {
@@ -72,6 +72,17 @@ export async function requireManager(): Promise<CurrentUser> {
   return user;
 }
 
+// IT gets a narrow slice of Manager power: just enough to see the team list
+// and reset a locked-out person's password. Everything else (roles,
+// branches, approvals, revoke/delete) stays Manager-only.
+export async function requireManagerOrIT(): Promise<CurrentUser> {
+  const user = await requireApproved();
+  if (user.role !== "Manager" && user.role !== "IT") {
+    throw new Error("Only a Manager or IT can do this.");
+  }
+  return user;
+}
+
 export function hasPageAccess(user: CurrentUser, page: PageKey): boolean {
   return user.pages.includes(page);
 }
@@ -88,10 +99,11 @@ export function canViewAllBranches(user: CurrentUser): boolean {
   return user.role === "Admin" || user.role === "Manager";
 }
 
-// Only a Manager can look at every branch at once (the "All Branches" option
-// in the switcher) — Admin still switches between branches one at a time.
+// Manager and Admin can both look at every branch at once (the "All
+// Branches" option in the switcher) — Mechanic PIC and IT stay on their own
+// branch.
 export function canViewAllBranchesAtOnce(user: CurrentUser): boolean {
-  return user.role === "Manager";
+  return canViewAllBranches(user);
 }
 
 export async function getActiveBranch(user: CurrentUser): Promise<Branch> {

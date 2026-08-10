@@ -21,6 +21,7 @@ const DEFAULT_PAGES_BY_ROLE: Record<Role, PageKey[]> = {
   Manager: ALL_PAGE_KEYS,
   Admin: ALL_PAGE_KEYS,
   "Mechanic PIC": ["warranty-claims", "repairs", "mechanics", "genblu", "packages"],
+  IT: [],
 };
 
 // Manager always sees every function — access control is theirs to hand out,

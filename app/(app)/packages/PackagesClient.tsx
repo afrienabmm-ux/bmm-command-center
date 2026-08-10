@@ -11,7 +11,7 @@ import {
 } from "@/lib/packages-actions";
 import { exportPackageSalesCsv } from "@/lib/export-actions";
 import { formatCurrency, formatDate } from "@/lib/format";
-import { branchLabel, type Branch } from "@/lib/branch";
+import { BRANCHES, branchLabel, type Branch } from "@/lib/branch";
 import type { Package, Mechanic } from "@/lib/types";
 
 export default function PackagesClient({
@@ -333,17 +333,19 @@ function RecordSaleModal({
 }) {
   const [receiptId, setReceiptId] = useState("");
   const [packageId, setPackageId] = useState(packages[0]?.id ?? "");
+  const [saleBranch, setSaleBranch] = useState<Branch>(branch);
   const [mechanicId, setMechanicId] = useState("");
   const [saleDate, setSaleDate] = useState(new Date().toISOString().slice(0, 10));
   const [isPending, startTransition] = useTransition();
 
+  const branchMechanics = mechanics.filter((m) => m.branch === saleBranch);
   const canSave = receiptId.trim() !== "" && packageId !== "";
 
   function handleSave() {
     if (!canSave) return;
     startTransition(async () => {
       await addPackageSaleAction({
-        branch,
+        branch: saleBranch,
         packageId,
         mechanicId: mechanicId || null,
         receiptId: receiptId.trim(),
@@ -383,6 +385,23 @@ function RecordSaleModal({
             </select>
           </div>
           <div>
+            <label className="block text-xs font-medium text-neutral-600 mb-1.5">Branch *</label>
+            <select
+              value={saleBranch}
+              onChange={(e) => {
+                setSaleBranch(e.target.value as Branch);
+                setMechanicId("");
+              }}
+              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+            >
+              {BRANCHES.map((b) => (
+                <option key={b.value} value={b.value}>
+                  {b.label}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
             <label className="block text-xs font-medium text-neutral-600 mb-1.5">Mechanic (Foreman)</label>
             <select
               value={mechanicId}
@@ -390,12 +409,15 @@ function RecordSaleModal({
               className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
             >
               <option value="">Unassigned</option>
-              {mechanics.map((m) => (
+              {branchMechanics.map((m) => (
                 <option key={m.id} value={m.id}>
                   {m.shortName} ({m.shortCode})
                 </option>
               ))}
             </select>
+            {branchMechanics.length === 0 && (
+              <p className="text-xs text-neutral-500 mt-1">No mechanics added for this branch yet.</p>
+            )}
           </div>
           <div>
             <label className="block text-xs font-medium text-neutral-600 mb-1.5">Date</label>
