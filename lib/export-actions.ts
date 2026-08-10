@@ -6,6 +6,7 @@ import { getPackageSales } from "./packages-actions";
 import { getActiveRepairJobs, getCompletedRepairJobs } from "./repairs-actions";
 import { toCsv, monthLabel, formatDate, daysBetween } from "./format";
 import type { Branch } from "./branch";
+import type { JobType } from "./types";
 
 export async function exportYearlySummaryCsv(branch: Branch, year: number): Promise<string> {
   await requireApproved();
@@ -50,11 +51,13 @@ export async function exportPackageSalesCsv(branch: Branch): Promise<string> {
   return toCsv(["Receipt ID", "Package Name", "Mechanic", "Date"], rows);
 }
 
-export async function exportRepairJobsCsv(branch: Branch): Promise<string> {
+export async function exportRepairJobsCsv(branch: Branch, jobType?: JobType): Promise<string> {
   await requireApproved();
   const [active, completed] = await Promise.all([getActiveRepairJobs(branch), getCompletedRepairJobs(branch)]);
   const today = new Date().toISOString().slice(0, 10);
-  const rows = [...active, ...completed].map((j) => [
+  const all = [...active, ...completed];
+  const filtered = jobType ? all.filter((j) => j.jobType === jobType) : all;
+  const rows = filtered.map((j) => [
     j.jobNo,
     j.customerName,
     j.plateNo,

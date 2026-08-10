@@ -32,9 +32,11 @@ export default function RepairsClient({
   branch: Branch;
 }) {
   const [tab, setTab] = useState<"active" | "completed">("active");
+  const [typeFilter, setTypeFilter] = useState<JobType | "All">("All");
   const [modalOpen, setModalOpen] = useState(false);
   const [exporting, setExporting] = useState(false);
-  const jobs = tab === "active" ? active : completed;
+  const baseJobs = tab === "active" ? active : completed;
+  const jobs = typeFilter === "All" ? baseJobs : baseJobs.filter((j) => j.jobType === typeFilter);
 
   function mechanicLabel(id: string | null) {
     if (!id) return "—";
@@ -45,12 +47,13 @@ export default function RepairsClient({
   async function handleExport() {
     setExporting(true);
     try {
-      const csv = await exportRepairJobsCsv(branch);
+      const csv = await exportRepairJobsCsv(branch, typeFilter === "All" ? undefined : typeFilter);
       const blob = new Blob([csv], { type: "text/csv" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `bmm-repairs-${branch}.csv`;
+      const suffix = typeFilter === "All" ? "" : `-${typeFilter.toLowerCase().replace(/\s+/g, "-")}`;
+      a.download = `bmm-repairs-${branch}${suffix}.csv`;
       a.click();
       URL.revokeObjectURL(url);
     } finally {
@@ -83,9 +86,14 @@ export default function RepairsClient({
           <button
             onClick={handleExport}
             disabled={exporting}
-            className="flex items-center gap-1.5 bg-neutral-100 hover:bg-neutral-200 disabled:opacity-50 text-neutral-800 text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+            className="flex items-center gap-1.5 bg-neutral-100 hover:bg-neutral-200 disabled:opacity-50 text-neutral-800 text-sm font-medium px-4 py-2 rounded-lg transition-colors whitespace-nowrap"
           >
-            <Download size={15} /> {exporting ? "Exporting…" : "Export to Excel / CSV"}
+            <Download size={15} />
+            {exporting
+              ? "Exporting…"
+              : typeFilter === "All"
+                ? "Export to Excel / CSV"
+                : `Export ${typeFilter} Only`}
           </button>
           <button
             onClick={() => setModalOpen(true)}
@@ -93,6 +101,23 @@ export default function RepairsClient({
           >
             <Plus size={15} /> Add Job
           </button>
+        </div>
+      </div>
+
+      <div className="flex items-center gap-2 mb-4">
+        <span className="text-xs font-medium text-neutral-500">Type:</span>
+        <div className="flex gap-1 bg-white border border-neutral-200 rounded-lg p-1">
+          {(["All", ...JOB_TYPES] as const).map((t) => (
+            <button
+              key={t}
+              onClick={() => setTypeFilter(t)}
+              className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors whitespace-nowrap ${
+                typeFilter === t ? "bg-indigo-500 text-white" : "text-neutral-600 hover:text-neutral-800"
+              }`}
+            >
+              {t === "All" ? "All Types" : t}
+            </button>
+          ))}
         </div>
       </div>
 
@@ -118,7 +143,8 @@ export default function RepairsClient({
               {jobs.length === 0 && (
                 <tr>
                   <td colSpan={8} className="px-5 py-10 text-center text-neutral-500 text-sm">
-                    {tab === "active" ? "No active repair jobs." : "No completed jobs yet."}
+                    {tab === "active" ? "No active" : "No completed"}
+                    {typeFilter === "All" ? " repair jobs." : ` ${typeFilter} jobs.`}
                   </td>
                 </tr>
               )}
