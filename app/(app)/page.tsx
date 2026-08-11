@@ -23,7 +23,7 @@ export default async function CommandCenterPage({
   return (
     <div className="flex flex-col h-full">
       <PageHeader
-        title="Command Center"
+        title="Dashboard"
         subtitle="All branches — after-sales overview"
         action={<MonthPicker year={year} month={month} />}
       />

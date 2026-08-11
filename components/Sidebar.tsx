@@ -19,7 +19,7 @@ import type { Role } from "@/lib/current-user";
 import type { PageKey } from "@/lib/permissions";
 
 const links: { href: string; label: string; icon: typeof LayoutDashboard; page: PageKey | null }[] = [
-  { href: "/", label: "Command Center", icon: LayoutDashboard, page: null },
+  { href: "/", label: "Dashboard", icon: LayoutDashboard, page: null },
   { href: "/warranty-claims", label: "Warranty Claims", icon: ShieldCheck, page: "warranty-claims" },
   { href: "/repairs", label: "Workshop Repairs", icon: Wrench, page: "repairs" },
   { href: "/mechanics", label: "Mechanics", icon: MechanicIcon, page: "mechanics" },
