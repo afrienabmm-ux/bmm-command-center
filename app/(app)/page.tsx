@@ -1,5 +1,6 @@
 import { requireApproved } from "@/lib/current-user";
 import PageHeader from "@/components/PageHeader";
+import MonthPicker from "@/components/MonthPicker";
 import AllBranchesOverview from "./AllBranchesOverview";
 
 export const dynamic = "force-dynamic";
@@ -21,7 +22,11 @@ export default async function CommandCenterPage({
 
   return (
     <div className="flex flex-col h-full">
-      <PageHeader title="Command Center" subtitle="All branches — after-sales overview" />
+      <PageHeader
+        title="Command Center"
+        subtitle="All branches — after-sales overview"
+        action={<MonthPicker year={year} month={month} />}
+      />
       <div className="p-8">
         <AllBranchesOverview year={year} month={month} />
       </div>

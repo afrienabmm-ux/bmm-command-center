@@ -61,12 +61,18 @@ export async function setMonthlyTargetAction(
 // setMonthlyTargetAction instead if you want to fine-tune just one branch.
 export async function setCombinedMonthlyTargetAction(year: number, month: number, overallAmount: number): Promise<void> {
   await requireAdmin();
-  const perBranch = Math.round((overallAmount / BRANCHES.length) * 100) / 100;
-  const rows = BRANCHES.map(({ value: branch }) => ({
+  // Split in whole cents and hand any leftover cents to the first few
+  // branches, so the 3 per-branch targets always sum back to exactly the
+  // overall amount (splitting 170000 evenly by rounding each share to
+  // 56666.67 would otherwise total 170000.01).
+  const totalCents = Math.round(overallAmount * 100);
+  const baseCents = Math.floor(totalCents / BRANCHES.length);
+  const remainderCents = totalCents - baseCents * BRANCHES.length;
+  const rows = BRANCHES.map(({ value: branch }, i) => ({
     branch,
     year,
     month,
-    target_amount: perBranch,
+    target_amount: (baseCents + (i < remainderCents ? 1 : 0)) / 100,
     updated_at: new Date().toISOString(),
   }));
   const { error } = await supabaseAdmin.from("cc_monthly_targets").upsert(rows, { onConflict: "branch,year,month" });
