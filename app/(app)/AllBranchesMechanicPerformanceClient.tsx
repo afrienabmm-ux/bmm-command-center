@@ -1,18 +1,28 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { Crown, Wrench, Download } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { Crown, Wrench, Download, ChevronDown, ChevronUp } from "lucide-react";
 import { formatCurrency, toCsv } from "@/lib/format";
 import { BRANCHES, branchLabel, type BranchSelection } from "@/lib/branch";
 import type { MechanicPerformanceRowWithBranch } from "@/lib/reports-actions";
 
+const COLLAPSED_COUNT = 5;
+
 export default function AllBranchesMechanicPerformanceClient({ rows }: { rows: MechanicPerformanceRowWithBranch[] }) {
   const [branchFilter, setBranchFilter] = useState<BranchSelection>("all");
+  const [showAll, setShowAll] = useState(false);
 
   const filtered = useMemo(
     () => (branchFilter === "all" ? rows : rows.filter((r) => r.branch === branchFilter)),
     [rows, branchFilter]
   );
+
+  useEffect(() => {
+    setShowAll(false);
+  }, [branchFilter]);
+
+  const visible = showAll ? filtered : filtered.slice(0, COLLAPSED_COUNT);
+  const hiddenCount = filtered.length - visible.length;
 
   const topRestoreBikeId = filtered.reduce<{ id: string; revenue: number } | null>((top, r) => {
     if (r.restoreBikeRevenue > 0 && (!top || r.restoreBikeRevenue > top.revenue)) {
@@ -87,7 +97,7 @@ export default function AllBranchesMechanicPerformanceClient({ rows }: { rows: M
             </tr>
           </thead>
           <tbody>
-            {filtered.map((r, i) => (
+            {visible.map((r, i) => (
               <tr key={r.mechanicId} className="border-b border-neutral-100 last:border-0 hover:bg-neutral-50">
                 <td className="px-5 py-3.5 text-neutral-800 font-medium whitespace-nowrap">
                   <span className="inline-flex items-center gap-1.5">
@@ -125,6 +135,24 @@ export default function AllBranchesMechanicPerformanceClient({ rows }: { rows: M
           </tbody>
         </table>
       </div>
+      {filtered.length > COLLAPSED_COUNT && (
+        <div className="px-5 py-3 border-t border-neutral-200">
+          <button
+            onClick={() => setShowAll((v) => !v)}
+            className="flex items-center gap-1.5 text-sm font-medium text-indigo-600 hover:text-indigo-700 transition-colors"
+          >
+            {showAll ? (
+              <>
+                <ChevronUp size={15} /> Show Less
+              </>
+            ) : (
+              <>
+                <ChevronDown size={15} /> View All ({hiddenCount} more)
+              </>
+            )}
+          </button>
+        </div>
+      )}
     </div>
   );
 }
