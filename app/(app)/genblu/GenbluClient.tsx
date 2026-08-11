@@ -3,8 +3,8 @@
 import { useState, useTransition } from "react";
 import { Plus, ImageIcon, Download, X, Pencil, Trash2 } from "lucide-react";
 import { addGenbluRegistrationAction, updateGenbluRegistrationAction, deleteGenbluRegistrationAction } from "@/lib/genblu-actions";
-import { exportGenbluCsv } from "@/lib/export-actions";
-import { BRANCHES, branchLabel, type Branch } from "@/lib/branch";
+import { exportGenbluCsv, exportAllBranchesGenbluCsv } from "@/lib/export-actions";
+import { BRANCHES, branchLabel, type Branch, type BranchSelection } from "@/lib/branch";
 import { formatDate } from "@/lib/format";
 import type { Mechanic } from "@/lib/types";
 
@@ -22,11 +22,13 @@ export default function GenbluClient({
   registrations,
   mechanics,
   branch,
+  branchSelection,
   locked,
 }: {
   registrations: RegWithUrl[];
   mechanics: Mechanic[];
   branch: Branch;
+  branchSelection: BranchSelection;
   locked: boolean;
 }) {
   const [modalOpen, setModalOpen] = useState(false);
@@ -41,13 +43,16 @@ export default function GenbluClient({
   async function handleExport() {
     setExporting(true);
     try {
-      const csv = await exportGenbluCsv(branch, fromDate || undefined, toDate || undefined);
+      const showAllBranches = branchSelection === "all";
+      const csv = showAllBranches
+        ? await exportAllBranchesGenbluCsv(fromDate || undefined, toDate || undefined)
+        : await exportGenbluCsv(branch, fromDate || undefined, toDate || undefined);
       const blob = new Blob([csv], { type: "text/csv" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
       const suffix = fromDate || toDate ? `-${fromDate || "start"}_${toDate || "end"}` : "";
-      a.download = `bmm-genblu-${branch}${suffix}.csv`;
+      a.download = `bmm-genblu-${showAllBranches ? "all" : branch}${suffix}.csv`;
       a.click();
       URL.revokeObjectURL(url);
     } finally {

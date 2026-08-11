@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { supabaseAdmin } from "./supabase-server";
 import { requireApproved, assertCanEditBranch } from "./current-user";
 import type { GenbluRegistration } from "./types";
-import type { Branch } from "./branch";
+import { BRANCHES, type Branch } from "./branch";
 
 const BUCKET = "genblu-screenshots";
 
@@ -39,6 +39,13 @@ export async function getGenbluRegistrations(branch: Branch): Promise<GenbluRegi
     .order("created_at", { ascending: false });
   if (error) throw new Error(error.message);
   return (data as Row[]).map(toReg);
+}
+
+// Same as getGenbluRegistrations, but merged across all 3 branches for the
+// "All Branches" combined view.
+export async function getAllBranchesGenbluRegistrations(): Promise<GenbluRegistration[]> {
+  const perBranch = await Promise.all(BRANCHES.map(({ value }) => getGenbluRegistrations(value)));
+  return perBranch.flat().sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
 }
 
 export async function getScreenshotUrl(path: string): Promise<string | null> {

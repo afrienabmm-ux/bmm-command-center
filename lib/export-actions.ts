@@ -6,7 +6,7 @@ import { getPackageSales, getAllBranchesPackageSales } from "./packages-actions"
 import { getActiveRepairJobs, getCompletedRepairJobs } from "./repairs-actions";
 import { getMechanics } from "./mechanics-actions";
 import { getWarrantyClaims } from "./claims-actions";
-import { getGenbluRegistrations } from "./genblu-actions";
+import { getGenbluRegistrations, getAllBranchesGenbluRegistrations } from "./genblu-actions";
 import { toCsv, monthLabel, formatDate, daysBetween } from "./format";
 import { BRANCHES, branchLabel, type Branch } from "./branch";
 import type { JobType, ClaimStatus } from "./types";
@@ -210,4 +210,23 @@ export async function exportGenbluCsv(branch: Branch, fromDate?: string, toDate?
     formatDate(r.createdAt),
   ]);
   return toCsv(["Salesperson", "Code", "Customer Plate No", "Date"], rows);
+}
+
+export async function exportAllBranchesGenbluCsv(fromDate?: string, toDate?: string): Promise<string> {
+  await requireApproved();
+  const registrations = await getAllBranchesGenbluRegistrations();
+  const filtered = registrations.filter((r) => {
+    const day = r.createdAt.slice(0, 10);
+    if (fromDate && day < fromDate) return false;
+    if (toDate && day > toDate) return false;
+    return true;
+  });
+  const rows = filtered.map((r) => [
+    r.salespersonName,
+    r.salespersonCode,
+    r.customerPlateNo,
+    branchLabel(r.branch),
+    formatDate(r.createdAt),
+  ]);
+  return toCsv(["Salesperson", "Code", "Customer Plate No", "Branch", "Date"], rows);
 }
