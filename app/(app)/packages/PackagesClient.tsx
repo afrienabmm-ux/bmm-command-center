@@ -11,7 +11,7 @@ import {
 } from "@/lib/packages-actions";
 import { exportPackageSalesCsv } from "@/lib/export-actions";
 import { formatCurrency, formatDate } from "@/lib/format";
-import { BRANCHES, branchLabel, type Branch } from "@/lib/branch";
+import { BRANCHES, branchLabel, type Branch, type BranchSelection } from "@/lib/branch";
 import type { Package, Mechanic } from "@/lib/types";
 
 export default function PackagesClient({
@@ -20,6 +20,8 @@ export default function PackagesClient({
   soldCounts,
   mechanics,
   branch,
+  branchSelection,
+  locked,
   isAdmin,
 }: {
   packages: Package[];
@@ -27,6 +29,8 @@ export default function PackagesClient({
   soldCounts: Record<string, number>;
   mechanics: Mechanic[];
   branch: Branch;
+  branchSelection: BranchSelection;
+  locked: boolean;
   isAdmin: boolean;
 }) {
   const [addPackageOpen, setAddPackageOpen] = useState(false);
@@ -144,7 +148,13 @@ export default function PackagesClient({
 
       {addPackageOpen && <AddPackageModal onClose={() => setAddPackageOpen(false)} />}
       {recordSaleOpen && (
-        <RecordSaleModal branch={branch} packages={packages} mechanics={mechanics} onClose={() => setRecordSaleOpen(false)} />
+        <RecordSaleModal
+          branchSelection={branchSelection}
+          locked={locked}
+          packages={packages}
+          mechanics={mechanics}
+          onClose={() => setRecordSaleOpen(false)}
+        />
       )}
     </div>
   );
@@ -321,31 +331,35 @@ function AddPackageModal({ onClose }: { onClose: () => void }) {
 }
 
 function RecordSaleModal({
-  branch,
+  branchSelection,
+  locked,
   packages,
   mechanics,
   onClose,
 }: {
-  branch: Branch;
+  branchSelection: BranchSelection;
+  locked: boolean;
   packages: Package[];
   mechanics: Mechanic[];
   onClose: () => void;
 }) {
   const [receiptId, setReceiptId] = useState("");
   const [packageId, setPackageId] = useState(packages[0]?.id ?? "");
-  const [saleBranch, setSaleBranch] = useState<Branch>(branch);
+  const [saleBranch, setSaleBranch] = useState<BranchSelection>(branchSelection);
   const [mechanicId, setMechanicId] = useState("");
   const [saleDate, setSaleDate] = useState(new Date().toISOString().slice(0, 10));
   const [isPending, startTransition] = useTransition();
 
-  const branchMechanics = mechanics.filter((m) => m.branch === saleBranch);
-  const canSave = receiptId.trim() !== "" && packageId !== "";
+  const branchMechanics = saleBranch === "all" ? mechanics : mechanics.filter((m) => m.branch === saleBranch);
+  const selectedMechanic = branchMechanics.find((m) => m.id === mechanicId) ?? null;
+  const effectiveBranch: Branch | null = saleBranch !== "all" ? saleBranch : (selectedMechanic?.branch ?? null);
+  const canSave = receiptId.trim() !== "" && packageId !== "" && effectiveBranch !== null;
 
   function handleSave() {
-    if (!canSave) return;
+    if (!canSave || !effectiveBranch) return;
     startTransition(async () => {
       await addPackageSaleAction({
-        branch: saleBranch,
+        branch: effectiveBranch,
         packageId,
         mechanicId: mechanicId || null,
         receiptId: receiptId.trim(),
@@ -388,18 +402,23 @@ function RecordSaleModal({
             <label className="block text-xs font-medium text-neutral-600 mb-1.5">Branch *</label>
             <select
               value={saleBranch}
+              disabled={locked}
               onChange={(e) => {
-                setSaleBranch(e.target.value as Branch);
+                setSaleBranch(e.target.value as BranchSelection);
                 setMechanicId("");
               }}
-              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50 disabled:opacity-60"
             >
               {BRANCHES.map((b) => (
                 <option key={b.value} value={b.value}>
                   {b.label}
                 </option>
               ))}
+              {!locked && <option value="all">All Branches</option>}
             </select>
+            {saleBranch === "all" && !selectedMechanic && (
+              <p className="text-xs text-amber-700 mt-1.5">Pick a mechanic below to set which branch this sale belongs to.</p>
+            )}
           </div>
           <div>
             <label className="block text-xs font-medium text-neutral-600 mb-1.5">Mechanic (Foreman)</label>
@@ -412,6 +431,7 @@ function RecordSaleModal({
               {branchMechanics.map((m) => (
                 <option key={m.id} value={m.id}>
                   {m.shortName} ({m.shortCode})
+                  {saleBranch === "all" ? ` — ${branchLabel(m.branch)}` : ""}
                 </option>
               ))}
             </select>

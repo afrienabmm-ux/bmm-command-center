@@ -1,4 +1,4 @@
-import { requirePageContext, requirePage } from "@/lib/current-user";
+import { requirePageContext, requirePage, getActiveBranchSelection, canViewAllBranches } from "@/lib/current-user";
 import { getPackages, getPackageSales, getPackageSoldCounts } from "@/lib/packages-actions";
 import { getAllMechanics } from "@/lib/mechanics-actions";
 import { branchLabel } from "@/lib/branch";
@@ -10,11 +10,12 @@ export const dynamic = "force-dynamic";
 export default async function PackagesPage() {
   await requirePage("packages");
   const { user, branch } = await requirePageContext();
-  const [packages, sales, soldCounts, mechanics] = await Promise.all([
+  const [packages, sales, soldCounts, mechanics, branchSelection] = await Promise.all([
     getPackages(),
     getPackageSales(branch),
     getPackageSoldCounts(branch),
     getAllMechanics(),
+    getActiveBranchSelection(user),
   ]);
 
   return (
@@ -27,6 +28,8 @@ export default async function PackagesPage() {
           soldCounts={soldCounts}
           mechanics={mechanics}
           branch={branch}
+          branchSelection={branchSelection}
+          locked={!canViewAllBranches(user)}
           isAdmin={user.role === "Admin" || user.role === "Manager"}
         />
       </div>

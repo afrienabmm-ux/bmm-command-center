@@ -6,7 +6,7 @@ import { addRepairJobAction, updateRepairStatusAction } from "@/lib/repairs-acti
 import { exportRepairJobsCsv } from "@/lib/export-actions";
 import { JOB_TYPES, REPAIR_STATUSES, DEAL_TYPES, type JobType, type RepairStatus, type RepairJob } from "@/lib/types";
 import type { Mechanic } from "@/lib/types";
-import type { Branch } from "@/lib/branch";
+import { BRANCHES, branchLabel, type Branch, type BranchSelection } from "@/lib/branch";
 import { formatCurrency, formatDate, daysBetween } from "@/lib/format";
 
 const JOB_TYPE_STYLES: Record<JobType, string> = {
@@ -25,11 +25,15 @@ export default function RepairsClient({
   completed,
   mechanics,
   branch,
+  branchSelection,
+  locked,
 }: {
   active: RepairJob[];
   completed: RepairJob[];
   mechanics: Mechanic[];
   branch: Branch;
+  branchSelection: BranchSelection;
+  locked: boolean;
 }) {
   const [tab, setTab] = useState<"active" | "completed">("active");
   const [typeFilter, setTypeFilter] = useState<JobType | "All">("All");
@@ -196,7 +200,14 @@ export default function RepairsClient({
         </div>
       </div>
 
-      {modalOpen && <AddJobModal branch={branch} mechanics={mechanics} onClose={() => setModalOpen(false)} />}
+      {modalOpen && (
+        <AddJobModal
+          branchSelection={branchSelection}
+          locked={locked}
+          mechanics={mechanics}
+          onClose={() => setModalOpen(false)}
+        />
+      )}
     </div>
   );
 }
@@ -305,17 +316,20 @@ function RestoreBikeRow({
 }
 
 function AddJobModal({
-  branch,
+  branchSelection,
+  locked,
   mechanics,
   onClose,
 }: {
-  branch: Branch;
+  branchSelection: BranchSelection;
+  locked: boolean;
   mechanics: Mechanic[];
   onClose: () => void;
 }) {
   const [customerName, setCustomerName] = useState("");
   const [plateNo, setPlateNo] = useState("");
   const [jobType, setJobType] = useState<JobType>("Walk-in");
+  const [locationBranch, setLocationBranch] = useState<BranchSelection>(branchSelection);
   const [mechanicId, setMechanicId] = useState("");
   const [description, setDescription] = useState("");
   const [revenueAmount, setRevenueAmount] = useState("");
@@ -326,17 +340,25 @@ function AddJobModal({
   const [model, setModel] = useState("");
   const [bikeYear, setBikeYear] = useState("");
   const [condition, setCondition] = useState("");
-  const [location, setLocation] = useState("");
   const [isPending, startTransition] = useTransition();
   const isRestoreBike = jobType === "Restore Bike";
 
-  const canSave = customerName.trim() !== "" && plateNo.trim() !== "";
+  const branchMechanics = locationBranch === "all" ? mechanics : mechanics.filter((m) => m.branch === locationBranch);
+  const selectedMechanic = branchMechanics.find((m) => m.id === mechanicId) ?? null;
+  const effectiveBranch: Branch | null = locationBranch !== "all" ? locationBranch : (selectedMechanic?.branch ?? null);
+
+  function handleLocationChange(next: BranchSelection) {
+    setLocationBranch(next);
+    setMechanicId("");
+  }
+
+  const canSave = customerName.trim() !== "" && plateNo.trim() !== "" && effectiveBranch !== null;
 
   function handleSave() {
-    if (!canSave) return;
+    if (!canSave || !effectiveBranch) return;
     startTransition(async () => {
       await addRepairJobAction({
-        branch,
+        branch: effectiveBranch,
         customerName: customerName.trim(),
         plateNo: plateNo.trim(),
         jobType,
@@ -345,11 +367,11 @@ function AddJobModal({
         revenueAmount: Number(revenueAmount) || 0,
         dealType: isRestoreBike ? (dealType === "Others" ? customDealType.trim() : dealType) : "",
         startedDate,
-        picName: isRestoreBike ? picName.trim() : "",
-        model: isRestoreBike ? model.trim() : "",
-        bikeYear: isRestoreBike ? bikeYear.trim() : "",
-        condition: isRestoreBike ? condition.trim() : "",
-        location: isRestoreBike ? location.trim() : "",
+        picName: picName.trim(),
+        model: model.trim(),
+        bikeYear: bikeYear.trim(),
+        condition: condition.trim(),
+        location: branchLabel(effectiveBranch),
       });
       onClose();
     });
@@ -392,60 +414,66 @@ function AddJobModal({
               ))}
             </select>
           </div>
-          {isRestoreBike && (
-            <>
-              <div>
-                <label className="block text-xs font-medium text-neutral-600 mb-1.5">PIC</label>
-                <input
-                  type="text"
-                  value={picName}
-                  onChange={(e) => setPicName(e.target.value)}
-                  className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-medium text-neutral-600 mb-1.5">Model</label>
-                  <input
-                    type="text"
-                    value={model}
-                    onChange={(e) => setModel(e.target.value)}
-                    placeholder="e.g. Y15ZR"
-                    className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-neutral-600 mb-1.5">Tahun</label>
-                  <input
-                    type="text"
-                    value={bikeYear}
-                    onChange={(e) => setBikeYear(e.target.value)}
-                    placeholder="e.g. 2019"
-                    className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
-                  />
-                </div>
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-neutral-600 mb-1.5">Condition</label>
-                <input
-                  type="text"
-                  value={condition}
-                  onChange={(e) => setCondition(e.target.value)}
-                  placeholder="e.g. Engine damaged, needs full service"
-                  className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-neutral-600 mb-1.5">Location</label>
-                <input
-                  type="text"
-                  value={location}
-                  onChange={(e) => setLocation(e.target.value)}
-                  className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
-                />
-              </div>
-            </>
-          )}
+          <div>
+            <label className="block text-xs font-medium text-neutral-600 mb-1.5">PIC</label>
+            <input
+              type="text"
+              value={picName}
+              onChange={(e) => setPicName(e.target.value)}
+              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-neutral-600 mb-1.5">Model</label>
+              <input
+                type="text"
+                value={model}
+                onChange={(e) => setModel(e.target.value)}
+                placeholder="e.g. Y15ZR"
+                className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-neutral-600 mb-1.5">Tahun</label>
+              <input
+                type="text"
+                value={bikeYear}
+                onChange={(e) => setBikeYear(e.target.value)}
+                placeholder="e.g. 2019"
+                className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+              />
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-neutral-600 mb-1.5">Condition</label>
+            <input
+              type="text"
+              value={condition}
+              onChange={(e) => setCondition(e.target.value)}
+              placeholder="e.g. Engine damaged, needs full service"
+              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-neutral-600 mb-1.5">Location</label>
+            <select
+              value={locationBranch}
+              disabled={locked}
+              onChange={(e) => handleLocationChange(e.target.value as BranchSelection)}
+              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50 disabled:opacity-60"
+            >
+              {BRANCHES.map((b) => (
+                <option key={b.value} value={b.value}>
+                  {b.label}
+                </option>
+              ))}
+              {!locked && <option value="all">All Branches</option>}
+            </select>
+            {locationBranch === "all" && !selectedMechanic && (
+              <p className="text-xs text-amber-700 mt-1.5">Pick a mechanic below to set which branch this job belongs to.</p>
+            )}
+          </div>
           <div>
             <label className="block text-xs font-medium text-neutral-600 mb-1.5">Mechanic</label>
             <select
@@ -454,9 +482,10 @@ function AddJobModal({
               className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
             >
               <option value="">Unassigned</option>
-              {mechanics.map((m) => (
+              {branchMechanics.map((m) => (
                 <option key={m.id} value={m.id}>
                   {m.shortName} ({m.shortCode})
+                  {locationBranch === "all" ? ` — ${branchLabel(m.branch)}` : ""}
                 </option>
               ))}
             </select>
