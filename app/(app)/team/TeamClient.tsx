@@ -36,7 +36,7 @@ export default function TeamClient({
 
   return (
     <div className="space-y-8 max-w-5xl">
-      {!isIT && pending.length > 0 && (
+      {pending.length > 0 && (
         <div>
           <p className="text-sm font-medium text-neutral-800 mb-3">Waiting for approval ({pending.length})</p>
           <div className="space-y-3">

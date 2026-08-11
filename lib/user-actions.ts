@@ -63,7 +63,7 @@ export async function approveUserAction(
   homeBranch: BranchSelection,
   positionTitle: string | null = null
 ): Promise<void> {
-  const manager = await requireManager();
+  const approver = await requireManagerOrIT();
   const { error } = await supabaseAdmin
     .from("cc_user_profiles")
     .update({
@@ -71,7 +71,7 @@ export async function approveUserAction(
       role,
       home_branch: homeBranch,
       position_title: positionTitle,
-      approved_by: manager.id,
+      approved_by: approver.id,
       approved_at: new Date().toISOString(),
     })
     .eq("id", userId);
