@@ -9,7 +9,7 @@ import {
   deletePackageSaleAction,
   type PackageSaleWithNames,
 } from "@/lib/packages-actions";
-import { exportPackageSalesCsv } from "@/lib/export-actions";
+import { exportPackageSalesCsv, exportAllBranchesPackageSalesCsv } from "@/lib/export-actions";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { BRANCHES, branchLabel, type Branch, type BranchSelection } from "@/lib/branch";
 import type { Package, Mechanic } from "@/lib/types";
@@ -49,12 +49,13 @@ export default function PackagesClient({
   async function handleExport() {
     setExporting(true);
     try {
-      const csv = await exportPackageSalesCsv(branch);
+      const showAllBranches = branchSelection === "all";
+      const csv = showAllBranches ? await exportAllBranchesPackageSalesCsv() : await exportPackageSalesCsv(branch);
       const blob = new Blob([csv], { type: "text/csv" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `bmm-package-sales-${branch}.csv`;
+      a.download = `bmm-package-sales-${showAllBranches ? "all" : branch}.csv`;
       a.click();
       URL.revokeObjectURL(url);
     } finally {

@@ -2,7 +2,7 @@
 
 import { requireApproved } from "./current-user";
 import { getBranchMonthSummary, getMechanicAchievements } from "./reports-actions";
-import { getPackageSales } from "./packages-actions";
+import { getPackageSales, getAllBranchesPackageSales } from "./packages-actions";
 import { getActiveRepairJobs, getCompletedRepairJobs } from "./repairs-actions";
 import { getMechanics } from "./mechanics-actions";
 import { getWarrantyClaims } from "./claims-actions";
@@ -85,6 +85,13 @@ export async function exportPackageSalesCsv(branch: Branch): Promise<string> {
   const sales = await getPackageSales(branch);
   const rows = sales.map((s) => [s.receiptId, s.packageName, s.mechanicCode, formatDate(s.saleDate)]);
   return toCsv(["Receipt ID", "Package Name", "Mechanic", "Date"], rows);
+}
+
+export async function exportAllBranchesPackageSalesCsv(): Promise<string> {
+  await requireApproved();
+  const sales = await getAllBranchesPackageSales();
+  const rows = sales.map((s) => [s.receiptId, s.packageName, s.mechanicCode, branchLabel(s.branch), formatDate(s.saleDate)]);
+  return toCsv(["Receipt ID", "Package Name", "Mechanic", "Branch", "Date"], rows);
 }
 
 export async function exportRepairJobsCsv(branch: Branch, jobType?: JobType): Promise<string> {

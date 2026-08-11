@@ -1,5 +1,11 @@
 import { requirePageContext, requirePage, getActiveBranchSelection, canViewAllBranches } from "@/lib/current-user";
-import { getPackages, getPackageSales, getPackageSoldCounts } from "@/lib/packages-actions";
+import {
+  getPackages,
+  getPackageSales,
+  getPackageSoldCounts,
+  getAllBranchesPackageSales,
+  getAllBranchesPackageSoldCounts,
+} from "@/lib/packages-actions";
 import { getAllMechanics } from "@/lib/mechanics-actions";
 import { branchLabel } from "@/lib/branch";
 import PageHeader from "@/components/PageHeader";
@@ -10,17 +16,22 @@ export const dynamic = "force-dynamic";
 export default async function PackagesPage() {
   await requirePage("packages");
   const { user, branch } = await requirePageContext();
-  const [packages, sales, soldCounts, mechanics, branchSelection] = await Promise.all([
+  const branchSelection = await getActiveBranchSelection(user);
+  const showAllBranches = branchSelection === "all";
+
+  const [packages, sales, soldCounts, mechanics] = await Promise.all([
     getPackages(),
-    getPackageSales(branch),
-    getPackageSoldCounts(branch),
+    showAllBranches ? getAllBranchesPackageSales() : getPackageSales(branch),
+    showAllBranches ? getAllBranchesPackageSoldCounts() : getPackageSoldCounts(branch),
     getAllMechanics(),
-    getActiveBranchSelection(user),
   ]);
 
   return (
     <div className="flex flex-col h-full">
-      <PageHeader title="Main Packages" subtitle={`${branchLabel(branch)} — service combo packages`} />
+      <PageHeader
+        title="Main Packages"
+        subtitle={`${showAllBranches ? "All Branches" : branchLabel(branch)} — service combo packages`}
+      />
       <div className="p-8 space-y-8">
         <PackagesClient
           packages={packages}

@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { supabaseAdmin } from "./supabase-server";
 import { requireApproved, assertCanEditBranch } from "./current-user";
-import type { Branch } from "./branch";
+import { BRANCHES, type Branch } from "./branch";
 import type { Package } from "./types";
 
 type PackageRow = { id: string; name: string; price: number; spec: string; description: string; created_at: string };
@@ -96,6 +96,24 @@ export async function getPackageSoldCounts(branch: Branch): Promise<Record<strin
   const counts: Record<string, number> = {};
   for (const row of data ?? []) {
     counts[row.package_id] = (counts[row.package_id] ?? 0) + 1;
+  }
+  return counts;
+}
+
+// Same as getPackageSales, but merged across all 3 branches for the
+// "All Branches" combined view.
+export async function getAllBranchesPackageSales(): Promise<PackageSaleWithNames[]> {
+  const perBranch = await Promise.all(BRANCHES.map(({ value }) => getPackageSales(value)));
+  return perBranch.flat().sort((a, b) => (a.saleDate < b.saleDate ? 1 : -1));
+}
+
+export async function getAllBranchesPackageSoldCounts(): Promise<Record<string, number>> {
+  const perBranch = await Promise.all(BRANCHES.map(({ value }) => getPackageSoldCounts(value)));
+  const counts: Record<string, number> = {};
+  for (const branchCounts of perBranch) {
+    for (const [packageId, count] of Object.entries(branchCounts)) {
+      counts[packageId] = (counts[packageId] ?? 0) + count;
+    }
   }
   return counts;
 }
