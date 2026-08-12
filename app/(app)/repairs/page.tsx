@@ -1,5 +1,5 @@
 import { requirePageContext, requirePage, getActiveBranchSelection, canViewAllBranches } from "@/lib/current-user";
-import { getActiveRepairJobs, getCompletedRepairJobs } from "@/lib/repairs-actions";
+import { getActiveRepairJobs, getCompletedRepairJobs, getAllBranchesActiveRepairJobs } from "@/lib/repairs-actions";
 import { getAllMechanics } from "@/lib/mechanics-actions";
 import { branchLabel } from "@/lib/branch";
 import PageHeader from "@/components/PageHeader";
@@ -10,9 +10,10 @@ export const dynamic = "force-dynamic";
 export default async function RepairsPage() {
   await requirePage("repairs");
   const { user, branch } = await requirePageContext();
-  const [active, completed, mechanics, branchSelection] = await Promise.all([
+  const [active, completed, allActiveJobs, mechanics, branchSelection] = await Promise.all([
     getActiveRepairJobs(branch),
     getCompletedRepairJobs(branch),
+    getAllBranchesActiveRepairJobs(),
     getAllMechanics(),
     getActiveBranchSelection(user),
   ]);
@@ -27,6 +28,7 @@ export default async function RepairsPage() {
         <RepairsClient
           active={active}
           completed={completed}
+          allActiveJobs={allActiveJobs}
           mechanics={mechanics}
           branch={branch}
           branchSelection={branchSelection}

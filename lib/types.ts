@@ -9,6 +9,8 @@ export type MonthlyTarget = {
 };
 
 export type MechanicStatus = "Active" | "On Leave";
+export type MechanicCategory = "Heavy Repair" | "Fast Repair" | "Combo Repair";
+export const MECHANIC_CATEGORIES: MechanicCategory[] = ["Heavy Repair", "Fast Repair", "Combo Repair"];
 export type Mechanic = {
   id: string;
   branch: Branch;
@@ -16,6 +18,7 @@ export type Mechanic = {
   shortName: string;
   shortCode: string;
   status: MechanicStatus;
+  category: MechanicCategory;
   createdAt: string;
 };
 
@@ -93,7 +96,15 @@ export type RepairJob = {
   stockArriveDate: string | null;
   preparedBy: string;
   approvalStatus: ApprovalStatus;
+  // Manually flags a job as heavy even when it has 3 or fewer items (e.g.
+  // one big engine part) — jobs with more than 3 items count as heavy too.
+  isBigItem: boolean;
 };
+
+export const HEAVY_ITEM_COUNT_THRESHOLD = 3;
+export function isHeavyRepairJob(job: { items: RepairJobItem[]; isBigItem: boolean }): boolean {
+  return job.items.length > HEAVY_ITEM_COUNT_THRESHOLD || job.isBigItem;
+}
 
 export const DEAL_TYPES = ["Trade In", "Sell", "Others"] as const;
 

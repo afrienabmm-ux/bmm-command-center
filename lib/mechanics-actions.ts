@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { supabaseAdmin } from "./supabase-server";
 import { requireApproved, assertCanEditBranch } from "./current-user";
-import type { Mechanic, MechanicStatus } from "./types";
+import type { Mechanic, MechanicStatus, MechanicCategory } from "./types";
 import type { Branch } from "./branch";
 
 type Row = {
@@ -13,6 +13,7 @@ type Row = {
   short_name: string;
   short_code: string;
   status: MechanicStatus;
+  category: MechanicCategory;
   created_at: string;
 };
 
@@ -24,6 +25,7 @@ function toMechanic(r: Row): Mechanic {
     shortName: r.short_name,
     shortCode: r.short_code,
     status: r.status,
+    category: r.category,
     createdAt: r.created_at,
   };
 }
@@ -55,6 +57,7 @@ export async function addMechanicAction(input: {
   fullName: string;
   shortName: string;
   shortCode: string;
+  category?: MechanicCategory;
 }): Promise<void> {
   const user = await requireApproved();
   assertCanEditBranch(user, input.branch);
@@ -63,6 +66,7 @@ export async function addMechanicAction(input: {
     full_name: input.fullName,
     short_name: input.shortName,
     short_code: input.shortCode.toUpperCase(),
+    category: input.category ?? "Fast Repair",
   });
   if (error) throw new Error(error.message);
   revalidatePath("/mechanics");
@@ -74,6 +78,15 @@ export async function toggleMechanicStatusAction(id: string, branch: Branch, sta
   const { error } = await supabaseAdmin.from("cc_mechanics").update({ status }).eq("id", id);
   if (error) throw new Error(error.message);
   revalidatePath("/mechanics");
+}
+
+export async function updateMechanicCategoryAction(id: string, branch: Branch, category: MechanicCategory): Promise<void> {
+  const user = await requireApproved();
+  assertCanEditBranch(user, branch);
+  const { error } = await supabaseAdmin.from("cc_mechanics").update({ category }).eq("id", id);
+  if (error) throw new Error(error.message);
+  revalidatePath("/mechanics");
+  revalidatePath("/repairs");
 }
 
 export async function deleteMechanicAction(id: string, branch: Branch): Promise<void> {

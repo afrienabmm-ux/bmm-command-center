@@ -2,9 +2,15 @@
 
 import { useState, useTransition } from "react";
 import { Plus, Trash2, Wrench } from "lucide-react";
-import { addMechanicAction, toggleMechanicStatusAction, deleteMechanicAction } from "@/lib/mechanics-actions";
-import type { Mechanic, MechanicStatus } from "@/lib/types";
+import { addMechanicAction, toggleMechanicStatusAction, updateMechanicCategoryAction, deleteMechanicAction } from "@/lib/mechanics-actions";
+import { MECHANIC_CATEGORIES, type Mechanic, type MechanicStatus, type MechanicCategory } from "@/lib/types";
 import { BRANCHES, branchLabel, type BranchSelection } from "@/lib/branch";
+
+const CATEGORY_STYLES: Record<MechanicCategory, string> = {
+  "Heavy Repair": "bg-orange-500/10 text-orange-700 border-orange-500/20",
+  "Fast Repair": "bg-sky-500/10 text-sky-700 border-sky-500/20",
+  "Combo Repair": "bg-purple-500/10 text-purple-700 border-purple-500/20",
+};
 
 export default function MechanicsClient({
   mechanics,
@@ -53,6 +59,10 @@ function MechanicCard({ mechanic, showBranch }: { mechanic: Mechanic; showBranch
     startTransition(() => toggleMechanicStatusAction(mechanic.id, mechanic.branch, next));
   }
 
+  function changeCategory(category: MechanicCategory) {
+    startTransition(() => updateMechanicCategoryAction(mechanic.id, mechanic.branch, category));
+  }
+
   return (
     <div className="bg-white border border-neutral-200 rounded-xl p-5">
       <div className="flex items-start justify-between">
@@ -79,10 +89,26 @@ function MechanicCard({ mechanic, showBranch }: { mechanic: Mechanic; showBranch
         </button>
       </div>
 
+      <div className="mt-4">
+        <label className="block text-xs font-medium text-neutral-500 mb-1">Category</label>
+        <select
+          value={mechanic.category}
+          disabled={isPending}
+          onChange={(e) => changeCategory(e.target.value as MechanicCategory)}
+          className={`w-full text-xs font-medium px-2.5 py-2 rounded-lg border transition-colors disabled:opacity-50 ${CATEGORY_STYLES[mechanic.category]}`}
+        >
+          {MECHANIC_CATEGORIES.map((c) => (
+            <option key={c} value={c}>
+              {c}
+            </option>
+          ))}
+        </select>
+      </div>
+
       <button
         onClick={toggle}
         disabled={isPending}
-        className={`mt-4 w-full text-xs font-medium py-2 rounded-lg border transition-colors disabled:opacity-50 ${
+        className={`mt-2 w-full text-xs font-medium py-2 rounded-lg border transition-colors disabled:opacity-50 ${
           isActive
             ? "bg-emerald-500/10 text-emerald-700 border-emerald-500/20 hover:bg-emerald-500/20"
             : "bg-amber-500/10 text-amber-700 border-amber-500/20 hover:bg-amber-500/20"
@@ -131,6 +157,7 @@ function AddMechanicModal({
   const [fullName, setFullName] = useState("");
   const [shortName, setShortName] = useState("");
   const [shortCode, setShortCode] = useState("");
+  const [category, setCategory] = useState<MechanicCategory>("Fast Repair");
   const [branch, setBranch] = useState(activeBranch === "all" ? BRANCHES[0].value : activeBranch);
   const [isPending, startTransition] = useTransition();
 
@@ -144,6 +171,7 @@ function AddMechanicModal({
         fullName: fullName.trim(),
         shortName: shortName.trim(),
         shortCode: shortCode.trim(),
+        category,
       });
       onClose();
     });
@@ -200,6 +228,20 @@ function AddMechanicModal({
               maxLength={4}
               className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50 uppercase"
             />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-neutral-600 mb-1.5">Category</label>
+            <select
+              value={category}
+              onChange={(e) => setCategory(e.target.value as MechanicCategory)}
+              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+            >
+              {MECHANIC_CATEGORIES.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
+            </select>
           </div>
         </div>
         <div className="flex items-center justify-end gap-3 mt-6">

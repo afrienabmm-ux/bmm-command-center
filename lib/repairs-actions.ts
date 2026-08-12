@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { supabaseAdmin } from "./supabase-server";
 import { requireApproved, assertCanEditBranch } from "./current-user";
 import type { RepairJob, RepairJobItem, RepairStatus, JobType, ApprovalStatus } from "./types";
+import { HEAVY_ITEM_COUNT_THRESHOLD } from "./types";
 import { BRANCHES, type Branch } from "./branch";
 
 type ItemRow = { id: string; description: string; quantity: number; price: number };
@@ -33,6 +34,7 @@ type Row = {
   stock_arrive_date: string | null;
   prepared_by: string;
   approval_status: ApprovalStatus;
+  is_big_item: boolean;
   cc_repair_job_items: ItemRow[] | null;
 };
 
@@ -67,7 +69,45 @@ function toJob(r: Row): RepairJob {
     stockArriveDate: r.stock_arrive_date,
     preparedBy: r.prepared_by,
     approvalStatus: r.approval_status,
+    isBigItem: r.is_big_item,
   };
+}
+
+// A mechanic can only carry one active (non-Completed) job at a time, and
+// heavy jobs (more than 3 items, or manually flagged as a big item) can only
+// go to mechanics in the "Heavy Repair" category. Enforced server-side so it
+// can't be bypassed even if the UI's own filtering is stale.
+async function assertMechanicAssignment(
+  mechanicId: string | null,
+  items: ItemInput[],
+  isBigItem: boolean,
+  excludeJobId?: string
+): Promise<void> {
+  if (!mechanicId) return;
+
+  const { data: mechanic, error: mechError } = await supabaseAdmin
+    .from("cc_mechanics")
+    .select("category")
+    .eq("id", mechanicId)
+    .single();
+  if (mechError) throw new Error(mechError.message);
+
+  const isHeavy = items.length > HEAVY_ITEM_COUNT_THRESHOLD || isBigItem;
+  if (isHeavy && mechanic.category !== "Heavy Repair") {
+    throw new Error("This is a heavy repair job — it can only be assigned to a Heavy Repair mechanic.");
+  }
+
+  let busyQuery = supabaseAdmin
+    .from("cc_repair_jobs")
+    .select("id", { count: "exact", head: true })
+    .eq("mechanic_id", mechanicId)
+    .neq("status", "Completed");
+  if (excludeJobId) busyQuery = busyQuery.neq("id", excludeJobId);
+  const { count, error: busyError } = await busyQuery;
+  if (busyError) throw new Error(busyError.message);
+  if ((count ?? 0) > 0) {
+    throw new Error("This mechanic already has an active job assigned — they're free again once it's marked Completed.");
+  }
 }
 
 const SELECT_WITH_ITEMS = "*, cc_repair_job_items(*)";
@@ -90,6 +130,14 @@ const cachedActiveRepairJobs = cache(async (branch: Branch): Promise<RepairJob[]
 export async function getActiveRepairJobs(branch: Branch): Promise<RepairJob[]> {
   await requireApproved();
   return cachedActiveRepairJobs(branch);
+}
+
+// Active jobs across all 3 branches — used to know which mechanics are
+// already busy, regardless of which single branch the page is viewing.
+export async function getAllBranchesActiveRepairJobs(): Promise<RepairJob[]> {
+  await requireApproved();
+  const perBranch = await Promise.all(BRANCHES.map(({ value }) => cachedActiveRepairJobs(value)));
+  return perBranch.flat();
 }
 
 export async function getCompletedRepairJobs(branch: Branch): Promise<RepairJob[]> {
@@ -175,15 +223,18 @@ export async function addRepairJobAction(input: {
   stockArriveDate?: string | null;
   completedDate?: string | null;
   preparedBy?: string;
+  isBigItem?: boolean;
 }): Promise<void> {
   const user = await requireApproved();
   assertCanEditBranch(user, input.branch);
+  const items = input.items ?? [];
+  await assertMechanicAssignment(input.mechanicId, items, input.isBigItem ?? false);
+
   const { count } = await supabaseAdmin
     .from("cc_repair_jobs")
     .select("*", { count: "exact", head: true })
     .eq("branch", input.branch);
   const jobNo = `RJ-${input.branch.toUpperCase()}-${String((count ?? 0) + 1).padStart(4, "0")}`;
-  const items = input.items ?? [];
   const revenueAmount = items.length > 0 ? itemsTotal(items) : input.revenueAmount;
 
   const { data, error } = await supabaseAdmin
@@ -209,6 +260,7 @@ export async function addRepairJobAction(input: {
       stock_arrive_date: input.stockArriveDate ?? null,
       completed_date: input.completedDate ?? null,
       prepared_by: input.preparedBy ?? "",
+      is_big_item: input.isBigItem ?? false,
     })
     .select("id")
     .single();
@@ -239,11 +291,13 @@ export async function updateRepairJobAction(
     stockArriveDate?: string | null;
     completedDate?: string | null;
     preparedBy?: string;
+    isBigItem?: boolean;
   }
 ): Promise<void> {
   const user = await requireApproved();
   assertCanEditBranch(user, branch);
   const items = input.items ?? [];
+  await assertMechanicAssignment(input.mechanicId, items, input.isBigItem ?? false, id);
   const revenueAmount = items.length > 0 ? itemsTotal(items) : input.revenueAmount;
 
   const { error } = await supabaseAdmin
@@ -265,6 +319,7 @@ export async function updateRepairJobAction(
       stock_arrive_date: input.stockArriveDate ?? null,
       completed_date: input.completedDate ?? null,
       prepared_by: input.preparedBy ?? "",
+      is_big_item: input.isBigItem ?? false,
     })
     .eq("id", id);
   if (error) throw new Error(error.message);

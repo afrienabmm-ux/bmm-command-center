@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import { Plus, Download, Pencil, Trash2, AlertTriangle, Search } from "lucide-react";
 import { addRepairJobAction, updateRepairJobAction, updateRepairStatusAction, updateRepairApprovalAction } from "@/lib/repairs-actions";
 import { exportRepairJobsCsv } from "@/lib/export-actions";
@@ -9,6 +9,8 @@ import {
   REPAIR_STATUSES,
   DEAL_TYPES,
   APPROVAL_STATUSES,
+  HEAVY_ITEM_COUNT_THRESHOLD,
+  isHeavyRepairJob,
   type JobType,
   type RepairStatus,
   type ApprovalStatus,
@@ -46,6 +48,7 @@ function isOverdue(job: RepairJob): boolean {
 export default function RepairsClient({
   active,
   completed,
+  allActiveJobs,
   mechanics,
   branch,
   branchSelection,
@@ -53,6 +56,7 @@ export default function RepairsClient({
 }: {
   active: RepairJob[];
   completed: RepairJob[];
+  allActiveJobs: RepairJob[];
   mechanics: Mechanic[];
   branch: Branch;
   branchSelection: BranchSelection;
@@ -355,6 +359,7 @@ export default function RepairsClient({
           branchSelection={branchSelection}
           locked={locked}
           mechanics={mechanics}
+          allActiveJobs={allActiveJobs}
           onClose={() => setModalOpen(false)}
         />
       )}
@@ -365,6 +370,7 @@ export default function RepairsClient({
           branchSelection={branchSelection}
           locked={locked}
           mechanics={mechanics}
+          allActiveJobs={allActiveJobs}
           onClose={() => setEditingJob(null)}
         />
       )}
@@ -624,6 +630,11 @@ function JobRow({
         <span className={`text-xs font-medium px-2.5 py-1 rounded-full border ${JOB_TYPE_STYLES[job.jobType]}`}>
           {job.jobType}
         </span>
+        {isHeavyRepairJob(job) && (
+          <span className="ml-1.5 text-xs font-medium px-2 py-1 rounded-full border bg-orange-500/10 text-orange-700 border-orange-500/20">
+            Heavy
+          </span>
+        )}
       </td>
       <td className="px-5 py-3.5 text-neutral-600 whitespace-nowrap">{mechanicLabel}</td>
       <td className="px-5 py-3.5 text-neutral-700 whitespace-nowrap">{formatCurrency(job.revenueAmount)}</td>
@@ -668,7 +679,16 @@ function RestoreBikeRow({
       <td className="px-5 py-3.5 text-neutral-600 whitespace-nowrap">{job.model || "—"}</td>
       <td className="px-5 py-3.5 text-neutral-600 whitespace-nowrap">{job.bikeYear || "—"}</td>
       <td className="px-5 py-3.5 text-neutral-600 whitespace-nowrap">{job.condition || "—"}</td>
-      <td className="px-5 py-3.5 text-neutral-600 whitespace-nowrap">{mechanicLabel}</td>
+      <td className="px-5 py-3.5 text-neutral-600 whitespace-nowrap">
+        <span className="inline-flex items-center gap-1.5">
+          {mechanicLabel}
+          {isHeavyRepairJob(job) && (
+            <span className="text-xs font-medium px-2 py-0.5 rounded-full border bg-orange-500/10 text-orange-700 border-orange-500/20">
+              Heavy
+            </span>
+          )}
+        </span>
+      </td>
       <td className="px-5 py-3.5 text-neutral-600 whitespace-nowrap">{job.location || "—"}</td>
       <td className="px-5 py-3.5 text-neutral-500 whitespace-nowrap">
         <span className="inline-flex items-center gap-1.5">
@@ -779,6 +799,7 @@ function JobFormModal({
   branchSelection,
   locked,
   mechanics,
+  allActiveJobs,
   onClose,
 }: {
   job: RepairJob | null;
@@ -786,6 +807,7 @@ function JobFormModal({
   branchSelection: BranchSelection;
   locked: boolean;
   mechanics: Mechanic[];
+  allActiveJobs: RepairJob[];
   onClose: () => void;
 }) {
   const isEdit = job !== null;
@@ -811,15 +833,42 @@ function JobFormModal({
   const [stockArriveDate, setStockArriveDate] = useState(job?.stockArriveDate ?? "");
   const [completedDate, setCompletedDate] = useState(job?.completedDate ?? "");
   const [preparedBy, setPreparedBy] = useState(job?.preparedBy ?? "");
+  const [isBigItem, setIsBigItem] = useState(job?.isBigItem ?? false);
   const [items, setItems] = useState<ItemInput[]>(job ? itemsFromJob(job) : []);
   const [isPending, startTransition] = useTransition();
   const isRestoreBike = jobType === "Restore Bike";
 
+  const itemCount = items.filter((it) => it.description.trim() !== "").length;
+  const isHeavyJob = itemCount > HEAVY_ITEM_COUNT_THRESHOLD || isBigItem;
+
+  // A mechanic already carrying another active (non-Completed) job can't be
+  // handed a second one until it's marked Completed.
+  const busyMechanicIds = useMemo(
+    () => new Set(allActiveJobs.filter((j) => j.id !== job?.id && j.mechanicId).map((j) => j.mechanicId as string)),
+    [allActiveJobs, job]
+  );
+
   const branchMechanics = locationBranch === "all" ? mechanics : mechanics.filter((m) => m.branch === locationBranch);
+  const eligibleMechanics = branchMechanics.filter((m) => {
+    if (m.id === mechanicId) return true;
+    if (busyMechanicIds.has(m.id)) return false;
+    if (isHeavyJob && m.category !== "Heavy Repair") return false;
+    return true;
+  });
   const selectedMechanic = branchMechanics.find((m) => m.id === mechanicId) ?? null;
   const effectiveBranch: Branch | null = locationBranch !== "all" ? locationBranch : (selectedMechanic?.branch ?? null);
 
   const itemsTotal = items.reduce((sum, it) => sum + (Number(it.quantity) || 0) * (Number(it.price) || 0), 0);
+
+  // If the job becomes heavy (more items added, or the checkbox is ticked)
+  // and the currently picked mechanic isn't a Heavy Repair mechanic, clear
+  // the pick instead of silently letting an invalid combination be saved.
+  useEffect(() => {
+    if (isHeavyJob && selectedMechanic && selectedMechanic.category !== "Heavy Repair") {
+      setMechanicId("");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isHeavyJob]);
 
   function handleLocationChange(next: BranchSelection) {
     setLocationBranch(next);
@@ -859,6 +908,7 @@ function JobFormModal({
       stockArriveDate: stockArriveDate || null,
       completedDate: completedDate || null,
       preparedBy: preparedBy.trim(),
+      isBigItem,
     };
 
     startTransition(async () => {
@@ -979,13 +1029,37 @@ function JobFormModal({
               className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
             >
               <option value="">Unassigned</option>
-              {branchMechanics.map((m) => (
+              {eligibleMechanics.map((m) => (
                 <option key={m.id} value={m.id}>
                   {m.shortName} ({m.shortCode})
                   {locationBranch === "all" ? ` — ${branchLabel(m.branch)}` : ""}
+                  {m.category === "Heavy Repair" ? " — Heavy Repair" : ""}
                 </option>
               ))}
             </select>
+            {isHeavyJob && (
+              <p className="text-xs text-amber-700 mt-1.5">
+                Heavy job (more than {HEAVY_ITEM_COUNT_THRESHOLD} items{isBigItem ? " / marked as a big item" : ""}) — only Heavy Repair mechanics can be assigned.
+              </p>
+            )}
+            {branchMechanics.length > eligibleMechanics.length && (
+              <p className="text-xs text-neutral-500 mt-1.5">
+                {branchMechanics.length - eligibleMechanics.length} mechanic{branchMechanics.length - eligibleMechanics.length === 1 ? "" : "s"} hidden — already on an active job, or not a Heavy Repair mechanic.
+              </p>
+            )}
+          </div>
+
+          <div className="flex items-center gap-2">
+            <input
+              id="is-big-item"
+              type="checkbox"
+              checked={isBigItem}
+              onChange={(e) => setIsBigItem(e.target.checked)}
+              className="accent-indigo-500"
+            />
+            <label htmlFor="is-big-item" className="text-xs font-medium text-neutral-600">
+              Big / heavy item repair — even with {HEAVY_ITEM_COUNT_THRESHOLD} items or fewer
+            </label>
           </div>
 
           <ItemsEditor items={items} onChange={setItems} />
