@@ -64,13 +64,18 @@ export default function RepairsClient({
 }) {
   const [tab, setTab] = useState<"active" | "completed">("active");
   const [typeFilter, setTypeFilter] = useState<JobType | "All">("All");
+  const [loadFilter, setLoadFilter] = useState<"All" | "Heavy Repair" | "Fast Repair">("All");
   const [modalOpen, setModalOpen] = useState(false);
   const [editingJob, setEditingJob] = useState<RepairJob | null>(null);
   const [exporting, setExporting] = useState(false);
   const [exportJobModalOpen, setExportJobModalOpen] = useState(false);
   const [exportRestoreModalOpen, setExportRestoreModalOpen] = useState(false);
   const baseJobs = tab === "active" ? active : completed;
-  const jobs = typeFilter === "All" ? baseJobs : baseJobs.filter((j) => j.jobType === typeFilter);
+  const typeFiltered = typeFilter === "All" ? baseJobs : baseJobs.filter((j) => j.jobType === typeFilter);
+  const jobs =
+    loadFilter === "All"
+      ? typeFiltered
+      : typeFiltered.filter((j) => (loadFilter === "Heavy Repair" ? isHeavyRepairJob(j) : !isHeavyRepairJob(j)));
   const overdueCount = active.filter(isOverdue).length;
   const allJobs = useMemo(() => [...active, ...completed], [active, completed]);
   const allRestoreBikeJobs = useMemo(() => allJobs.filter((j) => j.jobType === "Restore Bike"), [allJobs]);
@@ -244,7 +249,7 @@ export default function RepairsClient({
         </div>
       </div>
 
-      <div className="flex items-center gap-2 mb-4">
+      <div className="flex items-center gap-2 mb-4 flex-wrap">
         <span className="text-xs font-medium text-neutral-500">Type:</span>
         <div className="flex gap-1 bg-white border border-neutral-200 rounded-lg p-1">
           {(["All", ...JOB_TYPES] as const).map((t) => (
@@ -256,6 +261,20 @@ export default function RepairsClient({
               }`}
             >
               {t === "All" ? "All Types" : t}
+            </button>
+          ))}
+        </div>
+        <span className="text-xs font-medium text-neutral-500 ml-2">Load:</span>
+        <div className="flex gap-1 bg-white border border-neutral-200 rounded-lg p-1">
+          {(["All", "Heavy Repair", "Fast Repair"] as const).map((l) => (
+            <button
+              key={l}
+              onClick={() => setLoadFilter(l)}
+              className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors whitespace-nowrap ${
+                loadFilter === l ? "bg-indigo-500 text-white" : "text-neutral-600 hover:text-neutral-800"
+              }`}
+            >
+              {l === "All" ? "All" : l}
             </button>
           ))}
         </div>
