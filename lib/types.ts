@@ -19,8 +19,16 @@ export type Mechanic = {
   createdAt: string;
 };
 
-export type ClaimStatus = "Pending" | "In Progress" | "Approved";
-export const CLAIM_STATUSES: ClaimStatus[] = ["Pending", "In Progress", "Approved"];
+export type ClaimStatus = "Pending" | "In Progress" | "Approved" | "Rejected" | "Closed";
+export const CLAIM_STATUSES: ClaimStatus[] = ["Pending", "In Progress", "Approved", "Rejected", "Closed"];
+
+// A claim still needing action — used for the dashboard's "open claims"
+// count, so approved/rejected/closed ones drop out of it.
+export const OPEN_CLAIM_STATUSES: ClaimStatus[] = ["Pending", "In Progress"];
+export function isOpenClaim(status: ClaimStatus): boolean {
+  return OPEN_CLAIM_STATUSES.includes(status);
+}
+
 export type StockStatus = "Sold" | "In Stock";
 export const STOCK_STATUSES: StockStatus[] = ["Sold", "In Stock"];
 export type WarrantyClaim = {
@@ -36,6 +44,11 @@ export type WarrantyClaim = {
   status: ClaimStatus;
   submittedDate: string;
   createdAt: string;
+  // Who's handling the claim, plus the running follow-up notes their
+  // spreadsheet keeps in its "Latest Status" and "Reason" columns.
+  pic: string;
+  latestStatus: string;
+  reason: string;
 };
 
 export type JobType = "Restore Bike" | "Walk-in";

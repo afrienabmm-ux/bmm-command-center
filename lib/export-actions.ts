@@ -181,6 +181,7 @@ export async function exportWarrantyClaimsCsv(branch: Branch, status?: ClaimStat
   const filtered = status ? claims.filter((c) => c.status === status) : claims;
   const rows = filtered.map((c) => [
     c.ticketId,
+    c.pic,
     c.customerName,
     c.plateNo,
     c.model,
@@ -188,10 +189,25 @@ export async function exportWarrantyClaimsCsv(branch: Branch, status?: ClaimStat
     c.description,
     c.stockStatus,
     c.status,
+    c.latestStatus,
+    c.reason,
     formatDate(c.submittedDate),
   ]);
   return toCsv(
-    ["Ticket ID", "Customer", "Plate No", "Model", "Phone", "Issue", "Stock Status", "Status", "Submitted Date"],
+    [
+      "Ticket ID",
+      "PIC",
+      "Customer",
+      "Plate No",
+      "Model",
+      "Phone",
+      "Issue",
+      "Stock Status",
+      "Status",
+      "Latest Status",
+      "Reason",
+      "Submitted Date",
+    ],
     rows
   );
 }

@@ -4,6 +4,7 @@ import { getWarrantyClaims } from "@/lib/claims-actions";
 import { getMechanics } from "@/lib/mechanics-actions";
 import { getLowStockProducts } from "@/lib/catalog-actions";
 import { BRANCHES, branchLabel, type Branch } from "@/lib/branch";
+import { isOpenClaim } from "@/lib/types";
 import { formatCurrency } from "@/lib/format";
 
 export type BranchBreakdownRow = {
@@ -34,7 +35,7 @@ export async function getBranchBreakdown(year: number, month: number): Promise<B
         branch,
         target: summary.targetAmount,
         achieved: summary.achievedAmount,
-        openClaims: claims.filter((c) => c.status !== "Approved").length,
+        openClaims: claims.filter((c) => isOpenClaim(c.status)).length,
         activeRepairs: repairs.length,
         activeMechanics: mechanics.filter((m) => m.status === "Active").length,
         lowStock: lowStock.length,

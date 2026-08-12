@@ -19,6 +19,9 @@ type Row = {
   status: ClaimStatus;
   submitted_date: string;
   created_at: string;
+  pic: string;
+  latest_status: string;
+  reason: string;
 };
 
 function toClaim(r: Row): WarrantyClaim {
@@ -35,6 +38,9 @@ function toClaim(r: Row): WarrantyClaim {
     status: r.status,
     submittedDate: r.submitted_date,
     createdAt: r.created_at,
+    pic: r.pic ?? "",
+    latestStatus: r.latest_status ?? "",
+    reason: r.reason ?? "",
   };
 }
 
@@ -59,6 +65,9 @@ export async function addWarrantyClaimAction(input: {
   description: string;
   stockStatus: StockStatus;
   submittedDate: string;
+  pic?: string;
+  latestStatus?: string;
+  reason?: string;
 }): Promise<{ error: string } | void> {
   const user = await requireApproved();
   assertCanEditBranch(user, input.branch);
@@ -81,10 +90,34 @@ export async function addWarrantyClaimAction(input: {
     stock_status: input.stockStatus,
     submitted_date: input.submittedDate,
     status: "Pending",
+    pic: input.pic?.trim() ?? "",
+    latest_status: input.latestStatus?.trim() ?? "",
+    reason: input.reason?.trim() ?? "",
   });
   if (error) return { error: error.message };
   revalidatePath("/warranty-claims");
   revalidatePath("/");
+}
+
+// The follow-up columns their sheet updates most often — edited inline
+// from the claims table rather than through the full add form.
+export async function updateClaimNotesAction(
+  id: string,
+  branch: Branch,
+  input: { pic: string; latestStatus: string; reason: string }
+): Promise<void> {
+  const user = await requireApproved();
+  assertCanEditBranch(user, branch);
+  const { error } = await supabaseAdmin
+    .from("cc_warranty_claims")
+    .update({
+      pic: input.pic.trim(),
+      latest_status: input.latestStatus.trim(),
+      reason: input.reason.trim(),
+    })
+    .eq("id", id);
+  if (error) throw new Error(error.message);
+  revalidatePath("/warranty-claims");
 }
 
 export async function updateClaimStatusAction(id: string, branch: Branch, status: ClaimStatus): Promise<void> {
@@ -93,6 +126,7 @@ export async function updateClaimStatusAction(id: string, branch: Branch, status
   const { error } = await supabaseAdmin.from("cc_warranty_claims").update({ status }).eq("id", id);
   if (error) throw new Error(error.message);
   revalidatePath("/warranty-claims");
+  revalidatePath("/");
 }
 
 export async function updateClaimStockStatusAction(id: string, branch: Branch, stockStatus: StockStatus): Promise<void> {

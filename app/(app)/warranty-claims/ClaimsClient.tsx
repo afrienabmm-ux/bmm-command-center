@@ -1,8 +1,14 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
-import { Plus, Search, Download, Trash2 } from "lucide-react";
-import { addWarrantyClaimAction, updateClaimStatusAction, updateClaimStockStatusAction, deleteClaimAction } from "@/lib/claims-actions";
+import { Plus, Search, Download, Trash2, Pencil } from "lucide-react";
+import {
+  addWarrantyClaimAction,
+  updateClaimStatusAction,
+  updateClaimStockStatusAction,
+  updateClaimNotesAction,
+  deleteClaimAction,
+} from "@/lib/claims-actions";
 import { exportWarrantyClaimsCsv } from "@/lib/export-actions";
 import { CLAIM_STATUSES, STOCK_STATUSES, type ClaimStatus, type StockStatus, type WarrantyClaim } from "@/lib/types";
 import type { Branch } from "@/lib/branch";
@@ -12,6 +18,8 @@ const STATUS_STYLES: Record<ClaimStatus, string> = {
   Pending: "bg-neutral-100 text-neutral-700 border-neutral-300",
   "In Progress": "bg-amber-500/10 text-amber-700 border-amber-500/20",
   Approved: "bg-emerald-500/10 text-emerald-700 border-emerald-500/20",
+  Rejected: "bg-red-500/10 text-red-700 border-red-500/20",
+  Closed: "bg-neutral-200 text-neutral-600 border-neutral-300",
 };
 
 const STOCK_STYLES: Record<StockStatus, string> = {
@@ -30,9 +38,18 @@ export default function ClaimsClient({ claims, branch }: { claims: WarrantyClaim
     return claims.filter((c) => {
       if (statusFilter !== "All" && c.status !== statusFilter) return false;
       if (!q) return true;
-      return [c.customerName, c.plateNo, c.ticketId, c.status].some((f) => f.toLowerCase().includes(q));
+      return [c.customerName, c.plateNo, c.ticketId, c.status, c.pic, c.model, c.latestStatus].some((f) =>
+        (f ?? "").toLowerCase().includes(q)
+      );
     });
   }, [claims, query, statusFilter]);
+
+  // Every PIC name already used, so the add form can offer them instead of
+  // relying on everyone spelling it the same way.
+  const knownPics = useMemo(
+    () => Array.from(new Set(claims.map((c) => c.pic).filter(Boolean))).sort(),
+    [claims]
+  );
 
   async function handleExport() {
     setExporting(true);
@@ -53,6 +70,8 @@ export default function ClaimsClient({ claims, branch }: { claims: WarrantyClaim
 
   return (
     <div>
+      <PicScoreboard claims={claims} />
+
       <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
         <div className="relative">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
@@ -60,7 +79,7 @@ export default function ClaimsClient({ claims, branch }: { claims: WarrantyClaim
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search name, plate no, ticket ID, status…"
+            placeholder="Search name, plate, ticket ID, PIC, status…"
             className="bg-white border border-neutral-200 rounded-lg pl-8 pr-3 py-2 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50 w-72"
           />
         </div>
@@ -99,6 +118,7 @@ export default function ClaimsClient({ claims, branch }: { claims: WarrantyClaim
             <thead>
               <tr className="text-left text-xs text-neutral-500 border-b border-neutral-200">
                 <th className="font-medium px-5 py-3 whitespace-nowrap">Ticket ID</th>
+                <th className="font-medium px-5 py-3 whitespace-nowrap">PIC</th>
                 <th className="font-medium px-5 py-3 whitespace-nowrap">Customer</th>
                 <th className="font-medium px-5 py-3 whitespace-nowrap">Plate No.</th>
                 <th className="font-medium px-5 py-3 whitespace-nowrap">Model</th>
@@ -107,16 +127,18 @@ export default function ClaimsClient({ claims, branch }: { claims: WarrantyClaim
                 <th className="font-medium px-5 py-3 whitespace-nowrap">Stock</th>
                 <th className="font-medium px-5 py-3 whitespace-nowrap">Submitted</th>
                 <th className="font-medium px-5 py-3 whitespace-nowrap">Status</th>
+                <th className="font-medium px-5 py-3 whitespace-nowrap">Latest Status</th>
+                <th className="font-medium px-5 py-3 whitespace-nowrap">Reason</th>
                 <th className="font-medium px-5 py-3 whitespace-nowrap"></th>
               </tr>
             </thead>
             <tbody>
               {visible.map((c) => (
-                <ClaimRow key={c.id} claim={c} branch={branch} />
+                <ClaimRow key={c.id} claim={c} branch={branch} knownPics={knownPics} />
               ))}
               {visible.length === 0 && (
                 <tr>
-                  <td colSpan={10} className="px-5 py-10 text-center text-neutral-500 text-sm">
+                  <td colSpan={13} className="px-5 py-10 text-center text-neutral-500 text-sm">
                     {claims.length === 0 ? "No warranty claims yet." : "No claims match your search."}
                   </td>
                 </tr>
@@ -126,15 +148,16 @@ export default function ClaimsClient({ claims, branch }: { claims: WarrantyClaim
         </div>
       </div>
 
-      {modalOpen && <AddClaimModal branch={branch} onClose={() => setModalOpen(false)} />}
+      {modalOpen && <AddClaimModal branch={branch} knownPics={knownPics} onClose={() => setModalOpen(false)} />}
     </div>
   );
 }
 
-function ClaimRow({ claim, branch }: { claim: WarrantyClaim; branch: Branch }) {
+function ClaimRow({ claim, branch, knownPics }: { claim: WarrantyClaim; branch: Branch; knownPics: string[] }) {
   const [isPending, startTransition] = useTransition();
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [notesOpen, setNotesOpen] = useState(false);
 
   function handleDelete() {
     setDeleting(true);
@@ -148,6 +171,7 @@ function ClaimRow({ claim, branch }: { claim: WarrantyClaim; branch: Branch }) {
   return (
     <tr className="border-b border-neutral-100 last:border-0 hover:bg-neutral-50">
       <td className="px-5 py-3.5 text-neutral-900 font-semibold whitespace-nowrap">{claim.ticketId}</td>
+      <td className="px-5 py-3.5 text-neutral-700 whitespace-nowrap">{claim.pic || "—"}</td>
       <td className="px-5 py-3.5 text-neutral-700 whitespace-nowrap">{claim.customerName}</td>
       <td className="px-5 py-3.5 text-neutral-600 whitespace-nowrap">{claim.plateNo}</td>
       <td className="px-5 py-3.5 text-neutral-600 whitespace-nowrap">{claim.model || "—"}</td>
@@ -186,7 +210,21 @@ function ClaimRow({ claim, branch }: { claim: WarrantyClaim; branch: Branch }) {
           ))}
         </select>
       </td>
+      <td className="px-5 py-3.5 text-neutral-600 max-w-xs truncate" title={claim.latestStatus || undefined}>
+        {claim.latestStatus || "—"}
+      </td>
+      <td className="px-5 py-3.5 text-neutral-600 max-w-xs truncate" title={claim.reason || undefined}>
+        {claim.reason || "—"}
+      </td>
       <td className="px-5 py-3.5 whitespace-nowrap">
+        <button
+          onClick={() => setNotesOpen(true)}
+          className="text-neutral-400 hover:text-indigo-600 transition-colors p-1"
+          title="Update PIC and follow-up notes"
+          aria-label="Update PIC and follow-up notes"
+        >
+          <Pencil size={15} />
+        </button>
         <button
           onClick={() => setConfirmOpen(true)}
           className="text-neutral-400 hover:text-red-600 transition-colors p-1"
@@ -195,6 +233,10 @@ function ClaimRow({ claim, branch }: { claim: WarrantyClaim; branch: Branch }) {
         >
           <Trash2 size={15} />
         </button>
+
+        {notesOpen && (
+          <NotesModal claim={claim} branch={branch} knownPics={knownPics} onClose={() => setNotesOpen(false)} />
+        )}
 
         {confirmOpen && (
           <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 px-4">
@@ -228,7 +270,167 @@ function ClaimRow({ claim, branch }: { claim: WarrantyClaim; branch: Branch }) {
   );
 }
 
-function AddClaimModal({ branch, onClose }: { branch: Branch; onClose: () => void }) {
+// Mirrors the summary table at the top of their spreadsheet: how many
+// claims each person is carrying, and where those claims stand.
+function PicScoreboard({ claims }: { claims: WarrantyClaim[] }) {
+  const rows = useMemo(() => {
+    const byPic = new Map<string, Record<ClaimStatus, number> & { total: number }>();
+    for (const c of claims) {
+      const key = c.pic.trim() || "Unassigned";
+      let row = byPic.get(key);
+      if (!row) {
+        row = { Pending: 0, "In Progress": 0, Approved: 0, Rejected: 0, Closed: 0, total: 0 };
+        byPic.set(key, row);
+      }
+      row[c.status] += 1;
+      row.total += 1;
+    }
+    return Array.from(byPic.entries())
+      .map(([pic, counts]) => ({ pic, ...counts }))
+      .sort((a, b) => b.total - a.total);
+  }, [claims]);
+
+  if (rows.length === 0) return null;
+
+  return (
+    <div className="bg-white border border-neutral-200 rounded-xl overflow-hidden mb-4">
+      <div className="px-5 py-4 border-b border-neutral-200">
+        <p className="text-sm font-semibold text-neutral-900">Claims by Person in Charge</p>
+        <p className="text-xs text-neutral-500 mt-0.5">Where each person&apos;s claims currently stand</p>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="text-left text-xs text-neutral-500 border-b border-neutral-200">
+              <th className="font-medium px-5 py-3 whitespace-nowrap">PIC</th>
+              {CLAIM_STATUSES.map((s) => (
+                <th key={s} className="font-medium px-5 py-3 whitespace-nowrap">
+                  {s}
+                </th>
+              ))}
+              <th className="font-medium px-5 py-3 whitespace-nowrap">Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r) => (
+              <tr key={r.pic} className="border-b border-neutral-100 last:border-0 hover:bg-neutral-50">
+                <td className="px-5 py-3 text-neutral-800 font-medium whitespace-nowrap">{r.pic}</td>
+                {CLAIM_STATUSES.map((s) => (
+                  <td key={s} className="px-5 py-3 whitespace-nowrap tabular-nums">
+                    {r[s] > 0 ? (
+                      <span className="text-neutral-800">{r[s]}</span>
+                    ) : (
+                      <span className="text-neutral-300">0</span>
+                    )}
+                  </td>
+                ))}
+                <td className="px-5 py-3 text-neutral-900 font-semibold whitespace-nowrap tabular-nums">{r.total}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function NotesModal({
+  claim,
+  branch,
+  knownPics,
+  onClose,
+}: {
+  claim: WarrantyClaim;
+  branch: Branch;
+  knownPics: string[];
+  onClose: () => void;
+}) {
+  const [pic, setPic] = useState(claim.pic);
+  const [latestStatus, setLatestStatus] = useState(claim.latestStatus);
+  const [reason, setReason] = useState(claim.reason);
+  const [isPending, startTransition] = useTransition();
+
+  function handleSave() {
+    startTransition(async () => {
+      await updateClaimNotesAction(claim.id, branch, { pic, latestStatus, reason });
+      onClose();
+    });
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 px-4">
+      <div className="bg-white border border-neutral-200 rounded-xl w-full max-w-sm p-6 text-left">
+        <h2 className="text-sm font-semibold text-neutral-900 mb-1">Update claim</h2>
+        <p className="text-xs text-neutral-500 mb-5">
+          Ticket {claim.ticketId} · {claim.plateNo}
+        </p>
+        <div className="space-y-4">
+          <div>
+            <label className="block text-xs font-medium text-neutral-600 mb-1.5">Person in Charge</label>
+            <input
+              type="text"
+              list="known-pics"
+              value={pic}
+              onChange={(e) => setPic(e.target.value)}
+              placeholder="e.g. SK"
+              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+            />
+            <datalist id="known-pics">
+              {knownPics.map((p) => (
+                <option key={p} value={p} />
+              ))}
+            </datalist>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-neutral-600 mb-1.5">Latest Status</label>
+            <textarea
+              value={latestStatus}
+              onChange={(e) => setLatestStatus(e.target.value)}
+              rows={2}
+              placeholder="e.g. ETA: waiting SCM reply"
+              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50 resize-none"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-neutral-600 mb-1.5">Reason</label>
+            <textarea
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              rows={2}
+              placeholder="e.g. 2/3 items have arrived"
+              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50 resize-none"
+            />
+          </div>
+        </div>
+        <div className="flex items-center justify-end gap-3 mt-6">
+          <button
+            onClick={onClose}
+            className="text-sm font-medium text-neutral-600 hover:text-neutral-800 px-4 py-2 transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleSave}
+            disabled={isPending}
+            className="bg-indigo-500 hover:bg-indigo-400 disabled:opacity-50 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+          >
+            {isPending ? "Saving…" : "Save"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function AddClaimModal({
+  branch,
+  knownPics,
+  onClose,
+}: {
+  branch: Branch;
+  knownPics: string[];
+  onClose: () => void;
+}) {
   const [ticketId, setTicketId] = useState("");
   const [customerName, setCustomerName] = useState("");
   const [plateNo, setPlateNo] = useState("");
@@ -237,6 +439,7 @@ function AddClaimModal({ branch, onClose }: { branch: Branch; onClose: () => voi
   const [description, setDescription] = useState("");
   const [stockStatus, setStockStatus] = useState<StockStatus>("In Stock");
   const [submittedDate, setSubmittedDate] = useState(new Date().toISOString().slice(0, 10));
+  const [pic, setPic] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
@@ -258,6 +461,7 @@ function AddClaimModal({ branch, onClose }: { branch: Branch; onClose: () => voi
         description: description.trim(),
         stockStatus,
         submittedDate,
+        pic: pic.trim(),
       });
       if (result && "error" in result) {
         setError(result.error);
@@ -281,6 +485,22 @@ function AddClaimModal({ branch, onClose }: { branch: Branch; onClose: () => voi
               placeholder="e.g. 001-00-046862"
               className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
             />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-neutral-600 mb-1.5">Person in Charge</label>
+            <input
+              type="text"
+              list="known-pics-add"
+              value={pic}
+              onChange={(e) => setPic(e.target.value)}
+              placeholder="e.g. SK"
+              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+            />
+            <datalist id="known-pics-add">
+              {knownPics.map((p) => (
+                <option key={p} value={p} />
+              ))}
+            </datalist>
           </div>
           <div>
             <label className="block text-xs font-medium text-neutral-600 mb-1.5">Customer Name *</label>
