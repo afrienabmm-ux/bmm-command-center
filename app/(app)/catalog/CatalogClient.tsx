@@ -6,6 +6,7 @@ import {
   addCatalogProductAction,
   deleteCatalogProductAction,
   updateCatalogStockAction,
+  updateCatalogPriceAction,
 } from "@/lib/catalog-actions";
 import { CATALOG_BRANDS, LOW_STOCK_THRESHOLD, type CatalogBrand, type CatalogProduct } from "@/lib/types";
 import type { Branch } from "@/lib/branch";
@@ -67,6 +68,7 @@ export default function CatalogClient({
                   <tr className="text-left text-xs text-neutral-500">
                     <th className="font-medium px-5 py-2">Product</th>
                     <th className="font-medium px-5 py-2">Spec</th>
+                    <th className="font-medium px-5 py-2 whitespace-nowrap">Price (RM)</th>
                     <th className="font-medium px-5 py-2 whitespace-nowrap">In Stock</th>
                     <th className="px-5 py-2" />
                   </tr>
@@ -94,6 +96,7 @@ export default function CatalogClient({
 
 function ProductRow({ product, quantity, branch }: { product: CatalogProduct; quantity: number; branch: Branch }) {
   const [value, setValue] = useState(String(quantity));
+  const [priceValue, setPriceValue] = useState(String(product.price));
   const [isPending, startTransition] = useTransition();
   const low = quantity < LOW_STOCK_THRESHOLD;
 
@@ -103,10 +106,29 @@ function ProductRow({ product, quantity, branch }: { product: CatalogProduct; qu
     startTransition(() => updateCatalogStockAction(product.id, branch, next));
   }
 
+  function commitPrice() {
+    const next = Math.max(0, Number(priceValue) || 0);
+    if (next === product.price) return;
+    startTransition(() => updateCatalogPriceAction(product.id, next));
+  }
+
   return (
     <tr className="border-b border-neutral-100 last:border-0 hover:bg-neutral-50">
       <td className="px-5 py-3 text-neutral-800 font-medium whitespace-nowrap">{product.productName}</td>
       <td className="px-5 py-3 text-neutral-500">{product.spec}</td>
+      <td className="px-5 py-3">
+        <input
+          type="number"
+          min={0}
+          step="0.01"
+          value={priceValue}
+          onChange={(e) => setPriceValue(e.target.value)}
+          onBlur={commitPrice}
+          onKeyDown={(e) => e.key === "Enter" && (e.currentTarget as HTMLInputElement).blur()}
+          disabled={isPending}
+          className="w-20 rounded-lg border bg-neutral-50 border-neutral-200 text-neutral-800 px-2 py-1.5 text-sm focus:outline-none focus:border-indigo-500/50 disabled:opacity-50"
+        />
+      </td>
       <td className="px-5 py-3">
         <div className="flex items-center gap-2">
           <input
@@ -153,6 +175,7 @@ function AddProductModal({ brand, branch, onClose }: { brand: CatalogBrand; bran
   const [category, setCategory] = useState(brand === "Yamalube" ? "Produk Servis 20,000KM Kebawah" : "");
   const [productName, setProductName] = useState("");
   const [spec, setSpec] = useState("");
+  const [price, setPrice] = useState("");
   const [quantity, setQuantity] = useState("0");
   const [isPending, startTransition] = useTransition();
 
@@ -166,6 +189,7 @@ function AddProductModal({ brand, branch, onClose }: { brand: CatalogBrand; bran
         category: category.trim(),
         productName: productName.trim(),
         spec: spec.trim(),
+        price: Math.max(0, Number(price) || 0),
         branch,
         quantity: Math.max(0, Number(quantity) || 0),
       });
@@ -199,13 +223,25 @@ function AddProductModal({ brand, branch, onClose }: { brand: CatalogBrand; bran
           </div>
           <div>
             <label className="block text-xs font-medium text-neutral-600 mb-1.5">
-              Spec / Price <span className="text-neutral-400">(optional)</span>
+              Spec <span className="text-neutral-400">(optional)</span>
             </label>
             <input
               type="text"
               value={spec}
               onChange={(e) => setSpec(e.target.value)}
-              placeholder="e.g. RM 25.00"
+              placeholder="e.g. 1L bottle"
+              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-neutral-600 mb-1.5">Price (RM)</label>
+            <input
+              type="number"
+              min={0}
+              step="0.01"
+              value={price}
+              onChange={(e) => setPrice(e.target.value)}
+              placeholder="0.00"
               className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
             />
           </div>

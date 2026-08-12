@@ -79,6 +79,46 @@ export async function approveUserAction(
   revalidatePath("/team");
 }
 
+// Manager-only shortcut: creates a brand new login directly (email + password
+// + role + branch), already approved — skips the usual sign-up-then-approve
+// queue entirely so the person can log in right away.
+export async function createUserAction(
+  email: string,
+  password: string,
+  name: string,
+  role: Role,
+  homeBranch: BranchSelection,
+  positionTitle: string | null = null
+): Promise<{ error: string } | void> {
+  const manager = await requireManager();
+  if (!email.trim()) return { error: "Enter an email." };
+  if (password.length < 8) return { error: "Password must be at least 8 characters." };
+  if (!name.trim()) return { error: "Enter a name." };
+
+  const { data, error } = await supabaseAdmin.auth.admin.createUser({
+    email: email.trim(),
+    password,
+    email_confirm: true,
+    user_metadata: { name: name.trim(), home_branch: homeBranch },
+  });
+  if (error) return { error: error.message };
+
+  const { error: profileError } = await supabaseAdmin
+    .from("cc_user_profiles")
+    .update({
+      status: "approved",
+      role,
+      home_branch: homeBranch,
+      position_title: positionTitle,
+      approved_by: manager.id,
+      approved_at: new Date().toISOString(),
+    })
+    .eq("id", data.user.id);
+  if (profileError) return { error: profileError.message };
+
+  revalidatePath("/team");
+}
+
 export async function updateMemberAction(
   userId: string,
   role: Role,

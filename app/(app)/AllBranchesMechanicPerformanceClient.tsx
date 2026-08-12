@@ -8,18 +8,27 @@ import type { MechanicPerformanceRowWithBranch } from "@/lib/reports-actions";
 
 const COLLAPSED_COUNT = 5;
 
+type View = "revenue" | "packages";
+
 export default function AllBranchesMechanicPerformanceClient({ rows }: { rows: MechanicPerformanceRowWithBranch[] }) {
   const [branchFilter, setBranchFilter] = useState<BranchSelection>("all");
+  const [view, setView] = useState<View>("revenue");
   const [showAll, setShowAll] = useState(false);
 
-  const filtered = useMemo(
-    () => (branchFilter === "all" ? rows : rows.filter((r) => r.branch === branchFilter)),
-    [rows, branchFilter]
-  );
+  const filtered = useMemo(() => {
+    const base = branchFilter === "all" ? rows : rows.filter((r) => r.branch === branchFilter);
+    const sorted = [...base];
+    if (view === "packages") {
+      sorted.sort((a, b) => b.packageSetsSold - a.packageSetsSold);
+    } else {
+      sorted.sort((a, b) => b.totalRevenue - a.totalRevenue);
+    }
+    return sorted;
+  }, [rows, branchFilter, view]);
 
   useEffect(() => {
     setShowAll(false);
-  }, [branchFilter]);
+  }, [branchFilter, view]);
 
   const visible = showAll ? filtered : filtered.slice(0, COLLAPSED_COUNT);
   const hiddenCount = filtered.length - visible.length;
@@ -61,9 +70,29 @@ export default function AllBranchesMechanicPerformanceClient({ rows }: { rows: M
       <div className="px-5 py-4 border-b border-neutral-200 flex items-center justify-between flex-wrap gap-3">
         <div>
           <p className="text-sm font-semibold text-neutral-900">Individual Mechanic Performance</p>
-          <p className="text-xs text-neutral-500 mt-0.5">Everyone can see this — Restore Bike, Walk-in, and package sales this month</p>
+          <p className="text-xs text-neutral-500 mt-0.5">
+            {view === "packages" ? "Total packages sold per mechanic this month" : "Total revenue per mechanic this month"}
+          </p>
         </div>
         <div className="flex items-center gap-2">
+          <div className="flex gap-1 bg-neutral-50 border border-neutral-200 rounded-lg p-1">
+            <button
+              onClick={() => setView("packages")}
+              className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors whitespace-nowrap ${
+                view === "packages" ? "bg-indigo-500 text-white" : "text-neutral-600 hover:text-neutral-800"
+              }`}
+            >
+              Total Packages
+            </button>
+            <button
+              onClick={() => setView("revenue")}
+              className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors whitespace-nowrap ${
+                view === "revenue" ? "bg-indigo-500 text-white" : "text-neutral-600 hover:text-neutral-800"
+              }`}
+            >
+              Total Revenue
+            </button>
+          </div>
           <select
             value={branchFilter}
             onChange={(e) => setBranchFilter(e.target.value as BranchSelection)}
@@ -86,53 +115,90 @@ export default function AllBranchesMechanicPerformanceClient({ rows }: { rows: M
       </div>
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
-          <thead>
-            <tr className="text-left text-xs text-neutral-500 border-b border-neutral-200">
-              <th className="font-medium px-5 py-3 whitespace-nowrap">Mechanic</th>
-              <th className="font-medium px-5 py-3 whitespace-nowrap">Branch</th>
-              <th className="font-medium px-5 py-3 whitespace-nowrap">Restore Bike</th>
-              <th className="font-medium px-5 py-3 whitespace-nowrap">Walk-in</th>
-              <th className="font-medium px-5 py-3 whitespace-nowrap">Packages</th>
-              <th className="font-medium px-5 py-3 whitespace-nowrap">Total Revenue</th>
-            </tr>
-          </thead>
-          <tbody>
-            {visible.map((r, i) => (
-              <tr key={r.mechanicId} className="border-b border-neutral-100 last:border-0 hover:bg-neutral-50">
-                <td className="px-5 py-3.5 text-neutral-800 font-medium whitespace-nowrap">
-                  <span className="inline-flex items-center gap-1.5">
-                    {i === 0 && r.totalRevenue > 0 && <Crown size={14} className="text-amber-500" />}
-                    {r.fullName} <span className="text-neutral-500 font-normal">({r.shortCode})</span>
-                    {r.mechanicId === topRestoreBikeId && (
-                      <span className="flex items-center gap-1 text-xs font-medium text-purple-700 bg-purple-500/10 border border-purple-500/20 rounded-full px-2 py-0.5">
-                        <Wrench size={10} /> Top Restore Bike
+          {view === "packages" ? (
+            <>
+              <thead>
+                <tr className="text-left text-xs text-neutral-500 border-b border-neutral-200">
+                  <th className="font-medium px-5 py-3 whitespace-nowrap">Mechanic</th>
+                  <th className="font-medium px-5 py-3 whitespace-nowrap">Branch</th>
+                  <th className="font-medium px-5 py-3 whitespace-nowrap">Package Sets Sold</th>
+                  <th className="font-medium px-5 py-3 whitespace-nowrap">Package Revenue</th>
+                </tr>
+              </thead>
+              <tbody>
+                {visible.map((r, i) => (
+                  <tr key={r.mechanicId} className="border-b border-neutral-100 last:border-0 hover:bg-neutral-50">
+                    <td className="px-5 py-3.5 text-neutral-800 font-medium whitespace-nowrap">
+                      <span className="inline-flex items-center gap-1.5">
+                        {i === 0 && r.packageSetsSold > 0 && <Crown size={14} className="text-amber-500" />}
+                        {r.fullName} <span className="text-neutral-500 font-normal">({r.shortCode})</span>
                       </span>
-                    )}
-                  </span>
-                </td>
-                <td className="px-5 py-3.5 text-neutral-600 whitespace-nowrap">{branchLabel(r.branch)}</td>
-                <td className="px-5 py-3.5 text-neutral-600 whitespace-nowrap">
-                  {r.restoreBikeCount} jobs · {formatCurrency(r.restoreBikeRevenue)}
-                </td>
-                <td className="px-5 py-3.5 text-neutral-600 whitespace-nowrap">
-                  {r.walkInCount} jobs · {formatCurrency(r.walkInRevenue)}
-                </td>
-                <td className="px-5 py-3.5 text-neutral-600 whitespace-nowrap">
-                  {r.packageSetsSold} sets · {formatCurrency(r.packageRevenue)}
-                </td>
-                <td className="px-5 py-3.5 text-neutral-900 font-semibold whitespace-nowrap">
-                  {formatCurrency(r.totalRevenue)}
-                </td>
-              </tr>
-            ))}
-            {filtered.length === 0 && (
-              <tr>
-                <td colSpan={6} className="px-5 py-10 text-center text-neutral-500 text-sm">
-                  No mechanics {branchFilter === "all" ? "yet" : `at ${branchLabel(branchFilter)} yet`}.
-                </td>
-              </tr>
-            )}
-          </tbody>
+                    </td>
+                    <td className="px-5 py-3.5 text-neutral-600 whitespace-nowrap">{branchLabel(r.branch)}</td>
+                    <td className="px-5 py-3.5 text-neutral-900 font-semibold whitespace-nowrap">{r.packageSetsSold} sets</td>
+                    <td className="px-5 py-3.5 text-neutral-600 whitespace-nowrap">{formatCurrency(r.packageRevenue)}</td>
+                  </tr>
+                ))}
+                {filtered.length === 0 && (
+                  <tr>
+                    <td colSpan={4} className="px-5 py-10 text-center text-neutral-500 text-sm">
+                      No mechanics {branchFilter === "all" ? "yet" : `at ${branchLabel(branchFilter)} yet`}.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </>
+          ) : (
+            <>
+              <thead>
+                <tr className="text-left text-xs text-neutral-500 border-b border-neutral-200">
+                  <th className="font-medium px-5 py-3 whitespace-nowrap">Mechanic</th>
+                  <th className="font-medium px-5 py-3 whitespace-nowrap">Branch</th>
+                  <th className="font-medium px-5 py-3 whitespace-nowrap">Restore Bike</th>
+                  <th className="font-medium px-5 py-3 whitespace-nowrap">Walk-in</th>
+                  <th className="font-medium px-5 py-3 whitespace-nowrap">Packages</th>
+                  <th className="font-medium px-5 py-3 whitespace-nowrap">Total Revenue</th>
+                </tr>
+              </thead>
+              <tbody>
+                {visible.map((r, i) => (
+                  <tr key={r.mechanicId} className="border-b border-neutral-100 last:border-0 hover:bg-neutral-50">
+                    <td className="px-5 py-3.5 text-neutral-800 font-medium whitespace-nowrap">
+                      <span className="inline-flex items-center gap-1.5">
+                        {i === 0 && r.totalRevenue > 0 && <Crown size={14} className="text-amber-500" />}
+                        {r.fullName} <span className="text-neutral-500 font-normal">({r.shortCode})</span>
+                        {r.mechanicId === topRestoreBikeId && (
+                          <span className="flex items-center gap-1 text-xs font-medium text-purple-700 bg-purple-500/10 border border-purple-500/20 rounded-full px-2 py-0.5">
+                            <Wrench size={10} /> Top Restore Bike
+                          </span>
+                        )}
+                      </span>
+                    </td>
+                    <td className="px-5 py-3.5 text-neutral-600 whitespace-nowrap">{branchLabel(r.branch)}</td>
+                    <td className="px-5 py-3.5 text-neutral-600 whitespace-nowrap">
+                      {r.restoreBikeCount} jobs · {formatCurrency(r.restoreBikeRevenue)}
+                    </td>
+                    <td className="px-5 py-3.5 text-neutral-600 whitespace-nowrap">
+                      {r.walkInCount} jobs · {formatCurrency(r.walkInRevenue)}
+                    </td>
+                    <td className="px-5 py-3.5 text-neutral-600 whitespace-nowrap">
+                      {r.packageSetsSold} sets · {formatCurrency(r.packageRevenue)}
+                    </td>
+                    <td className="px-5 py-3.5 text-neutral-900 font-semibold whitespace-nowrap">
+                      {formatCurrency(r.totalRevenue)}
+                    </td>
+                  </tr>
+                ))}
+                {filtered.length === 0 && (
+                  <tr>
+                    <td colSpan={6} className="px-5 py-10 text-center text-neutral-500 text-sm">
+                      No mechanics {branchFilter === "all" ? "yet" : `at ${branchLabel(branchFilter)} yet`}.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </>
+          )}
         </table>
       </div>
       {filtered.length > COLLAPSED_COUNT && (

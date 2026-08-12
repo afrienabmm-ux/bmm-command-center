@@ -126,4 +126,5 @@ export type CatalogProduct = {
   category: string;
   productName: string;
   spec: string;
+  price: number;
 };

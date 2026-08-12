@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { UserCheck, ShieldOff, Settings2, ChevronDown, ChevronUp, RotateCcw, RefreshCcw, Trash2, KeyRound } from "lucide-react";
+import { UserCheck, ShieldOff, Settings2, ChevronDown, ChevronUp, RotateCcw, RefreshCcw, Trash2, KeyRound, UserPlus } from "lucide-react";
 import {
   approveUserAction,
+  createUserAction,
   updateMemberAction,
   updateMemberPagesAction,
   revokeUserAction,
@@ -31,11 +32,26 @@ export default function TeamClient({
   viewerRole: Role | null;
 }) {
   const isIT = viewerRole === "IT";
+  const isManager = viewerRole === "Manager";
   const pending = members.filter((m) => m.status === "pending");
   const others = members.filter((m) => m.status !== "pending");
+  const [addUserOpen, setAddUserOpen] = useState(false);
 
   return (
     <div className="space-y-8 max-w-5xl">
+      {isManager && (
+        <div className="flex justify-end">
+          <button
+            onClick={() => setAddUserOpen(true)}
+            className="flex items-center gap-1.5 bg-indigo-500 hover:bg-indigo-400 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+          >
+            <UserPlus size={15} /> Add User
+          </button>
+        </div>
+      )}
+
+      {addUserOpen && <AddUserModal onClose={() => setAddUserOpen(false)} />}
+
       {pending.length > 0 && (
         <div>
           <p className="text-sm font-medium text-neutral-800 mb-3">Waiting for approval ({pending.length})</p>
@@ -424,6 +440,131 @@ function ResetPasswordModal({ member, onClose }: { member: TeamMember; onClose: 
             </div>
           </>
         )}
+      </div>
+    </div>
+  );
+}
+
+function AddUserModal({ onClose }: { onClose: () => void }) {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [name, setName] = useState("");
+  const [choice, setChoice] = useState<RoleChoice>("Mechanic PIC");
+  const [customTitle, setCustomTitle] = useState("");
+  const [branch, setBranch] = useState<BranchSelection>("kapar");
+  const [error, setError] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
+
+  const canSave = email.trim() !== "" && password.length >= 8 && name.trim() !== "";
+
+  function handleSave() {
+    if (!canSave) return;
+    const role: Role = choice === "Others" ? "Mechanic PIC" : choice;
+    const positionTitle = choice === "Others" ? customTitle.trim() || "Others" : null;
+    startTransition(async () => {
+      const result = await createUserAction(email, password, name, role, branch, positionTitle);
+      if (result && "error" in result) {
+        setError(result.error);
+        return;
+      }
+      onClose();
+    });
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 px-4">
+      <div className="bg-white border border-neutral-200 rounded-xl w-full max-w-sm p-6">
+        <h2 className="text-sm font-semibold text-neutral-900 mb-1">Add User</h2>
+        <p className="text-xs text-neutral-500 mb-4">Creates a login that&apos;s already active — no approval needed, they can sign in right away.</p>
+        <div className="space-y-3">
+          <div>
+            <label className="block text-xs font-medium text-neutral-600 mb-1.5">Name</label>
+            <input
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-neutral-600 mb-1.5">Email</label>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-neutral-600 mb-1.5">Password</label>
+            <input
+              type="text"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="Min. 8 characters"
+              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+            />
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="flex-1">
+              <label className="block text-xs font-medium text-neutral-600 mb-1.5">Role</label>
+              <select
+                value={choice}
+                onChange={(e) => setChoice(e.target.value as RoleChoice)}
+                className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+              >
+                {ROLE_OR_OTHER.map((r) => (
+                  <option key={r} value={r}>
+                    {r}
+                  </option>
+                ))}
+              </select>
+            </div>
+            {choice === "Others" && (
+              <div className="flex-1">
+                <label className="block text-xs font-medium text-neutral-600 mb-1.5">Title</label>
+                <input
+                  type="text"
+                  value={customTitle}
+                  onChange={(e) => setCustomTitle(e.target.value)}
+                  placeholder="e.g. HR"
+                  className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+                />
+              </div>
+            )}
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-neutral-600 mb-1.5">Branch</label>
+            <select
+              value={branch}
+              onChange={(e) => setBranch(e.target.value as BranchSelection)}
+              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+            >
+              {BRANCHES.map((b) => (
+                <option key={b.value} value={b.value}>
+                  {b.label}
+                </option>
+              ))}
+              <option value="all">All Branches</option>
+            </select>
+          </div>
+        </div>
+        {error && <p className="text-sm text-red-700 mt-3">{error}</p>}
+        <div className="flex items-center justify-end gap-3 mt-6">
+          <button
+            onClick={onClose}
+            className="text-sm font-medium text-neutral-600 hover:text-neutral-800 px-4 py-2 transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleSave}
+            disabled={!canSave || isPending}
+            className="bg-indigo-500 hover:bg-indigo-400 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+          >
+            {isPending ? "Creating…" : "Create User"}
+          </button>
+        </div>
       </div>
     </div>
   );

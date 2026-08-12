@@ -7,10 +7,17 @@ import type { CatalogProduct, CatalogBrand } from "./types";
 import type { Branch } from "./branch";
 import { LOW_STOCK_THRESHOLD } from "./types";
 
-type Row = { id: string; brand: CatalogBrand; category: string; product_name: string; spec: string };
+type Row = { id: string; brand: CatalogBrand; category: string; product_name: string; spec: string; price: number };
 
 function toProduct(r: Row): CatalogProduct {
-  return { id: r.id, brand: r.brand, category: r.category, productName: r.product_name, spec: r.spec };
+  return {
+    id: r.id,
+    brand: r.brand,
+    category: r.category,
+    productName: r.product_name,
+    spec: r.spec,
+    price: Number(r.price),
+  };
 }
 
 export async function getCatalogProducts(brand: CatalogBrand): Promise<CatalogProduct[]> {
@@ -30,6 +37,7 @@ export async function addCatalogProductAction(input: {
   category: string;
   productName: string;
   spec: string;
+  price: number;
   branch: Branch;
   quantity: number;
 }): Promise<void> {
@@ -41,6 +49,7 @@ export async function addCatalogProductAction(input: {
       category: input.category,
       product_name: input.productName,
       spec: input.spec,
+      price: input.price,
     })
     .select()
     .single();
@@ -53,6 +62,16 @@ export async function addCatalogProductAction(input: {
 
   revalidatePath("/catalog");
   revalidatePath("/");
+}
+
+export async function updateCatalogPriceAction(id: string, price: number): Promise<void> {
+  await requireApproved();
+  const { error } = await supabaseAdmin
+    .from("cc_catalog_products")
+    .update({ price: Math.max(0, price) })
+    .eq("id", id);
+  if (error) throw new Error(error.message);
+  revalidatePath("/catalog");
 }
 
 export async function deleteCatalogProductAction(id: string): Promise<void> {

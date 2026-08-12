@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useTransition } from "react";
-import { Plus, Download, Pencil, Trash2, AlertTriangle } from "lucide-react";
+import { useMemo, useState, useTransition } from "react";
+import { Plus, Download, Pencil, Trash2, AlertTriangle, Search } from "lucide-react";
 import { addRepairJobAction, updateRepairJobAction, updateRepairStatusAction, updateRepairApprovalAction } from "@/lib/repairs-actions";
 import { exportRepairJobsCsv } from "@/lib/export-actions";
 import {
@@ -16,7 +16,7 @@ import {
 } from "@/lib/types";
 import type { Mechanic } from "@/lib/types";
 import { BRANCHES, branchLabel, type Branch, type BranchSelection } from "@/lib/branch";
-import { formatCurrency, formatDate, daysBetween } from "@/lib/format";
+import { formatCurrency, formatDate, daysBetween, toCsv } from "@/lib/format";
 
 const JOB_TYPE_STYLES: Record<JobType, string> = {
   "Restore Bike": "bg-purple-500/10 text-purple-700 border-purple-500/20",
@@ -63,9 +63,11 @@ export default function RepairsClient({
   const [modalOpen, setModalOpen] = useState(false);
   const [editingJob, setEditingJob] = useState<RepairJob | null>(null);
   const [exporting, setExporting] = useState(false);
+  const [exportJobModalOpen, setExportJobModalOpen] = useState(false);
   const baseJobs = tab === "active" ? active : completed;
   const jobs = typeFilter === "All" ? baseJobs : baseJobs.filter((j) => j.jobType === typeFilter);
   const overdueCount = active.filter(isOverdue).length;
+  const allJobs = useMemo(() => [...active, ...completed], [active, completed]);
 
   function mechanicLabel(id: string | null) {
     if (!id) return "—";
@@ -88,6 +90,36 @@ export default function RepairsClient({
     } finally {
       setExporting(false);
     }
+  }
+
+  function handleExportSingleJob(job: RepairJob) {
+    const rows: (string | number)[][] =
+      job.items.length > 0
+        ? job.items.map((item) => [
+            job.jobNo,
+            job.customerName || "—",
+            job.plateNo,
+            job.jobType,
+            job.status,
+            item.description,
+            item.quantity,
+            item.price.toFixed(2),
+            (item.quantity * item.price).toFixed(2),
+          ])
+        : [[job.jobNo, job.customerName || "—", job.plateNo, job.jobType, job.status, "—", "", "", ""]];
+    rows.push(["", "", "", "", "", "", "", "Total", job.revenueAmount.toFixed(2)]);
+    const csv = toCsv(
+      ["Job No", "Customer", "Plate No", "Job Type", "Status", "Item Description", "Qty", "Price (RM)", "Line Total (RM)"],
+      rows
+    );
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `bmm-repair-job-${job.jobNo}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    setExportJobModalOpen(false);
   }
 
   return (
@@ -134,6 +166,12 @@ export default function RepairsClient({
               : typeFilter === "All"
                 ? "Export to Excel / CSV"
                 : `Export ${typeFilter} Only`}
+          </button>
+          <button
+            onClick={() => setExportJobModalOpen(true)}
+            className="flex items-center gap-1.5 bg-neutral-100 hover:bg-neutral-200 text-neutral-800 text-sm font-medium px-4 py-2 rounded-lg transition-colors whitespace-nowrap"
+          >
+            <Search size={15} /> Export One Job (with items)
           </button>
           <button
             onClick={() => setModalOpen(true)}
@@ -216,7 +254,11 @@ export default function RepairsClient({
                   <th className="font-medium px-5 py-3 whitespace-nowrap">Type</th>
                   <th className="font-medium px-5 py-3 whitespace-nowrap">Mechanic</th>
                   <th className="font-medium px-5 py-3 whitespace-nowrap">Cost Total</th>
-                  <th className="font-medium px-5 py-3 whitespace-nowrap">Trade-in/Sell</th>
+                  {typeFilter !== "Walk-in" && (
+                    <th className="font-medium px-5 py-3 whitespace-nowrap">Trade-in/Sell</th>
+                  )}
+                  <th className="font-medium px-5 py-3 whitespace-nowrap">Start Date</th>
+                  <th className="font-medium px-5 py-3 whitespace-nowrap">End Date</th>
                   <th className="font-medium px-5 py-3 whitespace-nowrap">Days</th>
                   <th className="font-medium px-5 py-3 whitespace-nowrap">Status</th>
                   <th className="px-5 py-3" />
@@ -230,12 +272,13 @@ export default function RepairsClient({
                     branch={branch}
                     mechanicLabel={mechanicLabel(job.mechanicId)}
                     editable={tab === "active"}
+                    showDealType={typeFilter !== "Walk-in"}
                     onEdit={() => setEditingJob(job)}
                   />
                 ))}
                 {jobs.length === 0 && (
                   <tr>
-                    <td colSpan={10} className="px-5 py-10 text-center text-neutral-500 text-sm">
+                    <td colSpan={11} className="px-5 py-10 text-center text-neutral-500 text-sm">
                       {tab === "active" ? "No active" : "No completed"}
                       {typeFilter === "All" ? " repair jobs." : ` ${typeFilter} jobs.`}
                     </td>
@@ -267,6 +310,70 @@ export default function RepairsClient({
           onClose={() => setEditingJob(null)}
         />
       )}
+
+      {exportJobModalOpen && (
+        <ExportJobModal jobs={allJobs} onExport={handleExportSingleJob} onClose={() => setExportJobModalOpen(false)} />
+      )}
+    </div>
+  );
+}
+
+function ExportJobModal({
+  jobs,
+  onExport,
+  onClose,
+}: {
+  jobs: RepairJob[];
+  onExport: (job: RepairJob) => void;
+  onClose: () => void;
+}) {
+  const [query, setQuery] = useState("");
+  const matches = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    const list = q
+      ? jobs.filter((j) => j.jobNo.toLowerCase().includes(q) || j.plateNo.toLowerCase().includes(q))
+      : jobs;
+    return list.slice(0, 20);
+  }, [jobs, query]);
+
+  return (
+    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 px-4">
+      <div className="bg-white border border-neutral-200 rounded-xl w-full max-w-md p-6">
+        <h2 className="text-sm font-semibold text-neutral-900 mb-1">Export One Job</h2>
+        <p className="text-xs text-neutral-500 mb-4">Search by Job No. or Plate No. — the export will include every item and price for that job.</p>
+        <div className="relative mb-3">
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
+          <input
+            type="text"
+            autoFocus
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search job no. or plate no."
+            className="w-full bg-neutral-50 border border-neutral-200 rounded-lg pl-9 pr-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+          />
+        </div>
+        <div className="max-h-72 overflow-y-auto border border-neutral-200 rounded-lg divide-y divide-neutral-100">
+          {matches.length === 0 && <p className="text-sm text-neutral-500 text-center py-8">No matching jobs.</p>}
+          {matches.map((job) => (
+            <button
+              key={job.id}
+              onClick={() => onExport(job)}
+              className="w-full text-left px-4 py-2.5 hover:bg-neutral-50 transition-colors flex items-center justify-between gap-3"
+            >
+              <div>
+                <p className="text-sm font-medium text-neutral-800">{job.jobNo} — {job.plateNo}</p>
+                <p className="text-xs text-neutral-500">{job.jobType} · {job.items.length} item{job.items.length === 1 ? "" : "s"} · {formatCurrency(job.revenueAmount)}</p>
+              </div>
+              <Download size={14} className="text-neutral-400 shrink-0" />
+            </button>
+          ))}
+        </div>
+        <div className="flex items-center justify-end mt-5">
+          <button onClick={onClose} className="text-sm font-medium text-neutral-600 hover:text-neutral-800 px-4 py-2 transition-colors">
+            Close
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -334,12 +441,14 @@ function JobRow({
   branch,
   mechanicLabel,
   editable,
+  showDealType,
   onEdit,
 }: {
   job: RepairJob;
   branch: Branch;
   mechanicLabel: string;
   editable: boolean;
+  showDealType: boolean;
   onEdit: () => void;
 }) {
   const [isPending, startTransition] = useTransition();
@@ -357,7 +466,9 @@ function JobRow({
       </td>
       <td className="px-5 py-3.5 text-neutral-600 whitespace-nowrap">{mechanicLabel}</td>
       <td className="px-5 py-3.5 text-neutral-700 whitespace-nowrap">{formatCurrency(job.revenueAmount)}</td>
-      <td className="px-5 py-3.5 text-neutral-600 whitespace-nowrap">{job.dealType || "—"}</td>
+      {showDealType && <td className="px-5 py-3.5 text-neutral-600 whitespace-nowrap">{job.dealType || "—"}</td>}
+      <td className="px-5 py-3.5 text-neutral-500 whitespace-nowrap">{formatDate(job.startedDate)}</td>
+      <td className="px-5 py-3.5 text-neutral-500 whitespace-nowrap">{job.completedDate ? formatDate(job.completedDate) : "—"}</td>
       <td className="px-5 py-3.5 text-neutral-500 whitespace-nowrap">{days ?? 0}d</td>
       <td className="px-5 py-3.5">
         <StatusCell job={job} branch={branch} editable={editable} isPending={isPending} startTransition={startTransition} />
