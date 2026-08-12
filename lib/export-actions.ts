@@ -3,13 +3,11 @@
 import { requireApproved } from "./current-user";
 import { getBranchMonthSummary, getMechanicAchievements } from "./reports-actions";
 import { getPackageSales, getAllBranchesPackageSales } from "./packages-actions";
-import { getActiveRepairJobs, getCompletedRepairJobs } from "./repairs-actions";
-import { getMechanics } from "./mechanics-actions";
 import { getWarrantyClaims } from "./claims-actions";
 import { getGenbluRegistrations, getAllBranchesGenbluRegistrations } from "./genblu-actions";
-import { toCsv, monthLabel, formatDate, daysBetween } from "./format";
+import { toCsv, monthLabel, formatDate } from "./format";
 import { BRANCHES, branchLabel, type Branch } from "./branch";
-import type { JobType, ClaimStatus } from "./types";
+import type { ClaimStatus } from "./types";
 
 export async function exportYearlySummaryCsv(branch: Branch, year: number): Promise<string> {
   await requireApproved();
@@ -94,86 +92,6 @@ export async function exportAllBranchesPackageSalesCsv(): Promise<string> {
   return toCsv(["Receipt ID", "Package Name", "Mechanic", "Branch", "Date"], rows);
 }
 
-export async function exportRepairJobsCsv(branch: Branch, jobType?: JobType): Promise<string> {
-  await requireApproved();
-  const [active, completed] = await Promise.all([getActiveRepairJobs(branch), getCompletedRepairJobs(branch)]);
-  const today = new Date().toISOString().slice(0, 10);
-  const all = [...active, ...completed];
-  const filtered = jobType ? all.filter((j) => j.jobType === jobType) : all;
-
-  if (jobType === "Restore Bike") {
-    const mechanics = await getMechanics(branch);
-    const mechanicLabel = (id: string | null) => {
-      const m = id ? mechanics.find((m) => m.id === id) : null;
-      return m ? `${m.shortName} (${m.shortCode})` : "";
-    };
-    const rows = filtered.map((j, i) => [
-      i + 1,
-      j.picName,
-      j.plateNo,
-      j.model,
-      j.bikeYear,
-      j.condition,
-      mechanicLabel(j.mechanicId),
-      j.location,
-      formatDate(j.startedDate),
-      j.completedDate ? formatDate(j.completedDate) : "",
-      j.revenueAmount.toFixed(2),
-      j.description,
-      j.dealType,
-      j.approvalStatus,
-      j.status,
-    ]);
-    return toCsv(
-      [
-        "No.",
-        "PIC",
-        "N. Plate",
-        "Model",
-        "Tahun",
-        "Condition",
-        "Mechanic",
-        "Location",
-        "Start Date",
-        "End Date",
-        "Cost Restore (RM)",
-        "Remark",
-        "Trade In / Jual",
-        "Approval",
-        "Status",
-      ],
-      rows
-    );
-  }
-
-  const rows = filtered.map((j) => [
-    j.jobNo,
-    j.customerName,
-    j.plateNo,
-    j.jobType,
-    j.status,
-    j.revenueAmount.toFixed(2),
-    j.dealType,
-    formatDate(j.startedDate),
-    j.completedDate ? formatDate(j.completedDate) : "",
-    daysBetween(j.startedDate, j.completedDate ?? today) ?? 0,
-  ]);
-  return toCsv(
-    [
-      "Job No",
-      "Customer",
-      "Plate No",
-      "Job Type",
-      "Status",
-      "Cost Total (RM)",
-      "Trade-in/Sell",
-      "Started Date",
-      "Completed Date",
-      "Days Taken",
-    ],
-    rows
-  );
-}
 
 export async function exportWarrantyClaimsCsv(branch: Branch, status?: ClaimStatus): Promise<string> {
   await requireApproved();

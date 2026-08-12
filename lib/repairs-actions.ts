@@ -154,6 +154,13 @@ export async function getCompletedRepairJobs(branch: Branch): Promise<RepairJob[
   return (data as unknown as Row[]).map(toJob);
 }
 
+// Completed jobs across all 3 branches — for the "All Branches" view.
+export async function getAllBranchesCompletedRepairJobs(): Promise<RepairJob[]> {
+  await requireApproved();
+  const perBranch = await Promise.all(BRANCHES.map(({ value }) => getCompletedRepairJobs(value)));
+  return perBranch.flat().sort((a, b) => (b.completedDate ?? "").localeCompare(a.completedDate ?? ""));
+}
+
 // Active Restore Bike jobs that have been running more than 5 days since
 // they started — surfaced as an in-app alert, no external notification.
 export async function getOverdueRestoreBikeJobs(branch: Branch): Promise<RepairJob[]> {

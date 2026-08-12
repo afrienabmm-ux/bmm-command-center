@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { Plus, Download, Pencil, Trash2, AlertTriangle, Search } from "lucide-react";
 import { addRepairJobAction, updateRepairJobAction, updateRepairStatusAction, updateRepairApprovalAction } from "@/lib/repairs-actions";
-import { exportRepairJobsCsv } from "@/lib/export-actions";
 import {
   JOB_TYPES,
   REPAIR_STATUSES,
@@ -79,6 +78,7 @@ export default function RepairsClient({
   const overdueCount = active.filter(isOverdue).length;
   const allJobs = useMemo(() => [...active, ...completed], [active, completed]);
   const allRestoreBikeJobs = useMemo(() => allJobs.filter((j) => j.jobType === "Restore Bike"), [allJobs]);
+  const showBranchColumn = branchSelection === "all";
 
   function mechanicLabel(id: string | null) {
     if (!id) return "—";
@@ -86,16 +86,58 @@ export default function RepairsClient({
     return m ? `${m.shortName} (${m.shortCode})` : "—";
   }
 
-  async function handleExport() {
+  function handleExport() {
     setExporting(true);
     try {
-      const csv = await exportRepairJobsCsv(branch, typeFilter === "All" ? undefined : typeFilter);
+      const filtered = typeFilter === "All" ? allJobs : allJobs.filter((j) => j.jobType === typeFilter);
+      let csv: string;
+      if (typeFilter === "Restore Bike") {
+        const rows = filtered.map((j, i) => [
+          i + 1,
+          j.picName,
+          j.plateNo,
+          j.model,
+          j.bikeYear,
+          j.condition,
+          mechanicLabel(j.mechanicId),
+          j.location,
+          formatDate(j.startedDate),
+          j.completedDate ? formatDate(j.completedDate) : "",
+          j.revenueAmount.toFixed(2),
+          j.description,
+          j.dealType,
+          j.approvalStatus,
+          j.status,
+        ]);
+        csv = toCsv(
+          ["No.", "PIC", "N. Plate", "Model", "Tahun", "Condition", "Mechanic", "Location", "Start Date", "End Date", "Cost Restore (RM)", "Remark", "Trade In / Jual", "Approval", "Status"],
+          rows
+        );
+      } else {
+        const today = new Date().toISOString().slice(0, 10);
+        const rows = filtered.map((j) => [
+          j.jobNo,
+          j.customerName,
+          j.plateNo,
+          j.jobType,
+          j.status,
+          j.revenueAmount.toFixed(2),
+          j.dealType,
+          formatDate(j.startedDate),
+          j.completedDate ? formatDate(j.completedDate) : "",
+          daysBetween(j.startedDate, j.completedDate ?? today) ?? 0,
+        ]);
+        csv = toCsv(
+          ["Job No", "Customer", "Plate No", "Job Type", "Status", "Cost Total (RM)", "Trade-in/Sell", "Started Date", "Completed Date", "Days Taken"],
+          rows
+        );
+      }
       const blob = new Blob([csv], { type: "text/csv" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
       const suffix = typeFilter === "All" ? "" : `-${typeFilter.toLowerCase().replace(/\s+/g, "-")}`;
-      a.download = `bmm-repairs-${branch}${suffix}.csv`;
+      a.download = `bmm-repairs-${branchSelection}${suffix}.csv`;
       a.click();
       URL.revokeObjectURL(url);
     } finally {
@@ -175,7 +217,7 @@ export default function RepairsClient({
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `bmm-restore-bike-${branch}.csv`;
+    a.download = `bmm-restore-bike-${branchSelection}.csv`;
     a.click();
     URL.revokeObjectURL(url);
     setExportRestoreModalOpen(false);
@@ -287,6 +329,7 @@ export default function RepairsClient({
               <thead>
                 <tr className="text-left text-xs text-neutral-500 border-b border-neutral-200">
                   <th className="font-medium px-5 py-3 whitespace-nowrap">No.</th>
+                  {showBranchColumn && <th className="font-medium px-5 py-3 whitespace-nowrap">Branch</th>}
                   <th className="font-medium px-5 py-3 whitespace-nowrap">PIC</th>
                   <th className="font-medium px-5 py-3 whitespace-nowrap">N. Plate</th>
                   <th className="font-medium px-5 py-3 whitespace-nowrap">Model</th>
@@ -310,7 +353,7 @@ export default function RepairsClient({
                     key={job.id}
                     no={i + 1}
                     job={job}
-                    branch={branch}
+                    showBranch={showBranchColumn}
                     mechanicLabel={mechanicLabel(job.mechanicId)}
                     editable={tab === "active"}
                     onEdit={() => setEditingJob(job)}
@@ -318,7 +361,7 @@ export default function RepairsClient({
                 ))}
                 {jobs.length === 0 && (
                   <tr>
-                    <td colSpan={16} className="px-5 py-10 text-center text-neutral-500 text-sm">
+                    <td colSpan={showBranchColumn ? 17 : 16} className="px-5 py-10 text-center text-neutral-500 text-sm">
                       {tab === "active" ? "No active" : "No completed"} Restore Bike jobs.
                     </td>
                   </tr>
@@ -330,6 +373,7 @@ export default function RepairsClient({
               <thead>
                 <tr className="text-left text-xs text-neutral-500 border-b border-neutral-200">
                   <th className="font-medium px-5 py-3 whitespace-nowrap">Job No.</th>
+                  {showBranchColumn && <th className="font-medium px-5 py-3 whitespace-nowrap">Branch</th>}
                   <th className="font-medium px-5 py-3 whitespace-nowrap">Customer</th>
                   <th className="font-medium px-5 py-3 whitespace-nowrap">Plate No.</th>
                   <th className="font-medium px-5 py-3 whitespace-nowrap">Type</th>
@@ -350,7 +394,7 @@ export default function RepairsClient({
                   <JobRow
                     key={job.id}
                     job={job}
-                    branch={branch}
+                    showBranch={showBranchColumn}
                     mechanicLabel={mechanicLabel(job.mechanicId)}
                     editable={tab === "active"}
                     showDealType={typeFilter !== "Walk-in"}
@@ -359,7 +403,7 @@ export default function RepairsClient({
                 ))}
                 {jobs.length === 0 && (
                   <tr>
-                    <td colSpan={11} className="px-5 py-10 text-center text-neutral-500 text-sm">
+                    <td colSpan={showBranchColumn ? 12 : 11} className="px-5 py-10 text-center text-neutral-500 text-sm">
                       {tab === "active" ? "No active" : "No completed"}
                       {typeFilter === "All" ? " repair jobs." : ` ${typeFilter} jobs.`}
                     </td>
@@ -624,14 +668,14 @@ function OverdueBadge({ job }: { job: RepairJob }) {
 
 function JobRow({
   job,
-  branch,
+  showBranch,
   mechanicLabel,
   editable,
   showDealType,
   onEdit,
 }: {
   job: RepairJob;
-  branch: Branch;
+  showBranch: boolean;
   mechanicLabel: string;
   editable: boolean;
   showDealType: boolean;
@@ -643,6 +687,7 @@ function JobRow({
   return (
     <tr className="border-b border-neutral-100 last:border-0 hover:bg-neutral-50">
       <td className="px-5 py-3.5 text-neutral-800 font-medium whitespace-nowrap">{job.jobNo}</td>
+      {showBranch && <td className="px-5 py-3.5 text-neutral-600 whitespace-nowrap">{branchLabel(job.branch)}</td>}
       <td className="px-5 py-3.5 text-neutral-700 whitespace-nowrap">{job.customerName || "—"}</td>
       <td className="px-5 py-3.5 text-neutral-600 whitespace-nowrap">{job.plateNo}</td>
       <td className="px-5 py-3.5 whitespace-nowrap">
@@ -662,7 +707,7 @@ function JobRow({
       <td className="px-5 py-3.5 text-neutral-500 whitespace-nowrap">{job.completedDate ? formatDate(job.completedDate) : "—"}</td>
       <td className="px-5 py-3.5 text-neutral-500 whitespace-nowrap">{days ?? 0}d</td>
       <td className="px-5 py-3.5">
-        <StatusCell job={job} branch={branch} editable={editable} isPending={isPending} startTransition={startTransition} />
+        <StatusCell job={job} branch={job.branch} editable={editable} isPending={isPending} startTransition={startTransition} />
       </td>
       <td className="px-5 py-3.5">
         <button onClick={onEdit} className="text-neutral-400 hover:text-indigo-600 transition-colors p-1" title="Edit job" aria-label="Edit job">
@@ -676,14 +721,14 @@ function JobRow({
 function RestoreBikeRow({
   no,
   job,
-  branch,
+  showBranch,
   mechanicLabel,
   editable,
   onEdit,
 }: {
   no: number;
   job: RepairJob;
-  branch: Branch;
+  showBranch: boolean;
   mechanicLabel: string;
   editable: boolean;
   onEdit: () => void;
@@ -693,6 +738,7 @@ function RestoreBikeRow({
   return (
     <tr className="border-b border-neutral-100 last:border-0 hover:bg-neutral-50">
       <td className="px-5 py-3.5 text-neutral-500 whitespace-nowrap">{no}</td>
+      {showBranch && <td className="px-5 py-3.5 text-neutral-600 whitespace-nowrap">{branchLabel(job.branch)}</td>}
       <td className="px-5 py-3.5 text-neutral-700 whitespace-nowrap">{job.picName || "—"}</td>
       <td className="px-5 py-3.5 text-neutral-600 whitespace-nowrap">{job.plateNo}</td>
       <td className="px-5 py-3.5 text-neutral-600 whitespace-nowrap">{job.model || "—"}</td>
@@ -720,10 +766,10 @@ function RestoreBikeRow({
       <td className="px-5 py-3.5 text-neutral-600 max-w-xs truncate">{job.description || "—"}</td>
       <td className="px-5 py-3.5 text-neutral-600 whitespace-nowrap">{job.dealType || "—"}</td>
       <td className="px-5 py-3.5">
-        <ApprovalCell job={job} branch={branch} />
+        <ApprovalCell job={job} branch={job.branch} />
       </td>
       <td className="px-5 py-3.5">
-        <StatusCell job={job} branch={branch} editable={editable} isPending={isPending} startTransition={startTransition} />
+        <StatusCell job={job} branch={job.branch} editable={editable} isPending={isPending} startTransition={startTransition} />
       </td>
       <td className="px-5 py-3.5">
         <button onClick={onEdit} className="text-neutral-400 hover:text-indigo-600 transition-colors p-1" title="Edit job" aria-label="Edit job">

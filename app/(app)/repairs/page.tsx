@@ -1,5 +1,10 @@
 import { requirePageContext, requirePage, getActiveBranchSelection, canViewAllBranches } from "@/lib/current-user";
-import { getActiveRepairJobs, getCompletedRepairJobs, getAllBranchesActiveRepairJobs } from "@/lib/repairs-actions";
+import {
+  getActiveRepairJobs,
+  getCompletedRepairJobs,
+  getAllBranchesActiveRepairJobs,
+  getAllBranchesCompletedRepairJobs,
+} from "@/lib/repairs-actions";
 import { getAllMechanics } from "@/lib/mechanics-actions";
 import { branchLabel } from "@/lib/branch";
 import PageHeader from "@/components/PageHeader";
@@ -10,19 +15,21 @@ export const dynamic = "force-dynamic";
 export default async function RepairsPage() {
   await requirePage("repairs");
   const { user, branch } = await requirePageContext();
-  const [active, completed, allActiveJobs, mechanics, branchSelection] = await Promise.all([
-    getActiveRepairJobs(branch),
-    getCompletedRepairJobs(branch),
+  const branchSelection = await getActiveBranchSelection(user);
+  const showAllBranches = branchSelection === "all";
+
+  const [active, completed, allActiveJobs, mechanics] = await Promise.all([
+    showAllBranches ? getAllBranchesActiveRepairJobs() : getActiveRepairJobs(branch),
+    showAllBranches ? getAllBranchesCompletedRepairJobs() : getCompletedRepairJobs(branch),
     getAllBranchesActiveRepairJobs(),
     getAllMechanics(),
-    getActiveBranchSelection(user),
   ]);
 
   return (
     <div className="flex flex-col h-full">
       <PageHeader
         title="Workshop Repairs"
-        subtitle={`${branchLabel(branch)} — ${active.length} active job${active.length === 1 ? "" : "s"}`}
+        subtitle={`${showAllBranches ? "All Branches" : branchLabel(branch)} — ${active.length} active job${active.length === 1 ? "" : "s"}`}
       />
       <div className="p-8">
         <RepairsClient
