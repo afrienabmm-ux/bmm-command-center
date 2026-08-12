@@ -38,7 +38,7 @@ export default function TeamClient({
   const [addUserOpen, setAddUserOpen] = useState(false);
 
   return (
-    <div className="space-y-8 max-w-5xl">
+    <div className="space-y-8 max-w-6xl">
       {isManager && (
         <div className="flex justify-end">
           <button
@@ -264,12 +264,12 @@ function MemberRow({ member, isSelf, isIT }: { member: TeamMember; isSelf: boole
         </td>
         <td className="px-5 py-3.5 text-neutral-500 whitespace-nowrap">{formatDate(member.createdAt)}</td>
         <td className="px-5 py-3.5">
-          <div className="flex items-center justify-end gap-3">
+          <div className="flex items-center justify-end gap-3 flex-wrap">
             {!isSelf && member.status === "approved" && (
               <button
                 onClick={() => setShowResetPassword(true)}
                 disabled={isPending}
-                className="flex items-center gap-1.5 text-neutral-500 hover:text-indigo-700 disabled:opacity-50 transition-colors text-xs font-medium"
+                className="flex items-center gap-1.5 text-neutral-500 hover:text-indigo-700 disabled:opacity-50 transition-colors text-xs font-medium whitespace-nowrap"
               >
                 <KeyRound size={14} /> Reset Password
               </button>
