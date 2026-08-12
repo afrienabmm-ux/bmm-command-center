@@ -1,4 +1,5 @@
 import "server-only";
+import { cache } from "react";
 import { redirect } from "next/navigation";
 import { createAuthClient } from "./supabase-auth-server";
 import { supabaseAdmin } from "./supabase-server";
@@ -19,7 +20,11 @@ export type CurrentUser = {
   pages: PageKey[];
 };
 
-export async function getCurrentUser(): Promise<CurrentUser | null> {
+// Wrapped in React's cache() so the token check and profile lookup happen
+// once per request instead of once per permission check. Every data function
+// calls requireApproved(), which meant a single dashboard load was asking
+// "who is this user?" ~44 times — two network round-trips each.
+export const getCurrentUser = cache(async (): Promise<CurrentUser | null> => {
   const supabase = await createAuthClient();
   const {
     data: { user },
@@ -43,7 +48,7 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
     status: profile.status,
     pages: resolveAllowedPages(profile.role, profile.allowed_pages),
   };
-}
+});
 
 export async function requireApproved(): Promise<CurrentUser> {
   const user = await getCurrentUser();

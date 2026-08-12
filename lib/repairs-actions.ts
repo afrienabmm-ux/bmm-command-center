@@ -1,5 +1,6 @@
 "use server";
 
+import { cache } from "react";
 import { revalidatePath } from "next/cache";
 import { supabaseAdmin } from "./supabase-server";
 import { requireApproved, assertCanEditBranch } from "./current-user";
@@ -73,8 +74,9 @@ const SELECT_WITH_ITEMS = "*, cc_repair_job_items(*)";
 
 // Completed jobs are excluded here so they automatically drop off the
 // active list as soon as they're marked Completed — no manual cleanup.
-export async function getActiveRepairJobs(branch: Branch): Promise<RepairJob[]> {
-  await requireApproved();
+// Memoized per request: the dashboard asks for the same branch's active
+// jobs twice (branch breakdown, then the overdue check).
+const cachedActiveRepairJobs = cache(async (branch: Branch): Promise<RepairJob[]> => {
   const { data, error } = await supabaseAdmin
     .from("cc_repair_jobs")
     .select(SELECT_WITH_ITEMS)
@@ -83,6 +85,11 @@ export async function getActiveRepairJobs(branch: Branch): Promise<RepairJob[]> 
     .order("started_date", { ascending: false });
   if (error) throw new Error(error.message);
   return (data as unknown as Row[]).map(toJob);
+});
+
+export async function getActiveRepairJobs(branch: Branch): Promise<RepairJob[]> {
+  await requireApproved();
+  return cachedActiveRepairJobs(branch);
 }
 
 export async function getCompletedRepairJobs(branch: Branch): Promise<RepairJob[]> {

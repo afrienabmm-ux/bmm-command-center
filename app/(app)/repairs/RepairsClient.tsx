@@ -348,7 +348,7 @@ function JobRow({
   return (
     <tr className="border-b border-neutral-100 last:border-0 hover:bg-neutral-50">
       <td className="px-5 py-3.5 text-neutral-800 font-medium whitespace-nowrap">{job.jobNo}</td>
-      <td className="px-5 py-3.5 text-neutral-700 whitespace-nowrap">{job.customerName}</td>
+      <td className="px-5 py-3.5 text-neutral-700 whitespace-nowrap">{job.customerName || "—"}</td>
       <td className="px-5 py-3.5 text-neutral-600 whitespace-nowrap">{job.plateNo}</td>
       <td className="px-5 py-3.5 whitespace-nowrap">
         <span className={`text-xs font-medium px-2.5 py-1 rounded-full border ${JOB_TYPE_STYLES[job.jobType]}`}>
@@ -553,7 +553,10 @@ function JobFormModal({
     setMechanicId("");
   }
 
-  const canSave = customerName.trim() !== "" && plateNo.trim() !== "" && effectiveBranch !== null;
+  // Restore Bike jobs are the workshop's own stock, so there's no customer
+  // to record — only Walk-in jobs need a name.
+  const canSave =
+    (isRestoreBike || customerName.trim() !== "") && plateNo.trim() !== "" && effectiveBranch !== null;
 
   function handleSave() {
     if (!canSave || !effectiveBranch) return;
@@ -599,15 +602,17 @@ function JobFormModal({
       <div className="bg-white border border-neutral-200 rounded-xl w-full max-w-md p-6 max-h-[90vh] overflow-y-auto">
         <h2 className="text-sm font-semibold text-neutral-900 mb-5">{isEdit ? "Edit Repair Job" : "Add Repair Job"}</h2>
         <div className="space-y-4">
-          <div>
-            <label className="block text-xs font-medium text-neutral-600 mb-1.5">Customer Name *</label>
-            <input
-              type="text"
-              value={customerName}
-              onChange={(e) => setCustomerName(e.target.value)}
-              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
-            />
-          </div>
+          {!isRestoreBike && (
+            <div>
+              <label className="block text-xs font-medium text-neutral-600 mb-1.5">Customer Name *</label>
+              <input
+                type="text"
+                value={customerName}
+                onChange={(e) => setCustomerName(e.target.value)}
+                className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+              />
+            </div>
+          )}
           <div>
             <label className="block text-xs font-medium text-neutral-600 mb-1.5">Plate No. *</label>
             <input
