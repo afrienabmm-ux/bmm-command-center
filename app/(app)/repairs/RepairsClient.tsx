@@ -727,30 +727,28 @@ function JobFormModal({
               className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50 resize-none"
             />
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-medium text-neutral-600 mb-1.5">{isRestoreBike ? "Cost Restore (RM)" : "Cost Total (RM)"}</label>
-              <input
-                type="number"
-                min={0}
-                value={items.length > 0 ? itemsTotal.toFixed(2) : revenueAmount}
-                disabled={items.length > 0}
-                onChange={(e) => setRevenueAmount(e.target.value)}
-                className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50 disabled:opacity-60"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-neutral-600 mb-1.5">Started Date</label>
-              <input
-                type="date"
-                value={startedDate}
-                onChange={(e) => setStartedDate(e.target.value)}
-                className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
-              />
-            </div>
+          <div>
+            <label className="block text-xs font-medium text-neutral-600 mb-1.5">{isRestoreBike ? "Cost Restore (RM)" : "Cost Total (RM)"}</label>
+            <input
+              type="number"
+              min={0}
+              value={items.length > 0 ? itemsTotal.toFixed(2) : revenueAmount}
+              disabled={items.length > 0}
+              onChange={(e) => setRevenueAmount(e.target.value)}
+              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50 disabled:opacity-60"
+            />
           </div>
-          {isRestoreBike && (
-            <>
+          <div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-medium text-neutral-600 mb-1.5">Started Date</label>
+                <input
+                  type="date"
+                  value={startedDate}
+                  onChange={(e) => setStartedDate(e.target.value)}
+                  className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+                />
+              </div>
               <div>
                 <label className="block text-xs font-medium text-neutral-600 mb-1.5">End Date</label>
                 <input
@@ -759,10 +757,14 @@ function JobFormModal({
                   onChange={(e) => setCompletedDate(e.target.value)}
                   className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
                 />
-                <p className="text-xs text-neutral-500 mt-1.5">
-                  Leave blank to fill in automatically when the job is marked Completed.
-                </p>
               </div>
+            </div>
+            <p className="text-xs text-neutral-500 mt-1.5">
+              Leave the end date blank to fill it in automatically when the job is marked Completed.
+            </p>
+          </div>
+          {isRestoreBike && (
+            <>
               <div>
                 <label className="block text-xs font-medium text-neutral-600 mb-1.5">Trade-in / Sell</label>
                 <select
