@@ -42,6 +42,16 @@ export type JobType = "Restore Bike" | "Walk-in";
 export const JOB_TYPES: JobType[] = ["Restore Bike", "Walk-in"];
 export type RepairStatus = "Pending" | "In Progress" | "Completed";
 export const REPAIR_STATUSES: RepairStatus[] = ["Pending", "In Progress", "Completed"];
+export type ApprovalStatus = "Pending" | "Approved" | "Not Approved";
+export const APPROVAL_STATUSES: ApprovalStatus[] = ["Pending", "Approved", "Not Approved"];
+
+export type RepairJobItem = {
+  id: string;
+  description: string;
+  quantity: number;
+  price: number;
+};
+
 export type RepairJob = {
   id: string;
   branch: Branch;
@@ -64,6 +74,12 @@ export type RepairJob = {
   bikeYear: string;
   condition: string;
   location: string;
+  // Estimated-cost-sheet fields: parts list, stock ordering, approval.
+  items: RepairJobItem[];
+  stockOrderDate: string | null;
+  stockArriveDate: string | null;
+  preparedBy: string;
+  approvalStatus: ApprovalStatus;
 };
 
 export const DEAL_TYPES = ["Trade In", "Sell", "Others"] as const;

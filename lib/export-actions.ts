@@ -121,6 +121,7 @@ export async function exportRepairJobsCsv(branch: Branch, jobType?: JobType): Pr
       j.revenueAmount.toFixed(2),
       j.description,
       j.dealType,
+      j.approvalStatus,
       j.status,
     ]);
     return toCsv(
@@ -138,6 +139,7 @@ export async function exportRepairJobsCsv(branch: Branch, jobType?: JobType): Pr
         "Cost Restore (RM)",
         "Remark",
         "Trade In / Jual",
+        "Approval",
         "Status",
       ],
       rows

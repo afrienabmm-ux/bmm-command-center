@@ -5,9 +5,10 @@ import StatCard from "@/components/StatCard";
 import CombinedTargetEditor from "./CombinedTargetEditor";
 import BranchBreakdownTable, { getBranchBreakdown } from "./BranchBreakdownTable";
 import AllBranchesMechanicPerformanceTable from "./AllBranchesMechanicPerformanceTable";
+import { getAllBranchesOverdueRestoreBikeJobs } from "@/lib/repairs-actions";
 
 export default async function AllBranchesOverview({ year, month }: { year: number; month: number }) {
-  const rows = await getBranchBreakdown(year, month);
+  const [rows, overdueJobs] = await Promise.all([getBranchBreakdown(year, month), getAllBranchesOverdueRestoreBikeJobs()]);
 
   const totals = rows.reduce(
     (acc, b) => ({
@@ -42,6 +43,32 @@ export default async function AllBranchesOverview({ year, month }: { year: numbe
           <div className="h-full bg-indigo-500 transition-all" style={{ width: `${pct}%` }} />
         </div>
       </div>
+
+      {overdueJobs.length > 0 && (
+        <Link
+          href="/repairs"
+          className="block bg-red-50 border border-red-200 rounded-xl p-5 hover:border-red-300 transition-colors"
+        >
+          <div className="flex items-start gap-3">
+            <div className="w-9 h-9 rounded-lg bg-red-500/10 flex items-center justify-center shrink-0">
+              <AlertTriangle size={17} className="text-red-600" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-red-700">
+                {overdueJobs.length} Restore Bike job{overdueJobs.length === 1 ? "" : "s"} running past 5 days —
+                check if finished
+              </p>
+              <p className="text-xs text-red-600 mt-1">
+                {overdueJobs
+                  .slice(0, 6)
+                  .map((j) => `${j.plateNo} (${j.daysRunning}d)`)
+                  .join(", ")}
+                {overdueJobs.length > 6 ? `, +${overdueJobs.length - 6} more` : ""}
+              </p>
+            </div>
+          </div>
+        </Link>
+      )}
 
       {totals.lowStock > 0 && (
         <Link
