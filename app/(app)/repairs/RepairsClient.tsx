@@ -64,10 +64,12 @@ export default function RepairsClient({
   const [editingJob, setEditingJob] = useState<RepairJob | null>(null);
   const [exporting, setExporting] = useState(false);
   const [exportJobModalOpen, setExportJobModalOpen] = useState(false);
+  const [exportRestoreModalOpen, setExportRestoreModalOpen] = useState(false);
   const baseJobs = tab === "active" ? active : completed;
   const jobs = typeFilter === "All" ? baseJobs : baseJobs.filter((j) => j.jobType === typeFilter);
   const overdueCount = active.filter(isOverdue).length;
   const allJobs = useMemo(() => [...active, ...completed], [active, completed]);
+  const allRestoreBikeJobs = useMemo(() => allJobs.filter((j) => j.jobType === "Restore Bike"), [allJobs]);
 
   function mechanicLabel(id: string | null) {
     if (!id) return "—";
@@ -122,6 +124,54 @@ export default function RepairsClient({
     setExportJobModalOpen(false);
   }
 
+  function handleExportRestoreBikeJobs(matches: RepairJob[]) {
+    const rows = matches.map((j, i) => [
+      i + 1,
+      j.picName,
+      j.plateNo,
+      j.model,
+      j.bikeYear,
+      j.condition,
+      mechanicLabel(j.mechanicId),
+      j.location,
+      formatDate(j.startedDate),
+      j.completedDate ? formatDate(j.completedDate) : "",
+      j.revenueAmount.toFixed(2),
+      j.description,
+      j.dealType,
+      j.approvalStatus,
+      j.status,
+    ]);
+    const csv = toCsv(
+      [
+        "No.",
+        "PIC",
+        "N. Plate",
+        "Model",
+        "Tahun",
+        "Condition",
+        "Mechanic",
+        "Location",
+        "Start Date",
+        "End Date",
+        "Cost Restore (RM)",
+        "Remark",
+        "Trade In / Jual",
+        "Approval",
+        "Status",
+      ],
+      rows
+    );
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `bmm-restore-bike-${branch}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    setExportRestoreModalOpen(false);
+  }
+
   return (
     <div>
       {overdueCount > 0 && (
@@ -173,6 +223,14 @@ export default function RepairsClient({
           >
             <Search size={15} /> Export One Job (with items)
           </button>
+          {allRestoreBikeJobs.length > 0 && (
+            <button
+              onClick={() => setExportRestoreModalOpen(true)}
+              className="flex items-center gap-1.5 bg-neutral-100 hover:bg-neutral-200 text-neutral-800 text-sm font-medium px-4 py-2 rounded-lg transition-colors whitespace-nowrap"
+            >
+              <Download size={15} /> Export Restore Bike…
+            </button>
+          )}
           <button
             onClick={() => setModalOpen(true)}
             className="flex items-center gap-1.5 bg-indigo-500 hover:bg-indigo-400 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
@@ -314,6 +372,100 @@ export default function RepairsClient({
       {exportJobModalOpen && (
         <ExportJobModal jobs={allJobs} onExport={handleExportSingleJob} onClose={() => setExportJobModalOpen(false)} />
       )}
+
+      {exportRestoreModalOpen && (
+        <ExportRestoreBikeModal
+          jobs={allRestoreBikeJobs}
+          mechanics={mechanics}
+          onExport={handleExportRestoreBikeJobs}
+          onClose={() => setExportRestoreModalOpen(false)}
+        />
+      )}
+    </div>
+  );
+}
+
+function ExportRestoreBikeModal({
+  jobs,
+  mechanics,
+  onExport,
+  onClose,
+}: {
+  jobs: RepairJob[];
+  mechanics: Mechanic[];
+  onExport: (matches: RepairJob[]) => void;
+  onClose: () => void;
+}) {
+  const [mechanicId, setMechanicId] = useState<string>("all");
+  const [query, setQuery] = useState("");
+
+  const matches = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return jobs.filter((j) => {
+      if (mechanicId !== "all" && j.mechanicId !== mechanicId) return false;
+      if (q && !(j.plateNo.toLowerCase().includes(q) || j.jobNo.toLowerCase().includes(q) || j.picName.toLowerCase().includes(q))) {
+        return false;
+      }
+      return true;
+    });
+  }, [jobs, mechanicId, query]);
+
+  const hasFilters = mechanicId !== "all" || query.trim() !== "";
+
+  return (
+    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 px-4">
+      <div className="bg-white border border-neutral-200 rounded-xl w-full max-w-md p-6">
+        <h2 className="text-sm font-semibold text-neutral-900 mb-1">Export Restore Bike Jobs</h2>
+        <p className="text-xs text-neutral-500 mb-4">
+          Export every Restore Bike job, or narrow it down by mechanic, job no., plate no. or PIC name first.
+        </p>
+        <div className="space-y-3 mb-4">
+          <div>
+            <label className="block text-xs font-medium text-neutral-600 mb-1.5">Mechanic</label>
+            <select
+              value={mechanicId}
+              onChange={(e) => setMechanicId(e.target.value)}
+              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+            >
+              <option value="all">All Mechanics</option>
+              {mechanics.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.shortName} ({m.shortCode})
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-neutral-600 mb-1.5">Job No. / Plate No. / PIC</label>
+            <div className="relative">
+              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
+              <input
+                type="text"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Search…"
+                className="w-full bg-neutral-50 border border-neutral-200 rounded-lg pl-9 pr-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+              />
+            </div>
+          </div>
+        </div>
+        <p className="text-xs text-neutral-500 mb-4">
+          {matches.length} of {jobs.length} Restore Bike job{jobs.length === 1 ? "" : "s"} match
+          {hasFilters ? " your filters" : ""}.
+        </p>
+        <div className="flex items-center justify-end gap-3">
+          <button onClick={onClose} className="text-sm font-medium text-neutral-600 hover:text-neutral-800 px-4 py-2 transition-colors">
+            Cancel
+          </button>
+          <button
+            onClick={() => onExport(matches)}
+            disabled={matches.length === 0}
+            className="flex items-center gap-1.5 bg-indigo-500 hover:bg-indigo-400 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+          >
+            <Download size={15} /> {hasFilters ? `Export ${matches.length} Filtered` : "Export All"}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
