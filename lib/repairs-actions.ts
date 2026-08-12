@@ -173,6 +173,7 @@ export async function addRepairJobAction(input: {
   items?: ItemInput[];
   stockOrderDate?: string | null;
   stockArriveDate?: string | null;
+  completedDate?: string | null;
   preparedBy?: string;
 }): Promise<void> {
   const user = await requireApproved();
@@ -206,6 +207,7 @@ export async function addRepairJobAction(input: {
       location: input.location ?? "",
       stock_order_date: input.stockOrderDate ?? null,
       stock_arrive_date: input.stockArriveDate ?? null,
+      completed_date: input.completedDate ?? null,
       prepared_by: input.preparedBy ?? "",
     })
     .select("id")
@@ -235,6 +237,7 @@ export async function updateRepairJobAction(
     items?: ItemInput[];
     stockOrderDate?: string | null;
     stockArriveDate?: string | null;
+    completedDate?: string | null;
     preparedBy?: string;
   }
 ): Promise<void> {
@@ -260,6 +263,7 @@ export async function updateRepairJobAction(
       location: input.location ?? "",
       stock_order_date: input.stockOrderDate ?? null,
       stock_arrive_date: input.stockArriveDate ?? null,
+      completed_date: input.completedDate ?? null,
       prepared_by: input.preparedBy ?? "",
     })
     .eq("id", id);
@@ -282,11 +286,23 @@ export async function updateRepairApprovalAction(id: string, branch: Branch, app
 export async function updateRepairStatusAction(id: string, branch: Branch, status: RepairStatus): Promise<void> {
   const user = await requireApproved();
   assertCanEditBranch(user, branch);
-  const completedDate = status === "Completed" ? new Date().toISOString().slice(0, 10) : null;
-  const { error } = await supabaseAdmin
-    .from("cc_repair_jobs")
-    .update({ status, completed_date: completedDate })
-    .eq("id", id);
+
+  // The end date can also be set by hand on the job form, so only fill it
+  // in automatically when marking a job Completed that doesn't have one
+  // yet — never overwrite or clear a date someone chose deliberately.
+  const update: { status: RepairStatus; completed_date?: string } = { status };
+  if (status === "Completed") {
+    const { data: existing } = await supabaseAdmin
+      .from("cc_repair_jobs")
+      .select("completed_date")
+      .eq("id", id)
+      .single();
+    if (!existing?.completed_date) {
+      update.completed_date = new Date().toISOString().slice(0, 10);
+    }
+  }
+
+  const { error } = await supabaseAdmin.from("cc_repair_jobs").update(update).eq("id", id);
   if (error) throw new Error(error.message);
   revalidatePath("/repairs");
   revalidatePath("/reports");

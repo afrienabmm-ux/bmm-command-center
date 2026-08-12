@@ -537,6 +537,7 @@ function JobFormModal({
   const [condition, setCondition] = useState(job?.condition ?? "");
   const [stockOrderDate, setStockOrderDate] = useState(job?.stockOrderDate ?? "");
   const [stockArriveDate, setStockArriveDate] = useState(job?.stockArriveDate ?? "");
+  const [completedDate, setCompletedDate] = useState(job?.completedDate ?? "");
   const [preparedBy, setPreparedBy] = useState(job?.preparedBy ?? "");
   const [items, setItems] = useState<ItemInput[]>(job ? itemsFromJob(job) : []);
   const [isPending, startTransition] = useTransition();
@@ -584,6 +585,7 @@ function JobFormModal({
       items: cleanItems,
       stockOrderDate: stockOrderDate || null,
       stockArriveDate: stockArriveDate || null,
+      completedDate: completedDate || null,
       preparedBy: preparedBy.trim(),
     };
 
@@ -749,6 +751,18 @@ function JobFormModal({
           </div>
           {isRestoreBike && (
             <>
+              <div>
+                <label className="block text-xs font-medium text-neutral-600 mb-1.5">End Date</label>
+                <input
+                  type="date"
+                  value={completedDate}
+                  onChange={(e) => setCompletedDate(e.target.value)}
+                  className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+                />
+                <p className="text-xs text-neutral-500 mt-1.5">
+                  Leave blank to fill in automatically when the job is marked Completed.
+                </p>
+              </div>
               <div>
                 <label className="block text-xs font-medium text-neutral-600 mb-1.5">Trade-in / Sell</label>
                 <select
