@@ -66,7 +66,7 @@ export async function addMechanicAction(input: {
     full_name: input.fullName,
     short_name: input.shortName,
     short_code: input.shortCode.toUpperCase(),
-    category: input.category ?? "Fast Repair",
+    category: input.category ?? "Normal Repair",
   });
   if (error) throw new Error(error.message);
   revalidatePath("/mechanics");

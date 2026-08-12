@@ -8,8 +8,7 @@ import { BRANCHES, branchLabel, type BranchSelection } from "@/lib/branch";
 
 const CATEGORY_STYLES: Record<MechanicCategory, string> = {
   "Heavy Repair": "bg-orange-500/10 text-orange-700 border-orange-500/20",
-  "Fast Repair": "bg-sky-500/10 text-sky-700 border-sky-500/20",
-  "Combo Repair": "bg-purple-500/10 text-purple-700 border-purple-500/20",
+  "Normal Repair": "bg-sky-500/10 text-sky-700 border-sky-500/20",
 };
 
 export default function MechanicsClient({
@@ -20,11 +19,29 @@ export default function MechanicsClient({
   activeBranch: BranchSelection;
 }) {
   const [modalOpen, setModalOpen] = useState(false);
+  const [categoryFilter, setCategoryFilter] = useState<MechanicCategory | "All">("All");
   const showBranch = activeBranch === "all";
+  const filtered = categoryFilter === "All" ? mechanics : mechanics.filter((m) => m.category === categoryFilter);
 
   return (
     <div>
-      <div className="flex justify-end mb-4">
+      <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-medium text-neutral-500">Category:</span>
+          <div className="flex gap-1 bg-white border border-neutral-200 rounded-lg p-1">
+            {(["All", ...MECHANIC_CATEGORIES] as const).map((c) => (
+              <button
+                key={c}
+                onClick={() => setCategoryFilter(c)}
+                className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors whitespace-nowrap ${
+                  categoryFilter === c ? "bg-indigo-500 text-white" : "text-neutral-600 hover:text-neutral-800"
+                }`}
+              >
+                {c}
+              </button>
+            ))}
+          </div>
+        </div>
         <button
           onClick={() => setModalOpen(true)}
           className="flex items-center gap-1.5 bg-indigo-500 hover:bg-indigo-400 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
@@ -34,11 +51,13 @@ export default function MechanicsClient({
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {mechanics.map((m) => (
+        {filtered.map((m) => (
           <MechanicCard key={m.id} mechanic={m} showBranch={showBranch} />
         ))}
-        {mechanics.length === 0 && (
-          <p className="text-sm text-neutral-500 col-span-full text-center py-10">No mechanics added yet.</p>
+        {filtered.length === 0 && (
+          <p className="text-sm text-neutral-500 col-span-full text-center py-10">
+            {mechanics.length === 0 ? "No mechanics added yet." : `No ${categoryFilter} mechanics.`}
+          </p>
         )}
       </div>
 
@@ -157,7 +176,7 @@ function AddMechanicModal({
   const [fullName, setFullName] = useState("");
   const [shortName, setShortName] = useState("");
   const [shortCode, setShortCode] = useState("");
-  const [category, setCategory] = useState<MechanicCategory>("Fast Repair");
+  const [category, setCategory] = useState<MechanicCategory>("Normal Repair");
   const [branch, setBranch] = useState(activeBranch === "all" ? BRANCHES[0].value : activeBranch);
   const [isPending, startTransition] = useTransition();
 

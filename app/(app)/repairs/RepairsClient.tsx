@@ -64,7 +64,7 @@ export default function RepairsClient({
 }) {
   const [tab, setTab] = useState<"active" | "completed">("active");
   const [typeFilter, setTypeFilter] = useState<JobType | "All">("All");
-  const [loadFilter, setLoadFilter] = useState<"All" | "Heavy Repair" | "Fast Repair">("All");
+  const [loadFilter, setLoadFilter] = useState<"All" | "Heavy Repair" | "Normal Repair">("All");
   const [modalOpen, setModalOpen] = useState(false);
   const [editingJob, setEditingJob] = useState<RepairJob | null>(null);
   const [exporting, setExporting] = useState(false);
@@ -266,7 +266,7 @@ export default function RepairsClient({
         </div>
         <span className="text-xs font-medium text-neutral-500 ml-2">Load:</span>
         <div className="flex gap-1 bg-white border border-neutral-200 rounded-lg p-1">
-          {(["All", "Heavy Repair", "Fast Repair"] as const).map((l) => (
+          {(["All", "Heavy Repair", "Normal Repair"] as const).map((l) => (
             <button
               key={l}
               onClick={() => setLoadFilter(l)}

@@ -9,8 +9,8 @@ export type MonthlyTarget = {
 };
 
 export type MechanicStatus = "Active" | "On Leave";
-export type MechanicCategory = "Heavy Repair" | "Fast Repair" | "Combo Repair";
-export const MECHANIC_CATEGORIES: MechanicCategory[] = ["Heavy Repair", "Fast Repair", "Combo Repair"];
+export type MechanicCategory = "Heavy Repair" | "Normal Repair";
+export const MECHANIC_CATEGORIES: MechanicCategory[] = ["Heavy Repair", "Normal Repair"];
 export type Mechanic = {
   id: string;
   branch: Branch;
