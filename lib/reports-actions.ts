@@ -72,15 +72,17 @@ const cachedMechanicAchievements = cache(
   async (branch: Branch, year: number, month: number): Promise<MechanicAchievement[]> => {
     const { from, to } = monthRange(year, month);
 
+    // Counts every job assigned this month regardless of status (Pending/In
+    // Progress/Completed) — a mechanic's revenue credit shouldn't wait on
+    // the job being marked finished, only on when it started.
     const [{ data: mechanics, error: mErr }, { data: jobs, error: jErr }] = await Promise.all([
       supabaseAdmin.from("cc_mechanics").select("id, full_name, short_code").eq("branch", branch),
       supabaseAdmin
         .from("cc_repair_jobs")
         .select("mechanic_id, job_type, revenue_amount")
         .eq("branch", branch)
-        .eq("status", "Completed")
-        .gte("completed_date", from)
-        .lte("completed_date", to),
+        .gte("started_date", from)
+        .lte("started_date", to),
     ]);
     if (mErr) throw new Error(mErr.message);
     if (jErr) throw new Error(jErr.message);
