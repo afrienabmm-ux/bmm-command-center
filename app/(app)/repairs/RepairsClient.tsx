@@ -449,10 +449,19 @@ function ExportRestoreBikeModal({
             </div>
           </div>
         </div>
-        <p className="text-xs text-neutral-500 mb-4">
+        <p className="text-xs text-neutral-500 mb-2">
           {matches.length} of {jobs.length} Restore Bike job{jobs.length === 1 ? "" : "s"} match
           {hasFilters ? " your filters" : ""}.
         </p>
+        <div className="max-h-56 overflow-y-auto border border-neutral-200 rounded-lg divide-y divide-neutral-100 mb-4">
+          {matches.length === 0 && <p className="text-sm text-neutral-500 text-center py-6">No matching jobs.</p>}
+          {matches.map((job) => (
+            <div key={job.id} className="px-4 py-2.5">
+              <p className="text-sm font-medium text-neutral-800">{job.jobNo} — {job.plateNo}</p>
+              <p className="text-xs text-neutral-500">PIC: {job.picName || "—"}</p>
+            </div>
+          ))}
+        </div>
         <div className="flex items-center justify-end gap-3">
           <button onClick={onClose} className="text-sm font-medium text-neutral-600 hover:text-neutral-800 px-4 py-2 transition-colors">
             Cancel
