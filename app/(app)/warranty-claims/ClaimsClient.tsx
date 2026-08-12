@@ -9,10 +9,9 @@ import {
   updateClaimNotesAction,
   deleteClaimAction,
 } from "@/lib/claims-actions";
-import { exportWarrantyClaimsCsv } from "@/lib/export-actions";
 import { CLAIM_STATUSES, STOCK_STATUSES, type ClaimStatus, type StockStatus, type WarrantyClaim } from "@/lib/types";
-import type { Branch } from "@/lib/branch";
-import { formatDate } from "@/lib/format";
+import { BRANCHES, branchLabel, type Branch, type BranchSelection } from "@/lib/branch";
+import { formatDate, toCsv } from "@/lib/format";
 
 const STATUS_STYLES: Record<ClaimStatus, string> = {
   Pending: "bg-neutral-100 text-neutral-700 border-neutral-300",
@@ -27,11 +26,20 @@ const STOCK_STYLES: Record<StockStatus, string> = {
   Sold: "bg-purple-500/10 text-purple-700 border-purple-500/20",
 };
 
-export default function ClaimsClient({ claims, branch }: { claims: WarrantyClaim[]; branch: Branch }) {
+export default function ClaimsClient({
+  claims,
+  branchSelection,
+  locked,
+}: {
+  claims: WarrantyClaim[];
+  branchSelection: BranchSelection;
+  locked: boolean;
+}) {
   const [modalOpen, setModalOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<ClaimStatus | "All">("All");
   const [exporting, setExporting] = useState(false);
+  const showBranchColumn = branchSelection === "all";
 
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -51,16 +59,37 @@ export default function ClaimsClient({ claims, branch }: { claims: WarrantyClaim
     [claims]
   );
 
-  async function handleExport() {
+  function handleExport() {
     setExporting(true);
     try {
-      const csv = await exportWarrantyClaimsCsv(branch, statusFilter === "All" ? undefined : statusFilter);
+      const filtered = statusFilter === "All" ? claims : claims.filter((c) => c.status === statusFilter);
+      const headers = ["Ticket ID", "PIC", "Customer", "Plate No", "Model", "Phone", "Issue", "Stock Status", "Status", "Latest Status", "Reason", "Submitted Date"];
+      if (showBranchColumn) headers.splice(1, 0, "Branch");
+      const rows = filtered.map((c) => {
+        const row: (string | number)[] = [
+          c.ticketId,
+          c.pic,
+          c.customerName,
+          c.plateNo,
+          c.model,
+          c.phone,
+          c.description,
+          c.stockStatus,
+          c.status,
+          c.latestStatus,
+          c.reason,
+          formatDate(c.submittedDate),
+        ];
+        if (showBranchColumn) row.splice(1, 0, branchLabel(c.branch));
+        return row;
+      });
+      const csv = toCsv(headers, rows);
       const blob = new Blob([csv], { type: "text/csv" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
       const suffix = statusFilter === "All" ? "" : `-${statusFilter.toLowerCase().replace(/\s+/g, "-")}`;
-      a.download = `bmm-warranty-claims-${branch}${suffix}.csv`;
+      a.download = `bmm-warranty-claims-${branchSelection}${suffix}.csv`;
       a.click();
       URL.revokeObjectURL(url);
     } finally {
@@ -118,6 +147,7 @@ export default function ClaimsClient({ claims, branch }: { claims: WarrantyClaim
             <thead>
               <tr className="text-left text-xs text-neutral-500 border-b border-neutral-200">
                 <th className="font-medium px-5 py-3 whitespace-nowrap">Ticket ID</th>
+                {showBranchColumn && <th className="font-medium px-5 py-3 whitespace-nowrap">Branch</th>}
                 <th className="font-medium px-5 py-3 whitespace-nowrap">PIC</th>
                 <th className="font-medium px-5 py-3 whitespace-nowrap">Customer</th>
                 <th className="font-medium px-5 py-3 whitespace-nowrap">Plate No.</th>
@@ -134,11 +164,11 @@ export default function ClaimsClient({ claims, branch }: { claims: WarrantyClaim
             </thead>
             <tbody>
               {visible.map((c) => (
-                <ClaimRow key={c.id} claim={c} branch={branch} knownPics={knownPics} />
+                <ClaimRow key={c.id} claim={c} showBranch={showBranchColumn} knownPics={knownPics} />
               ))}
               {visible.length === 0 && (
                 <tr>
-                  <td colSpan={13} className="px-5 py-10 text-center text-neutral-500 text-sm">
+                  <td colSpan={showBranchColumn ? 14 : 13} className="px-5 py-10 text-center text-neutral-500 text-sm">
                     {claims.length === 0 ? "No warranty claims yet." : "No claims match your search."}
                   </td>
                 </tr>
@@ -148,12 +178,14 @@ export default function ClaimsClient({ claims, branch }: { claims: WarrantyClaim
         </div>
       </div>
 
-      {modalOpen && <AddClaimModal branch={branch} knownPics={knownPics} onClose={() => setModalOpen(false)} />}
+      {modalOpen && (
+        <AddClaimModal branchSelection={branchSelection} locked={locked} knownPics={knownPics} onClose={() => setModalOpen(false)} />
+      )}
     </div>
   );
 }
 
-function ClaimRow({ claim, branch, knownPics }: { claim: WarrantyClaim; branch: Branch; knownPics: string[] }) {
+function ClaimRow({ claim, showBranch, knownPics }: { claim: WarrantyClaim; showBranch: boolean; knownPics: string[] }) {
   const [isPending, startTransition] = useTransition();
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -162,7 +194,7 @@ function ClaimRow({ claim, branch, knownPics }: { claim: WarrantyClaim; branch: 
   function handleDelete() {
     setDeleting(true);
     startTransition(async () => {
-      await deleteClaimAction(claim.id, branch);
+      await deleteClaimAction(claim.id, claim.branch);
       setDeleting(false);
       setConfirmOpen(false);
     });
@@ -171,6 +203,7 @@ function ClaimRow({ claim, branch, knownPics }: { claim: WarrantyClaim; branch: 
   return (
     <tr className="border-b border-neutral-100 last:border-0 hover:bg-neutral-50">
       <td className="px-5 py-3.5 text-neutral-900 font-semibold whitespace-nowrap">{claim.ticketId}</td>
+      {showBranch && <td className="px-5 py-3.5 text-neutral-600 whitespace-nowrap">{branchLabel(claim.branch)}</td>}
       <td className="px-5 py-3.5 text-neutral-700 whitespace-nowrap">{claim.pic || "—"}</td>
       <td className="px-5 py-3.5 text-neutral-700 whitespace-nowrap">{claim.customerName}</td>
       <td className="px-5 py-3.5 text-neutral-600 whitespace-nowrap">{claim.plateNo}</td>
@@ -182,7 +215,7 @@ function ClaimRow({ claim, branch, knownPics }: { claim: WarrantyClaim; branch: 
           value={claim.stockStatus}
           disabled={isPending}
           onChange={(e) =>
-            startTransition(() => updateClaimStockStatusAction(claim.id, branch, e.target.value as StockStatus))
+            startTransition(() => updateClaimStockStatusAction(claim.id, claim.branch, e.target.value as StockStatus))
           }
           className={`text-xs font-medium px-2.5 py-1.5 rounded-full border focus:outline-none disabled:opacity-50 ${STOCK_STYLES[claim.stockStatus]}`}
         >
@@ -199,7 +232,7 @@ function ClaimRow({ claim, branch, knownPics }: { claim: WarrantyClaim; branch: 
           value={claim.status}
           disabled={isPending}
           onChange={(e) =>
-            startTransition(() => updateClaimStatusAction(claim.id, branch, e.target.value as ClaimStatus))
+            startTransition(() => updateClaimStatusAction(claim.id, claim.branch, e.target.value as ClaimStatus))
           }
           className={`text-xs font-medium px-2.5 py-1.5 rounded-full border focus:outline-none disabled:opacity-50 ${STATUS_STYLES[claim.status]}`}
         >
@@ -235,7 +268,7 @@ function ClaimRow({ claim, branch, knownPics }: { claim: WarrantyClaim; branch: 
         </button>
 
         {notesOpen && (
-          <NotesModal claim={claim} branch={branch} knownPics={knownPics} onClose={() => setNotesOpen(false)} />
+          <NotesModal claim={claim} knownPics={knownPics} onClose={() => setNotesOpen(false)} />
         )}
 
         {confirmOpen && (
@@ -336,12 +369,10 @@ function PicScoreboard({ claims }: { claims: WarrantyClaim[] }) {
 
 function NotesModal({
   claim,
-  branch,
   knownPics,
   onClose,
 }: {
   claim: WarrantyClaim;
-  branch: Branch;
   knownPics: string[];
   onClose: () => void;
 }) {
@@ -352,7 +383,7 @@ function NotesModal({
 
   function handleSave() {
     startTransition(async () => {
-      await updateClaimNotesAction(claim.id, branch, { pic, latestStatus, reason });
+      await updateClaimNotesAction(claim.id, claim.branch, { pic, latestStatus, reason });
       onClose();
     });
   }
@@ -423,15 +454,20 @@ function NotesModal({
 }
 
 function AddClaimModal({
-  branch,
+  branchSelection,
+  locked,
   knownPics,
   onClose,
 }: {
-  branch: Branch;
+  branchSelection: BranchSelection;
+  locked: boolean;
   knownPics: string[];
   onClose: () => void;
 }) {
   const [ticketId, setTicketId] = useState("");
+  const [selectedBranch, setSelectedBranch] = useState<Branch>(
+    branchSelection === "all" ? BRANCHES[0].value : branchSelection
+  );
   const [customerName, setCustomerName] = useState("");
   const [plateNo, setPlateNo] = useState("");
   const [model, setModel] = useState("");
@@ -452,7 +488,7 @@ function AddClaimModal({
     }
     startTransition(async () => {
       const result = await addWarrantyClaimAction({
-        branch,
+        branch: selectedBranch,
         ticketId: ticketId.trim(),
         customerName: customerName.trim(),
         plateNo: plateNo.trim(),
@@ -476,6 +512,22 @@ function AddClaimModal({
       <div className="bg-white border border-neutral-200 rounded-xl w-full max-w-md p-6 max-h-[90vh] overflow-y-auto">
         <h2 className="text-sm font-semibold text-neutral-900 mb-5">Add Warranty Claim</h2>
         <div className="space-y-4">
+          {!locked && (
+            <div>
+              <label className="block text-xs font-medium text-neutral-600 mb-1.5">Branch *</label>
+              <select
+                value={selectedBranch}
+                onChange={(e) => setSelectedBranch(e.target.value as Branch)}
+                className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+              >
+                {BRANCHES.map((b) => (
+                  <option key={b.value} value={b.value}>
+                    {b.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
           <div>
             <label className="block text-xs font-medium text-neutral-600 mb-1.5">Ticket ID *</label>
             <input

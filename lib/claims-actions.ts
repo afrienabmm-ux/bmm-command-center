@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { supabaseAdmin } from "./supabase-server";
 import { requireApproved, assertCanEditBranch } from "./current-user";
 import type { WarrantyClaim, ClaimStatus, StockStatus } from "./types";
-import type { Branch } from "./branch";
+import { BRANCHES, type Branch } from "./branch";
 
 type Row = {
   id: string;
@@ -53,6 +53,13 @@ export async function getWarrantyClaims(branch: Branch): Promise<WarrantyClaim[]
     .order("submitted_date", { ascending: false });
   if (error) throw new Error(error.message);
   return (data as Row[]).map(toClaim);
+}
+
+// Claims across all 3 branches — for the "All Branches" view.
+export async function getAllBranchesWarrantyClaims(): Promise<WarrantyClaim[]> {
+  await requireApproved();
+  const perBranch = await Promise.all(BRANCHES.map(({ value }) => getWarrantyClaims(value)));
+  return perBranch.flat().sort((a, b) => b.submittedDate.localeCompare(a.submittedDate));
 }
 
 export async function addWarrantyClaimAction(input: {

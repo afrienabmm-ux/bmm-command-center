@@ -3,11 +3,9 @@
 import { requireApproved } from "./current-user";
 import { getBranchMonthSummary, getMechanicAchievements } from "./reports-actions";
 import { getPackageSales, getAllBranchesPackageSales } from "./packages-actions";
-import { getWarrantyClaims } from "./claims-actions";
 import { getGenbluRegistrations, getAllBranchesGenbluRegistrations } from "./genblu-actions";
 import { toCsv, monthLabel, formatDate } from "./format";
 import { BRANCHES, branchLabel, type Branch } from "./branch";
-import type { ClaimStatus } from "./types";
 
 export async function exportYearlySummaryCsv(branch: Branch, year: number): Promise<string> {
   await requireApproved();
@@ -92,43 +90,6 @@ export async function exportAllBranchesPackageSalesCsv(): Promise<string> {
   return toCsv(["Receipt ID", "Package Name", "Mechanic", "Branch", "Date"], rows);
 }
 
-
-export async function exportWarrantyClaimsCsv(branch: Branch, status?: ClaimStatus): Promise<string> {
-  await requireApproved();
-  const claims = await getWarrantyClaims(branch);
-  const filtered = status ? claims.filter((c) => c.status === status) : claims;
-  const rows = filtered.map((c) => [
-    c.ticketId,
-    c.pic,
-    c.customerName,
-    c.plateNo,
-    c.model,
-    c.phone,
-    c.description,
-    c.stockStatus,
-    c.status,
-    c.latestStatus,
-    c.reason,
-    formatDate(c.submittedDate),
-  ]);
-  return toCsv(
-    [
-      "Ticket ID",
-      "PIC",
-      "Customer",
-      "Plate No",
-      "Model",
-      "Phone",
-      "Issue",
-      "Stock Status",
-      "Status",
-      "Latest Status",
-      "Reason",
-      "Submitted Date",
-    ],
-    rows
-  );
-}
 
 export async function exportGenbluCsv(branch: Branch, fromDate?: string, toDate?: string): Promise<string> {
   await requireApproved();
