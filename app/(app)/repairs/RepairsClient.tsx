@@ -895,9 +895,13 @@ function JobFormModal({
   }
 
   // Restore Bike jobs are the workshop's own stock, so there's no customer
-  // to record — only Walk-in jobs need a name.
+  // to record — only Walk-in jobs need a name. Every job needs a mechanic
+  // assigned before it can be saved.
   const canSave =
-    (isRestoreBike || customerName.trim() !== "") && plateNo.trim() !== "" && effectiveBranch !== null;
+    (isRestoreBike || customerName.trim() !== "") &&
+    plateNo.trim() !== "" &&
+    effectiveBranch !== null &&
+    mechanicId !== "";
 
   function handleSave() {
     if (!canSave || !effectiveBranch) return;
@@ -1041,13 +1045,15 @@ function JobFormModal({
             )}
           </div>
           <div>
-            <label className="block text-xs font-medium text-neutral-600 mb-1.5">Mechanic</label>
+            <label className="block text-xs font-medium text-neutral-600 mb-1.5">Mechanic *</label>
             <select
               value={mechanicId}
               onChange={(e) => setMechanicId(e.target.value)}
               className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
             >
-              <option value="">Unassigned</option>
+              <option value="" disabled>
+                Select a mechanic…
+              </option>
               {eligibleMechanics.map((m) => (
                 <option key={m.id} value={m.id}>
                   {m.shortName} ({m.shortCode})
@@ -1065,6 +1071,9 @@ function JobFormModal({
               <p className="text-xs text-neutral-500 mt-1.5">
                 {branchMechanics.length - eligibleMechanics.length} mechanic{branchMechanics.length - eligibleMechanics.length === 1 ? "" : "s"} hidden — already on an active job, or not a Heavy Repair mechanic.
               </p>
+            )}
+            {mechanicId === "" && (
+              <p className="text-xs text-neutral-500 mt-1.5">A mechanic must be assigned before this job can be saved.</p>
             )}
           </div>
 

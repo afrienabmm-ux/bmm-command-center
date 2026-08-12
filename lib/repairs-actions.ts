@@ -73,17 +73,18 @@ function toJob(r: Row): RepairJob {
   };
 }
 
-// A mechanic can only carry one active (non-Completed) job at a time, and
-// heavy jobs (more than 3 items, or manually flagged as a big item) can only
-// go to mechanics in the "Heavy Repair" category. Enforced server-side so it
-// can't be bypassed even if the UI's own filtering is stale.
+// Every job needs a mechanic assigned, a mechanic can only carry one active
+// (non-Completed) job at a time, and heavy jobs (more than 3 items, or
+// manually flagged as a big item) can only go to mechanics in the "Heavy
+// Repair" category. Enforced server-side so it can't be bypassed even if
+// the UI's own filtering is stale.
 async function assertMechanicAssignment(
   mechanicId: string | null,
   items: ItemInput[],
   isBigItem: boolean,
   excludeJobId?: string
 ): Promise<void> {
-  if (!mechanicId) return;
+  if (!mechanicId) throw new Error("A mechanic must be assigned to this job.");
 
   const { data: mechanic, error: mechError } = await supabaseAdmin
     .from("cc_mechanics")
