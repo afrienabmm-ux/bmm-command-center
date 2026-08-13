@@ -4,7 +4,6 @@ import { cache } from "react";
 import { supabaseAdmin } from "./supabase-server";
 import { requireApproved } from "./current-user";
 import { BRANCHES, type Branch } from "./branch";
-import type { JobType } from "./types";
 
 function monthRange(year: number, month: number): { from: string; to: string } {
   const monthStr = String(month).padStart(2, "0");
@@ -58,8 +57,6 @@ export type MechanicAchievement = {
   shortCode: string;
   restoreBikeCount: number;
   restoreBikeRevenue: number;
-  walkInCount: number;
-  walkInRevenue: number;
   totalRevenue: number;
 };
 
@@ -79,7 +76,7 @@ const cachedMechanicAchievements = cache(
       supabaseAdmin.from("cc_mechanics").select("id, full_name, short_code").eq("branch", branch),
       supabaseAdmin
         .from("cc_repair_jobs")
-        .select("mechanic_id, job_type, revenue_amount")
+        .select("mechanic_id, revenue_amount")
         .eq("branch", branch)
         .gte("started_date", from)
         .lte("started_date", to),
@@ -89,16 +86,12 @@ const cachedMechanicAchievements = cache(
 
     return (mechanics ?? []).map((m) => {
       const own = (jobs ?? []).filter((j) => j.mechanic_id === m.id);
-      const restore = own.filter((j) => j.job_type === ("Restore Bike" as JobType));
-      const walkIn = own.filter((j) => j.job_type === ("Walk-in" as JobType));
       return {
         mechanicId: m.id,
         fullName: m.full_name,
         shortCode: m.short_code,
-        restoreBikeCount: restore.length,
-        restoreBikeRevenue: restore.reduce((s, j) => s + Number(j.revenue_amount), 0),
-        walkInCount: walkIn.length,
-        walkInRevenue: walkIn.reduce((s, j) => s + Number(j.revenue_amount), 0),
+        restoreBikeCount: own.length,
+        restoreBikeRevenue: own.reduce((s, j) => s + Number(j.revenue_amount), 0),
         totalRevenue: own.reduce((s, j) => s + Number(j.revenue_amount), 0),
       };
     });
@@ -218,14 +211,12 @@ export type MechanicPerformanceRow = {
   shortCode: string;
   restoreBikeRevenue: number;
   restoreBikeCount: number;
-  walkInRevenue: number;
-  walkInCount: number;
   packageRevenue: number;
   packageSetsSold: number;
   totalRevenue: number;
 };
 
-// Full leaderboard for a branch: every mechanic's Restore Bike, Walk-in, and
+// Full leaderboard for a branch: every mechanic's Restore Bike and
 // package-sale numbers side by side, sorted by who earned the most.
 export async function getBranchPerformance(
   branch: Branch,
@@ -247,8 +238,6 @@ export async function getBranchPerformance(
       shortCode: a.shortCode,
       restoreBikeRevenue: a.restoreBikeRevenue,
       restoreBikeCount: a.restoreBikeCount,
-      walkInRevenue: a.walkInRevenue,
-      walkInCount: a.walkInCount,
       packageRevenue: pkg?.revenue ?? 0,
       packageSetsSold: pkg?.setsSold ?? 0,
       totalRevenue: a.totalRevenue + (pkg?.revenue ?? 0),

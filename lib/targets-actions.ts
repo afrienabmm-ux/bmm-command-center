@@ -53,7 +53,6 @@ export async function setMonthlyTargetAction(
     );
   if (error) throw new Error(error.message);
   revalidatePath("/");
-  revalidatePath("/reports");
 }
 
 // The company-wide monthly goal, split evenly across the 3 branches. This
@@ -78,5 +77,4 @@ export async function setCombinedMonthlyTargetAction(year: number, month: number
   const { error } = await supabaseAdmin.from("cc_monthly_targets").upsert(rows, { onConflict: "branch,year,month" });
   if (error) throw new Error(error.message);
   revalidatePath("/");
-  revalidatePath("/reports");
 }

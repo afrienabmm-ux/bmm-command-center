@@ -42,15 +42,13 @@ export default function AllBranchesMechanicPerformanceClient({ rows }: { rows: M
 
   function handleExport() {
     const csv = toCsv(
-      ["Mechanic", "Code", "Branch", "Restore Bike Jobs", "Restore Bike Revenue (RM)", "Walk-in Jobs", "Walk-in Revenue (RM)", "Package Sets", "Package Revenue (RM)", "Total Revenue (RM)"],
+      ["Mechanic", "Code", "Branch", "Restore Bike Jobs", "Restore Bike Revenue (RM)", "Package Sets", "Package Revenue (RM)", "Total Revenue (RM)"],
       filtered.map((r) => [
         r.fullName,
         r.shortCode,
         branchLabel(r.branch),
         r.restoreBikeCount,
         r.restoreBikeRevenue.toFixed(2),
-        r.walkInCount,
-        r.walkInRevenue.toFixed(2),
         r.packageSetsSold,
         r.packageRevenue.toFixed(2),
         r.totalRevenue.toFixed(2),
@@ -155,7 +153,6 @@ export default function AllBranchesMechanicPerformanceClient({ rows }: { rows: M
                   <th className="font-medium px-5 py-3 whitespace-nowrap">Mechanic</th>
                   <th className="font-medium px-5 py-3 whitespace-nowrap">Branch</th>
                   <th className="font-medium px-5 py-3 whitespace-nowrap">Restore Bike</th>
-                  <th className="font-medium px-5 py-3 whitespace-nowrap">Walk-in</th>
                   <th className="font-medium px-5 py-3 whitespace-nowrap">Packages</th>
                   <th className="font-medium px-5 py-3 whitespace-nowrap">Total Revenue</th>
                 </tr>
@@ -179,9 +176,6 @@ export default function AllBranchesMechanicPerformanceClient({ rows }: { rows: M
                       {r.restoreBikeCount} jobs · {formatCurrency(r.restoreBikeRevenue)}
                     </td>
                     <td className="px-5 py-3.5 text-neutral-600 whitespace-nowrap">
-                      {r.walkInCount} jobs · {formatCurrency(r.walkInRevenue)}
-                    </td>
-                    <td className="px-5 py-3.5 text-neutral-600 whitespace-nowrap">
                       {r.packageSetsSold} sets · {formatCurrency(r.packageRevenue)}
                     </td>
                     <td className="px-5 py-3.5 text-neutral-900 font-semibold whitespace-nowrap">
@@ -191,7 +185,7 @@ export default function AllBranchesMechanicPerformanceClient({ rows }: { rows: M
                 ))}
                 {filtered.length === 0 && (
                   <tr>
-                    <td colSpan={6} className="px-5 py-10 text-center text-neutral-500 text-sm">
+                    <td colSpan={5} className="px-5 py-10 text-center text-neutral-500 text-sm">
                       No mechanics {branchFilter === "all" ? "yet" : `at ${branchLabel(branchFilter)} yet`}.
                     </td>
                   </tr>

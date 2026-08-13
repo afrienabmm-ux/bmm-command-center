@@ -2,12 +2,11 @@ import type { Role } from "./current-user";
 
 export const PAGE_DEFS = [
   { key: "warranty-claims", label: "Warranty Claims", href: "/warranty-claims" },
-  { key: "repairs", label: "Workshop Repairs", href: "/repairs" },
+  { key: "repairs", label: "Restore Bike", href: "/repairs" },
   { key: "mechanics", label: "Mechanics", href: "/mechanics" },
   { key: "genblu", label: "GenBlu Registration", href: "/genblu" },
   { key: "catalog", label: "Catalog", href: "/catalog" },
-  { key: "packages", label: "Main Packages", href: "/packages" },
-  { key: "reports", label: "Reports", href: "/reports" },
+  { key: "packages", label: "Main Combo", href: "/packages" },
 ] as const;
 
 export type PageKey = (typeof PAGE_DEFS)[number]["key"];

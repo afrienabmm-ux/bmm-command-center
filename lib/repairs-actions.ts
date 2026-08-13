@@ -334,7 +334,6 @@ export async function updateRepairJobAction(
 
   await replaceJobItems(id, items);
   revalidatePath("/repairs");
-  revalidatePath("/reports");
   revalidatePath("/");
 }
 
@@ -368,6 +367,5 @@ export async function updateRepairStatusAction(id: string, branch: Branch, statu
   const { error } = await supabaseAdmin.from("cc_repair_jobs").update(update).eq("id", id);
   if (error) throw new Error(error.message);
   revalidatePath("/repairs");
-  revalidatePath("/reports");
   revalidatePath("/");
 }

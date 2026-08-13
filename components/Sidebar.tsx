@@ -11,7 +11,6 @@ import {
   Smartphone,
   Package,
   Layers,
-  BarChart3,
   UserCog,
   LogOut,
   PanelLeftClose,
@@ -26,12 +25,11 @@ const STORAGE_KEY = "cc_sidebar_collapsed";
 const links: { href: string; label: string; icon: typeof LayoutDashboard; page: PageKey | null }[] = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard, page: null },
   { href: "/warranty-claims", label: "Warranty Claims", icon: ShieldCheck, page: "warranty-claims" },
-  { href: "/repairs", label: "Workshop Repairs", icon: Wrench, page: "repairs" },
+  { href: "/repairs", label: "Restore Bike", icon: Wrench, page: "repairs" },
   { href: "/mechanics", label: "Mechanics", icon: MechanicIcon, page: "mechanics" },
   { href: "/genblu", label: "GenBlu Registration", icon: Smartphone, page: "genblu" },
   { href: "/catalog", label: "Catalog", icon: Package, page: "catalog" },
-  { href: "/packages", label: "Main Packages", icon: Layers, page: "packages" },
-  { href: "/reports", label: "Reports", icon: BarChart3, page: "reports" },
+  { href: "/packages", label: "Main Combo", icon: Layers, page: "packages" },
 ];
 
 export default function Sidebar({

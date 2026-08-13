@@ -136,7 +136,6 @@ export async function addPackageSaleAction(input: {
   });
   if (error) throw new Error(error.message);
   revalidatePath("/packages");
-  revalidatePath("/reports");
 }
 
 export async function deletePackageSaleAction(id: string, branch: Branch): Promise<void> {
@@ -145,5 +144,4 @@ export async function deletePackageSaleAction(id: string, branch: Branch): Promi
   const { error } = await supabaseAdmin.from("cc_package_sales").delete().eq("id", id);
   if (error) throw new Error(error.message);
   revalidatePath("/packages");
-  revalidatePath("/reports");
 }

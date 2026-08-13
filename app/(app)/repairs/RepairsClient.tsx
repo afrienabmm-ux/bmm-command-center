@@ -4,13 +4,11 @@ import { useEffect, useMemo, useState, useTransition } from "react";
 import { Plus, Download, Pencil, Trash2, AlertTriangle, Search } from "lucide-react";
 import { addRepairJobAction, updateRepairJobAction, updateRepairStatusAction, updateRepairApprovalAction } from "@/lib/repairs-actions";
 import {
-  JOB_TYPES,
   REPAIR_STATUSES,
   DEAL_TYPES,
   APPROVAL_STATUSES,
   HEAVY_ITEM_COUNT_THRESHOLD,
   isHeavyRepairJob,
-  type JobType,
   type RepairStatus,
   type ApprovalStatus,
   type RepairJob,
@@ -18,11 +16,6 @@ import {
 import type { Mechanic } from "@/lib/types";
 import { BRANCHES, branchLabel, type Branch, type BranchSelection } from "@/lib/branch";
 import { formatCurrency, formatDate, daysBetween, toCsv } from "@/lib/format";
-
-const JOB_TYPE_STYLES: Record<JobType, string> = {
-  "Restore Bike": "bg-purple-500/10 text-purple-700 border-purple-500/20",
-  "Walk-in": "bg-sky-500/10 text-sky-700 border-sky-500/20",
-};
 
 const STATUS_STYLES: Record<RepairStatus, string> = {
   Pending: "bg-neutral-100 text-neutral-700 border-neutral-300",
@@ -39,7 +32,7 @@ const APPROVAL_STYLES: Record<ApprovalStatus, string> = {
 const OVERDUE_DAYS = 5;
 
 function isOverdue(job: RepairJob): boolean {
-  if (job.jobType !== "Restore Bike" || job.status === "Completed") return false;
+  if (job.status === "Completed") return false;
   const days = daysBetween(job.startedDate, new Date().toISOString().slice(0, 10));
   return (days ?? 0) > OVERDUE_DAYS;
 }
@@ -62,7 +55,6 @@ export default function RepairsClient({
   locked: boolean;
 }) {
   const [tab, setTab] = useState<"active" | "completed">("active");
-  const [typeFilter, setTypeFilter] = useState<JobType | "All">("All");
   const [loadFilter, setLoadFilter] = useState<"All" | "Heavy Repair" | "Normal Repair">("All");
   const [modalOpen, setModalOpen] = useState(false);
   const [editingJob, setEditingJob] = useState<RepairJob | null>(null);
@@ -70,14 +62,12 @@ export default function RepairsClient({
   const [exportJobModalOpen, setExportJobModalOpen] = useState(false);
   const [exportRestoreModalOpen, setExportRestoreModalOpen] = useState(false);
   const baseJobs = tab === "active" ? active : completed;
-  const typeFiltered = typeFilter === "All" ? baseJobs : baseJobs.filter((j) => j.jobType === typeFilter);
   const jobs =
     loadFilter === "All"
-      ? typeFiltered
-      : typeFiltered.filter((j) => (loadFilter === "Heavy Repair" ? isHeavyRepairJob(j) : !isHeavyRepairJob(j)));
+      ? baseJobs
+      : baseJobs.filter((j) => (loadFilter === "Heavy Repair" ? isHeavyRepairJob(j) : !isHeavyRepairJob(j)));
   const overdueCount = active.filter(isOverdue).length;
   const allJobs = useMemo(() => [...active, ...completed], [active, completed]);
-  const allRestoreBikeJobs = useMemo(() => allJobs.filter((j) => j.jobType === "Restore Bike"), [allJobs]);
   const showBranchColumn = branchSelection === "all";
 
   function mechanicLabel(id: string | null) {
@@ -89,55 +79,32 @@ export default function RepairsClient({
   function handleExport() {
     setExporting(true);
     try {
-      const filtered = typeFilter === "All" ? allJobs : allJobs.filter((j) => j.jobType === typeFilter);
-      let csv: string;
-      if (typeFilter === "Restore Bike") {
-        const rows = filtered.map((j, i) => [
-          i + 1,
-          j.picName,
-          j.plateNo,
-          j.model,
-          j.bikeYear,
-          j.condition,
-          mechanicLabel(j.mechanicId),
-          j.location,
-          formatDate(j.startedDate),
-          j.completedDate ? formatDate(j.completedDate) : "",
-          j.revenueAmount.toFixed(2),
-          j.description,
-          j.dealType,
-          j.approvalStatus,
-          j.status,
-        ]);
-        csv = toCsv(
-          ["No.", "PIC", "N. Plate", "Model", "Tahun", "Condition", "Mechanic", "Location", "Start Date", "End Date", "Cost Restore (RM)", "Remark", "Trade In / Jual", "Approval", "Status"],
-          rows
-        );
-      } else {
-        const today = new Date().toISOString().slice(0, 10);
-        const rows = filtered.map((j) => [
-          j.jobNo,
-          j.customerName,
-          j.plateNo,
-          j.jobType,
-          j.status,
-          j.revenueAmount.toFixed(2),
-          j.dealType,
-          formatDate(j.startedDate),
-          j.completedDate ? formatDate(j.completedDate) : "",
-          daysBetween(j.startedDate, j.completedDate ?? today) ?? 0,
-        ]);
-        csv = toCsv(
-          ["Job No", "Customer", "Plate No", "Job Type", "Status", "Cost Total (RM)", "Trade-in/Sell", "Started Date", "Completed Date", "Days Taken"],
-          rows
-        );
-      }
+      const rows = allJobs.map((j, i) => [
+        i + 1,
+        j.picName,
+        j.plateNo,
+        j.model,
+        j.bikeYear,
+        j.condition,
+        mechanicLabel(j.mechanicId),
+        j.location,
+        formatDate(j.startedDate),
+        j.completedDate ? formatDate(j.completedDate) : "",
+        j.revenueAmount.toFixed(2),
+        j.description,
+        j.dealType,
+        j.approvalStatus,
+        j.status,
+      ]);
+      const csv = toCsv(
+        ["No.", "PIC", "N. Plate", "Model", "Tahun", "Condition", "Mechanic", "Location", "Start Date", "End Date", "Cost Restore (RM)", "Remark", "Trade In / Jual", "Approval", "Status"],
+        rows
+      );
       const blob = new Blob([csv], { type: "text/csv" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      const suffix = typeFilter === "All" ? "" : `-${typeFilter.toLowerCase().replace(/\s+/g, "-")}`;
-      a.download = `bmm-repairs-${branchSelection}${suffix}.csv`;
+      a.download = `bmm-restore-bike-${branchSelection}.csv`;
       a.click();
       URL.revokeObjectURL(url);
     } finally {
@@ -262,11 +229,7 @@ export default function RepairsClient({
             className="flex items-center gap-1.5 bg-neutral-100 hover:bg-neutral-200 disabled:opacity-50 text-neutral-800 text-sm font-medium px-4 py-2 rounded-lg transition-colors whitespace-nowrap"
           >
             <Download size={15} />
-            {exporting
-              ? "Exporting…"
-              : typeFilter === "All"
-                ? "Export to Excel / CSV"
-                : `Export ${typeFilter} Only`}
+            {exporting ? "Exporting…" : "Export to Excel / CSV"}
           </button>
           <button
             onClick={() => setExportJobModalOpen(true)}
@@ -274,12 +237,12 @@ export default function RepairsClient({
           >
             <Search size={15} /> Export One Job (with items)
           </button>
-          {allRestoreBikeJobs.length > 0 && (
+          {allJobs.length > 0 && (
             <button
               onClick={() => setExportRestoreModalOpen(true)}
               className="flex items-center gap-1.5 bg-neutral-100 hover:bg-neutral-200 text-neutral-800 text-sm font-medium px-4 py-2 rounded-lg transition-colors whitespace-nowrap"
             >
-              <Download size={15} /> Export Restore Bike…
+              <Download size={15} /> Export Filtered…
             </button>
           )}
           <button
@@ -292,21 +255,7 @@ export default function RepairsClient({
       </div>
 
       <div className="flex items-center gap-2 mb-4 flex-wrap">
-        <span className="text-xs font-medium text-neutral-500">Type:</span>
-        <div className="flex gap-1 bg-white border border-neutral-200 rounded-lg p-1">
-          {(["All", ...JOB_TYPES] as const).map((t) => (
-            <button
-              key={t}
-              onClick={() => setTypeFilter(t)}
-              className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors whitespace-nowrap ${
-                typeFilter === t ? "bg-indigo-500 text-white" : "text-neutral-600 hover:text-neutral-800"
-              }`}
-            >
-              {t === "All" ? "All Types" : t}
-            </button>
-          ))}
-        </div>
-        <span className="text-xs font-medium text-neutral-500 ml-2">Load:</span>
+        <span className="text-xs font-medium text-neutral-500">Load:</span>
         <div className="flex gap-1 bg-white border border-neutral-200 rounded-lg p-1">
           {(["All", "Heavy Repair", "Normal Repair"] as const).map((l) => (
             <button
@@ -324,101 +273,55 @@ export default function RepairsClient({
 
       <div className="bg-white border border-neutral-200 rounded-xl overflow-hidden">
         <div className="overflow-x-auto">
-          {typeFilter === "Restore Bike" ? (
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-left text-xs text-neutral-500 border-b border-neutral-200">
-                  <th className="font-medium px-5 py-3 whitespace-nowrap">No.</th>
-                  {showBranchColumn && <th className="font-medium px-5 py-3 whitespace-nowrap">Branch</th>}
-                  <th className="font-medium px-5 py-3 whitespace-nowrap">PIC</th>
-                  <th className="font-medium px-5 py-3 whitespace-nowrap">N. Plate</th>
-                  <th className="font-medium px-5 py-3 whitespace-nowrap">Model</th>
-                  <th className="font-medium px-5 py-3 whitespace-nowrap">Tahun</th>
-                  <th className="font-medium px-5 py-3 whitespace-nowrap">Condition</th>
-                  <th className="font-medium px-5 py-3 whitespace-nowrap">Mechanic</th>
-                  <th className="font-medium px-5 py-3 whitespace-nowrap">Location</th>
-                  <th className="font-medium px-5 py-3 whitespace-nowrap">Start Date</th>
-                  <th className="font-medium px-5 py-3 whitespace-nowrap">End Date</th>
-                  <th className="font-medium px-5 py-3 whitespace-nowrap">Cost Restore</th>
-                  <th className="font-medium px-5 py-3 whitespace-nowrap">Remark</th>
-                  <th className="font-medium px-5 py-3 whitespace-nowrap">Trade In / Jual</th>
-                  <th className="font-medium px-5 py-3 whitespace-nowrap">Approval</th>
-                  <th className="font-medium px-5 py-3 whitespace-nowrap">Status</th>
-                  <th className="px-5 py-3" />
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-left text-xs text-neutral-500 border-b border-neutral-200">
+                <th className="font-medium px-5 py-3 whitespace-nowrap">No.</th>
+                {showBranchColumn && <th className="font-medium px-5 py-3 whitespace-nowrap">Branch</th>}
+                <th className="font-medium px-5 py-3 whitespace-nowrap">PIC</th>
+                <th className="font-medium px-5 py-3 whitespace-nowrap">N. Plate</th>
+                <th className="font-medium px-5 py-3 whitespace-nowrap">Model</th>
+                <th className="font-medium px-5 py-3 whitespace-nowrap">Tahun</th>
+                <th className="font-medium px-5 py-3 whitespace-nowrap">Condition</th>
+                <th className="font-medium px-5 py-3 whitespace-nowrap">Mechanic</th>
+                <th className="font-medium px-5 py-3 whitespace-nowrap">Location</th>
+                <th className="font-medium px-5 py-3 whitespace-nowrap">Start Date</th>
+                <th className="font-medium px-5 py-3 whitespace-nowrap">End Date</th>
+                <th className="font-medium px-5 py-3 whitespace-nowrap">Cost Restore</th>
+                <th className="font-medium px-5 py-3 whitespace-nowrap">Remark</th>
+                <th className="font-medium px-5 py-3 whitespace-nowrap">Trade In / Jual</th>
+                <th className="font-medium px-5 py-3 whitespace-nowrap">Approval</th>
+                <th className="font-medium px-5 py-3 whitespace-nowrap">Status</th>
+                <th className="px-5 py-3" />
+              </tr>
+            </thead>
+            <tbody>
+              {jobs.map((job, i) => (
+                <RestoreBikeRow
+                  key={job.id}
+                  no={i + 1}
+                  job={job}
+                  showBranch={showBranchColumn}
+                  mechanicLabel={mechanicLabel(job.mechanicId)}
+                  editable={tab === "active"}
+                  onEdit={() => setEditingJob(job)}
+                />
+              ))}
+              {jobs.length === 0 && (
+                <tr>
+                  <td colSpan={showBranchColumn ? 17 : 16} className="px-5 py-10 text-center text-neutral-500 text-sm">
+                    {tab === "active" ? "No active" : "No completed"} Restore Bike jobs.
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
-                {jobs.map((job, i) => (
-                  <RestoreBikeRow
-                    key={job.id}
-                    no={i + 1}
-                    job={job}
-                    showBranch={showBranchColumn}
-                    mechanicLabel={mechanicLabel(job.mechanicId)}
-                    editable={tab === "active"}
-                    onEdit={() => setEditingJob(job)}
-                  />
-                ))}
-                {jobs.length === 0 && (
-                  <tr>
-                    <td colSpan={showBranchColumn ? 17 : 16} className="px-5 py-10 text-center text-neutral-500 text-sm">
-                      {tab === "active" ? "No active" : "No completed"} Restore Bike jobs.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          ) : (
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-left text-xs text-neutral-500 border-b border-neutral-200">
-                  <th className="font-medium px-5 py-3 whitespace-nowrap">Job No.</th>
-                  {showBranchColumn && <th className="font-medium px-5 py-3 whitespace-nowrap">Branch</th>}
-                  <th className="font-medium px-5 py-3 whitespace-nowrap">Customer</th>
-                  <th className="font-medium px-5 py-3 whitespace-nowrap">Plate No.</th>
-                  <th className="font-medium px-5 py-3 whitespace-nowrap">Type</th>
-                  <th className="font-medium px-5 py-3 whitespace-nowrap">Mechanic</th>
-                  <th className="font-medium px-5 py-3 whitespace-nowrap">Cost Total</th>
-                  {typeFilter !== "Walk-in" && (
-                    <th className="font-medium px-5 py-3 whitespace-nowrap">Trade-in/Sell</th>
-                  )}
-                  <th className="font-medium px-5 py-3 whitespace-nowrap">Start Date</th>
-                  <th className="font-medium px-5 py-3 whitespace-nowrap">End Date</th>
-                  <th className="font-medium px-5 py-3 whitespace-nowrap">Days</th>
-                  <th className="font-medium px-5 py-3 whitespace-nowrap">Status</th>
-                  <th className="px-5 py-3" />
-                </tr>
-              </thead>
-              <tbody>
-                {jobs.map((job) => (
-                  <JobRow
-                    key={job.id}
-                    job={job}
-                    showBranch={showBranchColumn}
-                    mechanicLabel={mechanicLabel(job.mechanicId)}
-                    editable={tab === "active"}
-                    showDealType={typeFilter !== "Walk-in"}
-                    onEdit={() => setEditingJob(job)}
-                  />
-                ))}
-                {jobs.length === 0 && (
-                  <tr>
-                    <td colSpan={showBranchColumn ? 12 : 11} className="px-5 py-10 text-center text-neutral-500 text-sm">
-                      {tab === "active" ? "No active" : "No completed"}
-                      {typeFilter === "All" ? " repair jobs." : ` ${typeFilter} jobs.`}
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          )}
+              )}
+            </tbody>
+          </table>
         </div>
       </div>
 
       {modalOpen && (
         <JobFormModal
           job={null}
-          defaultJobType={typeFilter !== "All" ? typeFilter : undefined}
           branchSelection={branchSelection}
           locked={locked}
           mechanics={mechanics}
@@ -444,7 +347,7 @@ export default function RepairsClient({
 
       {exportRestoreModalOpen && (
         <ExportRestoreBikeModal
-          jobs={allRestoreBikeJobs}
+          jobs={allJobs}
           mechanics={mechanics}
           onExport={handleExportRestoreBikeJobs}
           onClose={() => setExportRestoreModalOpen(false)}
@@ -666,57 +569,6 @@ function OverdueBadge({ job }: { job: RepairJob }) {
   );
 }
 
-function JobRow({
-  job,
-  showBranch,
-  mechanicLabel,
-  editable,
-  showDealType,
-  onEdit,
-}: {
-  job: RepairJob;
-  showBranch: boolean;
-  mechanicLabel: string;
-  editable: boolean;
-  showDealType: boolean;
-  onEdit: () => void;
-}) {
-  const [isPending, startTransition] = useTransition();
-  const days = daysBetween(job.startedDate, job.completedDate ?? new Date().toISOString().slice(0, 10));
-
-  return (
-    <tr className="border-b border-neutral-100 last:border-0 hover:bg-neutral-50">
-      <td className="px-5 py-3.5 text-neutral-800 font-medium whitespace-nowrap">{job.jobNo}</td>
-      {showBranch && <td className="px-5 py-3.5 text-neutral-600 whitespace-nowrap">{branchLabel(job.branch)}</td>}
-      <td className="px-5 py-3.5 text-neutral-700 whitespace-nowrap">{job.customerName || "—"}</td>
-      <td className="px-5 py-3.5 text-neutral-600 whitespace-nowrap">{job.plateNo}</td>
-      <td className="px-5 py-3.5 whitespace-nowrap">
-        <span className={`text-xs font-medium px-2.5 py-1 rounded-full border ${JOB_TYPE_STYLES[job.jobType]}`}>
-          {job.jobType}
-        </span>
-        {isHeavyRepairJob(job) && (
-          <span className="ml-1.5 text-xs font-medium px-2 py-1 rounded-full border bg-orange-500/10 text-orange-700 border-orange-500/20">
-            Heavy
-          </span>
-        )}
-      </td>
-      <td className="px-5 py-3.5 text-neutral-600 whitespace-nowrap">{mechanicLabel}</td>
-      <td className="px-5 py-3.5 text-neutral-700 whitespace-nowrap">{formatCurrency(job.revenueAmount)}</td>
-      {showDealType && <td className="px-5 py-3.5 text-neutral-600 whitespace-nowrap">{job.dealType || "—"}</td>}
-      <td className="px-5 py-3.5 text-neutral-500 whitespace-nowrap">{formatDate(job.startedDate)}</td>
-      <td className="px-5 py-3.5 text-neutral-500 whitespace-nowrap">{job.completedDate ? formatDate(job.completedDate) : "—"}</td>
-      <td className="px-5 py-3.5 text-neutral-500 whitespace-nowrap">{days ?? 0}d</td>
-      <td className="px-5 py-3.5">
-        <StatusCell job={job} branch={job.branch} editable={editable} isPending={isPending} startTransition={startTransition} />
-      </td>
-      <td className="px-5 py-3.5">
-        <button onClick={onEdit} className="text-neutral-400 hover:text-indigo-600 transition-colors p-1" title="Edit job" aria-label="Edit job">
-          <Pencil size={14} />
-        </button>
-      </td>
-    </tr>
-  );
-}
 
 function RestoreBikeRow({
   no,
@@ -860,7 +712,6 @@ function ItemsEditor({ items, onChange }: { items: ItemInput[]; onChange: (items
 
 function JobFormModal({
   job,
-  defaultJobType,
   branchSelection,
   locked,
   mechanics,
@@ -868,7 +719,6 @@ function JobFormModal({
   onClose,
 }: {
   job: RepairJob | null;
-  defaultJobType?: JobType;
   branchSelection: BranchSelection;
   locked: boolean;
   mechanics: Mechanic[];
@@ -876,9 +726,7 @@ function JobFormModal({
   onClose: () => void;
 }) {
   const isEdit = job !== null;
-  const [customerName, setCustomerName] = useState(job?.customerName ?? "");
   const [plateNo, setPlateNo] = useState(job?.plateNo ?? "");
-  const [jobType, setJobType] = useState<JobType>(job?.jobType ?? defaultJobType ?? "Walk-in");
   const [locationBranch, setLocationBranch] = useState<BranchSelection>(job?.branch ?? branchSelection);
   const [mechanicId, setMechanicId] = useState(job?.mechanicId ?? "");
   const [description, setDescription] = useState(job?.description ?? "");
@@ -901,7 +749,6 @@ function JobFormModal({
   const [isBigItem, setIsBigItem] = useState(job?.isBigItem ?? false);
   const [items, setItems] = useState<ItemInput[]>(job ? itemsFromJob(job) : []);
   const [isPending, startTransition] = useTransition();
-  const isRestoreBike = jobType === "Restore Bike";
 
   const itemCount = items.filter((it) => it.description.trim() !== "").length;
   const isHeavyJob = itemCount > HEAVY_ITEM_COUNT_THRESHOLD || isBigItem;
@@ -940,14 +787,8 @@ function JobFormModal({
     setMechanicId("");
   }
 
-  // Restore Bike jobs are the workshop's own stock, so there's no customer
-  // to record — only Walk-in jobs need a name. Every job needs a mechanic
-  // assigned before it can be saved.
-  const canSave =
-    (isRestoreBike || customerName.trim() !== "") &&
-    plateNo.trim() !== "" &&
-    effectiveBranch !== null &&
-    mechanicId !== "";
+  // Every job needs a mechanic assigned before it can be saved.
+  const canSave = plateNo.trim() !== "" && effectiveBranch !== null && mechanicId !== "";
 
   function handleSave() {
     if (!canSave || !effectiveBranch) return;
@@ -960,12 +801,12 @@ function JobFormModal({
       }));
 
     const payload = {
-      customerName: customerName.trim(),
+      customerName: "",
       plateNo: plateNo.trim(),
       mechanicId: mechanicId || null,
       description: description.trim(),
       revenueAmount: Number(revenueAmount) || 0,
-      dealType: isRestoreBike ? (dealType === "Others" ? customDealType.trim() : dealType) : "",
+      dealType: dealType === "Others" ? customDealType.trim() : dealType,
       startedDate,
       picName: picName.trim(),
       model: model.trim(),
@@ -984,7 +825,7 @@ function JobFormModal({
       if (isEdit && job) {
         await updateRepairJobAction(job.id, job.branch, payload);
       } else {
-        await addRepairJobAction({ ...payload, branch: effectiveBranch, jobType });
+        await addRepairJobAction({ ...payload, branch: effectiveBranch, jobType: "Restore Bike" });
       }
       onClose();
     });
@@ -995,17 +836,6 @@ function JobFormModal({
       <div className="bg-white border border-neutral-200 rounded-xl w-full max-w-md p-6 max-h-[90vh] overflow-y-auto">
         <h2 className="text-sm font-semibold text-neutral-900 mb-5">{isEdit ? "Edit Repair Job" : "Add Repair Job"}</h2>
         <div className="space-y-4">
-          {!isRestoreBike && (
-            <div>
-              <label className="block text-xs font-medium text-neutral-600 mb-1.5">Customer Name *</label>
-              <input
-                type="text"
-                value={customerName}
-                onChange={(e) => setCustomerName(e.target.value)}
-                className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
-              />
-            </div>
-          )}
           <div>
             <label className="block text-xs font-medium text-neutral-600 mb-1.5">Plate No. *</label>
             <input
@@ -1014,21 +844,6 @@ function JobFormModal({
               onChange={(e) => setPlateNo(e.target.value)}
               className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
             />
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-neutral-600 mb-1.5">Job Type</label>
-            <select
-              value={jobType}
-              disabled={isEdit}
-              onChange={(e) => setJobType(e.target.value as JobType)}
-              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50 disabled:opacity-60"
-            >
-              {JOB_TYPES.map((t) => (
-                <option key={t} value={t}>
-                  {t}
-                </option>
-              ))}
-            </select>
           </div>
           <div>
             <label className="block text-xs font-medium text-neutral-600 mb-1.5">PIC</label>
@@ -1139,7 +954,7 @@ function JobFormModal({
           <ItemsEditor items={items} onChange={setItems} />
 
           <div>
-            <label className="block text-xs font-medium text-neutral-600 mb-1.5">{isRestoreBike ? "Remark" : "Description"}</label>
+            <label className="block text-xs font-medium text-neutral-600 mb-1.5">Remark</label>
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
@@ -1148,7 +963,7 @@ function JobFormModal({
             />
           </div>
           <div>
-            <label className="block text-xs font-medium text-neutral-600 mb-1.5">{isRestoreBike ? "Cost Restore (RM)" : "Cost Total (RM)"}</label>
+            <label className="block text-xs font-medium text-neutral-600 mb-1.5">Cost Restore (RM)</label>
             <input
               type="number"
               min={0}
@@ -1183,62 +998,58 @@ function JobFormModal({
               Leave the end date blank to fill it in automatically when the job is marked Completed.
             </p>
           </div>
-          {isRestoreBike && (
-            <>
-              <div>
-                <label className="block text-xs font-medium text-neutral-600 mb-1.5">Trade-in / Sell</label>
-                <select
-                  value={dealType}
-                  onChange={(e) => setDealType(e.target.value as (typeof DEAL_TYPES)[number])}
-                  className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
-                >
-                  {DEAL_TYPES.map((t) => (
-                    <option key={t} value={t}>
-                      {t}
-                    </option>
-                  ))}
-                </select>
-                {dealType === "Others" && (
-                  <input
-                    type="text"
-                    value={customDealType}
-                    onChange={(e) => setCustomDealType(e.target.value)}
-                    placeholder="Type what it is"
-                    className="w-full mt-2 bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
-                  />
-                )}
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-medium text-neutral-600 mb-1.5">Stock Order Date</label>
-                  <input
-                    type="date"
-                    value={stockOrderDate}
-                    onChange={(e) => setStockOrderDate(e.target.value)}
-                    className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-neutral-600 mb-1.5">Stock Arrive Date</label>
-                  <input
-                    type="date"
-                    value={stockArriveDate}
-                    onChange={(e) => setStockArriveDate(e.target.value)}
-                    className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
-                  />
-                </div>
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-neutral-600 mb-1.5">Prepared By</label>
-                <input
-                  type="text"
-                  value={preparedBy}
-                  onChange={(e) => setPreparedBy(e.target.value)}
-                  className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
-                />
-              </div>
-            </>
-          )}
+          <div>
+            <label className="block text-xs font-medium text-neutral-600 mb-1.5">Trade-in / Sell</label>
+            <select
+              value={dealType}
+              onChange={(e) => setDealType(e.target.value as (typeof DEAL_TYPES)[number])}
+              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+            >
+              {DEAL_TYPES.map((t) => (
+                <option key={t} value={t}>
+                  {t}
+                </option>
+              ))}
+            </select>
+            {dealType === "Others" && (
+              <input
+                type="text"
+                value={customDealType}
+                onChange={(e) => setCustomDealType(e.target.value)}
+                placeholder="Type what it is"
+                className="w-full mt-2 bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+              />
+            )}
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-neutral-600 mb-1.5">Stock Order Date</label>
+              <input
+                type="date"
+                value={stockOrderDate}
+                onChange={(e) => setStockOrderDate(e.target.value)}
+                className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-neutral-600 mb-1.5">Stock Arrive Date</label>
+              <input
+                type="date"
+                value={stockArriveDate}
+                onChange={(e) => setStockArriveDate(e.target.value)}
+                className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+              />
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-neutral-600 mb-1.5">Prepared By</label>
+            <input
+              type="text"
+              value={preparedBy}
+              onChange={(e) => setPreparedBy(e.target.value)}
+              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+            />
+          </div>
         </div>
         <div className="flex items-center justify-end gap-3 mt-6">
           <button
