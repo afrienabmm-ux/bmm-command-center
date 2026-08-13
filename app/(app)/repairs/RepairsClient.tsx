@@ -1,20 +1,19 @@
 "use client";
 
-import { useEffect, useMemo, useState, useTransition } from "react";
-import { Plus, Download, Pencil, Trash2, AlertTriangle, Search } from "lucide-react";
-import { addRepairJobAction, updateRepairJobAction, updateRepairStatusAction, updateRepairApprovalAction } from "@/lib/repairs-actions";
+import { useMemo, useState, useTransition } from "react";
+import Link from "next/link";
+import { Plus, Download, Pencil, AlertTriangle, Search } from "lucide-react";
+import { updateRepairStatusAction, updateRepairApprovalAction } from "@/lib/repairs-actions";
 import {
   REPAIR_STATUSES,
-  DEAL_TYPES,
   APPROVAL_STATUSES,
-  HEAVY_ITEM_COUNT_THRESHOLD,
   isHeavyRepairJob,
   type RepairStatus,
   type ApprovalStatus,
   type RepairJob,
 } from "@/lib/types";
 import type { Mechanic } from "@/lib/types";
-import { BRANCHES, branchLabel, type Branch, type BranchSelection } from "@/lib/branch";
+import { branchLabel, type Branch, type BranchSelection } from "@/lib/branch";
 import { formatCurrency, formatDate, daysBetween, toCsv } from "@/lib/format";
 
 const STATUS_STYLES: Record<RepairStatus, string> = {
@@ -40,24 +39,16 @@ function isOverdue(job: RepairJob): boolean {
 export default function RepairsClient({
   active,
   completed,
-  allActiveJobs,
   mechanics,
-  branch,
   branchSelection,
-  locked,
 }: {
   active: RepairJob[];
   completed: RepairJob[];
-  allActiveJobs: RepairJob[];
   mechanics: Mechanic[];
-  branch: Branch;
   branchSelection: BranchSelection;
-  locked: boolean;
 }) {
   const [tab, setTab] = useState<"active" | "completed">("active");
   const [loadFilter, setLoadFilter] = useState<"All" | "Heavy Repair" | "Normal Repair">("All");
-  const [modalOpen, setModalOpen] = useState(false);
-  const [editingJob, setEditingJob] = useState<RepairJob | null>(null);
   const [exporting, setExporting] = useState(false);
   const [exportJobModalOpen, setExportJobModalOpen] = useState(false);
   const [exportRestoreModalOpen, setExportRestoreModalOpen] = useState(false);
@@ -245,12 +236,12 @@ export default function RepairsClient({
               <Download size={15} /> Export Filtered…
             </button>
           )}
-          <button
-            onClick={() => setModalOpen(true)}
+          <Link
+            href="/repairs/new"
             className="flex items-center gap-1.5 bg-indigo-500 hover:bg-indigo-400 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
           >
             <Plus size={15} /> Add Job
-          </button>
+          </Link>
         </div>
       </div>
 
@@ -304,7 +295,6 @@ export default function RepairsClient({
                   showBranch={showBranchColumn}
                   mechanicLabel={mechanicLabel(job.mechanicId)}
                   editable={tab === "active"}
-                  onEdit={() => setEditingJob(job)}
                 />
               ))}
               {jobs.length === 0 && (
@@ -318,28 +308,6 @@ export default function RepairsClient({
           </table>
         </div>
       </div>
-
-      {modalOpen && (
-        <JobFormModal
-          job={null}
-          branchSelection={branchSelection}
-          locked={locked}
-          mechanics={mechanics}
-          allActiveJobs={allActiveJobs}
-          onClose={() => setModalOpen(false)}
-        />
-      )}
-
-      {editingJob && (
-        <JobFormModal
-          job={editingJob}
-          branchSelection={branchSelection}
-          locked={locked}
-          mechanics={mechanics}
-          allActiveJobs={allActiveJobs}
-          onClose={() => setEditingJob(null)}
-        />
-      )}
 
       {exportJobModalOpen && (
         <ExportJobModal jobs={allJobs} onExport={handleExportSingleJob} onClose={() => setExportJobModalOpen(false)} />
@@ -576,14 +544,12 @@ function RestoreBikeRow({
   showBranch,
   mechanicLabel,
   editable,
-  onEdit,
 }: {
   no: number;
   job: RepairJob;
   showBranch: boolean;
   mechanicLabel: string;
   editable: boolean;
-  onEdit: () => void;
 }) {
   const [isPending, startTransition] = useTransition();
 
@@ -624,449 +590,16 @@ function RestoreBikeRow({
         <StatusCell job={job} branch={job.branch} editable={editable} isPending={isPending} startTransition={startTransition} />
       </td>
       <td className="px-5 py-3.5">
-        <button onClick={onEdit} className="text-neutral-400 hover:text-indigo-600 transition-colors p-1" title="Edit job" aria-label="Edit job">
+        <Link
+          href={`/repairs/${job.id}/edit`}
+          className="text-neutral-400 hover:text-indigo-600 transition-colors p-1 inline-block"
+          title="Edit job"
+          aria-label="Edit job"
+        >
           <Pencil size={14} />
-        </button>
+        </Link>
       </td>
     </tr>
   );
 }
 
-type ItemInput = { description: string; quantity: string; price: string };
-
-function emptyItem(): ItemInput {
-  return { description: "", quantity: "1", price: "" };
-}
-
-function itemsFromJob(job: RepairJob): ItemInput[] {
-  return job.items.map((i) => ({ description: i.description, quantity: String(i.quantity), price: String(i.price) }));
-}
-
-function ItemsEditor({ items, onChange }: { items: ItemInput[]; onChange: (items: ItemInput[]) => void }) {
-  function update(i: number, patch: Partial<ItemInput>) {
-    onChange(items.map((it, idx) => (idx === i ? { ...it, ...patch } : it)));
-  }
-  function addRow() {
-    onChange([...items, emptyItem()]);
-  }
-  function removeRow(i: number) {
-    onChange(items.filter((_, idx) => idx !== i));
-  }
-  const total = items.reduce((sum, it) => sum + (Number(it.quantity) || 0) * (Number(it.price) || 0), 0);
-
-  return (
-    <div>
-      <label className="block text-xs font-medium text-neutral-600 mb-1.5">Parts / Items</label>
-      <div className="space-y-2">
-        {items.map((it, i) => (
-          <div key={i} className="grid grid-cols-[1fr_50px_80px_auto] gap-2 items-center">
-            <input
-              type="text"
-              value={it.description}
-              onChange={(e) => update(i, { description: e.target.value })}
-              placeholder="e.g. Engine Oil"
-              className="bg-neutral-50 border border-neutral-200 rounded-lg px-2.5 py-2 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
-            />
-            <input
-              type="number"
-              min={0}
-              value={it.quantity}
-              onChange={(e) => update(i, { quantity: e.target.value })}
-              placeholder="Qty"
-              className="bg-neutral-50 border border-neutral-200 rounded-lg px-2 py-2 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
-            />
-            <input
-              type="number"
-              min={0}
-              value={it.price}
-              onChange={(e) => update(i, { price: e.target.value })}
-              placeholder="Price"
-              className="bg-neutral-50 border border-neutral-200 rounded-lg px-2 py-2 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
-            />
-            <button
-              type="button"
-              onClick={() => removeRow(i)}
-              className="text-neutral-400 hover:text-red-600 transition-colors p-1"
-              aria-label="Remove item"
-            >
-              <Trash2 size={14} />
-            </button>
-          </div>
-        ))}
-      </div>
-      <button
-        type="button"
-        onClick={addRow}
-        className="flex items-center gap-1 text-xs font-medium text-indigo-600 hover:text-indigo-700 mt-2 transition-colors"
-      >
-        <Plus size={13} /> Add Item
-      </button>
-      {items.length > 0 && (
-        <p className="text-xs text-neutral-500 mt-2">
-          Total from items: <span className="font-semibold text-neutral-800">{formatCurrency(total)}</span>
-        </p>
-      )}
-    </div>
-  );
-}
-
-function JobFormModal({
-  job,
-  branchSelection,
-  locked,
-  mechanics,
-  allActiveJobs,
-  onClose,
-}: {
-  job: RepairJob | null;
-  branchSelection: BranchSelection;
-  locked: boolean;
-  mechanics: Mechanic[];
-  allActiveJobs: RepairJob[];
-  onClose: () => void;
-}) {
-  const isEdit = job !== null;
-  const [plateNo, setPlateNo] = useState(job?.plateNo ?? "");
-  const [locationBranch, setLocationBranch] = useState<BranchSelection>(job?.branch ?? branchSelection);
-  const [mechanicId, setMechanicId] = useState(job?.mechanicId ?? "");
-  const [description, setDescription] = useState(job?.description ?? "");
-  const [revenueAmount, setRevenueAmount] = useState(job ? String(job.revenueAmount) : "");
-  const [dealType, setDealType] = useState<(typeof DEAL_TYPES)[number]>(
-    (job?.dealType as (typeof DEAL_TYPES)[number]) || "Sell"
-  );
-  const [customDealType, setCustomDealType] = useState(
-    job?.dealType && !DEAL_TYPES.includes(job.dealType as (typeof DEAL_TYPES)[number]) ? job.dealType : ""
-  );
-  const [startedDate, setStartedDate] = useState(job?.startedDate ?? new Date().toISOString().slice(0, 10));
-  const [picName, setPicName] = useState(job?.picName ?? "");
-  const [model, setModel] = useState(job?.model ?? "");
-  const [bikeYear, setBikeYear] = useState(job?.bikeYear ?? "");
-  const [condition, setCondition] = useState(job?.condition ?? "");
-  const [stockOrderDate, setStockOrderDate] = useState(job?.stockOrderDate ?? "");
-  const [stockArriveDate, setStockArriveDate] = useState(job?.stockArriveDate ?? "");
-  const [completedDate, setCompletedDate] = useState(job?.completedDate ?? "");
-  const [preparedBy, setPreparedBy] = useState(job?.preparedBy ?? "");
-  const [isBigItem, setIsBigItem] = useState(job?.isBigItem ?? false);
-  const [items, setItems] = useState<ItemInput[]>(job ? itemsFromJob(job) : []);
-  const [isPending, startTransition] = useTransition();
-
-  const itemCount = items.filter((it) => it.description.trim() !== "").length;
-  const isHeavyJob = itemCount > HEAVY_ITEM_COUNT_THRESHOLD || isBigItem;
-
-  // A mechanic already carrying another active (non-Completed) job can't be
-  // handed a second one until it's marked Completed.
-  const busyMechanicIds = useMemo(
-    () => new Set(allActiveJobs.filter((j) => j.id !== job?.id && j.mechanicId).map((j) => j.mechanicId as string)),
-    [allActiveJobs, job]
-  );
-
-  const branchMechanics = locationBranch === "all" ? mechanics : mechanics.filter((m) => m.branch === locationBranch);
-  const eligibleMechanics = branchMechanics.filter((m) => {
-    if (m.id === mechanicId) return true;
-    if (busyMechanicIds.has(m.id)) return false;
-    if (isHeavyJob && m.category !== "Heavy Repair") return false;
-    return true;
-  });
-  const selectedMechanic = branchMechanics.find((m) => m.id === mechanicId) ?? null;
-  const effectiveBranch: Branch | null = locationBranch !== "all" ? locationBranch : (selectedMechanic?.branch ?? null);
-
-  const itemsTotal = items.reduce((sum, it) => sum + (Number(it.quantity) || 0) * (Number(it.price) || 0), 0);
-
-  // If the job becomes heavy (more items added, or the checkbox is ticked)
-  // and the currently picked mechanic isn't a Heavy Repair mechanic, clear
-  // the pick instead of silently letting an invalid combination be saved.
-  useEffect(() => {
-    if (isHeavyJob && selectedMechanic && selectedMechanic.category !== "Heavy Repair") {
-      setMechanicId("");
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isHeavyJob]);
-
-  function handleLocationChange(next: BranchSelection) {
-    setLocationBranch(next);
-    setMechanicId("");
-  }
-
-  // Every job needs a mechanic assigned before it can be saved.
-  const canSave = plateNo.trim() !== "" && effectiveBranch !== null && mechanicId !== "";
-
-  function handleSave() {
-    if (!canSave || !effectiveBranch) return;
-    const cleanItems = items
-      .filter((it) => it.description.trim() !== "")
-      .map((it) => ({
-        description: it.description.trim(),
-        quantity: Number(it.quantity) || 0,
-        price: Number(it.price) || 0,
-      }));
-
-    const payload = {
-      customerName: "",
-      plateNo: plateNo.trim(),
-      mechanicId: mechanicId || null,
-      description: description.trim(),
-      revenueAmount: Number(revenueAmount) || 0,
-      dealType: dealType === "Others" ? customDealType.trim() : dealType,
-      startedDate,
-      picName: picName.trim(),
-      model: model.trim(),
-      bikeYear: bikeYear.trim(),
-      condition: condition.trim(),
-      location: branchLabel(effectiveBranch),
-      items: cleanItems,
-      stockOrderDate: stockOrderDate || null,
-      stockArriveDate: stockArriveDate || null,
-      completedDate: completedDate || null,
-      preparedBy: preparedBy.trim(),
-      isBigItem,
-    };
-
-    startTransition(async () => {
-      if (isEdit && job) {
-        await updateRepairJobAction(job.id, job.branch, payload);
-      } else {
-        await addRepairJobAction({ ...payload, branch: effectiveBranch, jobType: "Restore Bike" });
-      }
-      onClose();
-    });
-  }
-
-  return (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 px-4">
-      <div className="bg-white border border-neutral-200 rounded-xl w-full max-w-md p-6 max-h-[90vh] overflow-y-auto">
-        <h2 className="text-sm font-semibold text-neutral-900 mb-5">{isEdit ? "Edit Repair Job" : "Add Repair Job"}</h2>
-        <div className="space-y-4">
-          <div>
-            <label className="block text-xs font-medium text-neutral-600 mb-1.5">Plate No. *</label>
-            <input
-              type="text"
-              value={plateNo}
-              onChange={(e) => setPlateNo(e.target.value)}
-              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
-            />
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-neutral-600 mb-1.5">PIC</label>
-            <input
-              type="text"
-              value={picName}
-              onChange={(e) => setPicName(e.target.value)}
-              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
-            />
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-medium text-neutral-600 mb-1.5">Model</label>
-              <input
-                type="text"
-                value={model}
-                onChange={(e) => setModel(e.target.value)}
-                placeholder="e.g. Y15ZR"
-                className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-neutral-600 mb-1.5">Tahun</label>
-              <input
-                type="text"
-                value={bikeYear}
-                onChange={(e) => setBikeYear(e.target.value)}
-                placeholder="e.g. 2019"
-                className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
-              />
-            </div>
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-neutral-600 mb-1.5">Condition</label>
-            <input
-              type="text"
-              value={condition}
-              onChange={(e) => setCondition(e.target.value)}
-              placeholder="e.g. Engine damaged, needs full service"
-              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
-            />
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-neutral-600 mb-1.5">Location</label>
-            <select
-              value={locationBranch}
-              disabled={locked}
-              onChange={(e) => handleLocationChange(e.target.value as BranchSelection)}
-              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50 disabled:opacity-60"
-            >
-              {BRANCHES.map((b) => (
-                <option key={b.value} value={b.value}>
-                  {b.label}
-                </option>
-              ))}
-              {!locked && <option value="all">All Branches</option>}
-            </select>
-            {locationBranch === "all" && !selectedMechanic && (
-              <p className="text-xs text-amber-700 mt-1.5">Pick a mechanic below to set which branch this job belongs to.</p>
-            )}
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-neutral-600 mb-1.5">Mechanic *</label>
-            <select
-              value={mechanicId}
-              onChange={(e) => setMechanicId(e.target.value)}
-              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
-            >
-              <option value="" disabled>
-                Select a mechanic…
-              </option>
-              {eligibleMechanics.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.shortName} ({m.shortCode})
-                  {locationBranch === "all" ? ` — ${branchLabel(m.branch)}` : ""}
-                  {m.category === "Heavy Repair" ? " — Heavy Repair" : ""}
-                </option>
-              ))}
-            </select>
-            {isHeavyJob && (
-              <p className="text-xs text-amber-700 mt-1.5">
-                Heavy job (more than {HEAVY_ITEM_COUNT_THRESHOLD} items{isBigItem ? " / marked as a big item" : ""}) — only Heavy Repair mechanics can be assigned.
-              </p>
-            )}
-            {branchMechanics.length > eligibleMechanics.length && (
-              <p className="text-xs text-neutral-500 mt-1.5">
-                {branchMechanics.length - eligibleMechanics.length} mechanic{branchMechanics.length - eligibleMechanics.length === 1 ? "" : "s"} hidden — already on an active job, or not a Heavy Repair mechanic.
-              </p>
-            )}
-            {mechanicId === "" && (
-              <p className="text-xs text-neutral-500 mt-1.5">A mechanic must be assigned before this job can be saved.</p>
-            )}
-          </div>
-
-          <div className="flex items-center gap-2">
-            <input
-              id="is-big-item"
-              type="checkbox"
-              checked={isBigItem}
-              onChange={(e) => setIsBigItem(e.target.checked)}
-              className="accent-indigo-500"
-            />
-            <label htmlFor="is-big-item" className="text-xs font-medium text-neutral-600">
-              Big / heavy item repair — even with {HEAVY_ITEM_COUNT_THRESHOLD} items or fewer
-            </label>
-          </div>
-
-          <ItemsEditor items={items} onChange={setItems} />
-
-          <div>
-            <label className="block text-xs font-medium text-neutral-600 mb-1.5">Remark</label>
-            <textarea
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              rows={2}
-              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50 resize-none"
-            />
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-neutral-600 mb-1.5">Cost Restore (RM)</label>
-            <input
-              type="number"
-              min={0}
-              value={items.length > 0 ? itemsTotal.toFixed(2) : revenueAmount}
-              disabled={items.length > 0}
-              onChange={(e) => setRevenueAmount(e.target.value)}
-              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50 disabled:opacity-60"
-            />
-          </div>
-          <div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs font-medium text-neutral-600 mb-1.5">Started Date</label>
-                <input
-                  type="date"
-                  value={startedDate}
-                  onChange={(e) => setStartedDate(e.target.value)}
-                  className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-neutral-600 mb-1.5">End Date</label>
-                <input
-                  type="date"
-                  value={completedDate}
-                  onChange={(e) => setCompletedDate(e.target.value)}
-                  className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
-                />
-              </div>
-            </div>
-            <p className="text-xs text-neutral-500 mt-1.5">
-              Leave the end date blank to fill it in automatically when the job is marked Completed.
-            </p>
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-neutral-600 mb-1.5">Trade-in / Sell</label>
-            <select
-              value={dealType}
-              onChange={(e) => setDealType(e.target.value as (typeof DEAL_TYPES)[number])}
-              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
-            >
-              {DEAL_TYPES.map((t) => (
-                <option key={t} value={t}>
-                  {t}
-                </option>
-              ))}
-            </select>
-            {dealType === "Others" && (
-              <input
-                type="text"
-                value={customDealType}
-                onChange={(e) => setCustomDealType(e.target.value)}
-                placeholder="Type what it is"
-                className="w-full mt-2 bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
-              />
-            )}
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-medium text-neutral-600 mb-1.5">Stock Order Date</label>
-              <input
-                type="date"
-                value={stockOrderDate}
-                onChange={(e) => setStockOrderDate(e.target.value)}
-                className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-neutral-600 mb-1.5">Stock Arrive Date</label>
-              <input
-                type="date"
-                value={stockArriveDate}
-                onChange={(e) => setStockArriveDate(e.target.value)}
-                className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
-              />
-            </div>
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-neutral-600 mb-1.5">Prepared By</label>
-            <input
-              type="text"
-              value={preparedBy}
-              onChange={(e) => setPreparedBy(e.target.value)}
-              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
-            />
-          </div>
-        </div>
-        <div className="flex items-center justify-end gap-3 mt-6">
-          <button
-            onClick={onClose}
-            className="text-sm font-medium text-neutral-600 hover:text-neutral-800 px-4 py-2 transition-colors"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={handleSave}
-            disabled={!canSave || isPending}
-            className="bg-indigo-500 hover:bg-indigo-400 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
-          >
-            {isPending ? "Saving…" : isEdit ? "Save Changes" : "Add Job"}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}

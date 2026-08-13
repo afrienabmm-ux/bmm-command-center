@@ -161,6 +161,19 @@ export async function getAllBranchesCompletedRepairJobs(): Promise<RepairJob[]> 
   return perBranch.flat().sort((a, b) => (b.completedDate ?? "").localeCompare(a.completedDate ?? ""));
 }
 
+// Looked up by id alone (no branch filter) — used by the full-page edit
+// route, which only has the job id from the URL.
+export async function getRepairJobById(id: string): Promise<RepairJob | null> {
+  await requireApproved();
+  const { data, error } = await supabaseAdmin
+    .from("cc_repair_jobs")
+    .select(SELECT_WITH_ITEMS)
+    .eq("id", id)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  return data ? toJob(data as unknown as Row) : null;
+}
+
 // Active Restore Bike jobs that have been running more than 5 days since
 // they started — surfaced as an in-app alert, no external notification.
 export async function getOverdueRestoreBikeJobs(branch: Branch): Promise<RepairJob[]> {
