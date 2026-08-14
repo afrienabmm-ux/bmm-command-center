@@ -112,6 +112,7 @@ export type RepairJob = {
   nextMileageKm: string;
   serviceType: string;
   nextServiceDate: string;
+  jobsheetUserId: string;
 };
 
 export const HEAVY_ITEM_COUNT_THRESHOLD = 3;

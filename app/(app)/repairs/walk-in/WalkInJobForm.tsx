@@ -133,6 +133,7 @@ export default function WalkInJobForm({
   const [nextMileageKm, setNextMileageKm] = useState(job?.nextMileageKm ?? "");
   const [serviceType, setServiceType] = useState(job?.serviceType ?? "");
   const [nextServiceDate, setNextServiceDate] = useState(job?.nextServiceDate ?? "");
+  const [jobsheetUserId, setJobsheetUserId] = useState(job?.jobsheetUserId ?? "");
   const [locationBranch, setLocationBranch] = useState<BranchSelection>(job?.branch ?? branchSelection);
   const [mechanicId, setMechanicId] = useState(job?.mechanicId ?? "");
   const [description, setDescription] = useState(job?.description ?? "");
@@ -260,6 +261,10 @@ export default function WalkInJobForm({
         setNextServiceDate(scanned.nextServiceDate);
         filled.push("next service date");
       }
+      if (scanned.jobsheetUserId) {
+        setJobsheetUserId(scanned.jobsheetUserId);
+        filled.push("user id");
+      }
       if (scanned.startedDate) {
         setStartedDate(scanned.startedDate);
         filled.push("started date");
@@ -366,6 +371,7 @@ export default function WalkInJobForm({
       nextMileageKm: nextMileageKm.trim(),
       serviceType: serviceType.trim(),
       nextServiceDate: nextServiceDate.trim(),
+      jobsheetUserId: jobsheetUserId.trim(),
       location: branchLabel(effectiveBranch),
       items: cleanItems,
       completedDate: completedDate || null,
@@ -460,6 +466,15 @@ export default function WalkInJobForm({
               type="text"
               value={plateNo}
               onChange={(e) => setPlateNo(e.target.value)}
+              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-neutral-600 mb-1.5">User ID</label>
+            <input
+              type="text"
+              value={jobsheetUserId}
+              onChange={(e) => setJobsheetUserId(e.target.value)}
               className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
             />
           </div>

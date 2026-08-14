@@ -28,6 +28,7 @@ export type ScannedJobsheet = {
   nextMileageKm: string;
   serviceType: string;
   nextServiceDate: string;
+  jobsheetUserId: string;
   items: ScannedJobsheetItem[];
   rawText: string;
 };
@@ -61,6 +62,7 @@ const FIELD_LABELS: { key: string; regex: RegExp }[] = [
   { key: "jobsheetNo", regex: /Job No\.?/gi },
   { key: "jobDate", regex: /Job Date/gi },
   { key: "mechanicCode", regex: /Mechanic Code/gi },
+  { key: "jobsheetUserId", regex: /User ID/gi },
   { key: "nextMileageKm", regex: /Next Mileage\s*\(?\s*KM\s*\)?/gi },
   { key: "mileageKm", regex: /(?<!Next )Mileage\s*\(?\s*KM\s*\)?/gi },
   { key: "serviceType", regex: /Service Type/gi },
@@ -117,6 +119,7 @@ function parseJobsheetText(text: string): ScannedJobsheet {
   const nextMileageKm = f.nextMileageKm ?? "";
   const serviceType = f.serviceType ?? "";
   const nextServiceDate = f.nextServiceDate ? (toIsoDate(f.nextServiceDate) ?? "") : "";
+  const jobsheetUserId = f.jobsheetUserId ?? "";
 
   let branch: Branch | null = null;
   const upper = text.toUpperCase();
@@ -160,6 +163,7 @@ function parseJobsheetText(text: string): ScannedJobsheet {
     nextMileageKm,
     serviceType,
     nextServiceDate,
+    jobsheetUserId,
     items,
     rawText: text,
   };

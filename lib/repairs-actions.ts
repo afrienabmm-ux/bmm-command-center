@@ -47,6 +47,7 @@ type Row = {
   next_mileage_km: string;
   service_type: string;
   next_service_date: string;
+  jobsheet_user_id: string;
   cc_repair_job_items: ItemRow[] | null;
 };
 
@@ -94,6 +95,7 @@ function toJob(r: Row): RepairJob {
     nextMileageKm: r.next_mileage_km,
     serviceType: r.service_type,
     nextServiceDate: r.next_service_date,
+    jobsheetUserId: r.jobsheet_user_id,
   };
 }
 
@@ -281,6 +283,7 @@ export async function addRepairJobAction(input: {
   nextMileageKm?: string;
   serviceType?: string;
   nextServiceDate?: string;
+  jobsheetUserId?: string;
 }): Promise<void> {
   const user = await requireApproved();
   assertCanEditBranch(user, input.branch);
@@ -330,6 +333,7 @@ export async function addRepairJobAction(input: {
       next_mileage_km: input.nextMileageKm ?? "",
       service_type: input.serviceType ?? "",
       next_service_date: input.nextServiceDate ?? "",
+      jobsheet_user_id: input.jobsheetUserId ?? "",
     })
     .select("id")
     .single();
@@ -373,6 +377,7 @@ export async function updateRepairJobAction(
     nextMileageKm?: string;
     serviceType?: string;
     nextServiceDate?: string;
+    jobsheetUserId?: string;
   }
 ): Promise<void> {
   const user = await requireApproved();
@@ -413,6 +418,7 @@ export async function updateRepairJobAction(
       next_mileage_km: input.nextMileageKm ?? "",
       service_type: input.serviceType ?? "",
       next_service_date: input.nextServiceDate ?? "",
+      jobsheet_user_id: input.jobsheetUserId ?? "",
     })
     .eq("id", id);
   if (error) throw new Error(error.message);
