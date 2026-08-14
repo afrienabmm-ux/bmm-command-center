@@ -362,11 +362,12 @@ export default function RepairJobForm({
             <input
               type="number"
               min={0}
-              value={items.length > 0 ? itemsTotal.toFixed(2) : revenueAmount}
-              disabled={items.length > 0}
-              onChange={(e) => setRevenueAmount(e.target.value)}
+              value={itemsTotal.toFixed(2)}
+              disabled
+              readOnly
               className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50 disabled:opacity-60"
             />
+            <p className="text-xs text-neutral-500 mt-1.5">Calculated automatically from the parts/items list above.</p>
           </div>
           <div>
             <label className="block text-xs font-medium text-neutral-600 mb-1.5">End Date</label>
