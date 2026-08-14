@@ -1,5 +1,4 @@
 import { getMonthlyTrends, type MonthlyTrendPoint } from "@/lib/trends-actions";
-import { formatCurrency } from "@/lib/format";
 
 const CHART_HEIGHT = 120;
 const BAR_GAP = 6;
@@ -41,9 +40,6 @@ function RevenueTrendChart({ points }: { points: MonthlyTrendPoint[] }) {
             const achievedH = scale(p.achievedAmount, max);
             return (
               <g key={`${p.year}-${p.month}`}>
-                <title>
-                  {p.label}: {formatCurrency(p.achievedAmount)} achieved of {formatCurrency(p.targetAmount)} target
-                </title>
                 <rect x={x} y={CHART_HEIGHT - targetH} width={barWidth} height={targetH} rx={2} className="fill-neutral-300" />
                 <rect
                   x={x + barWidth + BAR_GAP}
@@ -68,13 +64,13 @@ function RevenueTrendChart({ points }: { points: MonthlyTrendPoint[] }) {
 // Single-series bar chart used for the three simpler counts (repair jobs,
 // claims, packages sold) — same scale/label mechanics as the revenue chart.
 function CountTrendChart({
-  title,
+  heading,
   subtitle,
   points,
   valueOf,
   colorClass,
 }: {
-  title: string;
+  heading: string;
   subtitle: string;
   points: MonthlyTrendPoint[];
   valueOf: (p: MonthlyTrendPoint) => number;
@@ -87,7 +83,7 @@ function CountTrendChart({
 
   return (
     <div className="bg-white border border-neutral-200 rounded-xl p-5">
-      <p className="text-sm font-semibold text-neutral-900">{title}</p>
+      <p className="text-sm font-semibold text-neutral-900">{heading}</p>
       <p className="text-xs text-neutral-500 mt-0.5 mb-4">{subtitle}</p>
       <div className="overflow-x-auto">
         <svg width={Math.max(width, 240)} height={CHART_HEIGHT + 36} className="min-w-full">
@@ -97,9 +93,6 @@ function CountTrendChart({
             const x = i * (barWidth + 16) + 8;
             return (
               <g key={`${p.year}-${p.month}`}>
-                <title>
-                  {p.label}: {value}
-                </title>
                 <rect x={x} y={CHART_HEIGHT - h} width={barWidth} height={h} rx={3} className={colorClass} />
                 <text x={x + barWidth / 2} y={CHART_HEIGHT - h - 4} textAnchor="middle" className="fill-neutral-600 text-[10px] font-medium">
                   {value > 0 ? value : ""}
@@ -126,21 +119,21 @@ export default async function MonthlyTrends({ year, month }: { year: number; mon
         <RevenueTrendChart points={points} />
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <CountTrendChart
-            title="Repair Jobs Completed"
+            heading="Repair Jobs Completed"
             subtitle="Restore Bike + Walk-in, per month"
             points={points}
             valueOf={(p) => p.repairJobsCompleted}
             colorClass="fill-indigo-500"
           />
           <CountTrendChart
-            title="Warranty Claims Submitted"
+            heading="Warranty Claims Submitted"
             subtitle="All branches, per month"
             points={points}
             valueOf={(p) => p.warrantyClaimsSubmitted}
             colorClass="fill-amber-500"
           />
           <CountTrendChart
-            title="Services Combo Sold"
+            heading="Services Combo Sold"
             subtitle="All branches, per month"
             points={points}
             valueOf={(p) => p.packagesSold}
