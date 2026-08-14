@@ -7,7 +7,7 @@ import type { Branch, BranchSelection } from "./branch";
 import { getSelectedBranch, getRawBranchSelection } from "./branch-server";
 import { resolveAllowedPages, type PageKey } from "./permissions";
 
-export type Role = "Manager" | "Admin" | "Mechanic PIC" | "IT";
+export type Role = "Branch PIC" | "Management";
 export type ProfileStatus = "pending" | "approved" | "revoked";
 
 export type CurrentUser = {
@@ -33,7 +33,7 @@ export const getCurrentUser = cache(async (): Promise<CurrentUser | null> => {
 
   const { data: profile } = await supabaseAdmin
     .from("cc_user_profiles")
-    .select("name, role, home_branch, status, allowed_pages")
+    .select("name, role, home_branch, status")
     .eq("id", user.id)
     .single();
 
@@ -46,7 +46,7 @@ export const getCurrentUser = cache(async (): Promise<CurrentUser | null> => {
     role: profile.role,
     homeBranch: profile.home_branch,
     status: profile.status,
-    pages: resolveAllowedPages(profile.role, profile.allowed_pages),
+    pages: resolveAllowedPages(profile.role),
   };
 });
 
@@ -58,32 +58,12 @@ export async function requireApproved(): Promise<CurrentUser> {
   return user;
 }
 
-// Manager and Admin both get admin-level powers (edit targets, edit any
-// branch's data). Only Manager can additionally approve accounts and set
-// permissions — see requireManager below.
-export async function requireAdmin(): Promise<CurrentUser> {
+// Management gets every admin-level power: edit targets, edit any branch's
+// data, approve accounts, manage the team. Branch PIC gets none of it.
+export async function requireManagement(): Promise<CurrentUser> {
   const user = await requireApproved();
-  if (user.role !== "Admin" && user.role !== "Manager") {
-    throw new Error("Only a Manager or Admin can do this.");
-  }
-  return user;
-}
-
-export async function requireManager(): Promise<CurrentUser> {
-  const user = await requireApproved();
-  if (user.role !== "Manager") {
-    throw new Error("Only a Manager can do this.");
-  }
-  return user;
-}
-
-// IT gets a narrow slice of Manager power: just enough to see the team list
-// and reset a locked-out person's password. Everything else (roles,
-// branches, approvals, revoke/delete) stays Manager-only.
-export async function requireManagerOrIT(): Promise<CurrentUser> {
-  const user = await requireApproved();
-  if (user.role !== "Manager" && user.role !== "IT") {
-    throw new Error("Only a Manager or IT can do this.");
+  if (user.role !== "Management") {
+    throw new Error("Only Management can do this.");
   }
   return user;
 }
@@ -100,11 +80,11 @@ export async function requirePage(page: PageKey): Promise<CurrentUser> {
   return user;
 }
 
-// A person can view/switch every branch if their role grants it (Admin,
-// Manager, IT) OR a Manager has explicitly set their individual branch to
-// "All Branches" on the Team page — independent of role.
+// A person can view/switch every branch if they're Management, OR Management
+// has explicitly set their individual branch to "All Branches" on the Team
+// page — independent of access level.
 export function canViewAllBranches(user: CurrentUser): boolean {
-  return user.role === "Admin" || user.role === "Manager" || user.role === "IT" || user.homeBranch === "all";
+  return user.role === "Management" || user.homeBranch === "all";
 }
 
 export function canViewAllBranchesAtOnce(user: CurrentUser): boolean {

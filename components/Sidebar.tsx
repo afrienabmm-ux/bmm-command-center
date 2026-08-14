@@ -46,7 +46,7 @@ export default function Sidebar({
   pages: PageKey[];
 }) {
   const pathname = usePathname();
-  const canSeeTeam = role === "Manager" || role === "IT";
+  const canSeeTeam = role === "Management";
   const [collapsed, setCollapsed] = useState(false);
 
   // Read the saved preference after mount so the server and client render
@@ -64,7 +64,7 @@ export default function Sidebar({
   }
 
   const visibleLinks = links.filter((l) => l.page === null || pages.includes(l.page));
-  const navLinks = canSeeTeam ? [...visibleLinks, { href: "/team", label: "Team", icon: UserCog, page: null }] : visibleLinks;
+  const navLinks = canSeeTeam ? [...visibleLinks, { href: "/team", label: "Manage Team", icon: UserCog, page: null }] : visibleLinks;
 
   return (
     <aside

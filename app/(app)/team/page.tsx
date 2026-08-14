@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 
 export default async function TeamPage() {
   const user = await getCurrentUser();
-  if (!user || (user.role !== "Manager" && user.role !== "IT")) {
+  if (!user || user.role !== "Management") {
     redirect("/");
   }
 
@@ -16,16 +16,9 @@ export default async function TeamPage() {
 
   return (
     <div className="flex flex-col h-full">
-      <PageHeader
-        title="Team"
-        subtitle={
-          user.role === "IT"
-            ? "Reset a team member's password"
-            : "Approve new sign-ups and manage what your team can access"
-        }
-      />
+      <PageHeader title="Manage Team" subtitle="Approve new sign-ups and manage who can access what" />
       <div className="p-8">
-        <TeamClient members={members} currentUserId={user.id} viewerRole={user.role} />
+        <TeamClient members={members} currentUserId={user.id} />
       </div>
     </div>
   );

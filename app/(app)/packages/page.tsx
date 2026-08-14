@@ -41,7 +41,7 @@ export default async function PackagesPage() {
           branch={branch}
           branchSelection={branchSelection}
           locked={!canViewAllBranches(user)}
-          isAdmin={user.role === "Admin" || user.role === "Manager"}
+          isAdmin={user.role === "Management"}
         />
       </div>
     </div>

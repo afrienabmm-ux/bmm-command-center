@@ -14,21 +14,8 @@ export type PageKey = (typeof PAGE_DEFS)[number]["key"];
 
 export const ALL_PAGE_KEYS: PageKey[] = PAGE_DEFS.map((p) => p.key);
 
-// Used only when a person's access hasn't been customized (allowed_pages is
-// null in the database) — a starting point for what each role can normally
-// see, that a Manager can then narrow or widen per person.
-const DEFAULT_PAGES_BY_ROLE: Record<Role, PageKey[]> = {
-  Manager: ALL_PAGE_KEYS,
-  Admin: ALL_PAGE_KEYS,
-  "Mechanic PIC": ["warranty-claims", "repairs", "walk-in", "mechanics", "genblu", "packages"],
-  IT: ["repairs", "walk-in"],
-};
-
-// Manager always sees every function — access control is theirs to hand out,
-// so it can't be narrowed against them by another Manager's edit.
-export function resolveAllowedPages(role: Role | null, customPages: string[] | null): PageKey[] {
-  if (role === "Manager") return ALL_PAGE_KEYS;
-  if (!role) return [];
-  if (customPages) return customPages.filter((p): p is PageKey => ALL_PAGE_KEYS.includes(p as PageKey));
-  return DEFAULT_PAGES_BY_ROLE[role];
+// Every approved person sees every page — access is controlled by branch
+// scope (Branch PIC vs Management), not by per-page permissions.
+export function resolveAllowedPages(role: Role | null): PageKey[] {
+  return role ? ALL_PAGE_KEYS : [];
 }

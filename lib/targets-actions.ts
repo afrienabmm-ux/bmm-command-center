@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { supabaseAdmin } from "./supabase-server";
-import { requireApproved, requireAdmin, assertCanEditBranch } from "./current-user";
+import { requireApproved, requireManagement, assertCanEditBranch } from "./current-user";
 import type { MonthlyTarget } from "./types";
 import { BRANCHES, type Branch } from "./branch";
 
@@ -43,7 +43,7 @@ export async function setMonthlyTargetAction(
   month: number,
   targetAmount: number
 ): Promise<void> {
-  const user = await requireAdmin();
+  const user = await requireManagement();
   assertCanEditBranch(user, branch);
   const { error } = await supabaseAdmin
     .from("cc_monthly_targets")
@@ -59,7 +59,7 @@ export async function setMonthlyTargetAction(
 // overwrites each branch's individual target for that month — use
 // setMonthlyTargetAction instead if you want to fine-tune just one branch.
 export async function setCombinedMonthlyTargetAction(year: number, month: number, overallAmount: number): Promise<void> {
-  await requireAdmin();
+  await requireManagement();
   // Split in whole cents and hand any leftover cents to the first few
   // branches, so the 3 per-branch targets always sum back to exactly the
   // overall amount (splitting 170000 evenly by rounding each share to

@@ -1,12 +1,11 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { UserCheck, ShieldOff, Settings2, ChevronDown, ChevronUp, RotateCcw, RefreshCcw, Trash2, KeyRound, UserPlus } from "lucide-react";
+import { UserCheck, ShieldOff, RefreshCcw, Trash2, KeyRound, UserPlus } from "lucide-react";
 import {
   approveUserAction,
   createUserAction,
   updateMemberAction,
-  updateMemberPagesAction,
   revokeUserAction,
   reactivateUserAction,
   deleteUserAction,
@@ -15,40 +14,25 @@ import {
 } from "@/lib/user-actions";
 import type { Role } from "@/lib/current-user";
 import { BRANCHES, type BranchSelection } from "@/lib/branch";
-import { PAGE_DEFS, type PageKey } from "@/lib/permissions";
 import { formatDate } from "@/lib/format";
 
-const ROLES: Role[] = ["Manager", "Admin", "Mechanic PIC", "IT"];
-const ROLE_OR_OTHER = [...ROLES, "Others"] as const;
-type RoleChoice = (typeof ROLE_OR_OTHER)[number];
+const ROLES: Role[] = ["Branch PIC", "Management"];
 
-export default function TeamClient({
-  members,
-  currentUserId,
-  viewerRole,
-}: {
-  members: TeamMember[];
-  currentUserId: string;
-  viewerRole: Role | null;
-}) {
-  const isIT = viewerRole === "IT";
-  const isManager = viewerRole === "Manager";
+export default function TeamClient({ members, currentUserId }: { members: TeamMember[]; currentUserId: string }) {
   const pending = members.filter((m) => m.status === "pending");
   const others = members.filter((m) => m.status !== "pending");
   const [addUserOpen, setAddUserOpen] = useState(false);
 
   return (
     <div className="space-y-8 max-w-6xl">
-      {isManager && (
-        <div className="flex justify-end">
-          <button
-            onClick={() => setAddUserOpen(true)}
-            className="flex items-center gap-1.5 bg-indigo-500 hover:bg-indigo-400 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
-          >
-            <UserPlus size={15} /> Add User
-          </button>
-        </div>
-      )}
+      <div className="flex justify-end">
+        <button
+          onClick={() => setAddUserOpen(true)}
+          className="flex items-center gap-1.5 bg-indigo-500 hover:bg-indigo-400 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+        >
+          <UserPlus size={15} /> Add User
+        </button>
+      </div>
 
       {addUserOpen && <AddUserModal onClose={() => setAddUserOpen(false)} />}
 
@@ -71,7 +55,7 @@ export default function TeamClient({
               <thead>
                 <tr className="text-left text-xs text-neutral-500 border-b border-neutral-200">
                   <th className="font-medium px-5 py-3 whitespace-nowrap">Name / Email</th>
-                  <th className="font-medium px-5 py-3 whitespace-nowrap">Role</th>
+                  <th className="font-medium px-5 py-3 whitespace-nowrap">Access Level</th>
                   <th className="font-medium px-5 py-3 whitespace-nowrap">Branch</th>
                   <th className="font-medium px-5 py-3 whitespace-nowrap">Status</th>
                   <th className="font-medium px-5 py-3 whitespace-nowrap">Joined</th>
@@ -80,7 +64,7 @@ export default function TeamClient({
               </thead>
               <tbody>
                 {others.map((m) => (
-                  <MemberRow key={m.id} member={m} isSelf={m.id === currentUserId} isIT={isIT} />
+                  <MemberRow key={m.id} member={m} isSelf={m.id === currentUserId} />
                 ))}
                 {others.length === 0 && (
                   <tr>
@@ -99,15 +83,13 @@ export default function TeamClient({
 }
 
 function PendingRow({ member }: { member: TeamMember }) {
-  const [choice, setChoice] = useState<RoleChoice>("Mechanic PIC");
-  const [customTitle, setCustomTitle] = useState("");
+  const [role, setRole] = useState<Role>("Branch PIC");
+  const [title, setTitle] = useState("");
   const [branch, setBranch] = useState<BranchSelection>(member.homeBranch === "all" ? "kapar" : member.homeBranch);
   const [isPending, startTransition] = useTransition();
 
   function approve() {
-    const role: Role = choice === "Others" ? "Mechanic PIC" : choice;
-    const positionTitle = choice === "Others" ? customTitle.trim() || "Others" : null;
-    startTransition(() => approveUserAction(member.id, role, branch, positionTitle));
+    startTransition(() => approveUserAction(member.id, role, branch, title.trim() || null));
   }
 
   return (
@@ -119,25 +101,23 @@ function PendingRow({ member }: { member: TeamMember }) {
         </p>
       </div>
       <select
-        value={choice}
-        onChange={(e) => setChoice(e.target.value as RoleChoice)}
+        value={role}
+        onChange={(e) => setRole(e.target.value as Role)}
         className="bg-neutral-50 border border-neutral-200 rounded-lg px-3 py-2 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
       >
-        {ROLE_OR_OTHER.map((r) => (
+        {ROLES.map((r) => (
           <option key={r} value={r}>
             {r}
           </option>
         ))}
       </select>
-      {choice === "Others" && (
-        <input
-          type="text"
-          value={customTitle}
-          onChange={(e) => setCustomTitle(e.target.value)}
-          placeholder="e.g. HR"
-          className="bg-neutral-50 border border-neutral-200 rounded-lg px-3 py-2 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50 w-28"
-        />
-      )}
+      <input
+        type="text"
+        value={title}
+        onChange={(e) => setTitle(e.target.value)}
+        placeholder="Title (optional, e.g. HR)"
+        className="bg-neutral-50 border border-neutral-200 rounded-lg px-3 py-2 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50 w-36"
+      />
       <select
         value={branch}
         onChange={(e) => setBranch(e.target.value as BranchSelection)}
@@ -161,28 +141,25 @@ function PendingRow({ member }: { member: TeamMember }) {
   );
 }
 
-function MemberRow({ member, isSelf, isIT }: { member: TeamMember; isSelf: boolean; isIT: boolean }) {
+function MemberRow({ member, isSelf }: { member: TeamMember; isSelf: boolean }) {
   const [isPending, startTransition] = useTransition();
-  const [showPermissions, setShowPermissions] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [showResetPassword, setShowResetPassword] = useState(false);
-  const [choice, setChoice] = useState<RoleChoice>(member.positionTitle ? "Others" : (member.role ?? "Mechanic PIC"));
-  const [customTitle, setCustomTitle] = useState(member.positionTitle && member.positionTitle !== "Others" ? member.positionTitle : "");
+  const [role, setRole] = useState<Role>(member.role ?? "Branch PIC");
+  const [title, setTitle] = useState(member.positionTitle ?? "");
 
-  function saveRole(nextChoice: RoleChoice, title: string) {
-    const role: Role = nextChoice === "Others" ? "Mechanic PIC" : nextChoice;
-    const positionTitle = nextChoice === "Others" ? title.trim() || "Others" : null;
-    startTransition(() => updateMemberAction(member.id, role, member.homeBranch, positionTitle));
+  function saveRole(nextRole: Role) {
+    setRole(nextRole);
+    startTransition(() => updateMemberAction(member.id, nextRole, member.homeBranch, title.trim() || null));
+  }
+
+  function saveTitle() {
+    startTransition(() => updateMemberAction(member.id, role, member.homeBranch, title.trim() || null));
   }
 
   function updateBranch(branch: BranchSelection) {
-    const role: Role = choice === "Others" ? "Mechanic PIC" : choice;
-    const positionTitle = choice === "Others" ? customTitle.trim() || "Others" : null;
-    startTransition(() => updateMemberAction(member.id, role, branch, positionTitle));
+    startTransition(() => updateMemberAction(member.id, role, branch, title.trim() || null));
   }
-
-  const isManagerRole = member.role === "Manager" && !member.positionTitle;
-  const displayLabel = member.positionTitle ?? member.role;
 
   return (
     <>
@@ -191,65 +168,44 @@ function MemberRow({ member, isSelf, isIT }: { member: TeamMember; isSelf: boole
           {member.name || member.email} {isSelf && <span className="text-neutral-500 font-normal">(you)</span>}
         </td>
         <td className="px-5 py-3.5">
-          {isIT ? (
-            <span className="text-neutral-700">{displayLabel}</span>
-          ) : (
-            <>
-              <div className="flex items-center gap-2">
-                <select
-                  value={choice}
-                  disabled={isSelf || isPending || member.status === "revoked"}
-                  onChange={(e) => {
-                    const next = e.target.value as RoleChoice;
-                    setChoice(next);
-                    if (next !== "Others") saveRole(next, "");
-                  }}
-                  className="bg-neutral-50 border border-neutral-200 rounded-lg px-2.5 py-1.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50 disabled:opacity-50"
-                >
-                  {ROLE_OR_OTHER.map((r) => (
-                    <option key={r} value={r}>
-                      {r}
-                    </option>
-                  ))}
-                </select>
-                {choice === "Others" && (
-                  <input
-                    type="text"
-                    value={customTitle}
-                    onChange={(e) => setCustomTitle(e.target.value)}
-                    onBlur={() => saveRole("Others", customTitle)}
-                    placeholder="e.g. HR"
-                    disabled={isSelf || isPending || member.status === "revoked"}
-                    className="bg-neutral-50 border border-neutral-200 rounded-lg px-2.5 py-1.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50 disabled:opacity-50 w-24"
-                  />
-                )}
-              </div>
-              {displayLabel && choice !== "Others" && member.positionTitle && (
-                <p className="text-xs text-neutral-500 mt-1">shown as &quot;{member.positionTitle}&quot;</p>
-              )}
-            </>
-          )}
-        </td>
-        <td className="px-5 py-3.5">
-          {isIT ? (
-            <span className="text-neutral-700">
-              {member.homeBranch === "all" ? "All Branches" : BRANCHES.find((b) => b.value === member.homeBranch)?.label ?? member.homeBranch}
-            </span>
-          ) : (
+          <div className="flex items-center gap-2">
             <select
-              value={member.homeBranch}
-              disabled={isPending || member.status === "revoked"}
-              onChange={(e) => updateBranch(e.target.value as BranchSelection)}
+              value={role}
+              disabled={isSelf || isPending || member.status === "revoked"}
+              onChange={(e) => saveRole(e.target.value as Role)}
               className="bg-neutral-50 border border-neutral-200 rounded-lg px-2.5 py-1.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50 disabled:opacity-50"
             >
-              {BRANCHES.map((b) => (
-                <option key={b.value} value={b.value}>
-                  {b.label}
+              {ROLES.map((r) => (
+                <option key={r} value={r}>
+                  {r}
                 </option>
               ))}
-              <option value="all">All Branches</option>
             </select>
-          )}
+            <input
+              type="text"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              onBlur={saveTitle}
+              placeholder="Title (optional)"
+              disabled={isSelf || isPending || member.status === "revoked"}
+              className="bg-neutral-50 border border-neutral-200 rounded-lg px-2.5 py-1.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50 disabled:opacity-50 w-32"
+            />
+          </div>
+        </td>
+        <td className="px-5 py-3.5">
+          <select
+            value={member.homeBranch}
+            disabled={isPending || member.status === "revoked"}
+            onChange={(e) => updateBranch(e.target.value as BranchSelection)}
+            className="bg-neutral-50 border border-neutral-200 rounded-lg px-2.5 py-1.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50 disabled:opacity-50"
+          >
+            {BRANCHES.map((b) => (
+              <option key={b.value} value={b.value}>
+                {b.label}
+              </option>
+            ))}
+            <option value="all">All Branches</option>
+          </select>
         </td>
         <td className="px-5 py-3.5">
           <span
@@ -259,7 +215,7 @@ function MemberRow({ member, isSelf, isIT }: { member: TeamMember; isSelf: boole
                 : "bg-red-500/10 text-red-700 border-red-500/20"
             }`}
           >
-            {member.status === "approved" ? "Active" : "Revoked"}
+            {member.status === "approved" ? "Active" : "Deactivated"}
           </span>
         </td>
         <td className="px-5 py-3.5 text-neutral-500 whitespace-nowrap">{formatDate(member.createdAt)}</td>
@@ -274,34 +230,25 @@ function MemberRow({ member, isSelf, isIT }: { member: TeamMember; isSelf: boole
                 <KeyRound size={14} /> Reset Password
               </button>
             )}
-            {!isIT && !isManagerRole && member.status === "approved" && (
-              <button
-                onClick={() => setShowPermissions((v) => !v)}
-                className="flex items-center gap-1 text-neutral-500 hover:text-indigo-700 transition-colors text-xs font-medium"
-              >
-                <Settings2 size={14} /> Functions
-                {showPermissions ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
-              </button>
-            )}
-            {!isIT && !isSelf && member.status === "approved" && (
+            {!isSelf && member.status === "approved" && (
               <button
                 onClick={() => startTransition(() => revokeUserAction(member.id))}
                 disabled={isPending}
                 className="flex items-center gap-1.5 text-neutral-500 hover:text-red-700 disabled:opacity-50 transition-colors text-xs font-medium"
               >
-                <ShieldOff size={14} /> Revoke
+                <ShieldOff size={14} /> Deactivate
               </button>
             )}
-            {!isIT && !isSelf && member.status === "revoked" && (
+            {!isSelf && member.status === "revoked" && (
               <button
                 onClick={() => startTransition(() => reactivateUserAction(member.id))}
                 disabled={isPending}
                 className="flex items-center gap-1.5 text-neutral-500 hover:text-emerald-700 disabled:opacity-50 transition-colors text-xs font-medium"
               >
-                <RefreshCcw size={14} /> Reassign
+                <RefreshCcw size={14} /> Activate
               </button>
             )}
-            {!isIT && !isSelf && (
+            {!isSelf && (
               <button
                 onClick={() => setConfirmDelete(true)}
                 disabled={isPending}
@@ -313,13 +260,6 @@ function MemberRow({ member, isSelf, isIT }: { member: TeamMember; isSelf: boole
           </div>
         </td>
       </tr>
-      {showPermissions && !isIT && !isManagerRole && (
-        <tr className="border-b border-neutral-100 last:border-0 bg-neutral-50">
-          <td colSpan={6} className="px-5 py-4">
-            <PermissionsEditor member={member} />
-          </td>
-        </tr>
-      )}
       {confirmDelete && (
         <tr>
           <td colSpan={6} className="p-0">
@@ -449,8 +389,8 @@ function AddUserModal({ onClose }: { onClose: () => void }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
-  const [choice, setChoice] = useState<RoleChoice>("Mechanic PIC");
-  const [customTitle, setCustomTitle] = useState("");
+  const [role, setRole] = useState<Role>("Branch PIC");
+  const [title, setTitle] = useState("");
   const [branch, setBranch] = useState<BranchSelection>("kapar");
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -459,10 +399,8 @@ function AddUserModal({ onClose }: { onClose: () => void }) {
 
   function handleSave() {
     if (!canSave) return;
-    const role: Role = choice === "Others" ? "Mechanic PIC" : choice;
-    const positionTitle = choice === "Others" ? customTitle.trim() || "Others" : null;
     startTransition(async () => {
-      const result = await createUserAction(email, password, name, role, branch, positionTitle);
+      const result = await createUserAction(email, password, name, role, branch, title.trim() || null);
       if (result && "error" in result) {
         setError(result.error);
         return;
@@ -507,31 +445,29 @@ function AddUserModal({ onClose }: { onClose: () => void }) {
           </div>
           <div className="flex items-center gap-2">
             <div className="flex-1">
-              <label className="block text-xs font-medium text-neutral-600 mb-1.5">Role</label>
+              <label className="block text-xs font-medium text-neutral-600 mb-1.5">Access Level</label>
               <select
-                value={choice}
-                onChange={(e) => setChoice(e.target.value as RoleChoice)}
+                value={role}
+                onChange={(e) => setRole(e.target.value as Role)}
                 className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
               >
-                {ROLE_OR_OTHER.map((r) => (
+                {ROLES.map((r) => (
                   <option key={r} value={r}>
                     {r}
                   </option>
                 ))}
               </select>
             </div>
-            {choice === "Others" && (
-              <div className="flex-1">
-                <label className="block text-xs font-medium text-neutral-600 mb-1.5">Title</label>
-                <input
-                  type="text"
-                  value={customTitle}
-                  onChange={(e) => setCustomTitle(e.target.value)}
-                  placeholder="e.g. HR"
-                  className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
-                />
-              </div>
-            )}
+            <div className="flex-1">
+              <label className="block text-xs font-medium text-neutral-600 mb-1.5">Title (optional)</label>
+              <input
+                type="text"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder="e.g. HR"
+                className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+              />
+            </div>
           </div>
           <div>
             <label className="block text-xs font-medium text-neutral-600 mb-1.5">Branch</label>
@@ -565,73 +501,6 @@ function AddUserModal({ onClose }: { onClose: () => void }) {
             {isPending ? "Creating…" : "Create User"}
           </button>
         </div>
-      </div>
-    </div>
-  );
-}
-
-function PermissionsEditor({ member }: { member: TeamMember }) {
-  const [selected, setSelected] = useState<Set<PageKey>>(new Set(member.allowedPages));
-  const [isPending, startTransition] = useTransition();
-
-  function toggle(page: PageKey) {
-    setSelected((prev) => {
-      const next = new Set(prev);
-      if (next.has(page)) next.delete(page);
-      else next.add(page);
-      return next;
-    });
-  }
-
-  function save() {
-    startTransition(() => updateMemberPagesAction(member.id, Array.from(selected)));
-  }
-
-  function resetToDefault() {
-    startTransition(() => updateMemberPagesAction(member.id, null));
-  }
-
-  return (
-    <div>
-      <p className="text-xs font-medium text-neutral-600 mb-2">
-        Which functions can {member.name || member.email} see?
-        {member.hasCustomPages && <span className="ml-2 text-indigo-600">(customized)</span>}
-      </p>
-      <div className="flex flex-wrap gap-2 mb-3">
-        {PAGE_DEFS.map((p) => (
-          <label
-            key={p.key}
-            className={`flex items-center gap-1.5 text-xs font-medium px-2.5 py-1.5 rounded-lg border cursor-pointer transition-colors ${
-              selected.has(p.key)
-                ? "bg-indigo-500/10 border-indigo-500/30 text-indigo-700"
-                : "bg-white border-neutral-200 text-neutral-500"
-            }`}
-          >
-            <input
-              type="checkbox"
-              checked={selected.has(p.key)}
-              onChange={() => toggle(p.key)}
-              className="accent-indigo-500"
-            />
-            {p.label}
-          </label>
-        ))}
-      </div>
-      <div className="flex items-center gap-3">
-        <button
-          onClick={save}
-          disabled={isPending}
-          className="bg-indigo-500 hover:bg-indigo-400 disabled:opacity-50 text-white text-xs font-medium px-3 py-1.5 rounded-lg transition-colors"
-        >
-          Save
-        </button>
-        <button
-          onClick={resetToDefault}
-          disabled={isPending}
-          className="flex items-center gap-1 text-neutral-500 hover:text-neutral-700 disabled:opacity-50 text-xs font-medium transition-colors"
-        >
-          <RotateCcw size={12} /> Reset to {member.role} default
-        </button>
       </div>
     </div>
   );
