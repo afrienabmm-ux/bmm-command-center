@@ -2,8 +2,13 @@
 
 import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
-import { Plus, Download, Pencil, AlertTriangle, Search, Check } from "lucide-react";
-import { updateRepairStatusAction, updateRepairApprovalAction, setRestoreBikeWorkflowDateAction } from "@/lib/repairs-actions";
+import { Plus, Download, Pencil, AlertTriangle, Search, Check, Trash2 } from "lucide-react";
+import {
+  updateRepairStatusAction,
+  updateRepairApprovalAction,
+  setRestoreBikeWorkflowDateAction,
+  deleteRepairJobAction,
+} from "@/lib/repairs-actions";
 import {
   REPAIR_STATUSES,
   APPROVAL_STATUSES,
@@ -530,6 +535,13 @@ function ApprovalCell({ job, branch }: { job: RepairJob; branch: Branch }) {
 // on a second click. The last two (Repair Start/Last) aren't separate
 // fields — they link straight to the job's own Started Date/End Date boxes
 // on the edit form, so there's only ever one place those dates live.
+// e.g. "17/8" — short enough to sit under a 32px-wide button without
+// wrapping, unlike formatDate's full "17 Aug 2026".
+function shortDate(iso: string): string {
+  const d = new Date(iso);
+  return `${d.getDate()}/${d.getMonth() + 1}`;
+}
+
 function StageButton({
   label,
   date,
@@ -542,19 +554,22 @@ function StageButton({
   disabled: boolean;
 }) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      title={date ? `${formatDate(date)} — click to clear` : `Click to mark done today`}
-      className={`flex items-center justify-center w-8 h-8 rounded-lg border text-[10px] font-semibold transition-colors disabled:opacity-50 ${
-        date
-          ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-700"
-          : "bg-neutral-50 border-neutral-200 text-neutral-400 hover:border-indigo-300 hover:text-indigo-600"
-      }`}
-    >
-      {date ? <Check size={13} /> : label}
-    </button>
+    <div className="flex flex-col items-center gap-0.5">
+      <button
+        type="button"
+        onClick={onClick}
+        disabled={disabled}
+        title={date ? `${formatDate(date)} — click to clear` : `Click to mark done today`}
+        className={`flex items-center justify-center w-8 h-8 rounded-lg border text-[10px] font-semibold transition-colors disabled:opacity-50 ${
+          date
+            ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-700"
+            : "bg-neutral-50 border-neutral-200 text-neutral-400 hover:border-indigo-300 hover:text-indigo-600"
+        }`}
+      >
+        {date ? <Check size={13} /> : label}
+      </button>
+      <span className="text-[9px] text-neutral-500 whitespace-nowrap">{date ? shortDate(date) : " "}</span>
+    </div>
   );
 }
 
@@ -568,7 +583,7 @@ function WorkflowCell({ job, editable }: { job: RepairJob; editable: boolean }) 
   }
 
   return (
-    <div className="flex items-center gap-1">
+    <div className="flex items-start gap-1">
       <StageButton
         label="Arr"
         date={job.arrivedDate}
@@ -587,20 +602,26 @@ function WorkflowCell({ job, editable }: { job: RepairJob; editable: boolean }) 
         onClick={() => toggle("gmApproved", job.gmApprovedDate)}
         disabled={isPending || !editable}
       />
-      <Link
-        href={`/repairs/${job.id}/edit`}
-        title={job.startedDate ? `Repair Start: ${formatDate(job.startedDate)} — click to change` : "Click to set the Repair Start date"}
-        className="flex items-center justify-center w-8 h-8 rounded-lg border text-[10px] font-semibold bg-sky-500/10 border-sky-500/30 text-sky-700 hover:bg-sky-500/20 transition-colors"
-      >
-        {job.startedDate ? <Check size={13} /> : "St"}
-      </Link>
-      <Link
-        href={`/repairs/${job.id}/edit`}
-        title={job.completedDate ? `Repair Last: ${formatDate(job.completedDate)} — click to change` : "Click to set the End Date"}
-        className="flex items-center justify-center w-8 h-8 rounded-lg border text-[10px] font-semibold bg-purple-500/10 border-purple-500/30 text-purple-700 hover:bg-purple-500/20 transition-colors"
-      >
-        {job.completedDate ? <Check size={13} /> : "En"}
-      </Link>
+      <div className="flex flex-col items-center gap-0.5">
+        <Link
+          href={`/repairs/${job.id}/edit`}
+          title={job.startedDate ? `Repair Start: ${formatDate(job.startedDate)} — click to change` : "Click to set the Repair Start date"}
+          className="flex items-center justify-center w-8 h-8 rounded-lg border text-[10px] font-semibold bg-sky-500/10 border-sky-500/30 text-sky-700 hover:bg-sky-500/20 transition-colors"
+        >
+          {job.startedDate ? <Check size={13} /> : "St"}
+        </Link>
+        <span className="text-[9px] text-neutral-500 whitespace-nowrap">{job.startedDate ? shortDate(job.startedDate) : " "}</span>
+      </div>
+      <div className="flex flex-col items-center gap-0.5">
+        <Link
+          href={`/repairs/${job.id}/edit`}
+          title={job.completedDate ? `Repair Last: ${formatDate(job.completedDate)} — click to change` : "Click to set the End Date"}
+          className="flex items-center justify-center w-8 h-8 rounded-lg border text-[10px] font-semibold bg-purple-500/10 border-purple-500/30 text-purple-700 hover:bg-purple-500/20 transition-colors"
+        >
+          {job.completedDate ? <Check size={13} /> : "En"}
+        </Link>
+        <span className="text-[9px] text-neutral-500 whitespace-nowrap">{job.completedDate ? shortDate(job.completedDate) : " "}</span>
+      </div>
     </div>
   );
 }
@@ -629,6 +650,17 @@ function RestoreBikeRow({
   editable: boolean;
 }) {
   const [isPending, startTransition] = useTransition();
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  function handleDelete() {
+    setDeleting(true);
+    startTransition(async () => {
+      await deleteRepairJobAction(job.id, job.branch);
+      setDeleting(false);
+      setConfirmOpen(false);
+    });
+  }
 
   return (
     <tr className="border-b border-neutral-100 last:border-0 hover:bg-neutral-50">
@@ -669,14 +701,52 @@ function RestoreBikeRow({
         <StatusCell job={job} branch={job.branch} editable={editable} isPending={isPending} startTransition={startTransition} />
       </td>
       <td className="px-5 py-3.5">
-        <Link
-          href={`/repairs/${job.id}/edit`}
-          className="text-neutral-400 hover:text-indigo-600 transition-colors p-1 inline-block"
-          title="Edit job"
-          aria-label="Edit job"
-        >
-          <Pencil size={14} />
-        </Link>
+        <div className="flex items-center gap-1">
+          <Link
+            href={`/repairs/${job.id}/edit`}
+            className="text-neutral-400 hover:text-indigo-600 transition-colors p-1 inline-block"
+            title="Edit job"
+            aria-label="Edit job"
+          >
+            <Pencil size={14} />
+          </Link>
+          <button
+            onClick={() => setConfirmOpen(true)}
+            className="text-neutral-400 hover:text-red-600 transition-colors p-1"
+            title="Delete job"
+            aria-label="Delete job"
+          >
+            <Trash2 size={14} />
+          </button>
+        </div>
+
+        {confirmOpen && (
+          <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 px-4">
+            <div className="bg-white border border-neutral-200 rounded-xl w-full max-w-sm p-6 text-left">
+              <h2 className="text-sm font-semibold text-neutral-900 mb-2">Delete this job?</h2>
+              <p className="text-sm text-neutral-600 mb-6">
+                Job <span className="text-neutral-800 font-medium">{job.jobNo}</span> for{" "}
+                <span className="text-neutral-800 font-medium">{job.picName || job.plateNo}</span> will be
+                permanently removed. This can&apos;t be undone.
+              </p>
+              <div className="flex items-center justify-end gap-3">
+                <button
+                  onClick={() => setConfirmOpen(false)}
+                  className="text-sm font-medium text-neutral-600 hover:text-neutral-800 px-4 py-2 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleDelete}
+                  disabled={deleting || isPending}
+                  className="bg-red-600 hover:bg-red-500 disabled:opacity-50 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+                >
+                  {deleting ? "Deleting…" : "Delete"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </td>
     </tr>
   );
