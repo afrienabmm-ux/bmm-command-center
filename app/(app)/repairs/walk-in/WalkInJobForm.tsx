@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2, ScanLine, Upload } from "lucide-react";
 import { addRepairJobAction, updateRepairJobAction } from "@/lib/repairs-actions";
+import type { ScannedJobsheet } from "@/lib/jobsheet-actions";
 import { HEAVY_ITEM_COUNT_THRESHOLD, type RepairJob } from "@/lib/types";
 import type { Mechanic } from "@/lib/types";
 import { BRANCHES, branchLabel, type Branch, type BranchSelection } from "@/lib/branch";
@@ -129,6 +130,107 @@ export default function WalkInJobForm({
   const [isBigItem, setIsBigItem] = useState(job?.isBigItem ?? false);
   const [items, setItems] = useState<ItemInput[]>(job ? itemsFromJob(job) : []);
   const [isPending, startTransition] = useTransition();
+  const [isScanning, setIsScanning] = useState(false);
+  const [scanError, setScanError] = useState<string | null>(null);
+  const [scanNotice, setScanNotice] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Phone photos can easily be 8-15MB — shrink to a max dimension before
+  // sending, which keeps text plenty legible for OCR while cutting the
+  // upload down to a fraction of the size. PDFs pass through untouched.
+  function downscaleImage(file: File, maxDimension = 2000): Promise<Blob> {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      const url = URL.createObjectURL(file);
+      img.onload = () => {
+        URL.revokeObjectURL(url);
+        const scale = Math.min(1, maxDimension / Math.max(img.width, img.height));
+        const canvas = document.createElement("canvas");
+        canvas.width = Math.round(img.width * scale);
+        canvas.height = Math.round(img.height * scale);
+        const ctx = canvas.getContext("2d");
+        if (!ctx) {
+          reject(new Error("Could not process the image."));
+          return;
+        }
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        canvas.toBlob(
+          (blob) => (blob ? resolve(blob) : reject(new Error("Could not process the image."))),
+          "image/jpeg",
+          0.85
+        );
+      };
+      img.onerror = () => {
+        URL.revokeObjectURL(url);
+        reject(new Error("Could not load the image."));
+      };
+      img.src = url;
+    });
+  }
+
+  async function handleScanFile(file: File) {
+    setIsScanning(true);
+    setScanError(null);
+    setScanNotice(null);
+    try {
+      const isPdf = file.type === "application/pdf";
+      const uploadBlob = isPdf ? file : await downscaleImage(file);
+      const formData = new FormData();
+      formData.append("file", uploadBlob, isPdf ? file.name : "jobsheet.jpg");
+
+      const res = await fetch("/api/scan-jobsheet", { method: "POST", body: formData });
+      const result: { data: ScannedJobsheet } | { error: string } = await res.json();
+      if ("error" in result) {
+        setScanError(result.error);
+        return;
+      }
+      const scanned = result.data;
+      const filled: string[] = [];
+      if (scanned.customerName) {
+        setCustomerName(scanned.customerName);
+        filled.push("customer name");
+      }
+      if (scanned.plateNo) {
+        setPlateNo(scanned.plateNo);
+        filled.push("plate no.");
+      }
+      if (scanned.model) {
+        setModel(scanned.model);
+        filled.push("model");
+      }
+      if (scanned.startedDate) {
+        setStartedDate(scanned.startedDate);
+        filled.push("started date");
+      }
+      if (scanned.branch && !locked) {
+        setLocationBranch(scanned.branch);
+      }
+      const targetBranch = scanned.branch ?? (locationBranch !== "all" ? locationBranch : null);
+      if (scanned.mechanicCode && targetBranch) {
+        const matched = mechanics.find(
+          (m) => m.branch === targetBranch && m.shortCode.toLowerCase() === scanned.mechanicCode.toLowerCase()
+        );
+        if (matched) {
+          setMechanicId(matched.id);
+          filled.push("mechanic");
+        }
+      }
+      if (scanned.items.length > 0) {
+        setItems(scanned.items.map((it) => ({ description: it.description, quantity: String(it.quantity), price: String(it.price) })));
+        filled.push(`${scanned.items.length} item${scanned.items.length === 1 ? "" : "s"}`);
+      }
+      setScanNotice(
+        filled.length > 0
+          ? `Filled in from the jobsheet: ${filled.join(", ")}. Please check everything before saving.`
+          : "Couldn't confidently read the jobsheet fields — please fill them in by hand."
+      );
+    } catch (err) {
+      setScanError(err instanceof Error ? err.message : "Something went wrong scanning the jobsheet.");
+    } finally {
+      setIsScanning(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  }
 
   const itemCount = items.filter((it) => it.description.trim() !== "").length;
   const isHeavyJob = itemCount > HEAVY_ITEM_COUNT_THRESHOLD || isBigItem;
@@ -208,6 +310,41 @@ export default function WalkInJobForm({
 
   return (
     <div className="max-w-2xl mx-auto">
+      {!isEdit && (
+        <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-5 mb-4">
+          <div className="flex items-start gap-3">
+            <div className="w-9 h-9 rounded-lg bg-indigo-500/15 flex items-center justify-center shrink-0">
+              <ScanLine size={17} className="text-indigo-600" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-neutral-900">Scan Jobsheet</p>
+              <p className="text-xs text-neutral-500 mt-0.5 mb-3">
+                Upload a clear photo or PDF of the paper jobsheet — it'll fill in the boxes below for you to check before saving.
+              </p>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*,application/pdf"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) handleScanFile(file);
+                }}
+              />
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isScanning}
+                className="flex items-center gap-1.5 bg-indigo-500 hover:bg-indigo-400 disabled:opacity-50 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+              >
+                <Upload size={15} /> {isScanning ? "Reading jobsheet…" : "Upload Jobsheet"}
+              </button>
+              {scanError && <p className="text-xs text-red-700 mt-2">{scanError}</p>}
+              {scanNotice && <p className="text-xs text-emerald-700 mt-2">{scanNotice}</p>}
+            </div>
+          </div>
+        </div>
+      )}
       <div className="bg-white border border-neutral-200 rounded-xl p-6">
         <div className="space-y-4">
           <div>
