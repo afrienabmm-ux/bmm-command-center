@@ -35,6 +35,10 @@ type Row = {
   prepared_by: string;
   approval_status: ApprovalStatus;
   is_big_item: boolean;
+  customer_code: string;
+  colour: string;
+  engine_no: string;
+  chassis_no: string;
   cc_repair_job_items: ItemRow[] | null;
 };
 
@@ -70,6 +74,10 @@ function toJob(r: Row): RepairJob {
     preparedBy: r.prepared_by,
     approvalStatus: r.approval_status,
     isBigItem: r.is_big_item,
+    customerCode: r.customer_code,
+    colour: r.colour,
+    engineNo: r.engine_no,
+    chassisNo: r.chassis_no,
   };
 }
 
@@ -245,6 +253,10 @@ export async function addRepairJobAction(input: {
   completedDate?: string | null;
   preparedBy?: string;
   isBigItem?: boolean;
+  customerCode?: string;
+  colour?: string;
+  engineNo?: string;
+  chassisNo?: string;
 }): Promise<void> {
   const user = await requireApproved();
   assertCanEditBranch(user, input.branch);
@@ -282,6 +294,10 @@ export async function addRepairJobAction(input: {
       completed_date: input.completedDate ?? null,
       prepared_by: input.preparedBy ?? "",
       is_big_item: input.isBigItem ?? false,
+      customer_code: input.customerCode ?? "",
+      colour: input.colour ?? "",
+      engine_no: input.engineNo ?? "",
+      chassis_no: input.chassisNo ?? "",
     })
     .select("id")
     .single();
@@ -313,6 +329,10 @@ export async function updateRepairJobAction(
     completedDate?: string | null;
     preparedBy?: string;
     isBigItem?: boolean;
+    customerCode?: string;
+    colour?: string;
+    engineNo?: string;
+    chassisNo?: string;
   }
 ): Promise<void> {
   const user = await requireApproved();
@@ -341,6 +361,10 @@ export async function updateRepairJobAction(
       completed_date: input.completedDate ?? null,
       prepared_by: input.preparedBy ?? "",
       is_big_item: input.isBigItem ?? false,
+      customer_code: input.customerCode ?? "",
+      colour: input.colour ?? "",
+      engine_no: input.engineNo ?? "",
+      chassis_no: input.chassisNo ?? "",
     })
     .eq("id", id);
   if (error) throw new Error(error.message);

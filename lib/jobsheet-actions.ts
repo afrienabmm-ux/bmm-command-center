@@ -10,9 +10,13 @@ import type { Branch } from "./branch";
 export type ScannedJobsheetItem = { description: string; quantity: number; price: number };
 
 export type ScannedJobsheet = {
+  customerCode: string;
   customerName: string;
   plateNo: string;
   model: string;
+  colour: string;
+  engineNo: string;
+  chassisNo: string;
   mechanicCode: string;
   branch: Branch | null;
   startedDate: string | null;
@@ -32,9 +36,13 @@ function matchLine(text: string, label: RegExp): string {
 // is only ever used to pre-fill the Add Job form, which the mechanic still
 // has to check and confirm before saving.
 function parseJobsheetText(text: string): ScannedJobsheet {
+  const customerCode = matchLine(text, /Customer Code\s*[:.]?\s*(.+)/i);
   const customerName = matchLine(text, /Customer Name\s*[:.]?\s*(.+)/i);
   const plateNo = matchLine(text, /Vehicle No\.?\s*[:.]?\s*(.+)/i);
   const model = matchLine(text, /^Model\s*[:.]?\s*(.+)/im);
+  const colour = matchLine(text, /Colour\s*[:.]?\s*(.+)/i);
+  const engineNo = matchLine(text, /Engine No\.?\s*[:.]?\s*(.+)/i);
+  const chassisNo = matchLine(text, /Chassis No\.?\s*[:.]?\s*(.+)/i);
   const mechanicCode = matchLine(text, /Mechanic Code\s*[:.]?\s*(.+)/i);
   const jobDateRaw = matchLine(text, /Job Date\s*[:.]?\s*(\d{1,2}[-/]\d{1,2}[-/]\d{2,4})/i);
 
@@ -69,7 +77,20 @@ function parseJobsheetText(text: string): ScannedJobsheet {
     });
   }
 
-  return { customerName, plateNo, model, mechanicCode, branch, startedDate, items, rawText: text };
+  return {
+    customerCode,
+    customerName,
+    plateNo,
+    model,
+    colour,
+    engineNo,
+    chassisNo,
+    mechanicCode,
+    branch,
+    startedDate,
+    items,
+    rawText: text,
+  };
 }
 
 export async function scanJobsheet(

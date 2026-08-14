@@ -119,8 +119,12 @@ export default function WalkInJobForm({
   // Set the instant the form opens (or the job's own date when editing) —
   // the PIC shouldn't have to remember to fill this in themselves.
   const [startedDate, setStartedDate] = useState(job?.startedDate ?? new Date().toISOString().slice(0, 10));
+  const [customerCode, setCustomerCode] = useState(job?.customerCode ?? "");
   const [customerName, setCustomerName] = useState(job?.customerName ?? "");
   const [plateNo, setPlateNo] = useState(job?.plateNo ?? "");
+  const [colour, setColour] = useState(job?.colour ?? "");
+  const [engineNo, setEngineNo] = useState(job?.engineNo ?? "");
+  const [chassisNo, setChassisNo] = useState(job?.chassisNo ?? "");
   const [locationBranch, setLocationBranch] = useState<BranchSelection>(job?.branch ?? branchSelection);
   const [mechanicId, setMechanicId] = useState(job?.mechanicId ?? "");
   const [description, setDescription] = useState(job?.description ?? "");
@@ -188,6 +192,10 @@ export default function WalkInJobForm({
       const scanned = result.data;
       setScanRawText(scanned.rawText);
       const filled: string[] = [];
+      if (scanned.customerCode) {
+        setCustomerCode(scanned.customerCode);
+        filled.push("customer code");
+      }
       if (scanned.customerName) {
         setCustomerName(scanned.customerName);
         filled.push("customer name");
@@ -199,6 +207,18 @@ export default function WalkInJobForm({
       if (scanned.model) {
         setModel(scanned.model);
         filled.push("model");
+      }
+      if (scanned.colour) {
+        setColour(scanned.colour);
+        filled.push("colour");
+      }
+      if (scanned.engineNo) {
+        setEngineNo(scanned.engineNo);
+        filled.push("engine no.");
+      }
+      if (scanned.chassisNo) {
+        setChassisNo(scanned.chassisNo);
+        filled.push("chassis no.");
       }
       if (scanned.startedDate) {
         setStartedDate(scanned.startedDate);
@@ -286,6 +306,7 @@ export default function WalkInJobForm({
       }));
 
     const payload = {
+      customerCode: customerCode.trim(),
       customerName: customerName.trim(),
       plateNo: plateNo.trim(),
       mechanicId: mechanicId || null,
@@ -294,6 +315,9 @@ export default function WalkInJobForm({
       dealType: "",
       startedDate,
       model: model.trim(),
+      colour: colour.trim(),
+      engineNo: engineNo.trim(),
+      chassisNo: chassisNo.trim(),
       location: branchLabel(effectiveBranch),
       items: cleanItems,
       completedDate: completedDate || null,
@@ -365,6 +389,15 @@ export default function WalkInJobForm({
             />
           </div>
           <div>
+            <label className="block text-xs font-medium text-neutral-600 mb-1.5">Customer Code</label>
+            <input
+              type="text"
+              value={customerCode}
+              onChange={(e) => setCustomerCode(e.target.value)}
+              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+            />
+          </div>
+          <div>
             <label className="block text-xs font-medium text-neutral-600 mb-1.5">Customer Name *</label>
             <input
               type="text"
@@ -389,6 +422,33 @@ export default function WalkInJobForm({
               value={model}
               onChange={(e) => setModel(e.target.value)}
               placeholder="e.g. Y16ZR"
+              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-neutral-600 mb-1.5">Colour</label>
+            <input
+              type="text"
+              value={colour}
+              onChange={(e) => setColour(e.target.value)}
+              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-neutral-600 mb-1.5">Engine No.</label>
+            <input
+              type="text"
+              value={engineNo}
+              onChange={(e) => setEngineNo(e.target.value)}
+              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-neutral-600 mb-1.5">Chassis No.</label>
+            <input
+              type="text"
+              value={chassisNo}
+              onChange={(e) => setChassisNo(e.target.value)}
               className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
             />
           </div>
