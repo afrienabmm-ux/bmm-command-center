@@ -48,3 +48,28 @@ export async function signOutAction(): Promise<void> {
   await supabase.auth.signOut();
   redirect("/login");
 }
+
+// Self-service password change — re-verifies the current password via a
+// real sign-in attempt before allowing the change, so someone who walks up
+// to an already-logged-in session can't silently take it over.
+export async function changeOwnPasswordAction(
+  currentPassword: string,
+  newPassword: string
+): Promise<{ error: string } | void> {
+  if (newPassword.length < 8) return { error: "New password must be at least 8 characters." };
+
+  const supabase = await createAuthClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user?.email) return { error: "Your session has expired — please sign in again." };
+
+  const { error: verifyError } = await supabase.auth.signInWithPassword({
+    email: user.email,
+    password: currentPassword,
+  });
+  if (verifyError) return { error: "Current password is incorrect." };
+
+  const { error } = await supabase.auth.updateUser({ password: newPassword });
+  if (error) return { error: error.message };
+}

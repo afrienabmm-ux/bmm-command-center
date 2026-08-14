@@ -187,7 +187,7 @@ function MemberRow({ member, isSelf }: { member: TeamMember; isSelf: boolean }) 
               onChange={(e) => setTitle(e.target.value)}
               onBlur={saveTitle}
               placeholder="Title (optional)"
-              disabled={isSelf || isPending || member.status === "revoked"}
+              disabled={isPending || member.status === "revoked"}
               className="bg-neutral-50 border border-neutral-200 rounded-lg px-2.5 py-1.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50 disabled:opacity-50 w-32"
             />
           </div>
@@ -220,41 +220,49 @@ function MemberRow({ member, isSelf }: { member: TeamMember; isSelf: boolean }) 
         </td>
         <td className="px-5 py-3.5 text-neutral-500 whitespace-nowrap">{formatDate(member.createdAt)}</td>
         <td className="px-5 py-3.5">
-          <div className="flex items-center justify-end gap-3 flex-wrap">
+          <div className="flex items-center justify-end gap-1">
             {!isSelf && member.status === "approved" && (
               <button
                 onClick={() => setShowResetPassword(true)}
                 disabled={isPending}
-                className="flex items-center gap-1.5 text-neutral-500 hover:text-indigo-700 disabled:opacity-50 transition-colors text-xs font-medium whitespace-nowrap"
+                title="Reset Password"
+                aria-label="Reset Password"
+                className="text-neutral-400 hover:text-indigo-700 disabled:opacity-50 transition-colors p-1.5"
               >
-                <KeyRound size={14} /> Reset Password
+                <KeyRound size={15} />
               </button>
             )}
             {!isSelf && member.status === "approved" && (
               <button
                 onClick={() => startTransition(() => revokeUserAction(member.id))}
                 disabled={isPending}
-                className="flex items-center gap-1.5 text-neutral-500 hover:text-red-700 disabled:opacity-50 transition-colors text-xs font-medium"
+                title="Deactivate"
+                aria-label="Deactivate"
+                className="text-neutral-400 hover:text-red-700 disabled:opacity-50 transition-colors p-1.5"
               >
-                <ShieldOff size={14} /> Deactivate
+                <ShieldOff size={15} />
               </button>
             )}
             {!isSelf && member.status === "revoked" && (
               <button
                 onClick={() => startTransition(() => reactivateUserAction(member.id))}
                 disabled={isPending}
-                className="flex items-center gap-1.5 text-neutral-500 hover:text-emerald-700 disabled:opacity-50 transition-colors text-xs font-medium"
+                title="Activate"
+                aria-label="Activate"
+                className="text-neutral-400 hover:text-emerald-700 disabled:opacity-50 transition-colors p-1.5"
               >
-                <RefreshCcw size={14} /> Activate
+                <RefreshCcw size={15} />
               </button>
             )}
             {!isSelf && (
               <button
                 onClick={() => setConfirmDelete(true)}
                 disabled={isPending}
-                className="flex items-center gap-1.5 text-neutral-500 hover:text-red-700 disabled:opacity-50 transition-colors text-xs font-medium"
+                title="Delete"
+                aria-label="Delete"
+                className="text-neutral-400 hover:text-red-700 disabled:opacity-50 transition-colors p-1.5"
               >
-                <Trash2 size={14} /> Delete
+                <Trash2 size={15} />
               </button>
             )}
           </div>
