@@ -31,7 +31,7 @@ const links: { href: string; label: string; icon: typeof LayoutDashboard; page: 
   { href: "/mechanics", label: "Mechanics", icon: MechanicIcon, page: "mechanics" },
   { href: "/genblu", label: "GenBlu Registration", icon: Smartphone, page: "genblu" },
   { href: "/catalog", label: "Catalog", icon: Package, page: "catalog" },
-  { href: "/packages", label: "Main Combo", icon: Layers, page: "packages" },
+  { href: "/packages", label: "Services Combo", icon: Layers, page: "packages" },
 ];
 
 export default function Sidebar({

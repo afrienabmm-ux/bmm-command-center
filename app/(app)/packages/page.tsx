@@ -29,7 +29,7 @@ export default async function PackagesPage() {
   return (
     <div className="flex flex-col h-full">
       <PageHeader
-        title="Main Combo"
+        title="Services Combo"
         subtitle={`${showAllBranches ? "All Branches" : branchLabel(branch)} — service combo packages`}
       />
       <div className="p-8 space-y-8">

@@ -5,6 +5,7 @@ import StatCard from "@/components/StatCard";
 import CombinedTargetEditor from "./CombinedTargetEditor";
 import BranchBreakdownTable, { getBranchBreakdown } from "./BranchBreakdownTable";
 import AllBranchesMechanicPerformanceTable from "./AllBranchesMechanicPerformanceTable";
+import MonthlyTrends from "./MonthlyTrends";
 import { getAllBranchesOverdueRestoreBikeJobs } from "@/lib/repairs-actions";
 
 export default async function AllBranchesOverview({ year, month }: { year: number; month: number }) {
@@ -97,6 +98,8 @@ export default async function AllBranchesOverview({ year, month }: { year: numbe
       <BranchBreakdownTable rows={rows} />
 
       <AllBranchesMechanicPerformanceTable year={year} month={month} />
+
+      <MonthlyTrends year={year} month={month} />
     </div>
   );
 }

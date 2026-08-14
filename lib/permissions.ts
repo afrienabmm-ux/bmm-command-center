@@ -7,7 +7,7 @@ export const PAGE_DEFS = [
   { key: "mechanics", label: "Mechanics", href: "/mechanics" },
   { key: "genblu", label: "GenBlu Registration", href: "/genblu" },
   { key: "catalog", label: "Catalog", href: "/catalog" },
-  { key: "packages", label: "Main Combo", href: "/packages" },
+  { key: "packages", label: "Services Combo", href: "/packages" },
 ] as const;
 
 export type PageKey = (typeof PAGE_DEFS)[number]["key"];
