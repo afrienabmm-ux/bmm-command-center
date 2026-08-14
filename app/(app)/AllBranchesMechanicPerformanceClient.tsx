@@ -1,12 +1,46 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Crown, Wrench, Download, ChevronDown, ChevronUp } from "lucide-react";
+import { Crown, Wrench, Download, ChevronDown, ChevronUp, Check, X } from "lucide-react";
 import { formatCurrency, toCsv } from "@/lib/format";
 import { BRANCHES, branchLabel, type BranchSelection } from "@/lib/branch";
 import type { MechanicPerformanceRowWithBranch } from "@/lib/reports-actions";
+import { MECHANIC_KPI_REVENUE, MECHANIC_KPI_RESTORE_BIKE_COUNT } from "@/lib/types";
 
 const COLLAPSED_COUNT = 5;
+
+// Every mechanic's monthly KPI: RM10,000 Restore Bike revenue and at least
+// 2 Restore Bike jobs completed. Shown as two small pass/fail pills rather
+// than folded into the revenue number, since either can fail independently
+// (e.g. two cheap jobs hits the count but not the revenue).
+function KpiCell({ revenue, count }: { revenue: number; count: number }) {
+  const revenueMet = revenue >= MECHANIC_KPI_REVENUE;
+  const countMet = count >= MECHANIC_KPI_RESTORE_BIKE_COUNT;
+  return (
+    <div className="flex flex-col gap-1">
+      <span
+        className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full border w-fit ${
+          revenueMet
+            ? "bg-emerald-500/10 text-emerald-700 border-emerald-500/20"
+            : "bg-neutral-100 text-neutral-600 border-neutral-300"
+        }`}
+      >
+        {revenueMet ? <Check size={11} /> : <X size={11} />}
+        {formatCurrency(revenue)} / {formatCurrency(MECHANIC_KPI_REVENUE)}
+      </span>
+      <span
+        className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full border w-fit ${
+          countMet
+            ? "bg-emerald-500/10 text-emerald-700 border-emerald-500/20"
+            : "bg-neutral-100 text-neutral-600 border-neutral-300"
+        }`}
+      >
+        {countMet ? <Check size={11} /> : <X size={11} />}
+        {count} / {MECHANIC_KPI_RESTORE_BIKE_COUNT} bikes
+      </span>
+    </div>
+  );
+}
 
 type View = "revenue" | "packages";
 
@@ -42,7 +76,18 @@ export default function AllBranchesMechanicPerformanceClient({ rows }: { rows: M
 
   function handleExport() {
     const csv = toCsv(
-      ["Mechanic", "Code", "Branch", "Restore Bike Jobs", "Restore Bike Revenue (RM)", "Package Sets", "Package Revenue (RM)", "Total Revenue (RM)"],
+      [
+        "Mechanic",
+        "Code",
+        "Branch",
+        "Restore Bike Jobs",
+        "Restore Bike Revenue (RM)",
+        "Package Sets",
+        "Package Revenue (RM)",
+        "Total Revenue (RM)",
+        "Revenue KPI Met (RM10k)",
+        "Bike Count KPI Met (2 bikes)",
+      ],
       filtered.map((r) => [
         r.fullName,
         r.shortCode,
@@ -52,6 +97,8 @@ export default function AllBranchesMechanicPerformanceClient({ rows }: { rows: M
         r.packageSetsSold,
         r.packageRevenue.toFixed(2),
         r.totalRevenue.toFixed(2),
+        r.restoreBikeRevenue >= MECHANIC_KPI_REVENUE ? "Yes" : "No",
+        r.restoreBikeCount >= MECHANIC_KPI_RESTORE_BIKE_COUNT ? "Yes" : "No",
       ])
     );
     const blob = new Blob([csv], { type: "text/csv" });
@@ -155,6 +202,7 @@ export default function AllBranchesMechanicPerformanceClient({ rows }: { rows: M
                   <th className="font-medium px-5 py-3 whitespace-nowrap">Restore Bike</th>
                   <th className="font-medium px-5 py-3 whitespace-nowrap">Packages</th>
                   <th className="font-medium px-5 py-3 whitespace-nowrap">Total Revenue</th>
+                  <th className="font-medium px-5 py-3 whitespace-nowrap">KPI (RM10k / 2 bikes)</th>
                 </tr>
               </thead>
               <tbody>
@@ -181,11 +229,14 @@ export default function AllBranchesMechanicPerformanceClient({ rows }: { rows: M
                     <td className="px-5 py-3.5 text-neutral-900 font-semibold whitespace-nowrap">
                       {formatCurrency(r.totalRevenue)}
                     </td>
+                    <td className="px-5 py-3.5">
+                      <KpiCell revenue={r.restoreBikeRevenue} count={r.restoreBikeCount} />
+                    </td>
                   </tr>
                 ))}
                 {filtered.length === 0 && (
                   <tr>
-                    <td colSpan={5} className="px-5 py-10 text-center text-neutral-500 text-sm">
+                    <td colSpan={6} className="px-5 py-10 text-center text-neutral-500 text-sm">
                       No mechanics {branchFilter === "all" ? "yet" : `at ${branchLabel(branchFilter)} yet`}.
                     </td>
                   </tr>

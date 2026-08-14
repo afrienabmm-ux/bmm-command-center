@@ -122,6 +122,11 @@ export function isHeavyRepairJob(job: { items: RepairJobItem[]; isBigItem: boole
 
 export const DEAL_TYPES = ["Trade In", "Tarik"] as const;
 
+// Every mechanic's monthly KPI: RM10,000 in Restore Bike revenue and at
+// least 2 Restore Bike jobs completed.
+export const MECHANIC_KPI_REVENUE = 10000;
+export const MECHANIC_KPI_RESTORE_BIKE_COUNT = 2;
+
 export type GenbluRegistration = {
   id: string;
   branch: Branch;

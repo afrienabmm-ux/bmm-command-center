@@ -45,6 +45,8 @@ export default async function AllBranchesOverview({ year, month }: { year: numbe
         </div>
       </div>
 
+      <MonthlyTrends year={year} month={month} />
+
       {overdueJobs.length > 0 && (
         <Link
           href="/repairs"
@@ -98,8 +100,6 @@ export default async function AllBranchesOverview({ year, month }: { year: numbe
       <BranchBreakdownTable rows={rows} />
 
       <AllBranchesMechanicPerformanceTable year={year} month={month} />
-
-      <MonthlyTrends year={year} month={month} />
     </div>
   );
 }
