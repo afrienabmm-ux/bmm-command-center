@@ -115,9 +115,10 @@ export default function RepairJobForm({
 }) {
   const router = useRouter();
   const isEdit = job !== null;
-  // Set the instant the form opens (or the job's own date when editing) —
-  // the PIC shouldn't have to remember to fill this in themselves.
-  const [startedDate, setStartedDate] = useState(job?.startedDate ?? new Date().toISOString().slice(0, 10));
+  // The date this form was filled in — independent of the actual Repair
+  // Start date, which is only set later by clicking "Start" on the list
+  // (gated on GM approval).
+  const [formDate, setFormDate] = useState(job?.formDate ?? new Date().toISOString().slice(0, 10));
   const [plateNo, setPlateNo] = useState(job?.plateNo ?? "");
   const [locationBranch, setLocationBranch] = useState<BranchSelection>(job?.branch ?? branchSelection);
   const [mechanicId, setMechanicId] = useState(job?.mechanicId ?? "");
@@ -132,9 +133,9 @@ export default function RepairJobForm({
     RESTORE_BIKE_CONDITIONS.includes(job?.condition as RestoreBikeCondition) ? (job!.condition as RestoreBikeCondition) : "L"
   );
   const [mileageKm, setMileageKm] = useState(job?.mileageKm ?? "");
+  const [arrivedDate, setArrivedDate] = useState(job?.arrivedDate ?? "");
   const [stockOrderDate, setStockOrderDate] = useState(job?.stockOrderDate ?? "");
   const [stockArriveDate, setStockArriveDate] = useState(job?.stockArriveDate ?? "");
-  const [completedDate, setCompletedDate] = useState(job?.completedDate ?? "");
   const [isBigItem, setIsBigItem] = useState(job?.isBigItem ?? false);
   const [items, setItems] = useState<ItemInput[]>(job ? itemsFromJob(job) : []);
   const [imageFile, setImageFile] = useState<File | null>(null);
@@ -211,17 +212,17 @@ export default function RepairJobForm({
       description: "",
       revenueAmount: Number(revenueAmount) || 0,
       dealType,
-      startedDate,
+      formDate,
       picName: picName.trim(),
       model: model.trim(),
       bikeYear: bikeYear.trim(),
       condition: condition.trim(),
       mileageKm: mileageKm.trim(),
+      arrivedDate: arrivedDate || null,
       location: branchLabel(effectiveBranch),
       items: cleanItems,
       stockOrderDate: stockOrderDate || null,
       stockArriveDate: stockArriveDate || null,
-      completedDate: completedDate || null,
       isBigItem,
     };
 
@@ -247,13 +248,16 @@ export default function RepairJobForm({
       <div className="bg-white border border-neutral-200 rounded-xl p-6">
         <div className="space-y-4">
           <div>
-            <label className="block text-xs font-medium text-neutral-600 mb-1.5">Started Date</label>
+            <label className="block text-xs font-medium text-neutral-600 mb-1.5">Date Filled</label>
             <input
               type="date"
-              value={startedDate}
-              onChange={(e) => setStartedDate(e.target.value)}
+              value={formDate}
+              onChange={(e) => setFormDate(e.target.value)}
               className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
             />
+            <p className="text-xs text-neutral-500 mt-1.5">
+              When this form was filled in — the actual repair start date is set later by clicking &quot;Start&quot; on the list.
+            </p>
           </div>
           <div>
             <label className="block text-xs font-medium text-neutral-600 mb-1.5">Plate No. *</label>
@@ -308,6 +312,15 @@ export default function RepairJobForm({
                 </option>
               ))}
             </select>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-neutral-600 mb-1.5">Arrived Date</label>
+            <input
+              type="date"
+              value={arrivedDate}
+              onChange={(e) => setArrivedDate(e.target.value)}
+              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+            />
           </div>
           <div>
             <label className="block text-xs font-medium text-neutral-600 mb-1.5">Bike Photo *</label>
@@ -414,18 +427,6 @@ export default function RepairJobForm({
               className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50 disabled:opacity-60"
             />
             <p className="text-xs text-neutral-500 mt-1.5">Calculated automatically from the parts/items list above.</p>
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-neutral-600 mb-1.5">End Date</label>
-            <input
-              type="date"
-              value={completedDate}
-              onChange={(e) => setCompletedDate(e.target.value)}
-              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
-            />
-            <p className="text-xs text-neutral-500 mt-1.5">
-              Leave the end date blank to fill it in automatically when the job is marked Completed.
-            </p>
           </div>
           <div>
             <label className="block text-xs font-medium text-neutral-600 mb-1.5">Trade In / Tarik</label>

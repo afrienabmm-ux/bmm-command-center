@@ -83,9 +83,14 @@ export type RepairJob = {
   status: RepairStatus;
   revenueAmount: number;
   dealType: string;
-  startedDate: string;
+  // Restore Bike: null until the "Start" stage is clicked (gated on
+  // approval). Walk-in: always set from the form, as before.
+  startedDate: string | null;
   completedDate: string | null;
   createdAt: string;
+  // Restore Bike only — the date the PIC filled in this form, independent
+  // of when the repair actually starts.
+  formDate: string | null;
   // Restore Bike only — mirrors the "PIC / N.PLATE / MODEL / TAHUN /
   // CONDITION / MECHANIC / LOCATION / ..." tracking sheet.
   picName: string;
@@ -120,12 +125,11 @@ export type RepairJob = {
   // as GenBlu screenshots (private bucket, path only; resolved to a signed
   // URL on read).
   imagePath: string | null;
-  // Restore Bike workflow tracker — click-to-stamp milestones shown as a
-  // row of buttons on the list. Repair Start/Last reuse startedDate and
-  // completedDate above rather than duplicating them.
+  // Restore Bike — Arrived is set on the form; Quotation is a click-to-
+  // stamp on the list. GM approval is just the existing approvalStatus
+  // field (Approved), not a separate date.
   arrivedDate: string | null;
   quotationDate: string | null;
-  gmApprovedDate: string | null;
 };
 
 export const RESTORE_BIKE_CONDITIONS = ["L", "H"] as const;

@@ -22,9 +22,10 @@ type Row = {
   status: RepairStatus;
   revenue_amount: number;
   deal_type: string;
-  started_date: string;
+  started_date: string | null;
   completed_date: string | null;
   created_at: string;
+  form_date: string | null;
   pic_name: string;
   model: string;
   bike_year: string;
@@ -51,7 +52,6 @@ type Row = {
   image_path: string | null;
   arrived_date: string | null;
   quotation_date: string | null;
-  gm_approved_date: string | null;
   cc_repair_job_items: ItemRow[] | null;
 };
 
@@ -71,6 +71,7 @@ function toJob(r: Row): RepairJob {
     startedDate: r.started_date,
     completedDate: r.completed_date,
     createdAt: r.created_at,
+    formDate: r.form_date,
     picName: r.pic_name,
     model: r.model,
     bikeYear: r.bike_year,
@@ -103,7 +104,6 @@ function toJob(r: Row): RepairJob {
     imagePath: r.image_path,
     arrivedDate: r.arrived_date,
     quotationDate: r.quotation_date,
-    gmApprovedDate: r.gm_approved_date,
   };
 }
 
@@ -214,7 +214,7 @@ export async function getOverdueRestoreBikeJobs(branch: Branch): Promise<RepairJ
   const active = await getActiveRepairJobs(branch);
   const today = new Date();
   return active.filter((j) => {
-    if (j.jobType !== "Restore Bike") return false;
+    if (j.jobType !== "Restore Bike" || !j.startedDate) return false;
     const started = new Date(j.startedDate);
     const days = Math.floor((today.getTime() - started.getTime()) / 86400000);
     return days > 5;
@@ -231,7 +231,7 @@ export async function getAllBranchesOverdueRestoreBikeJobs(): Promise<OverdueRes
     .flat()
     .map((j) => ({
       ...j,
-      daysRunning: Math.floor((today.getTime() - new Date(j.startedDate).getTime()) / 86400000),
+      daysRunning: j.startedDate ? Math.floor((today.getTime() - new Date(j.startedDate).getTime()) / 86400000) : 0,
     }))
     .sort((a, b) => b.daysRunning - a.daysRunning);
 }
@@ -267,13 +267,20 @@ export async function addRepairJobAction(input: {
   description: string;
   revenueAmount: number;
   dealType: string;
-  startedDate: string;
+  // Required for Walk-in (its form always supplies one). Restore Bike
+  // omits it — startedDate stays null until the workflow "Start" stage is
+  // clicked, gated on approval.
+  startedDate?: string | null;
+  // Restore Bike only — the date the PIC filled in this form, independent
+  // of startedDate.
+  formDate?: string | null;
   picName?: string;
   model?: string;
   bikeYear?: string;
   condition?: string;
   location?: string;
   items?: ItemInput[];
+  arrivedDate?: string | null;
   stockOrderDate?: string | null;
   stockArriveDate?: string | null;
   completedDate?: string | null;
@@ -317,13 +324,15 @@ export async function addRepairJobAction(input: {
       description: input.description,
       revenue_amount: revenueAmount,
       deal_type: input.dealType,
-      started_date: input.startedDate,
+      started_date: input.startedDate ?? null,
+      form_date: input.formDate ?? null,
       status: "Pending",
       pic_name: input.picName ?? "",
       model: input.model ?? "",
       bike_year: input.bikeYear ?? "",
       condition: input.condition ?? "",
       location: input.location ?? "",
+      arrived_date: input.arrivedDate ?? null,
       stock_order_date: input.stockOrderDate ?? null,
       stock_arrive_date: input.stockArriveDate ?? null,
       completed_date: input.completedDate ?? null,
@@ -363,13 +372,17 @@ export async function updateRepairJobAction(
     description: string;
     revenueAmount: number;
     dealType: string;
-    startedDate: string;
+    // Omit for Restore Bike so the update doesn't touch the workflow-driven
+    // value; Walk-in always supplies one.
+    startedDate?: string | null;
+    formDate?: string | null;
     picName?: string;
     model?: string;
     bikeYear?: string;
     condition?: string;
     location?: string;
     items?: ItemInput[];
+    arrivedDate?: string | null;
     stockOrderDate?: string | null;
     stockArriveDate?: string | null;
     completedDate?: string | null;
@@ -406,14 +419,16 @@ export async function updateRepairJobAction(
       revenue_amount: revenueAmount,
       deal_type: input.dealType,
       started_date: input.startedDate,
+      form_date: input.formDate,
       pic_name: input.picName ?? "",
       model: input.model ?? "",
       bike_year: input.bikeYear ?? "",
       condition: input.condition ?? "",
       location: input.location ?? "",
+      arrived_date: input.arrivedDate ?? null,
       stock_order_date: input.stockOrderDate ?? null,
       stock_arrive_date: input.stockArriveDate ?? null,
-      completed_date: input.completedDate ?? null,
+      completed_date: input.completedDate,
       prepared_by: input.preparedBy ?? "",
       is_big_item: input.isBigItem ?? false,
       customer_code: input.customerCode ?? "",
@@ -448,25 +463,20 @@ export async function updateRepairApprovalAction(id: string, branch: Branch, app
   revalidatePath("/repairs/walk-in");
 }
 
-export type RestoreBikeWorkflowStage = "arrived" | "quotation" | "gmApproved" | "started" | "completed";
+export type RestoreBikeWorkflowStage = "quotation" | "started" | "completed";
 
-const WORKFLOW_STAGE_COLUMNS: Record<
-  RestoreBikeWorkflowStage,
-  "arrived_date" | "quotation_date" | "gm_approved_date" | "started_date" | "completed_date"
-> = {
-  arrived: "arrived_date",
+const WORKFLOW_STAGE_COLUMNS: Record<RestoreBikeWorkflowStage, "quotation_date" | "started_date" | "completed_date"> = {
   quotation: "quotation_date",
-  gmApproved: "gm_approved_date",
   started: "started_date",
   completed: "completed_date",
 };
 
-// Click-to-stamp workflow milestones shown on the Restore Bike list — no
-// need to open the full edit form just to mark a date. Clicking sets
-// today's date; clicking an already-stamped one clears it back to unset
-// (except "started", which is a required field on the job and can only be
-// moved to today, never cleared). Stamping "GM Approved" also flips the
-// existing Approval dropdown, since they're the same event surfaced twice.
+// Click-to-stamp workflow milestones on the Restore Bike list — no need to
+// open the full edit form. Clicking sets today's date; clicking an
+// already-stamped one clears it back to unset. "Started" is gated on the
+// job's existing Approval status (Approved) rather than a separate GM
+// stamp. "Completed" doesn't hard-block, but refuses to set a date if the
+// job hasn't started yet — the caller shows that as a warning.
 export async function setRestoreBikeWorkflowDateAction(
   id: string,
   branch: Branch,
@@ -476,24 +486,26 @@ export async function setRestoreBikeWorkflowDateAction(
   const user = await requireApproved();
   assertCanEditBranch(user, branch);
 
-  if (stage === "started" || stage === "completed") {
+  if (value !== null && (stage === "started" || stage === "completed")) {
     const { data: existing, error: fetchError } = await supabaseAdmin
       .from("cc_repair_jobs")
-      .select("gm_approved_date")
+      .select("approval_status, started_date")
       .eq("id", id)
       .single();
     if (fetchError) throw new Error(fetchError.message);
-    if (!existing?.gm_approved_date) {
-      throw new Error("GM must approve this job before the repair can start.");
+    if (stage === "started" && existing?.approval_status !== "Approved") {
+      throw new Error("This job needs GM approval before the repair can start.");
+    }
+    if (stage === "completed" && !existing?.started_date) {
+      throw new Error("The job hasn't started yet.");
     }
   }
 
   const column = WORKFLOW_STAGE_COLUMNS[stage];
-  const update: Record<string, string | null | ApprovalStatus> = { [column]: value };
-  if (stage === "gmApproved") {
-    update.approval_status = value ? "Approved" : "Pending";
-  }
-  const { error } = await supabaseAdmin.from("cc_repair_jobs").update(update).eq("id", id);
+  const { error } = await supabaseAdmin
+    .from("cc_repair_jobs")
+    .update({ [column]: value })
+    .eq("id", id);
   if (error) throw new Error(error.message);
   revalidatePath("/repairs");
 }

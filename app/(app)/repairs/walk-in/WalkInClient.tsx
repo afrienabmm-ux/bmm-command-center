@@ -54,7 +54,7 @@ export default function WalkInClient({
       j.model,
       mechanicLabel(j.mechanicId),
       j.revenueAmount.toFixed(2),
-      formatDate(j.startedDate),
+      j.startedDate ? formatDate(j.startedDate) : "",
       j.completedDate ? formatDate(j.completedDate) : "",
       daysBetween(j.startedDate, j.completedDate ?? today) ?? 0,
       j.status,
@@ -475,7 +475,7 @@ function WalkInRow({
         </span>
       </td>
       <td className="px-5 py-3.5 text-neutral-700 whitespace-nowrap">{formatCurrency(job.revenueAmount)}</td>
-      <td className="px-5 py-3.5 text-neutral-500 whitespace-nowrap">{formatDate(job.startedDate)}</td>
+      <td className="px-5 py-3.5 text-neutral-500 whitespace-nowrap">{job.startedDate ? formatDate(job.startedDate) : "—"}</td>
       <td className="px-5 py-3.5 text-neutral-500 whitespace-nowrap">{job.completedDate ? formatDate(job.completedDate) : "—"}</td>
       <td className="px-5 py-3.5 text-neutral-500 whitespace-nowrap">{days ?? 0}d</td>
       <td className="px-5 py-3.5">

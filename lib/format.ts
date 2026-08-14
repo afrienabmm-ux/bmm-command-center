@@ -22,8 +22,8 @@ export function monthLabel(month: number, year: number): string {
   return `${MONTH_NAMES[month - 1]} ${year}`;
 }
 
-export function daysBetween(startIso: string, endIso: string | null): number | null {
-  if (!endIso) return null;
+export function daysBetween(startIso: string | null, endIso: string | null): number | null {
+  if (!startIso || !endIso) return null;
   const start = new Date(startIso);
   const end = new Date(endIso);
   return Math.max(0, Math.round((end.getTime() - start.getTime()) / 86400000));
