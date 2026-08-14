@@ -54,7 +54,6 @@ export default function RepairsClient({
 }) {
   const [tab, setTab] = useState<"active" | "completed">("active");
   const [loadFilter, setLoadFilter] = useState<"All" | "Heavy Repair" | "Normal Repair">("All");
-  const [exporting, setExporting] = useState(false);
   const [exportJobModalOpen, setExportJobModalOpen] = useState(false);
   const [exportRestoreModalOpen, setExportRestoreModalOpen] = useState(false);
   const baseJobs = tab === "active" ? active : completed;
@@ -70,41 +69,6 @@ export default function RepairsClient({
     if (!id) return "—";
     const m = mechanics.find((m) => m.id === id);
     return m ? `${m.shortName} (${m.shortCode})` : "—";
-  }
-
-  function handleExport() {
-    setExporting(true);
-    try {
-      const rows = allJobs.map((j, i) => [
-        i + 1,
-        j.picName,
-        j.plateNo,
-        j.model,
-        j.bikeYear,
-        j.condition,
-        mechanicLabel(j.mechanicId),
-        j.location,
-        formatDate(j.startedDate),
-        j.completedDate ? formatDate(j.completedDate) : "",
-        j.revenueAmount.toFixed(2),
-        j.dealType,
-        j.approvalStatus,
-        j.status,
-      ]);
-      const csv = toCsv(
-        ["No.", "PIC", "N. Plate", "Model", "Tahun", "Condition", "Mechanic", "Location", "Start Date", "End Date", "Cost Restore (RM)", "Trade In / Tarik", "Approval", "Status"],
-        rows
-      );
-      const blob = new Blob([csv], { type: "text/csv" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `bmm-restore-bike-${branchSelection}.csv`;
-      a.click();
-      URL.revokeObjectURL(url);
-    } finally {
-      setExporting(false);
-    }
   }
 
   function handleExportSingleJob(job: RepairJob) {
@@ -217,14 +181,6 @@ export default function RepairsClient({
         </div>
         <div className="flex items-center gap-3">
           <button
-            onClick={handleExport}
-            disabled={exporting}
-            className="flex items-center gap-1.5 bg-neutral-100 hover:bg-neutral-200 disabled:opacity-50 text-neutral-800 text-sm font-medium px-4 py-2 rounded-lg transition-colors whitespace-nowrap"
-          >
-            <Download size={15} />
-            {exporting ? "Exporting…" : "Export to Excel / CSV"}
-          </button>
-          <button
             onClick={() => setExportJobModalOpen(true)}
             className="flex items-center gap-1.5 bg-neutral-100 hover:bg-neutral-200 text-neutral-800 text-sm font-medium px-4 py-2 rounded-lg transition-colors whitespace-nowrap"
           >
@@ -279,11 +235,11 @@ export default function RepairsClient({
                 <th className="font-medium px-5 py-3 whitespace-nowrap">Condition</th>
                 <th className="font-medium px-5 py-3 whitespace-nowrap">Mechanic</th>
                 <th className="font-medium px-5 py-3 whitespace-nowrap">Location</th>
+                <th className="font-medium px-5 py-3 whitespace-nowrap">Approval</th>
                 <th className="font-medium px-5 py-3 whitespace-nowrap">Start Date</th>
                 <th className="font-medium px-5 py-3 whitespace-nowrap">End Date</th>
                 <th className="font-medium px-5 py-3 whitespace-nowrap">Cost Restore</th>
                 <th className="font-medium px-5 py-3 whitespace-nowrap">Trade In / Tarik</th>
-                <th className="font-medium px-5 py-3 whitespace-nowrap">Approval</th>
                 <th className="font-medium px-5 py-3 whitespace-nowrap">Status</th>
                 <th className="px-5 py-3" />
               </tr>
@@ -547,19 +503,22 @@ function StageButton({
   date,
   onClick,
   disabled,
+  title,
 }: {
   label: string;
   date: string | null;
   onClick: () => void;
   disabled: boolean;
+  title?: string;
 }) {
+  const defaultTitle = date ? `${formatDate(date)} — click to clear` : `Click to mark done today`;
   return (
     <div className="flex flex-col items-center gap-0.5">
       <button
         type="button"
         onClick={onClick}
         disabled={disabled}
-        title={date ? `${formatDate(date)} — click to clear` : `Click to mark done today`}
+        title={title ?? defaultTitle}
         className={`flex items-center justify-center w-8 h-8 rounded-lg border text-[10px] font-semibold transition-colors disabled:opacity-50 ${
           date
             ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-700"
@@ -602,26 +561,28 @@ function WorkflowCell({ job, editable }: { job: RepairJob; editable: boolean }) 
         onClick={() => toggle("gmApproved", job.gmApprovedDate)}
         disabled={isPending || !editable}
       />
-      <div className="flex flex-col items-center gap-0.5">
-        <Link
-          href={`/repairs/${job.id}/edit`}
-          title={job.startedDate ? `Repair Start: ${formatDate(job.startedDate)} — click to change` : "Click to set the Repair Start date"}
-          className="flex items-center justify-center w-8 h-8 rounded-lg border text-[10px] font-semibold bg-sky-500/10 border-sky-500/30 text-sky-700 hover:bg-sky-500/20 transition-colors"
-        >
-          {job.startedDate ? <Check size={13} /> : "St"}
-        </Link>
-        <span className="text-[9px] text-neutral-500 whitespace-nowrap">{job.startedDate ? shortDate(job.startedDate) : " "}</span>
-      </div>
-      <div className="flex flex-col items-center gap-0.5">
-        <Link
-          href={`/repairs/${job.id}/edit`}
-          title={job.completedDate ? `Repair Last: ${formatDate(job.completedDate)} — click to change` : "Click to set the End Date"}
-          className="flex items-center justify-center w-8 h-8 rounded-lg border text-[10px] font-semibold bg-purple-500/10 border-purple-500/30 text-purple-700 hover:bg-purple-500/20 transition-colors"
-        >
-          {job.completedDate ? <Check size={13} /> : "En"}
-        </Link>
-        <span className="text-[9px] text-neutral-500 whitespace-nowrap">{job.completedDate ? shortDate(job.completedDate) : " "}</span>
-      </div>
+      <StageButton
+        label="St"
+        date={job.startedDate}
+        onClick={() =>
+          startTransition(() =>
+            setRestoreBikeWorkflowDateAction(job.id, job.branch, "started", new Date().toISOString().slice(0, 10))
+          )
+        }
+        disabled={isPending || !editable || !job.gmApprovedDate}
+        title={!job.gmApprovedDate ? "GM must approve before the repair can start" : undefined}
+      />
+      <StageButton
+        label="En"
+        date={job.completedDate}
+        onClick={() =>
+          startTransition(() =>
+            setRestoreBikeWorkflowDateAction(job.id, job.branch, "completed", job.completedDate ? null : new Date().toISOString().slice(0, 10))
+          )
+        }
+        disabled={isPending || !editable || !job.gmApprovedDate}
+        title={!job.gmApprovedDate ? "GM must approve before the repair can start" : undefined}
+      />
     </div>
   );
 }
@@ -685,6 +646,9 @@ function RestoreBikeRow({
         </span>
       </td>
       <td className="px-5 py-3.5 text-neutral-600 whitespace-nowrap">{job.location || "—"}</td>
+      <td className="px-5 py-3.5">
+        <ApprovalCell job={job} branch={job.branch} />
+      </td>
       <td className="px-5 py-3.5 text-neutral-500 whitespace-nowrap">
         <span className="inline-flex items-center gap-1.5">
           {formatDate(job.startedDate)}
@@ -694,9 +658,6 @@ function RestoreBikeRow({
       <td className="px-5 py-3.5 text-neutral-500 whitespace-nowrap">{job.completedDate ? formatDate(job.completedDate) : "—"}</td>
       <td className="px-5 py-3.5 text-neutral-700 whitespace-nowrap">{formatCurrency(job.revenueAmount)}</td>
       <td className="px-5 py-3.5 text-neutral-600 whitespace-nowrap">{job.dealType || "—"}</td>
-      <td className="px-5 py-3.5">
-        <ApprovalCell job={job} branch={job.branch} />
-      </td>
       <td className="px-5 py-3.5">
         <StatusCell job={job} branch={job.branch} editable={editable} isPending={isPending} startTransition={startTransition} />
       </td>

@@ -448,18 +448,25 @@ export async function updateRepairApprovalAction(id: string, branch: Branch, app
   revalidatePath("/repairs/walk-in");
 }
 
-export type RestoreBikeWorkflowStage = "arrived" | "quotation" | "gmApproved";
+export type RestoreBikeWorkflowStage = "arrived" | "quotation" | "gmApproved" | "started" | "completed";
 
-const WORKFLOW_STAGE_COLUMNS: Record<RestoreBikeWorkflowStage, "arrived_date" | "quotation_date" | "gm_approved_date"> = {
+const WORKFLOW_STAGE_COLUMNS: Record<
+  RestoreBikeWorkflowStage,
+  "arrived_date" | "quotation_date" | "gm_approved_date" | "started_date" | "completed_date"
+> = {
   arrived: "arrived_date",
   quotation: "quotation_date",
   gmApproved: "gm_approved_date",
+  started: "started_date",
+  completed: "completed_date",
 };
 
-// Click-to-stamp workflow milestones shown on the Restore Bike list —
-// clicking sets today's date, clicking an already-stamped one clears it.
-// Stamping "GM Approved" also flips the existing Approval dropdown, since
-// they're the same event just surfaced two ways.
+// Click-to-stamp workflow milestones shown on the Restore Bike list — no
+// need to open the full edit form just to mark a date. Clicking sets
+// today's date; clicking an already-stamped one clears it back to unset
+// (except "started", which is a required field on the job and can only be
+// moved to today, never cleared). Stamping "GM Approved" also flips the
+// existing Approval dropdown, since they're the same event surfaced twice.
 export async function setRestoreBikeWorkflowDateAction(
   id: string,
   branch: Branch,
@@ -468,6 +475,19 @@ export async function setRestoreBikeWorkflowDateAction(
 ): Promise<void> {
   const user = await requireApproved();
   assertCanEditBranch(user, branch);
+
+  if (stage === "started" || stage === "completed") {
+    const { data: existing, error: fetchError } = await supabaseAdmin
+      .from("cc_repair_jobs")
+      .select("gm_approved_date")
+      .eq("id", id)
+      .single();
+    if (fetchError) throw new Error(fetchError.message);
+    if (!existing?.gm_approved_date) {
+      throw new Error("GM must approve this job before the repair can start.");
+    }
+  }
+
   const column = WORKFLOW_STAGE_COLUMNS[stage];
   const update: Record<string, string | null | ApprovalStatus> = { [column]: value };
   if (stage === "gmApproved") {
