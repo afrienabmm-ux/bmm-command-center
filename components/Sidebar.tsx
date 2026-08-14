@@ -41,11 +41,13 @@ export default function Sidebar({
   email,
   name,
   role,
+  positionTitle,
   pages,
 }: {
   email: string;
   name: string;
   role: Role | null;
+  positionTitle: string | null;
   pages: PageKey[];
 }) {
   const pathname = usePathname();
@@ -143,6 +145,7 @@ export default function Sidebar({
               {name || email}
             </p>
             <p className="text-xs text-indigo-600 mt-0.5">{role}</p>
+            {positionTitle && <p className="text-xs text-neutral-500 mt-0.5 truncate">{positionTitle}</p>}
           </>
         )}
         <button

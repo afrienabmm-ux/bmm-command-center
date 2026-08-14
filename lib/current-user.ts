@@ -15,6 +15,7 @@ export type CurrentUser = {
   email: string;
   name: string;
   role: Role | null;
+  positionTitle: string | null;
   homeBranch: BranchSelection;
   status: ProfileStatus;
   pages: PageKey[];
@@ -33,7 +34,7 @@ export const getCurrentUser = cache(async (): Promise<CurrentUser | null> => {
 
   const { data: profile } = await supabaseAdmin
     .from("cc_user_profiles")
-    .select("name, role, home_branch, status")
+    .select("name, role, home_branch, status, position_title")
     .eq("id", user.id)
     .single();
 
@@ -44,6 +45,7 @@ export const getCurrentUser = cache(async (): Promise<CurrentUser | null> => {
     email: user.email ?? "",
     name: profile.name ?? "",
     role: profile.role,
+    positionTitle: profile.position_title,
     homeBranch: profile.home_branch,
     status: profile.status,
     pages: resolveAllowedPages(profile.role),

@@ -12,7 +12,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   return (
     <div className="flex w-full">
-      <Sidebar email={user.email} name={user.name} role={user.role} pages={user.pages} />
+      <Sidebar email={user.email} name={user.name} role={user.role} positionTitle={user.positionTitle} pages={user.pages} />
       <div className="flex-1 min-w-0 flex flex-col">
         <div className="h-14 border-b border-neutral-200 flex items-center justify-end px-8 shrink-0">
           <BranchSwitcher activeBranch={activeBranch} locked={locked} allowAll={canViewAllBranchesAtOnce(user)} />
