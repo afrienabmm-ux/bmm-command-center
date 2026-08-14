@@ -2,8 +2,8 @@
 
 import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
-import { Plus, Download, Pencil, Search } from "lucide-react";
-import { updateRepairStatusAction } from "@/lib/repairs-actions";
+import { Plus, Download, Pencil, Search, Trash2 } from "lucide-react";
+import { updateRepairStatusAction, deleteRepairJobAction } from "@/lib/repairs-actions";
 import { REPAIR_STATUSES, isHeavyRepairJob, type RepairStatus, type RepairJob } from "@/lib/types";
 import type { Mechanic } from "@/lib/types";
 import { branchLabel, type Branch, type BranchSelection } from "@/lib/branch";
@@ -444,7 +444,18 @@ function WalkInRow({
   editable: boolean;
 }) {
   const [isPending, startTransition] = useTransition();
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const days = daysBetween(job.startedDate, job.completedDate ?? new Date().toISOString().slice(0, 10));
+
+  function handleDelete() {
+    setDeleting(true);
+    startTransition(async () => {
+      await deleteRepairJobAction(job.id, job.branch);
+      setDeleting(false);
+      setConfirmOpen(false);
+    });
+  }
 
   return (
     <tr className="border-b border-neutral-100 last:border-0 hover:bg-neutral-50">
@@ -471,14 +482,52 @@ function WalkInRow({
         <StatusCell job={job} branch={job.branch} editable={editable} isPending={isPending} startTransition={startTransition} />
       </td>
       <td className="px-5 py-3.5">
-        <Link
-          href={`/repairs/walk-in/${job.id}/edit`}
-          className="text-neutral-400 hover:text-indigo-600 transition-colors p-1 inline-block"
-          title="Edit job"
-          aria-label="Edit job"
-        >
-          <Pencil size={14} />
-        </Link>
+        <div className="flex items-center gap-1">
+          <Link
+            href={`/repairs/walk-in/${job.id}/edit`}
+            className="text-neutral-400 hover:text-indigo-600 transition-colors p-1 inline-block"
+            title="Edit job"
+            aria-label="Edit job"
+          >
+            <Pencil size={14} />
+          </Link>
+          <button
+            onClick={() => setConfirmOpen(true)}
+            className="text-neutral-400 hover:text-red-600 transition-colors p-1"
+            title="Delete job"
+            aria-label="Delete job"
+          >
+            <Trash2 size={14} />
+          </button>
+        </div>
+
+        {confirmOpen && (
+          <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 px-4">
+            <div className="bg-white border border-neutral-200 rounded-xl w-full max-w-sm p-6 text-left">
+              <h2 className="text-sm font-semibold text-neutral-900 mb-2">Delete this job?</h2>
+              <p className="text-sm text-neutral-600 mb-6">
+                Job <span className="text-neutral-800 font-medium">{job.jobNo}</span> for{" "}
+                <span className="text-neutral-800 font-medium">{job.customerName || job.plateNo}</span> will be
+                permanently removed. This can&apos;t be undone.
+              </p>
+              <div className="flex items-center justify-end gap-3">
+                <button
+                  onClick={() => setConfirmOpen(false)}
+                  className="text-sm font-medium text-neutral-600 hover:text-neutral-800 px-4 py-2 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleDelete}
+                  disabled={deleting || isPending}
+                  className="bg-red-600 hover:bg-red-500 disabled:opacity-50 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+                >
+                  {deleting ? "Deleting…" : "Delete"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </td>
     </tr>
   );

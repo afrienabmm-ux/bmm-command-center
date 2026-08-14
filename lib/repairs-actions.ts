@@ -464,3 +464,13 @@ export async function updateRepairStatusAction(id: string, branch: Branch, statu
   revalidatePath("/repairs/walk-in");
   revalidatePath("/");
 }
+
+export async function deleteRepairJobAction(id: string, branch: Branch): Promise<void> {
+  const user = await requireApproved();
+  assertCanEditBranch(user, branch);
+  const { error } = await supabaseAdmin.from("cc_repair_jobs").delete().eq("id", id);
+  if (error) throw new Error(error.message);
+  revalidatePath("/repairs");
+  revalidatePath("/repairs/walk-in");
+  revalidatePath("/");
+}
