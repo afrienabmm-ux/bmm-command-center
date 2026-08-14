@@ -87,6 +87,7 @@ export async function updateMechanicCategoryAction(id: string, branch: Branch, c
   if (error) throw new Error(error.message);
   revalidatePath("/mechanics");
   revalidatePath("/repairs");
+  revalidatePath("/repairs/walk-in");
 }
 
 export async function deleteMechanicAction(id: string, branch: Branch): Promise<void> {

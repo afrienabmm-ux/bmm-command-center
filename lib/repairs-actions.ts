@@ -341,6 +341,7 @@ export async function addRepairJobAction(input: {
 
   if (items.length > 0) await replaceJobItems(data.id, items);
   revalidatePath("/repairs");
+  revalidatePath("/repairs/walk-in");
 }
 
 export async function updateRepairJobAction(
@@ -425,6 +426,7 @@ export async function updateRepairJobAction(
 
   await replaceJobItems(id, items);
   revalidatePath("/repairs");
+  revalidatePath("/repairs/walk-in");
   revalidatePath("/");
 }
 
@@ -434,6 +436,7 @@ export async function updateRepairApprovalAction(id: string, branch: Branch, app
   const { error } = await supabaseAdmin.from("cc_repair_jobs").update({ approval_status: approvalStatus }).eq("id", id);
   if (error) throw new Error(error.message);
   revalidatePath("/repairs");
+  revalidatePath("/repairs/walk-in");
 }
 
 export async function updateRepairStatusAction(id: string, branch: Branch, status: RepairStatus): Promise<void> {
@@ -458,5 +461,6 @@ export async function updateRepairStatusAction(id: string, branch: Branch, statu
   const { error } = await supabaseAdmin.from("cc_repair_jobs").update(update).eq("id", id);
   if (error) throw new Error(error.message);
   revalidatePath("/repairs");
+  revalidatePath("/repairs/walk-in");
   revalidatePath("/");
 }
