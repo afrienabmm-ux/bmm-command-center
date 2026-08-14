@@ -133,6 +133,7 @@ export default function WalkInJobForm({
   const [isScanning, setIsScanning] = useState(false);
   const [scanError, setScanError] = useState<string | null>(null);
   const [scanNotice, setScanNotice] = useState<string | null>(null);
+  const [scanRawText, setScanRawText] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Phone photos can easily be 8-15MB — shrink to a max dimension before
@@ -185,6 +186,7 @@ export default function WalkInJobForm({
         return;
       }
       const scanned = result.data;
+      setScanRawText(scanned.rawText);
       const filled: string[] = [];
       if (scanned.customerName) {
         setCustomerName(scanned.customerName);
@@ -341,6 +343,12 @@ export default function WalkInJobForm({
               </button>
               {scanError && <p className="text-xs text-red-700 mt-2">{scanError}</p>}
               {scanNotice && <p className="text-xs text-emerald-700 mt-2">{scanNotice}</p>}
+              {scanRawText && (
+                <details className="mt-2">
+                  <summary className="text-xs text-indigo-700 cursor-pointer">What Google read from the photo (for troubleshooting)</summary>
+                  <pre className="mt-2 bg-white border border-neutral-200 rounded-lg p-3 text-xs text-neutral-700 whitespace-pre-wrap max-h-64 overflow-y-auto">{scanRawText}</pre>
+                </details>
+              )}
             </div>
           </div>
         </div>
