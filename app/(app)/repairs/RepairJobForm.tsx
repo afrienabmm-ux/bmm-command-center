@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Plus, Trash2 } from "lucide-react";
 import { addRepairJobAction, updateRepairJobAction, uploadRestoreBikeImageAction, getRestoreBikeImageUrl } from "@/lib/repairs-actions";
 import { DEAL_TYPES, HEAVY_ITEM_COUNT_THRESHOLD, RESTORE_BIKE_CONDITIONS, type RestoreBikeCondition, type RepairJob } from "@/lib/types";
-import type { Mechanic } from "@/lib/types";
+import type { Mechanic, Package } from "@/lib/types";
 import { BRANCHES, branchLabel, type Branch, type BranchSelection } from "@/lib/branch";
 import { formatCurrency } from "@/lib/format";
 
@@ -19,7 +19,15 @@ function itemsFromJob(job: RepairJob): ItemInput[] {
   return job.items.map((i) => ({ description: i.description, quantity: String(i.quantity), price: String(i.price) }));
 }
 
-function ItemsEditor({ items, onChange }: { items: ItemInput[]; onChange: (items: ItemInput[]) => void }) {
+function ItemsEditor({
+  items,
+  onChange,
+  packages,
+}: {
+  items: ItemInput[];
+  onChange: (items: ItemInput[]) => void;
+  packages: Package[];
+}) {
   function update(i: number, patch: Partial<ItemInput>) {
     onChange(items.map((it, idx) => (idx === i ? { ...it, ...patch } : it)));
   }
@@ -32,11 +40,33 @@ function ItemsEditor({ items, onChange }: { items: ItemInput[]; onChange: (items
   function removeRow(i: number) {
     onChange(items.filter((_, idx) => idx !== i));
   }
+  function addPackage(pkgId: string) {
+    const pkg = packages.find((p) => p.id === pkgId);
+    if (!pkg) return;
+    onChange([...items, { description: pkg.name, quantity: "1", price: String(pkg.price) }]);
+  }
   const total = items.reduce((sum, it) => sum + (Number(it.quantity) || 0) * (Number(it.price) || 0), 0);
 
   return (
     <div>
       <label className="block text-xs font-medium text-neutral-600 mb-1.5">Parts / Items</label>
+      {packages.length > 0 && (
+        <select
+          value=""
+          onChange={(e) => {
+            if (e.target.value) addPackage(e.target.value);
+            e.target.value = "";
+          }}
+          className="w-full bg-indigo-50 border border-indigo-200 rounded-lg px-3 py-2 text-sm text-indigo-800 focus:outline-none focus:border-indigo-500/50 mb-2"
+        >
+          <option value="">+ Add from Services Combo (optional)…</option>
+          {packages.map((p) => (
+            <option key={p.id} value={p.id}>
+              {p.name} — {formatCurrency(p.price)}
+            </option>
+          ))}
+        </select>
+      )}
       <div className="space-y-2">
         {items.map((it, i) => (
           <div key={i} className="grid grid-cols-[auto_1fr_70px_100px_auto] gap-2 items-center">
@@ -106,12 +136,14 @@ export default function RepairJobForm({
   locked,
   mechanics,
   allActiveJobs,
+  packages,
 }: {
   job: RepairJob | null;
   branchSelection: BranchSelection;
   locked: boolean;
   mechanics: Mechanic[];
   allActiveJobs: RepairJob[];
+  packages: Package[];
 }) {
   const router = useRouter();
   const isEdit = job !== null;
@@ -414,7 +446,7 @@ export default function RepairJobForm({
             </label>
           </div>
 
-          <ItemsEditor items={items} onChange={setItems} />
+          <ItemsEditor items={items} onChange={setItems} packages={packages} />
 
           <div>
             <label className="block text-xs font-medium text-neutral-600 mb-1.5">Cost Restore (RM)</label>

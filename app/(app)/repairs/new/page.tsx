@@ -1,6 +1,7 @@
 import { requirePageContext, requirePage, getActiveBranchSelection, canViewAllBranches } from "@/lib/current-user";
 import { getAllBranchesActiveRepairJobs } from "@/lib/repairs-actions";
 import { getAllMechanics } from "@/lib/mechanics-actions";
+import { getPackages } from "@/lib/packages-actions";
 import PageHeader from "@/components/PageHeader";
 import RepairJobForm from "../RepairJobForm";
 
@@ -9,10 +10,11 @@ export const dynamic = "force-dynamic";
 export default async function NewRepairJobPage() {
   await requirePage("repairs");
   const { user } = await requirePageContext();
-  const [branchSelection, allActiveJobs, mechanics] = await Promise.all([
+  const [branchSelection, allActiveJobs, mechanics, packages] = await Promise.all([
     getActiveBranchSelection(user),
     getAllBranchesActiveRepairJobs(),
     getAllMechanics(),
+    getPackages(),
   ]);
 
   return (
@@ -25,6 +27,7 @@ export default async function NewRepairJobPage() {
           locked={!canViewAllBranches(user)}
           mechanics={mechanics}
           allActiveJobs={allActiveJobs}
+          packages={packages}
         />
       </div>
     </div>
