@@ -441,14 +441,14 @@ export default function RepairJobForm({
               ))}
             </select>
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="flex items-end gap-4">
             <div>
               <label className="block text-xs font-medium text-neutral-600 mb-1.5">Stock Order Date</label>
               <input
                 type="date"
                 value={stockOrderDate}
                 onChange={(e) => setStockOrderDate(e.target.value)}
-                className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+                className="w-40 bg-neutral-50 border border-neutral-200 rounded-lg px-2.5 py-2 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
               />
             </div>
             <div>
@@ -457,7 +457,7 @@ export default function RepairJobForm({
                 type="date"
                 value={stockArriveDate}
                 onChange={(e) => setStockArriveDate(e.target.value)}
-                className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+                className="w-40 bg-neutral-50 border border-neutral-200 rounded-lg px-2.5 py-2 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
               />
             </div>
           </div>

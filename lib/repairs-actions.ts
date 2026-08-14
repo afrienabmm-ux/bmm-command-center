@@ -49,6 +49,9 @@ type Row = {
   next_service_date: string;
   jobsheet_user_id: string;
   image_path: string | null;
+  arrived_date: string | null;
+  quotation_date: string | null;
+  gm_approved_date: string | null;
   cc_repair_job_items: ItemRow[] | null;
 };
 
@@ -98,6 +101,9 @@ function toJob(r: Row): RepairJob {
     nextServiceDate: r.next_service_date,
     jobsheetUserId: r.jobsheet_user_id,
     imagePath: r.image_path,
+    arrivedDate: r.arrived_date,
+    quotationDate: r.quotation_date,
+    gmApprovedDate: r.gm_approved_date,
   };
 }
 
@@ -440,6 +446,36 @@ export async function updateRepairApprovalAction(id: string, branch: Branch, app
   if (error) throw new Error(error.message);
   revalidatePath("/repairs");
   revalidatePath("/repairs/walk-in");
+}
+
+export type RestoreBikeWorkflowStage = "arrived" | "quotation" | "gmApproved";
+
+const WORKFLOW_STAGE_COLUMNS: Record<RestoreBikeWorkflowStage, "arrived_date" | "quotation_date" | "gm_approved_date"> = {
+  arrived: "arrived_date",
+  quotation: "quotation_date",
+  gmApproved: "gm_approved_date",
+};
+
+// Click-to-stamp workflow milestones shown on the Restore Bike list —
+// clicking sets today's date, clicking an already-stamped one clears it.
+// Stamping "GM Approved" also flips the existing Approval dropdown, since
+// they're the same event just surfaced two ways.
+export async function setRestoreBikeWorkflowDateAction(
+  id: string,
+  branch: Branch,
+  stage: RestoreBikeWorkflowStage,
+  value: string | null
+): Promise<void> {
+  const user = await requireApproved();
+  assertCanEditBranch(user, branch);
+  const column = WORKFLOW_STAGE_COLUMNS[stage];
+  const update: Record<string, string | null | ApprovalStatus> = { [column]: value };
+  if (stage === "gmApproved") {
+    update.approval_status = value ? "Approved" : "Pending";
+  }
+  const { error } = await supabaseAdmin.from("cc_repair_jobs").update(update).eq("id", id);
+  if (error) throw new Error(error.message);
+  revalidatePath("/repairs");
 }
 
 export async function updateRepairStatusAction(id: string, branch: Branch, status: RepairStatus): Promise<void> {

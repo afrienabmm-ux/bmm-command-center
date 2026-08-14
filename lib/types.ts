@@ -120,6 +120,12 @@ export type RepairJob = {
   // as GenBlu screenshots (private bucket, path only; resolved to a signed
   // URL on read).
   imagePath: string | null;
+  // Restore Bike workflow tracker — click-to-stamp milestones shown as a
+  // row of buttons on the list. Repair Start/Last reuse startedDate and
+  // completedDate above rather than duplicating them.
+  arrivedDate: string | null;
+  quotationDate: string | null;
+  gmApprovedDate: string | null;
 };
 
 export const RESTORE_BIKE_CONDITIONS = ["L", "H"] as const;

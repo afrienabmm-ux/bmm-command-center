@@ -2,8 +2,8 @@
 
 import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
-import { Plus, Download, Pencil, AlertTriangle, Search } from "lucide-react";
-import { updateRepairStatusAction, updateRepairApprovalAction } from "@/lib/repairs-actions";
+import { Plus, Download, Pencil, AlertTriangle, Search, Check } from "lucide-react";
+import { updateRepairStatusAction, updateRepairApprovalAction, setRestoreBikeWorkflowDateAction } from "@/lib/repairs-actions";
 import {
   REPAIR_STATUSES,
   APPROVAL_STATUSES,
@@ -268,6 +268,7 @@ export default function RepairsClient({
                 {showBranchColumn && <th className="font-medium px-5 py-3 whitespace-nowrap">Branch</th>}
                 <th className="font-medium px-5 py-3 whitespace-nowrap">PIC</th>
                 <th className="font-medium px-5 py-3 whitespace-nowrap">N. Plate</th>
+                <th className="font-medium px-5 py-3 whitespace-nowrap">Workflow</th>
                 <th className="font-medium px-5 py-3 whitespace-nowrap">Model</th>
                 <th className="font-medium px-5 py-3 whitespace-nowrap">Tahun</th>
                 <th className="font-medium px-5 py-3 whitespace-nowrap">Condition</th>
@@ -295,7 +296,7 @@ export default function RepairsClient({
               ))}
               {jobs.length === 0 && (
                 <tr>
-                  <td colSpan={showBranchColumn ? 16 : 15} className="px-5 py-10 text-center text-neutral-500 text-sm">
+                  <td colSpan={showBranchColumn ? 17 : 16} className="px-5 py-10 text-center text-neutral-500 text-sm">
                     {tab === "active" ? "No active" : "No completed"} Restore Bike jobs.
                   </td>
                 </tr>
@@ -524,6 +525,86 @@ function ApprovalCell({ job, branch }: { job: RepairJob; branch: Branch }) {
   );
 }
 
+// Restore Bike workflow tracker: five click-to-stamp milestones. The first
+// three (Arrived/Quotation/GM Approved) stamp today's date inline and clear
+// on a second click. The last two (Repair Start/Last) aren't separate
+// fields — they link straight to the job's own Started Date/End Date boxes
+// on the edit form, so there's only ever one place those dates live.
+function StageButton({
+  label,
+  date,
+  onClick,
+  disabled,
+}: {
+  label: string;
+  date: string | null;
+  onClick: () => void;
+  disabled: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      title={date ? `${formatDate(date)} — click to clear` : `Click to mark done today`}
+      className={`flex items-center justify-center w-8 h-8 rounded-lg border text-[10px] font-semibold transition-colors disabled:opacity-50 ${
+        date
+          ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-700"
+          : "bg-neutral-50 border-neutral-200 text-neutral-400 hover:border-indigo-300 hover:text-indigo-600"
+      }`}
+    >
+      {date ? <Check size={13} /> : label}
+    </button>
+  );
+}
+
+function WorkflowCell({ job, editable }: { job: RepairJob; editable: boolean }) {
+  const [isPending, startTransition] = useTransition();
+
+  function toggle(stage: "arrived" | "quotation" | "gmApproved", current: string | null) {
+    startTransition(() =>
+      setRestoreBikeWorkflowDateAction(job.id, job.branch, stage, current ? null : new Date().toISOString().slice(0, 10))
+    );
+  }
+
+  return (
+    <div className="flex items-center gap-1">
+      <StageButton
+        label="Arr"
+        date={job.arrivedDate}
+        onClick={() => toggle("arrived", job.arrivedDate)}
+        disabled={isPending || !editable}
+      />
+      <StageButton
+        label="Quo"
+        date={job.quotationDate}
+        onClick={() => toggle("quotation", job.quotationDate)}
+        disabled={isPending || !editable}
+      />
+      <StageButton
+        label="GM"
+        date={job.gmApprovedDate}
+        onClick={() => toggle("gmApproved", job.gmApprovedDate)}
+        disabled={isPending || !editable}
+      />
+      <Link
+        href={`/repairs/${job.id}/edit`}
+        title={job.startedDate ? `Repair Start: ${formatDate(job.startedDate)} — click to change` : "Click to set the Repair Start date"}
+        className="flex items-center justify-center w-8 h-8 rounded-lg border text-[10px] font-semibold bg-sky-500/10 border-sky-500/30 text-sky-700 hover:bg-sky-500/20 transition-colors"
+      >
+        {job.startedDate ? <Check size={13} /> : "St"}
+      </Link>
+      <Link
+        href={`/repairs/${job.id}/edit`}
+        title={job.completedDate ? `Repair Last: ${formatDate(job.completedDate)} — click to change` : "Click to set the End Date"}
+        className="flex items-center justify-center w-8 h-8 rounded-lg border text-[10px] font-semibold bg-purple-500/10 border-purple-500/30 text-purple-700 hover:bg-purple-500/20 transition-colors"
+      >
+        {job.completedDate ? <Check size={13} /> : "En"}
+      </Link>
+    </div>
+  );
+}
+
 function OverdueBadge({ job }: { job: RepairJob }) {
   if (!isOverdue(job)) return null;
   return (
@@ -555,6 +636,9 @@ function RestoreBikeRow({
       {showBranch && <td className="px-5 py-3.5 text-neutral-600 whitespace-nowrap">{branchLabel(job.branch)}</td>}
       <td className="px-5 py-3.5 text-neutral-700 whitespace-nowrap">{job.picName || "—"}</td>
       <td className="px-5 py-3.5 text-neutral-600 whitespace-nowrap">{job.plateNo}</td>
+      <td className="px-5 py-3.5">
+        <WorkflowCell job={job} editable={editable} />
+      </td>
       <td className="px-5 py-3.5 text-neutral-600 whitespace-nowrap">{job.model || "—"}</td>
       <td className="px-5 py-3.5 text-neutral-600 whitespace-nowrap">{job.bikeYear || "—"}</td>
       <td className="px-5 py-3.5 text-neutral-600 whitespace-nowrap">{job.condition || "—"}</td>
