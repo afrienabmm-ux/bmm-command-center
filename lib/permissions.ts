@@ -3,6 +3,7 @@ import type { Role } from "./current-user";
 export const PAGE_DEFS = [
   { key: "warranty-claims", label: "Warranty Claims", href: "/warranty-claims" },
   { key: "repairs", label: "Restore Bike", href: "/repairs" },
+  { key: "walk-in", label: "Walk-in", href: "/repairs/walk-in" },
   { key: "mechanics", label: "Mechanics", href: "/mechanics" },
   { key: "genblu", label: "GenBlu Registration", href: "/genblu" },
   { key: "catalog", label: "Catalog", href: "/catalog" },
@@ -19,8 +20,8 @@ export const ALL_PAGE_KEYS: PageKey[] = PAGE_DEFS.map((p) => p.key);
 const DEFAULT_PAGES_BY_ROLE: Record<Role, PageKey[]> = {
   Manager: ALL_PAGE_KEYS,
   Admin: ALL_PAGE_KEYS,
-  "Mechanic PIC": ["warranty-claims", "repairs", "mechanics", "genblu", "packages"],
-  IT: ["repairs"],
+  "Mechanic PIC": ["warranty-claims", "repairs", "walk-in", "mechanics", "genblu", "packages"],
+  IT: ["repairs", "walk-in"],
 };
 
 // Manager always sees every function — access control is theirs to hand out,

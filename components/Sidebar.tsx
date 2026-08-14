@@ -15,6 +15,7 @@ import {
   LogOut,
   PanelLeftClose,
   PanelLeftOpen,
+  ClipboardList,
 } from "lucide-react";
 import { signOutAction } from "@/lib/auth-actions";
 import type { Role } from "@/lib/current-user";
@@ -26,6 +27,7 @@ const links: { href: string; label: string; icon: typeof LayoutDashboard; page: 
   { href: "/", label: "Dashboard", icon: LayoutDashboard, page: null },
   { href: "/warranty-claims", label: "Warranty Claims", icon: ShieldCheck, page: "warranty-claims" },
   { href: "/repairs", label: "Restore Bike", icon: Wrench, page: "repairs" },
+  { href: "/repairs/walk-in", label: "Walk-in", icon: ClipboardList, page: "walk-in" },
   { href: "/mechanics", label: "Mechanics", icon: MechanicIcon, page: "mechanics" },
   { href: "/genblu", label: "GenBlu Registration", icon: Smartphone, page: "genblu" },
   { href: "/catalog", label: "Catalog", icon: Package, page: "catalog" },

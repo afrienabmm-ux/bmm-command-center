@@ -54,8 +54,8 @@ export type WarrantyClaim = {
   reason: string;
 };
 
-export type JobType = "Restore Bike";
-export const JOB_TYPES: JobType[] = ["Restore Bike"];
+export type JobType = "Restore Bike" | "Walk-in";
+export const JOB_TYPES: JobType[] = ["Restore Bike", "Walk-in"];
 export type RepairStatus = "Pending" | "In Progress" | "Completed";
 export const REPAIR_STATUSES: RepairStatus[] = ["Pending", "In Progress", "Completed"];
 export type ApprovalStatus = "Pending" | "Approved" | "Not Approved";
