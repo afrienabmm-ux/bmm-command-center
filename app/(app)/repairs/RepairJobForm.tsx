@@ -121,22 +121,18 @@ export default function RepairJobForm({
   const [plateNo, setPlateNo] = useState(job?.plateNo ?? "");
   const [locationBranch, setLocationBranch] = useState<BranchSelection>(job?.branch ?? branchSelection);
   const [mechanicId, setMechanicId] = useState(job?.mechanicId ?? "");
-  const [description, setDescription] = useState(job?.description ?? "");
   const [revenueAmount, setRevenueAmount] = useState(job ? String(job.revenueAmount) : "");
   const [dealType, setDealType] = useState<(typeof DEAL_TYPES)[number]>(
-    (job?.dealType as (typeof DEAL_TYPES)[number]) || "Sell"
-  );
-  const [customDealType, setCustomDealType] = useState(
-    job?.dealType && !DEAL_TYPES.includes(job.dealType as (typeof DEAL_TYPES)[number]) ? job.dealType : ""
+    (job?.dealType as (typeof DEAL_TYPES)[number]) || "Trade In"
   );
   const [picName, setPicName] = useState(job?.picName ?? "");
   const [model, setModel] = useState(job?.model ?? "");
   const [bikeYear, setBikeYear] = useState(job?.bikeYear ?? "");
   const [condition, setCondition] = useState(job?.condition ?? "");
+  const [mileageKm, setMileageKm] = useState(job?.mileageKm ?? "");
   const [stockOrderDate, setStockOrderDate] = useState(job?.stockOrderDate ?? "");
   const [stockArriveDate, setStockArriveDate] = useState(job?.stockArriveDate ?? "");
   const [completedDate, setCompletedDate] = useState(job?.completedDate ?? "");
-  const [preparedBy, setPreparedBy] = useState(job?.preparedBy ?? "");
   const [isBigItem, setIsBigItem] = useState(job?.isBigItem ?? false);
   const [items, setItems] = useState<ItemInput[]>(job ? itemsFromJob(job) : []);
   const [isPending, startTransition] = useTransition();
@@ -195,20 +191,20 @@ export default function RepairJobForm({
       customerName: "",
       plateNo: plateNo.trim(),
       mechanicId: mechanicId || null,
-      description: description.trim(),
+      description: "",
       revenueAmount: Number(revenueAmount) || 0,
-      dealType: dealType === "Others" ? customDealType.trim() : dealType,
+      dealType,
       startedDate,
       picName: picName.trim(),
       model: model.trim(),
       bikeYear: bikeYear.trim(),
       condition: condition.trim(),
+      mileageKm: mileageKm.trim(),
       location: branchLabel(effectiveBranch),
       items: cleanItems,
       stockOrderDate: stockOrderDate || null,
       stockArriveDate: stockArriveDate || null,
       completedDate: completedDate || null,
-      preparedBy: preparedBy.trim(),
       isBigItem,
     };
 
@@ -286,6 +282,15 @@ export default function RepairJobForm({
             />
           </div>
           <div>
+            <label className="block text-xs font-medium text-neutral-600 mb-1.5">Mileage (KM)</label>
+            <input
+              type="text"
+              value={mileageKm}
+              onChange={(e) => setMileageKm(e.target.value)}
+              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+            />
+          </div>
+          <div>
             <label className="block text-xs font-medium text-neutral-600 mb-1.5">Location</label>
             <select
               value={locationBranch}
@@ -353,15 +358,6 @@ export default function RepairJobForm({
           <ItemsEditor items={items} onChange={setItems} />
 
           <div>
-            <label className="block text-xs font-medium text-neutral-600 mb-1.5">Remark</label>
-            <textarea
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              rows={2}
-              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50 resize-none"
-            />
-          </div>
-          <div>
             <label className="block text-xs font-medium text-neutral-600 mb-1.5">Cost Restore (RM)</label>
             <input
               type="number"
@@ -385,7 +381,7 @@ export default function RepairJobForm({
             </p>
           </div>
           <div>
-            <label className="block text-xs font-medium text-neutral-600 mb-1.5">Trade-in / Sell</label>
+            <label className="block text-xs font-medium text-neutral-600 mb-1.5">Trade In / Tarik</label>
             <select
               value={dealType}
               onChange={(e) => setDealType(e.target.value as (typeof DEAL_TYPES)[number])}
@@ -397,15 +393,6 @@ export default function RepairJobForm({
                 </option>
               ))}
             </select>
-            {dealType === "Others" && (
-              <input
-                type="text"
-                value={customDealType}
-                onChange={(e) => setCustomDealType(e.target.value)}
-                placeholder="Type what it is"
-                className="w-full mt-2 bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
-              />
-            )}
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -426,15 +413,6 @@ export default function RepairJobForm({
                 className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
               />
             </div>
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-neutral-600 mb-1.5">Prepared By</label>
-            <input
-              type="text"
-              value={preparedBy}
-              onChange={(e) => setPreparedBy(e.target.value)}
-              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
-            />
           </div>
         </div>
         <div className="flex items-center justify-end gap-3 mt-6 pt-4 border-t border-neutral-200">

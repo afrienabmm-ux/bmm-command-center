@@ -120,7 +120,7 @@ export function isHeavyRepairJob(job: { items: RepairJobItem[]; isBigItem: boole
   return job.items.length > HEAVY_ITEM_COUNT_THRESHOLD || job.isBigItem;
 }
 
-export const DEAL_TYPES = ["Trade In", "Sell", "Others"] as const;
+export const DEAL_TYPES = ["Trade In", "Tarik"] as const;
 
 export type GenbluRegistration = {
   id: string;

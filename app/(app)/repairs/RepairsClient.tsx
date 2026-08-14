@@ -82,13 +82,12 @@ export default function RepairsClient({
         formatDate(j.startedDate),
         j.completedDate ? formatDate(j.completedDate) : "",
         j.revenueAmount.toFixed(2),
-        j.description,
         j.dealType,
         j.approvalStatus,
         j.status,
       ]);
       const csv = toCsv(
-        ["No.", "PIC", "N. Plate", "Model", "Tahun", "Condition", "Mechanic", "Location", "Start Date", "End Date", "Cost Restore (RM)", "Remark", "Trade In / Jual", "Approval", "Status"],
+        ["No.", "PIC", "N. Plate", "Model", "Tahun", "Condition", "Mechanic", "Location", "Start Date", "End Date", "Cost Restore (RM)", "Trade In / Tarik", "Approval", "Status"],
         rows
       );
       const blob = new Blob([csv], { type: "text/csv" });
@@ -146,7 +145,6 @@ export default function RepairsClient({
       formatDate(j.startedDate),
       j.completedDate ? formatDate(j.completedDate) : "",
       j.revenueAmount.toFixed(2),
-      j.description,
       j.dealType,
       j.approvalStatus,
       j.status,
@@ -164,8 +162,7 @@ export default function RepairsClient({
         "Start Date",
         "End Date",
         "Cost Restore (RM)",
-        "Remark",
-        "Trade In / Jual",
+        "Trade In / Tarik",
         "Approval",
         "Status",
       ],
@@ -279,8 +276,7 @@ export default function RepairsClient({
                 <th className="font-medium px-5 py-3 whitespace-nowrap">Start Date</th>
                 <th className="font-medium px-5 py-3 whitespace-nowrap">End Date</th>
                 <th className="font-medium px-5 py-3 whitespace-nowrap">Cost Restore</th>
-                <th className="font-medium px-5 py-3 whitespace-nowrap">Remark</th>
-                <th className="font-medium px-5 py-3 whitespace-nowrap">Trade In / Jual</th>
+                <th className="font-medium px-5 py-3 whitespace-nowrap">Trade In / Tarik</th>
                 <th className="font-medium px-5 py-3 whitespace-nowrap">Approval</th>
                 <th className="font-medium px-5 py-3 whitespace-nowrap">Status</th>
                 <th className="px-5 py-3" />
@@ -299,7 +295,7 @@ export default function RepairsClient({
               ))}
               {jobs.length === 0 && (
                 <tr>
-                  <td colSpan={showBranchColumn ? 17 : 16} className="px-5 py-10 text-center text-neutral-500 text-sm">
+                  <td colSpan={showBranchColumn ? 16 : 15} className="px-5 py-10 text-center text-neutral-500 text-sm">
                     {tab === "active" ? "No active" : "No completed"} Restore Bike jobs.
                   </td>
                 </tr>
@@ -581,7 +577,6 @@ function RestoreBikeRow({
       </td>
       <td className="px-5 py-3.5 text-neutral-500 whitespace-nowrap">{job.completedDate ? formatDate(job.completedDate) : "—"}</td>
       <td className="px-5 py-3.5 text-neutral-700 whitespace-nowrap">{formatCurrency(job.revenueAmount)}</td>
-      <td className="px-5 py-3.5 text-neutral-600 max-w-xs truncate">{job.description || "—"}</td>
       <td className="px-5 py-3.5 text-neutral-600 whitespace-nowrap">{job.dealType || "—"}</td>
       <td className="px-5 py-3.5">
         <ApprovalCell job={job} branch={job.branch} />
