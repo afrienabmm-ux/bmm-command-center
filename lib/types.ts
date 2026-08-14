@@ -99,12 +99,19 @@ export type RepairJob = {
   // Manually flags a job as heavy even when it has 3 or fewer items (e.g.
   // one big engine part) — jobs with more than 3 items count as heavy too.
   isBigItem: boolean;
-  // Walk-in only — mirrors the paper jobsheet's Customer Code / Colour /
-  // Engine No. / Chassis No. boxes.
+  // Walk-in only — mirrors the paper jobsheet's boxes.
   customerCode: string;
   colour: string;
   engineNo: string;
   chassisNo: string;
+  jobsheetNo: string;
+  salesNo: string;
+  salesDate: string;
+  warrantyCardNo: string;
+  mileageKm: string;
+  nextMileageKm: string;
+  serviceType: string;
+  nextServiceDate: string;
 };
 
 export const HEAVY_ITEM_COUNT_THRESHOLD = 3;

@@ -125,6 +125,14 @@ export default function WalkInJobForm({
   const [colour, setColour] = useState(job?.colour ?? "");
   const [engineNo, setEngineNo] = useState(job?.engineNo ?? "");
   const [chassisNo, setChassisNo] = useState(job?.chassisNo ?? "");
+  const [jobsheetNo, setJobsheetNo] = useState(job?.jobsheetNo ?? "");
+  const [salesNo, setSalesNo] = useState(job?.salesNo ?? "");
+  const [salesDate, setSalesDate] = useState(job?.salesDate ?? "");
+  const [warrantyCardNo, setWarrantyCardNo] = useState(job?.warrantyCardNo ?? "");
+  const [mileageKm, setMileageKm] = useState(job?.mileageKm ?? "");
+  const [nextMileageKm, setNextMileageKm] = useState(job?.nextMileageKm ?? "");
+  const [serviceType, setServiceType] = useState(job?.serviceType ?? "");
+  const [nextServiceDate, setNextServiceDate] = useState(job?.nextServiceDate ?? "");
   const [locationBranch, setLocationBranch] = useState<BranchSelection>(job?.branch ?? branchSelection);
   const [mechanicId, setMechanicId] = useState(job?.mechanicId ?? "");
   const [description, setDescription] = useState(job?.description ?? "");
@@ -219,6 +227,38 @@ export default function WalkInJobForm({
       if (scanned.chassisNo) {
         setChassisNo(scanned.chassisNo);
         filled.push("chassis no.");
+      }
+      if (scanned.jobsheetNo) {
+        setJobsheetNo(scanned.jobsheetNo);
+        filled.push("job no.");
+      }
+      if (scanned.salesNo) {
+        setSalesNo(scanned.salesNo);
+        filled.push("sales no.");
+      }
+      if (scanned.salesDate) {
+        setSalesDate(scanned.salesDate);
+        filled.push("sales date");
+      }
+      if (scanned.warrantyCardNo) {
+        setWarrantyCardNo(scanned.warrantyCardNo);
+        filled.push("warranty card no.");
+      }
+      if (scanned.mileageKm) {
+        setMileageKm(scanned.mileageKm);
+        filled.push("mileage");
+      }
+      if (scanned.nextMileageKm) {
+        setNextMileageKm(scanned.nextMileageKm);
+        filled.push("next mileage");
+      }
+      if (scanned.serviceType) {
+        setServiceType(scanned.serviceType);
+        filled.push("service type");
+      }
+      if (scanned.nextServiceDate) {
+        setNextServiceDate(scanned.nextServiceDate);
+        filled.push("next service date");
       }
       if (scanned.startedDate) {
         setStartedDate(scanned.startedDate);
@@ -318,6 +358,14 @@ export default function WalkInJobForm({
       colour: colour.trim(),
       engineNo: engineNo.trim(),
       chassisNo: chassisNo.trim(),
+      jobsheetNo: jobsheetNo.trim(),
+      salesNo: salesNo.trim(),
+      salesDate: salesDate.trim(),
+      warrantyCardNo: warrantyCardNo.trim(),
+      mileageKm: mileageKm.trim(),
+      nextMileageKm: nextMileageKm.trim(),
+      serviceType: serviceType.trim(),
+      nextServiceDate: nextServiceDate.trim(),
       location: branchLabel(effectiveBranch),
       items: cleanItems,
       completedDate: completedDate || null,
@@ -451,6 +499,81 @@ export default function WalkInJobForm({
               onChange={(e) => setChassisNo(e.target.value)}
               className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
             />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-neutral-600 mb-1.5">Job No. (jobsheet)</label>
+              <input
+                type="text"
+                value={jobsheetNo}
+                onChange={(e) => setJobsheetNo(e.target.value)}
+                className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-neutral-600 mb-1.5">Sales No.</label>
+              <input
+                type="text"
+                value={salesNo}
+                onChange={(e) => setSalesNo(e.target.value)}
+                className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-neutral-600 mb-1.5">Sales Date</label>
+              <input
+                type="date"
+                value={salesDate}
+                onChange={(e) => setSalesDate(e.target.value)}
+                className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-neutral-600 mb-1.5">Warranty Card No.</label>
+              <input
+                type="text"
+                value={warrantyCardNo}
+                onChange={(e) => setWarrantyCardNo(e.target.value)}
+                className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-neutral-600 mb-1.5">Mileage (KM)</label>
+              <input
+                type="text"
+                value={mileageKm}
+                onChange={(e) => setMileageKm(e.target.value)}
+                className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-neutral-600 mb-1.5">Next Mileage (KM)</label>
+              <input
+                type="text"
+                value={nextMileageKm}
+                onChange={(e) => setNextMileageKm(e.target.value)}
+                className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-neutral-600 mb-1.5">Service Type</label>
+              <input
+                type="text"
+                value={serviceType}
+                onChange={(e) => setServiceType(e.target.value)}
+                placeholder="e.g. NORMAL SERVICE"
+                className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-neutral-600 mb-1.5">Next Service Date</label>
+              <input
+                type="date"
+                value={nextServiceDate}
+                onChange={(e) => setNextServiceDate(e.target.value)}
+                className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+              />
+            </div>
           </div>
           <div>
             <label className="block text-xs font-medium text-neutral-600 mb-1.5">Location</label>

@@ -39,6 +39,14 @@ type Row = {
   colour: string;
   engine_no: string;
   chassis_no: string;
+  jobsheet_no: string;
+  sales_no: string;
+  sales_date: string;
+  warranty_card_no: string;
+  mileage_km: string;
+  next_mileage_km: string;
+  service_type: string;
+  next_service_date: string;
   cc_repair_job_items: ItemRow[] | null;
 };
 
@@ -78,6 +86,14 @@ function toJob(r: Row): RepairJob {
     colour: r.colour,
     engineNo: r.engine_no,
     chassisNo: r.chassis_no,
+    jobsheetNo: r.jobsheet_no,
+    salesNo: r.sales_no,
+    salesDate: r.sales_date,
+    warrantyCardNo: r.warranty_card_no,
+    mileageKm: r.mileage_km,
+    nextMileageKm: r.next_mileage_km,
+    serviceType: r.service_type,
+    nextServiceDate: r.next_service_date,
   };
 }
 
@@ -257,6 +273,14 @@ export async function addRepairJobAction(input: {
   colour?: string;
   engineNo?: string;
   chassisNo?: string;
+  jobsheetNo?: string;
+  salesNo?: string;
+  salesDate?: string;
+  warrantyCardNo?: string;
+  mileageKm?: string;
+  nextMileageKm?: string;
+  serviceType?: string;
+  nextServiceDate?: string;
 }): Promise<void> {
   const user = await requireApproved();
   assertCanEditBranch(user, input.branch);
@@ -298,6 +322,14 @@ export async function addRepairJobAction(input: {
       colour: input.colour ?? "",
       engine_no: input.engineNo ?? "",
       chassis_no: input.chassisNo ?? "",
+      jobsheet_no: input.jobsheetNo ?? "",
+      sales_no: input.salesNo ?? "",
+      sales_date: input.salesDate ?? "",
+      warranty_card_no: input.warrantyCardNo ?? "",
+      mileage_km: input.mileageKm ?? "",
+      next_mileage_km: input.nextMileageKm ?? "",
+      service_type: input.serviceType ?? "",
+      next_service_date: input.nextServiceDate ?? "",
     })
     .select("id")
     .single();
@@ -333,6 +365,14 @@ export async function updateRepairJobAction(
     colour?: string;
     engineNo?: string;
     chassisNo?: string;
+    jobsheetNo?: string;
+    salesNo?: string;
+    salesDate?: string;
+    warrantyCardNo?: string;
+    mileageKm?: string;
+    nextMileageKm?: string;
+    serviceType?: string;
+    nextServiceDate?: string;
   }
 ): Promise<void> {
   const user = await requireApproved();
@@ -365,6 +405,14 @@ export async function updateRepairJobAction(
       colour: input.colour ?? "",
       engine_no: input.engineNo ?? "",
       chassis_no: input.chassisNo ?? "",
+      jobsheet_no: input.jobsheetNo ?? "",
+      sales_no: input.salesNo ?? "",
+      sales_date: input.salesDate ?? "",
+      warranty_card_no: input.warrantyCardNo ?? "",
+      mileage_km: input.mileageKm ?? "",
+      next_mileage_km: input.nextMileageKm ?? "",
+      service_type: input.serviceType ?? "",
+      next_service_date: input.nextServiceDate ?? "",
     })
     .eq("id", id);
   if (error) throw new Error(error.message);
