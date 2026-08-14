@@ -34,6 +34,8 @@ export function isOpenClaim(status: ClaimStatus): boolean {
 
 export type StockStatus = "Sold" | "In Stock";
 export const STOCK_STATUSES: StockStatus[] = ["Sold", "In Stock"];
+export type BikeMake = "Yamaha" | "Non-Yamaha";
+export const BIKE_MAKES: BikeMake[] = ["Yamaha", "Non-Yamaha"];
 export type WarrantyClaim = {
   id: string;
   branch: Branch;
@@ -44,6 +46,7 @@ export type WarrantyClaim = {
   phone: string;
   description: string;
   stockStatus: StockStatus;
+  bikeMake: BikeMake;
   status: ClaimStatus;
   submittedDate: string;
   createdAt: string;
@@ -113,7 +116,14 @@ export type RepairJob = {
   serviceType: string;
   nextServiceDate: string;
   jobsheetUserId: string;
+  // Restore Bike only — a required photo of the bike, stored the same way
+  // as GenBlu screenshots (private bucket, path only; resolved to a signed
+  // URL on read).
+  imagePath: string | null;
 };
+
+export const RESTORE_BIKE_CONDITIONS = ["L", "H"] as const;
+export type RestoreBikeCondition = (typeof RESTORE_BIKE_CONDITIONS)[number];
 
 export const HEAVY_ITEM_COUNT_THRESHOLD = 3;
 export function isHeavyRepairJob(job: { items: RepairJobItem[]; isBigItem: boolean }): boolean {

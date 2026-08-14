@@ -3,8 +3,8 @@
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, Trash2 } from "lucide-react";
-import { addRepairJobAction, updateRepairJobAction } from "@/lib/repairs-actions";
-import { DEAL_TYPES, HEAVY_ITEM_COUNT_THRESHOLD, type RepairJob } from "@/lib/types";
+import { addRepairJobAction, updateRepairJobAction, uploadRestoreBikeImageAction, getRestoreBikeImageUrl } from "@/lib/repairs-actions";
+import { DEAL_TYPES, HEAVY_ITEM_COUNT_THRESHOLD, RESTORE_BIKE_CONDITIONS, type RestoreBikeCondition, type RepairJob } from "@/lib/types";
 import type { Mechanic } from "@/lib/types";
 import { BRANCHES, branchLabel, type Branch, type BranchSelection } from "@/lib/branch";
 import { formatCurrency } from "@/lib/format";
@@ -128,14 +128,24 @@ export default function RepairJobForm({
   const [picName, setPicName] = useState(job?.picName ?? "");
   const [model, setModel] = useState(job?.model ?? "");
   const [bikeYear, setBikeYear] = useState(job?.bikeYear ?? "");
-  const [condition, setCondition] = useState(job?.condition ?? "");
+  const [condition, setCondition] = useState<RestoreBikeCondition>(
+    RESTORE_BIKE_CONDITIONS.includes(job?.condition as RestoreBikeCondition) ? (job!.condition as RestoreBikeCondition) : "L"
+  );
   const [mileageKm, setMileageKm] = useState(job?.mileageKm ?? "");
   const [stockOrderDate, setStockOrderDate] = useState(job?.stockOrderDate ?? "");
   const [stockArriveDate, setStockArriveDate] = useState(job?.stockArriveDate ?? "");
   const [completedDate, setCompletedDate] = useState(job?.completedDate ?? "");
   const [isBigItem, setIsBigItem] = useState(job?.isBigItem ?? false);
   const [items, setItems] = useState<ItemInput[]>(job ? itemsFromJob(job) : []);
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [existingImageUrl, setExistingImageUrl] = useState<string | null>(null);
+  const [imageError, setImageError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+
+  useEffect(() => {
+    if (!job?.imagePath) return;
+    getRestoreBikeImageUrl(job.imagePath).then(setExistingImageUrl);
+  }, [job?.imagePath]);
 
   const itemCount = items.filter((it) => it.description.trim() !== "").length;
   const isHeavyJob = itemCount > HEAVY_ITEM_COUNT_THRESHOLD || isBigItem;
@@ -174,11 +184,18 @@ export default function RepairJobForm({
     setMechanicId("");
   }
 
-  // Every job needs a mechanic assigned before it can be saved.
-  const canSave = plateNo.trim() !== "" && effectiveBranch !== null && mechanicId !== "";
+  // Every job needs a mechanic assigned before it can be saved. A photo of
+  // the bike is required too — either a new upload, or (when editing) one
+  // already on file.
+  const hasImage = imageFile !== null || existingImageUrl !== null;
+  const canSave = plateNo.trim() !== "" && effectiveBranch !== null && mechanicId !== "" && hasImage;
 
   function handleSave() {
-    if (!canSave || !effectiveBranch) return;
+    if (!canSave || !effectiveBranch) {
+      if (!hasImage) setImageError("A photo of the bike is required.");
+      return;
+    }
+    setImageError(null);
     const cleanItems = items
       .filter((it) => it.description.trim() !== "")
       .map((it) => ({
@@ -209,10 +226,17 @@ export default function RepairJobForm({
     };
 
     startTransition(async () => {
+      let jobId = job?.id;
       if (isEdit && job) {
         await updateRepairJobAction(job.id, job.branch, payload);
       } else {
-        await addRepairJobAction({ ...payload, branch: effectiveBranch, jobType: "Restore Bike" });
+        const result = await addRepairJobAction({ ...payload, branch: effectiveBranch, jobType: "Restore Bike" });
+        jobId = result.id;
+      }
+      if (imageFile && jobId) {
+        const imageFormData = new FormData();
+        imageFormData.append("image", imageFile);
+        await uploadRestoreBikeImageAction(jobId, effectiveBranch, imageFormData);
       }
       router.push("/repairs");
     });
@@ -273,13 +297,35 @@ export default function RepairJobForm({
           </div>
           <div>
             <label className="block text-xs font-medium text-neutral-600 mb-1.5">Condition</label>
-            <input
-              type="text"
+            <select
               value={condition}
-              onChange={(e) => setCondition(e.target.value)}
-              placeholder="e.g. Engine damaged, needs full service"
+              onChange={(e) => setCondition(e.target.value as RestoreBikeCondition)}
               className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+            >
+              {RESTORE_BIKE_CONDITIONS.map((c) => (
+                <option key={c} value={c}>
+                  {c} — {c === "L" ? "Light" : "Heavy"}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-neutral-600 mb-1.5">Bike Photo *</label>
+            {existingImageUrl && !imageFile && (
+              <img src={existingImageUrl} alt="Bike" className="w-32 h-32 object-cover rounded-lg border border-neutral-200 mb-2" />
+            )}
+            <input
+              type="file"
+              accept="image/*"
+              onChange={(e) => {
+                const file = e.target.files?.[0] ?? null;
+                setImageFile(file);
+                if (file) setImageError(null);
+              }}
+              className="w-full text-sm text-neutral-700 file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:bg-neutral-100 file:text-neutral-800 file:text-xs"
             />
+            {imageError && <p className="text-xs text-red-600 mt-1.5">{imageError}</p>}
+            <p className="text-xs text-neutral-500 mt-1.5">A photo of the bike is required before this job can be saved.</p>
           </div>
           <div>
             <label className="block text-xs font-medium text-neutral-600 mb-1.5">Mileage (KM)</label>

@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { supabaseAdmin } from "./supabase-server";
 import { requireApproved, assertCanEditBranch } from "./current-user";
-import type { WarrantyClaim, ClaimStatus, StockStatus } from "./types";
+import type { WarrantyClaim, ClaimStatus, StockStatus, BikeMake } from "./types";
 import { BRANCHES, type Branch } from "./branch";
 
 type Row = {
@@ -16,6 +16,7 @@ type Row = {
   phone: string;
   description: string;
   stock_status: StockStatus;
+  bike_make: BikeMake;
   status: ClaimStatus;
   submitted_date: string;
   created_at: string;
@@ -35,6 +36,7 @@ function toClaim(r: Row): WarrantyClaim {
     phone: r.phone,
     description: r.description,
     stockStatus: r.stock_status,
+    bikeMake: r.bike_make ?? "Yamaha",
     status: r.status,
     submittedDate: r.submitted_date,
     createdAt: r.created_at,
@@ -71,6 +73,7 @@ export async function addWarrantyClaimAction(input: {
   phone: string;
   description: string;
   stockStatus: StockStatus;
+  bikeMake: BikeMake;
   submittedDate: string;
   pic?: string;
   latestStatus?: string;
@@ -95,6 +98,7 @@ export async function addWarrantyClaimAction(input: {
     phone: input.phone.trim(),
     description: input.description.trim(),
     stock_status: input.stockStatus,
+    bike_make: input.bikeMake,
     submitted_date: input.submittedDate,
     status: "Pending",
     pic: input.pic?.trim() ?? "",

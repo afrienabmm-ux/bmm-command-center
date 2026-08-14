@@ -48,6 +48,7 @@ type Row = {
   service_type: string;
   next_service_date: string;
   jobsheet_user_id: string;
+  image_path: string | null;
   cc_repair_job_items: ItemRow[] | null;
 };
 
@@ -96,6 +97,7 @@ function toJob(r: Row): RepairJob {
     serviceType: r.service_type,
     nextServiceDate: r.next_service_date,
     jobsheetUserId: r.jobsheet_user_id,
+    imagePath: r.image_path,
   };
 }
 
@@ -284,7 +286,7 @@ export async function addRepairJobAction(input: {
   serviceType?: string;
   nextServiceDate?: string;
   jobsheetUserId?: string;
-}): Promise<void> {
+}): Promise<{ id: string }> {
   const user = await requireApproved();
   assertCanEditBranch(user, input.branch);
   const items = input.items ?? [];
@@ -342,6 +344,7 @@ export async function addRepairJobAction(input: {
   if (items.length > 0) await replaceJobItems(data.id, items);
   revalidatePath("/repairs");
   revalidatePath("/repairs/walk-in");
+  return { id: data.id };
 }
 
 export async function updateRepairJobAction(
@@ -473,4 +476,39 @@ export async function deleteRepairJobAction(id: string, branch: Branch): Promise
   revalidatePath("/repairs");
   revalidatePath("/repairs/walk-in");
   revalidatePath("/");
+}
+
+const RESTORE_BIKE_PHOTO_BUCKET = "restore-bike-photos";
+
+// Restore Bike only — the required photo of the bike, stored the same way
+// as GenBlu screenshots (private bucket, path only in the DB; resolved to
+// a time-limited signed URL whenever it needs to be shown).
+export async function uploadRestoreBikeImageAction(
+  jobId: string,
+  branch: Branch,
+  formData: FormData
+): Promise<{ error: string } | void> {
+  const user = await requireApproved();
+  assertCanEditBranch(user, branch);
+
+  const file = formData.get("image") as File | null;
+  if (!file || file.size === 0) return { error: "No photo was uploaded." };
+
+  const ext = file.name.split(".").pop() || "jpg";
+  const path = `${branch}/${jobId}-${Date.now()}.${ext}`;
+  const { error: uploadError } = await supabaseAdmin.storage
+    .from(RESTORE_BIKE_PHOTO_BUCKET)
+    .upload(path, file, { contentType: file.type || "image/jpeg" });
+  if (uploadError) return { error: `Couldn't upload the photo: ${uploadError.message}` };
+
+  const { error } = await supabaseAdmin.from("cc_repair_jobs").update({ image_path: path }).eq("id", jobId);
+  if (error) return { error: error.message };
+  revalidatePath("/repairs");
+  revalidatePath("/repairs/walk-in");
+}
+
+export async function getRestoreBikeImageUrl(path: string): Promise<string | null> {
+  const { data, error } = await supabaseAdmin.storage.from(RESTORE_BIKE_PHOTO_BUCKET).createSignedUrl(path, 60 * 60);
+  if (error) return null;
+  return data.signedUrl;
 }

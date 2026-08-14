@@ -9,7 +9,15 @@ import {
   updateClaimNotesAction,
   deleteClaimAction,
 } from "@/lib/claims-actions";
-import { CLAIM_STATUSES, STOCK_STATUSES, type ClaimStatus, type StockStatus, type WarrantyClaim } from "@/lib/types";
+import {
+  CLAIM_STATUSES,
+  STOCK_STATUSES,
+  BIKE_MAKES,
+  type ClaimStatus,
+  type StockStatus,
+  type BikeMake,
+  type WarrantyClaim,
+} from "@/lib/types";
 import { BRANCHES, branchLabel, type Branch, type BranchSelection } from "@/lib/branch";
 import { formatDate, toCsv } from "@/lib/format";
 
@@ -38,6 +46,7 @@ export default function ClaimsClient({
   const [modalOpen, setModalOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<ClaimStatus | "All">("All");
+  const [bikeMakeFilter, setBikeMakeFilter] = useState<BikeMake | "All">("All");
   const [exporting, setExporting] = useState(false);
   const showBranchColumn = branchSelection === "all";
 
@@ -45,12 +54,13 @@ export default function ClaimsClient({
     const q = query.trim().toLowerCase();
     return claims.filter((c) => {
       if (statusFilter !== "All" && c.status !== statusFilter) return false;
+      if (bikeMakeFilter !== "All" && c.bikeMake !== bikeMakeFilter) return false;
       if (!q) return true;
       return [c.customerName, c.plateNo, c.ticketId, c.status, c.pic, c.model, c.latestStatus].some((f) =>
         (f ?? "").toLowerCase().includes(q)
       );
     });
-  }, [claims, query, statusFilter]);
+  }, [claims, query, statusFilter, bikeMakeFilter]);
 
   // Every PIC name already used, so the add form can offer them instead of
   // relying on everyone spelling it the same way.
@@ -59,39 +69,59 @@ export default function ClaimsClient({
     [claims]
   );
 
+  const EXPORT_HEADERS = ["Ticket ID", "PIC", "Customer", "Plate No", "Model", "Phone", "Issue", "Stock Status", "Status", "Latest Status", "Reason", "Submitted Date"];
+
+  function exportRows(list: WarrantyClaim[]): (string | number)[][] {
+    return list.map((c) => {
+      const row: (string | number)[] = [
+        c.ticketId,
+        c.pic,
+        c.customerName,
+        c.plateNo,
+        c.model,
+        c.phone,
+        c.description,
+        c.stockStatus,
+        c.status,
+        c.latestStatus,
+        c.reason,
+        formatDate(c.submittedDate),
+      ];
+      if (showBranchColumn) row.splice(1, 0, branchLabel(c.branch));
+      return row;
+    });
+  }
+
+  function downloadCsv(rows: (string | number)[][], filename: string) {
+    const headers = showBranchColumn ? [EXPORT_HEADERS[0], "Branch", ...EXPORT_HEADERS.slice(1)] : EXPORT_HEADERS;
+    const csv = toCsv(headers, rows);
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  // Yamaha and non-Yamaha claims always go in separate files — mixing the
+  // two brands in one export defeats the point of tracking them apart.
   function handleExport() {
     setExporting(true);
     try {
-      const filtered = statusFilter === "All" ? claims : claims.filter((c) => c.status === statusFilter);
-      const headers = ["Ticket ID", "PIC", "Customer", "Plate No", "Model", "Phone", "Issue", "Stock Status", "Status", "Latest Status", "Reason", "Submitted Date"];
-      if (showBranchColumn) headers.splice(1, 0, "Branch");
-      const rows = filtered.map((c) => {
-        const row: (string | number)[] = [
-          c.ticketId,
-          c.pic,
-          c.customerName,
-          c.plateNo,
-          c.model,
-          c.phone,
-          c.description,
-          c.stockStatus,
-          c.status,
-          c.latestStatus,
-          c.reason,
-          formatDate(c.submittedDate),
-        ];
-        if (showBranchColumn) row.splice(1, 0, branchLabel(c.branch));
-        return row;
-      });
-      const csv = toCsv(headers, rows);
-      const blob = new Blob([csv], { type: "text/csv" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
+      const statusFiltered = statusFilter === "All" ? claims : claims.filter((c) => c.status === statusFilter);
       const suffix = statusFilter === "All" ? "" : `-${statusFilter.toLowerCase().replace(/\s+/g, "-")}`;
-      a.download = `bmm-warranty-claims-${branchSelection}${suffix}.csv`;
-      a.click();
-      URL.revokeObjectURL(url);
+
+      if (bikeMakeFilter === "All") {
+        for (const make of BIKE_MAKES) {
+          const list = statusFiltered.filter((c) => c.bikeMake === make);
+          if (list.length === 0) continue;
+          downloadCsv(exportRows(list), `bmm-warranty-claims-${branchSelection}${suffix}-${make.toLowerCase()}.csv`);
+        }
+      } else {
+        const list = statusFiltered.filter((c) => c.bikeMake === bikeMakeFilter);
+        downloadCsv(exportRows(list), `bmm-warranty-claims-${branchSelection}${suffix}-${bikeMakeFilter.toLowerCase()}.csv`);
+      }
     } finally {
       setExporting(false);
     }
@@ -113,6 +143,18 @@ export default function ClaimsClient({
           />
         </div>
         <div className="flex items-center gap-3">
+          <select
+            value={bikeMakeFilter}
+            onChange={(e) => setBikeMakeFilter(e.target.value as BikeMake | "All")}
+            className="bg-white border border-neutral-200 rounded-lg px-3 py-2 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+          >
+            <option value="All">Yamaha + Non-Yamaha</option>
+            {BIKE_MAKES.map((m) => (
+              <option key={m} value={m}>
+                {m}
+              </option>
+            ))}
+          </select>
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value as ClaimStatus | "All")}
@@ -152,6 +194,7 @@ export default function ClaimsClient({
                 <th className="font-medium px-5 py-3 whitespace-nowrap">Customer</th>
                 <th className="font-medium px-5 py-3 whitespace-nowrap">Plate No.</th>
                 <th className="font-medium px-5 py-3 whitespace-nowrap">Model</th>
+                <th className="font-medium px-5 py-3 whitespace-nowrap">Make</th>
                 <th className="font-medium px-5 py-3 whitespace-nowrap">Phone</th>
                 <th className="font-medium px-5 py-3 whitespace-nowrap">Issue</th>
                 <th className="font-medium px-5 py-3 whitespace-nowrap">Stock</th>
@@ -168,7 +211,7 @@ export default function ClaimsClient({
               ))}
               {visible.length === 0 && (
                 <tr>
-                  <td colSpan={showBranchColumn ? 14 : 13} className="px-5 py-10 text-center text-neutral-500 text-sm">
+                  <td colSpan={showBranchColumn ? 15 : 14} className="px-5 py-10 text-center text-neutral-500 text-sm">
                     {claims.length === 0 ? "No warranty claims yet." : "No claims match your search."}
                   </td>
                 </tr>
@@ -208,6 +251,17 @@ function ClaimRow({ claim, showBranch, knownPics }: { claim: WarrantyClaim; show
       <td className="px-5 py-3.5 text-neutral-700 whitespace-nowrap">{claim.customerName}</td>
       <td className="px-5 py-3.5 text-neutral-600 whitespace-nowrap">{claim.plateNo}</td>
       <td className="px-5 py-3.5 text-neutral-600 whitespace-nowrap">{claim.model || "—"}</td>
+      <td className="px-5 py-3.5 whitespace-nowrap">
+        <span
+          className={`text-xs font-medium px-2.5 py-1 rounded-full border ${
+            claim.bikeMake === "Yamaha"
+              ? "bg-red-500/10 text-red-700 border-red-500/20"
+              : "bg-neutral-100 text-neutral-600 border-neutral-300"
+          }`}
+        >
+          {claim.bikeMake}
+        </span>
+      </td>
       <td className="px-5 py-3.5 text-neutral-600 whitespace-nowrap">{claim.phone || "—"}</td>
       <td className="px-5 py-3.5 text-neutral-600 max-w-xs truncate">{claim.description}</td>
       <td className="px-5 py-3.5">
@@ -474,6 +528,7 @@ function AddClaimModal({
   const [phone, setPhone] = useState("");
   const [description, setDescription] = useState("");
   const [stockStatus, setStockStatus] = useState<StockStatus>("In Stock");
+  const [bikeMake, setBikeMake] = useState<BikeMake>("Yamaha");
   const [submittedDate, setSubmittedDate] = useState(new Date().toISOString().slice(0, 10));
   const [pic, setPic] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -496,6 +551,7 @@ function AddClaimModal({
         phone: phone.trim(),
         description: description.trim(),
         stockStatus,
+        bikeMake,
         submittedDate,
         pic: pic.trim(),
       });
@@ -584,6 +640,20 @@ function AddClaimModal({
                 className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
               />
             </div>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-neutral-600 mb-1.5">Bike Make</label>
+            <select
+              value={bikeMake}
+              onChange={(e) => setBikeMake(e.target.value as BikeMake)}
+              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+            >
+              {BIKE_MAKES.map((m) => (
+                <option key={m} value={m}>
+                  {m}
+                </option>
+              ))}
+            </select>
           </div>
           <div>
             <label className="block text-xs font-medium text-neutral-600 mb-1.5">Phone No.</label>
