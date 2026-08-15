@@ -59,8 +59,8 @@ function RevenueTrendChart({ points }: { points: MonthlyTrendPoint[] }) {
         </div>
       </div>
       <div className="overflow-x-auto">
-        <svg width={width + 44} height={padTop + LINE_CHART_HEIGHT + 36} className="min-w-full">
-          <g transform="translate(44, 0)">
+        <svg width={width + 64} height={padTop + LINE_CHART_HEIGHT + 36} className="min-w-full">
+          <g transform="translate(64, 0)">
             {ticks.map((t) => (
               <g key={t}>
                 <line
@@ -86,7 +86,7 @@ function RevenueTrendChart({ points }: { points: MonthlyTrendPoint[] }) {
                 <g key={`${p.year}-${p.month}`}>
                   <text
                     x={xAt(i)}
-                    y={achievedAbove ? targetY + 16 : targetY - 8}
+                    y={achievedAbove ? targetY + 18 : targetY - 10}
                     textAnchor="middle"
                     className="fill-neutral-500 text-[10px] font-medium"
                   >
@@ -94,7 +94,7 @@ function RevenueTrendChart({ points }: { points: MonthlyTrendPoint[] }) {
                   </text>
                   <text
                     x={xAt(i)}
-                    y={achievedAbove ? achievedY - 8 : achievedY + 16}
+                    y={achievedAbove ? achievedY - 10 : achievedY + 18}
                     textAnchor="middle"
                     className="fill-indigo-600 text-[10px] font-semibold"
                   >
