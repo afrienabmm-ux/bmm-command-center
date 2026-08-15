@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { supabaseAdmin } from "./supabase-server";
 import { requireApproved } from "./current-user";
-import type { CatalogProduct, CatalogBrand } from "./types";
+import type { CatalogProduct, CatalogBrand, LabourCharge } from "./types";
 import type { Branch } from "./branch";
 import { LOW_STOCK_THRESHOLD } from "./types";
 
@@ -135,4 +135,71 @@ export async function getLowStockProducts(branch: Branch): Promise<LowStockItem[
     }))
     .filter((p) => p.quantity < LOW_STOCK_THRESHOLD)
     .sort((a, b) => a.quantity - b.quantity);
+}
+
+type LabourRow = {
+  id: string;
+  description: string;
+  price_0_125cc: string;
+  price_125_200cc: string;
+  price_200cc_plus: string;
+};
+
+function toLabourCharge(r: LabourRow): LabourCharge {
+  return {
+    id: r.id,
+    description: r.description,
+    price0to125cc: r.price_0_125cc,
+    price125to200cc: r.price_125_200cc,
+    price200ccPlus: r.price_200cc_plus,
+  };
+}
+
+export async function getLabourCharges(): Promise<LabourCharge[]> {
+  await requireApproved();
+  const { data, error } = await supabaseAdmin.from("cc_labour_charges").select("*").order("sort_order");
+  if (error) throw new Error(error.message);
+  return (data as LabourRow[]).map(toLabourCharge);
+}
+
+export async function addLabourChargeAction(input: {
+  description: string;
+  price0to125cc: string;
+  price125to200cc: string;
+  price200ccPlus: string;
+}): Promise<void> {
+  await requireApproved();
+  const { error } = await supabaseAdmin.from("cc_labour_charges").insert({
+    description: input.description,
+    price_0_125cc: input.price0to125cc,
+    price_125_200cc: input.price125to200cc,
+    price_200cc_plus: input.price200ccPlus,
+  });
+  if (error) throw new Error(error.message);
+  revalidatePath("/catalog");
+}
+
+export async function updateLabourChargeAction(
+  id: string,
+  input: { description: string; price0to125cc: string; price125to200cc: string; price200ccPlus: string }
+): Promise<void> {
+  await requireApproved();
+  const { error } = await supabaseAdmin
+    .from("cc_labour_charges")
+    .update({
+      description: input.description,
+      price_0_125cc: input.price0to125cc,
+      price_125_200cc: input.price125to200cc,
+      price_200cc_plus: input.price200ccPlus,
+    })
+    .eq("id", id);
+  if (error) throw new Error(error.message);
+  revalidatePath("/catalog");
+}
+
+export async function deleteLabourChargeAction(id: string): Promise<void> {
+  await requireApproved();
+  const { error } = await supabaseAdmin.from("cc_labour_charges").delete().eq("id", id);
+  if (error) throw new Error(error.message);
+  revalidatePath("/catalog");
 }

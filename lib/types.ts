@@ -181,3 +181,11 @@ export type CatalogProduct = {
   price: number;
   code: string;
 };
+
+export type LabourCharge = {
+  id: string;
+  description: string;
+  price0to125cc: string;
+  price125to200cc: string;
+  price200ccPlus: string;
+};
