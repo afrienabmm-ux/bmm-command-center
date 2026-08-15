@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { supabaseAdmin } from "./supabase-server";
 import { requireApproved, assertCanEditBranch } from "./current-user";
 import type { RepairJob, RepairJobItem, RepairStatus, JobType, ApprovalStatus } from "./types";
-import { HEAVY_ITEM_COUNT_THRESHOLD } from "./types";
+import { HEAVY_ITEM_COUNT_THRESHOLD, DEAL_TYPES } from "./types";
 import { BRANCHES, type Branch } from "./branch";
 
 type ItemRow = { id: string; code: string; description: string; quantity: number; price: number };
@@ -258,6 +258,43 @@ async function replaceJobItems(jobId: string, items: ItemInput[]): Promise<void>
     }))
   );
   if (insError) throw new Error(insError.message);
+}
+
+// "Bike Arrived" quick-add: creates a bare Restore Bike job stamped with
+// today's arrival date, skipping the usual mechanic-assignment check since
+// there's no mechanic yet — the PIC fills in the rest (plate, mechanic,
+// etc.) on the edit form that opens right after.
+export async function quickAddRestoreBikeArrivalAction(branch: Branch): Promise<{ id: string }> {
+  const user = await requireApproved();
+  assertCanEditBranch(user, branch);
+
+  const { count } = await supabaseAdmin
+    .from("cc_repair_jobs")
+    .select("*", { count: "exact", head: true })
+    .eq("branch", branch);
+  const jobNo = `RJ-${branch.toUpperCase()}-${String((count ?? 0) + 1).padStart(4, "0")}`;
+
+  const { data, error } = await supabaseAdmin
+    .from("cc_repair_jobs")
+    .insert({
+      branch,
+      job_no: jobNo,
+      customer_name: "",
+      plate_no: "",
+      job_type: "Restore Bike",
+      mechanic_id: null,
+      description: "",
+      revenue_amount: 0,
+      deal_type: DEAL_TYPES[0],
+      status: "Pending",
+      arrived_date: new Date().toISOString().slice(0, 10),
+    })
+    .select("id")
+    .single();
+  if (error) throw new Error(error.message);
+
+  revalidatePath("/repairs");
+  return { id: data.id };
 }
 
 export async function addRepairJobAction(input: {

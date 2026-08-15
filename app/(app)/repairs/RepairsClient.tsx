@@ -2,12 +2,14 @@
 
 import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Plus, Download, Pencil, AlertTriangle, Search, Check, Trash2, Printer } from "lucide-react";
 import {
   updateRepairStatusAction,
   updateRepairApprovalAction,
   setRestoreBikeWorkflowDateAction,
   deleteRepairJobAction,
+  quickAddRestoreBikeArrivalAction,
 } from "@/lib/repairs-actions";
 import {
   REPAIR_STATUSES,
@@ -41,6 +43,31 @@ function isOverdue(job: RepairJob): boolean {
   return (days ?? 0) > OVERDUE_DAYS;
 }
 
+// Replaces the old blank "+ Add Job" button: stamps today as the arrival
+// date right away and jumps straight into the edit form to fill in the
+// rest, instead of making the PIC fill everything in before saving once.
+function BikeArrivedButton({ branch }: { branch: Branch }) {
+  const router = useRouter();
+  const [isPending, startTransition] = useTransition();
+
+  function handleClick() {
+    startTransition(async () => {
+      const { id } = await quickAddRestoreBikeArrivalAction(branch);
+      router.push(`/repairs/${id}/edit`);
+    });
+  }
+
+  return (
+    <button
+      onClick={handleClick}
+      disabled={isPending}
+      className="flex items-center gap-1.5 bg-indigo-500 hover:bg-indigo-400 disabled:opacity-50 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+    >
+      <Plus size={15} /> {isPending ? "Adding…" : "Bike Arrived"}
+    </button>
+  );
+}
+
 export default function RepairsClient({
   active,
   completed,
@@ -64,6 +91,7 @@ export default function RepairsClient({
   const overdueCount = active.filter(isOverdue).length;
   const allJobs = useMemo(() => [...active, ...completed], [active, completed]);
   const showBranchColumn = branchSelection === "all";
+  const quickAddBranch: Branch | null = branchSelection === "all" ? null : branchSelection;
 
   function mechanicLabel(id: string | null) {
     if (!id) return "—";
@@ -194,12 +222,16 @@ export default function RepairsClient({
               <Download size={15} /> Export Filtered…
             </button>
           )}
-          <Link
-            href="/repairs/new"
-            className="flex items-center gap-1.5 bg-indigo-500 hover:bg-indigo-400 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
-          >
-            <Plus size={15} /> Add Job
-          </Link>
+          {quickAddBranch ? (
+            <BikeArrivedButton branch={quickAddBranch} />
+          ) : (
+            <Link
+              href="/repairs/new"
+              className="flex items-center gap-1.5 bg-indigo-500 hover:bg-indigo-400 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+            >
+              <Plus size={15} /> Add Job
+            </Link>
+          )}
         </div>
       </div>
 
@@ -229,6 +261,7 @@ export default function RepairsClient({
                 {showBranchColumn && <th className="font-medium px-5 py-3 whitespace-nowrap">Branch</th>}
                 <th className="font-medium px-5 py-3 whitespace-nowrap">PIC</th>
                 <th className="font-medium px-5 py-3 whitespace-nowrap">N. Plate</th>
+                <th className="font-medium px-5 py-3 whitespace-nowrap">Arrived</th>
                 <th className="font-medium px-5 py-3 whitespace-nowrap">Quotation</th>
                 <th className="font-medium px-5 py-3 whitespace-nowrap">Model</th>
                 <th className="font-medium px-5 py-3 whitespace-nowrap">Tahun</th>
@@ -257,7 +290,7 @@ export default function RepairsClient({
               ))}
               {jobs.length === 0 && (
                 <tr>
-                  <td colSpan={showBranchColumn ? 17 : 16} className="px-5 py-10 text-center text-neutral-500 text-sm">
+                  <td colSpan={showBranchColumn ? 18 : 17} className="px-5 py-10 text-center text-neutral-500 text-sm">
                     {tab === "active" ? "No active" : "No completed"} Restore Bike jobs.
                   </td>
                 </tr>
@@ -532,6 +565,13 @@ function StageButton({
   );
 }
 
+// Arrived is stamped automatically when the job is created via "Bike
+// Arrived" (or filled in on the form for jobs added the old way) — shown
+// read-only here rather than as a click target like the other stages.
+function ArrivedCell({ job }: { job: RepairJob }) {
+  return <StageButton label="Arr" date={job.arrivedDate} onClick={() => {}} disabled title={job.arrivedDate ? formatDate(job.arrivedDate) : "Not recorded"} />;
+}
+
 // Just the Quotation tick now — Arrived moved to the form, GM Approved is
 // just the existing Approval dropdown (no separate stamp needed).
 function QuotationCell({ job, editable }: { job: RepairJob; editable: boolean }) {
@@ -636,6 +676,9 @@ function RestoreBikeRow({
       {showBranch && <td className="px-5 py-3.5 text-neutral-600 whitespace-nowrap">{branchLabel(job.branch)}</td>}
       <td className="px-5 py-3.5 text-neutral-700 whitespace-nowrap">{job.picName || "—"}</td>
       <td className="px-5 py-3.5 text-neutral-600 whitespace-nowrap">{job.plateNo}</td>
+      <td className="px-5 py-3.5">
+        <ArrivedCell job={job} />
+      </td>
       <td className="px-5 py-3.5">
         <QuotationCell job={job} editable={editable} />
       </td>
