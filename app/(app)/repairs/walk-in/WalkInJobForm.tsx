@@ -166,6 +166,9 @@ export default function WalkInJobForm({
   const [scanNotice, setScanNotice] = useState<string | null>(null);
   const [scanRawText, setScanRawText] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const customerNameRef = useRef<HTMLInputElement>(null);
+  const plateNoRef = useRef<HTMLInputElement>(null);
+  const mechanicRef = useRef<HTMLSelectElement>(null);
 
   // Phone photos can easily be 8-15MB — shrink to a max dimension before
   // sending, which keeps text plenty legible for OCR while cutting the
@@ -384,12 +387,29 @@ export default function WalkInJobForm({
     setMechanicId("");
   }
 
-  // Every job needs a mechanic assigned before it can be saved.
-  const canSave =
-    customerName.trim() !== "" && plateNo.trim() !== "" && effectiveBranch !== null && mechanicId !== "";
+  // Jumps to and highlights whichever required field is still empty,
+  // instead of leaving the PIC staring at a disabled button with no idea
+  // why it won't save.
+  function scrollToField(el: HTMLElement | null) {
+    if (!el) return;
+    el.scrollIntoView({ behavior: "smooth", block: "center" });
+    el.focus({ preventScroll: true });
+  }
 
   function handleSave() {
-    if (!canSave || !effectiveBranch) return;
+    if (customerName.trim() === "") {
+      scrollToField(customerNameRef.current);
+      return;
+    }
+    if (plateNo.trim() === "") {
+      scrollToField(plateNoRef.current);
+      return;
+    }
+    if (mechanicId === "") {
+      scrollToField(mechanicRef.current);
+      return;
+    }
+    if (!effectiveBranch) return;
     if (hasGenblu && !genbluAlreadyRegistered && !genbluScreenshot) {
       window.alert("Upload the customer's GenBlu screenshot before saving, or switch \"Customer has GenBlu?\" to No.");
       return;
@@ -562,6 +582,7 @@ export default function WalkInJobForm({
           <div>
             <label className="block text-xs font-medium text-neutral-600 mb-1.5">Customer Name *</label>
             <input
+              ref={customerNameRef}
               type="text"
               value={customerName}
               onChange={(e) => setCustomerName(e.target.value)}
@@ -571,6 +592,7 @@ export default function WalkInJobForm({
           <div>
             <label className="block text-xs font-medium text-neutral-600 mb-1.5">Plate No. *</label>
             <input
+              ref={plateNoRef}
               type="text"
               value={plateNo}
               onChange={(e) => setPlateNo(e.target.value)}
@@ -737,6 +759,7 @@ export default function WalkInJobForm({
           <div>
             <label className="block text-xs font-medium text-neutral-600 mb-1.5">Mechanic *</label>
             <select
+              ref={mechanicRef}
               value={mechanicId}
               onChange={(e) => setMechanicId(e.target.value)}
               className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
@@ -876,7 +899,7 @@ export default function WalkInJobForm({
           </button>
           <button
             onClick={handleSave}
-            disabled={!canSave || isPending}
+            disabled={isPending}
             className="bg-indigo-500 hover:bg-indigo-400 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
           >
             {isPending ? "Saving…" : isEdit ? "Save Changes" : "Add Job"}
