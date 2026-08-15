@@ -390,6 +390,10 @@ export default function WalkInJobForm({
 
   function handleSave() {
     if (!canSave || !effectiveBranch) return;
+    if (hasGenblu && !genbluAlreadyRegistered && !genbluScreenshot) {
+      window.alert("Upload the customer's GenBlu screenshot before saving, or switch \"Customer has GenBlu?\" to No.");
+      return;
+    }
     const cleanItems = items
       .filter((it) => it.description.trim() !== "")
       .map((it) => ({
@@ -430,6 +434,33 @@ export default function WalkInJobForm({
     const finalRevenue = items.length > 0 ? itemsTotal : Number(revenueAmount) || 0;
 
     startTransition(async () => {
+      // Verify (and register) GenBlu BEFORE saving the job — if the
+      // uploaded screenshot doesn't match the customer's name, the job
+      // shouldn't be added at all, so the PIC has to fix the picture (or
+      // switch GenBlu to No) rather than end up with a saved job and a
+      // silently-failed registration.
+      if (hasGenblu && !genbluAlreadyRegistered) {
+        try {
+          const genbluResult = await ensureGenbluRegistrationAction({
+            branch: effectiveBranch,
+            customerName: customerName.trim(),
+            customerPlateNo: plateNo.trim(),
+            salespersonName: selectedMechanic?.shortName ?? "",
+            salespersonCode: selectedMechanic?.shortCode ?? "",
+            screenshot: genbluScreenshot,
+          });
+          if (genbluResult && "error" in genbluResult) {
+            window.alert(`Job not saved — ${genbluResult.error}`);
+            return;
+          }
+        } catch {
+          window.alert(
+            "Job not saved — couldn't verify the GenBlu screenshot (the check took too long). Please try again."
+          );
+          return;
+        }
+      }
+
       try {
         if (isEdit && job) {
           await updateRepairJobAction(job.id, job.branch, payload);
@@ -441,33 +472,25 @@ export default function WalkInJobForm({
         return;
       }
 
-      // The job is saved at this point — a GenBlu hiccup (a slow OCR check,
-      // say) shouldn't make it look like the whole save failed, so this
-      // runs in its own try/catch and never blocks navigating away.
       if (hasGenblu) {
-        try {
-          const genbluResult = await ensureGenbluRegistrationAction({
-            branch: effectiveBranch,
-            customerName: customerName.trim(),
-            customerPlateNo: plateNo.trim(),
-            salespersonName: selectedMechanic?.shortName ?? "",
-            salespersonCode: selectedMechanic?.shortCode ?? "",
-            screenshot: genbluAlreadyRegistered ? null : genbluScreenshot,
-          });
-          if (genbluResult && "error" in genbluResult) {
-            window.alert(
-              `Job saved, but the GenBlu registration failed: ${genbluResult.error}\n\nYou can register this customer directly from the GenBlu Tracker page.`
-            );
-          } else {
-            window.alert(
-              `${customerName.trim()} earned ${Math.round(finalRevenue).toLocaleString()} GenBlu points (${formatCurrency(finalRevenue)}) from this job.`
-            );
+        if (genbluAlreadyRegistered) {
+          // Already in the tracker — just match them up, no screenshot needed.
+          try {
+            await ensureGenbluRegistrationAction({
+              branch: effectiveBranch,
+              customerName: customerName.trim(),
+              customerPlateNo: plateNo.trim(),
+              salespersonName: selectedMechanic?.shortName ?? "",
+              salespersonCode: selectedMechanic?.shortCode ?? "",
+              screenshot: null,
+            });
+          } catch {
+            // Non-fatal — the job is already saved either way.
           }
-        } catch {
-          window.alert(
-            "Job saved, but the GenBlu check took too long and didn't finish. You can register this customer directly from the GenBlu Tracker page."
-          );
         }
+        window.alert(
+          `${customerName.trim()} earned ${Math.round(finalRevenue).toLocaleString()} GenBlu points (${formatCurrency(finalRevenue)}) from this job.`
+        );
       }
       router.push("/repairs/walk-in");
     });
