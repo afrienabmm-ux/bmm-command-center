@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { scanJobsheet } from "@/lib/jobsheet-actions";
 
 export const runtime = "nodejs";
+export const maxDuration = 60;
 
 // A plain multipart upload rather than a Server Action — Next's RSC
 // flight protocol chokes on very large base64 strings passed as action

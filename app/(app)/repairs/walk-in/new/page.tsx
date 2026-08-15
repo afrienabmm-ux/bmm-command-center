@@ -5,6 +5,10 @@ import PageHeader from "@/components/PageHeader";
 import WalkInJobForm from "../WalkInJobForm";
 
 export const dynamic = "force-dynamic";
+// The GenBlu screenshot check runs an OCR call (with retries) inside this
+// page's server actions — give it more room than the platform default so a
+// slow Vision API response doesn't time out mid-save.
+export const maxDuration = 60;
 
 export default async function NewWalkInJobPage() {
   await requirePage("walk-in");

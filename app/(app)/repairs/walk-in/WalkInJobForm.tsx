@@ -436,7 +436,16 @@ export default function WalkInJobForm({
         } else {
           await addRepairJobAction({ ...payload, branch: effectiveBranch, jobType: "Walk-in" });
         }
-        if (hasGenblu) {
+      } catch (err) {
+        window.alert(err instanceof Error ? err.message : "Something went wrong saving this job.");
+        return;
+      }
+
+      // The job is saved at this point — a GenBlu hiccup (a slow OCR check,
+      // say) shouldn't make it look like the whole save failed, so this
+      // runs in its own try/catch and never blocks navigating away.
+      if (hasGenblu) {
+        try {
           const genbluResult = await ensureGenbluRegistrationAction({
             branch: effectiveBranch,
             customerName: customerName.trim(),
@@ -454,11 +463,13 @@ export default function WalkInJobForm({
               `${customerName.trim()} earned ${Math.round(finalRevenue).toLocaleString()} GenBlu points (${formatCurrency(finalRevenue)}) from this job.`
             );
           }
+        } catch {
+          window.alert(
+            "Job saved, but the GenBlu check took too long and didn't finish. You can register this customer directly from the GenBlu Tracker page."
+          );
         }
-        router.push("/repairs/walk-in");
-      } catch (err) {
-        window.alert(err instanceof Error ? err.message : "Something went wrong saving this job.");
       }
+      router.push("/repairs/walk-in");
     });
   }
 

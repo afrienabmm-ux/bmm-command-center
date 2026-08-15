@@ -6,6 +6,7 @@ import PageHeader from "@/components/PageHeader";
 import WalkInJobForm from "../../WalkInJobForm";
 
 export const dynamic = "force-dynamic";
+export const maxDuration = 60;
 
 export default async function EditWalkInJobPage({ params }: { params: Promise<{ id: string }> }) {
   await requirePage("walk-in");
