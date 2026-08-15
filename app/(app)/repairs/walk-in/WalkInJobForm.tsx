@@ -608,19 +608,36 @@ export default function WalkInJobForm({
           </div>
           <div>
             <label className="block text-xs font-medium text-neutral-600 mb-1.5">Location</label>
-            <select
-              value={locationBranch}
-              disabled={locked}
-              onChange={(e) => handleLocationChange(e.target.value as BranchSelection)}
-              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50 disabled:opacity-60"
-            >
+            <div className="flex items-center gap-2 flex-wrap">
               {BRANCHES.map((b) => (
-                <option key={b.value} value={b.value}>
+                <button
+                  key={b.value}
+                  type="button"
+                  disabled={locked}
+                  onClick={() => handleLocationChange(b.value)}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium border transition-colors disabled:opacity-60 disabled:cursor-not-allowed ${
+                    locationBranch === b.value
+                      ? "bg-indigo-500 border-indigo-500 text-white"
+                      : "bg-neutral-50 border-neutral-200 text-neutral-600 hover:border-indigo-500/50"
+                  }`}
+                >
                   {b.label}
-                </option>
+                </button>
               ))}
-              {!locked && <option value="all">All Branches</option>}
-            </select>
+              {!locked && (
+                <button
+                  type="button"
+                  onClick={() => handleLocationChange("all")}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium border transition-colors ${
+                    locationBranch === "all"
+                      ? "bg-indigo-500 border-indigo-500 text-white"
+                      : "bg-neutral-50 border-neutral-200 text-neutral-600 hover:border-indigo-500/50"
+                  }`}
+                >
+                  All Branches
+                </button>
+              )}
+            </div>
             {locationBranch === "all" && !selectedMechanic && (
               <p className="text-xs text-amber-700 mt-1.5">Pick a mechanic below to set which branch this job belongs to.</p>
             )}
