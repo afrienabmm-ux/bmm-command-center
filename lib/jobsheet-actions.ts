@@ -182,6 +182,10 @@ export async function scanJobsheet(
     }
     return { data: parseJobsheetText(text) };
   } catch (err) {
-    return { error: err instanceof Error ? err.message : "Something went wrong reading the jobsheet." };
+    const message = err instanceof Error ? err.message : "";
+    if (/deadline/i.test(message)) {
+      return { error: "Google's scanning service timed out — please try uploading the jobsheet again." };
+    }
+    return { error: message || "Something went wrong reading the jobsheet." };
   }
 }

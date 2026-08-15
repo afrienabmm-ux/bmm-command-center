@@ -83,7 +83,11 @@ function reconstructRows(annotation: FullTextAnnotation): string {
     .join("\n");
 }
 
-async function callVision(url: string, body: object): Promise<FullTextAnnotation> {
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function callVisionOnce(url: string, body: object): Promise<FullTextAnnotation> {
   const auth = getAuth();
   const client = await auth.getClient();
   const { token } = await client.getAccessToken();
@@ -100,6 +104,23 @@ async function callVision(url: string, body: object): Promise<FullTextAnnotation
     throw new Error(`Google Vision request failed: ${res.status} ${text}`);
   }
   return res.json();
+}
+
+// Google's OCR backend occasionally times out on its own end ("Backend
+// deadline exceeded") for no reason tied to the photo itself — a plain
+// retry usually goes through fine, so don't make the PIC re-upload for a
+// transient hiccup.
+async function callVision(url: string, body: object, attempt = 1): Promise<FullTextAnnotation> {
+  try {
+    return await callVisionOnce(url, body);
+  } catch (err) {
+    const isDeadline = err instanceof Error && /deadline/i.test(err.message);
+    if (isDeadline && attempt < 3) {
+      await sleep(500 * attempt);
+      return callVision(url, body, attempt + 1);
+    }
+    throw err;
+  }
 }
 
 // Sends a photo (base64, no data: prefix) to Google Cloud Vision's
