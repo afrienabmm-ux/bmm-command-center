@@ -23,7 +23,11 @@ export async function getBranchMonthSummary(branch: Branch, year: number, month:
   await requireApproved();
   const { from, to } = monthRange(year, month);
 
-  const [{ data: targetRow }, { data: jobs, error }] = await Promise.all([
+  // Achieved must match the same definition used everywhere else on the
+  // dashboard (the Revenue trend chart, the mechanic leaderboards): completed
+  // repair job revenue plus Services Combo sales revenue. Leaving packages
+  // out here previously made this number silently disagree with the chart.
+  const [{ data: targetRow }, { data: jobs, error: jobsError }, { data: sales, error: salesError }] = await Promise.all([
     supabaseAdmin
       .from("cc_monthly_targets")
       .select("target_amount")
@@ -38,16 +42,29 @@ export async function getBranchMonthSummary(branch: Branch, year: number, month:
       .eq("status", "Completed")
       .gte("completed_date", from)
       .lte("completed_date", to),
+    supabaseAdmin
+      .from("cc_package_sales")
+      .select("cc_packages(price)")
+      .eq("branch", branch)
+      .gte("sale_date", from)
+      .lte("sale_date", to),
   ]);
-  if (error) throw new Error(error.message);
+  if (jobsError) throw new Error(jobsError.message);
+  if (salesError) throw new Error(salesError.message);
 
-  const achievedAmount = (jobs ?? []).reduce((sum, j) => sum + Number(j.revenue_amount), 0);
+  type SaleWithPrice = { cc_packages: { price: number } | null };
+
+  const repairRevenue = (jobs ?? []).reduce((sum, j) => sum + Number(j.revenue_amount), 0);
+  const packageRevenue = ((sales ?? []) as unknown as SaleWithPrice[]).reduce(
+    (sum, s) => sum + Number(s.cc_packages?.price ?? 0),
+    0
+  );
   return {
     branch,
     year,
     month,
     targetAmount: targetRow ? Number(targetRow.target_amount) : 0,
-    achievedAmount,
+    achievedAmount: repairRevenue + packageRevenue,
   };
 }
 
