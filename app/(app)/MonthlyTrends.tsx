@@ -8,54 +8,110 @@ function scale(value: number, max: number): number {
   return Math.max(2, Math.round((value / max) * CHART_HEIGHT));
 }
 
-// Two lines per month (target, achieved) sharing one scale, drawn as plain
-// SVG rather than pulling in a charting library for a handful of points.
+// Rounds a max value up to a "nice" number (1/2/2.5/5 × a power of ten) so
+// the gridlines land on tidy amounts instead of the raw data max.
+function niceMax(value: number): number {
+  if (value <= 0) return 100;
+  const magnitude = Math.pow(10, Math.floor(Math.log10(value)));
+  const normalized = value / magnitude;
+  const step = normalized <= 1 ? 1 : normalized <= 2 ? 2 : normalized <= 2.5 ? 2.5 : normalized <= 5 ? 5 : 10;
+  return step * magnitude;
+}
+
+function shortAmount(value: number): string {
+  return Math.round(value).toLocaleString("en-MY");
+}
+
+const LINE_CHART_HEIGHT = 220;
+const LINE_CHART_TICKS = 5;
+
+// Two lines per month (target, achieved) with gridlines and a value label
+// on every point, drawn as plain SVG rather than pulling in a charting
+// library for a handful of points.
 function RevenueTrendChart({ points }: { points: MonthlyTrendPoint[] }) {
-  const max = Math.max(1, ...points.map((p) => Math.max(p.targetAmount, p.achievedAmount)));
-  const step = 90;
-  const padX = 24;
-  const width = Math.max((points.length - 1) * step + padX * 2, 320);
+  const dataMax = Math.max(1, ...points.map((p) => Math.max(p.targetAmount, p.achievedAmount)));
+  const axisMax = niceMax(dataMax);
+  const step = 110;
+  const padX = 32;
+  const padTop = 24;
+  const width = Math.max((points.length - 1) * step + padX * 2, 360);
 
   const xAt = (i: number) => padX + i * step;
-  const yAt = (value: number) => CHART_HEIGHT - scale(value, max);
+  const yAt = (value: number) => padTop + LINE_CHART_HEIGHT - (value / axisMax) * LINE_CHART_HEIGHT;
 
   const targetPath = points.map((p, i) => `${i === 0 ? "M" : "L"}${xAt(i)},${yAt(p.targetAmount)}`).join(" ");
   const achievedPath = points.map((p, i) => `${i === 0 ? "M" : "L"}${xAt(i)},${yAt(p.achievedAmount)}`).join(" ");
 
+  const ticks = Array.from({ length: LINE_CHART_TICKS + 1 }, (_, i) => (axisMax / LINE_CHART_TICKS) * i);
+
   return (
     <div className="bg-white border border-neutral-200 rounded-xl p-5">
-      <div className="flex items-center justify-between mb-4">
-        <div>
-          <p className="text-sm font-semibold text-neutral-900">Revenue: Target vs Achieved</p>
-          <p className="text-xs text-neutral-500 mt-0.5">Last {points.length} months, all branches combined</p>
-        </div>
-        <div className="flex items-center gap-3 text-xs text-neutral-500">
+      <div className="flex flex-col items-center mb-4 text-center">
+        <p className="text-sm font-semibold text-neutral-900">Revenue: Target vs Achieved</p>
+        <p className="text-xs text-neutral-500 mt-0.5">Last {points.length} months, all branches combined</p>
+        <div className="flex items-center gap-4 text-xs text-neutral-500 mt-2">
           <span className="flex items-center gap-1.5">
-            <span className="w-2.5 h-0.5 rounded-full bg-neutral-300 inline-block" /> Target
+            <span className="w-3 h-[3px] rounded-full bg-neutral-400 inline-block" /> Target
           </span>
           <span className="flex items-center gap-1.5">
-            <span className="w-2.5 h-0.5 rounded-full bg-indigo-500 inline-block" /> Achieved
+            <span className="w-3 h-[3px] rounded-full bg-indigo-500 inline-block" /> Achieved
           </span>
         </div>
       </div>
       <div className="overflow-x-auto">
-        <svg width={width} height={CHART_HEIGHT + 36} className="min-w-full">
-          <path d={targetPath} fill="none" strokeWidth={2} strokeDasharray="4 4" className="stroke-neutral-300" />
-          <path d={achievedPath} fill="none" strokeWidth={2.5} className="stroke-indigo-500" />
-          {points.map((p, i) => (
-            <g key={`${p.year}-${p.month}`}>
-              <circle cx={xAt(i)} cy={yAt(p.targetAmount)} r={3} className="fill-white stroke-neutral-300" strokeWidth={2} />
-              <circle
-                cx={xAt(i)}
-                cy={yAt(p.achievedAmount)}
-                r={3.5}
-                className={p.achievedAmount >= p.targetAmount && p.targetAmount > 0 ? "fill-emerald-500" : "fill-indigo-500"}
-              />
-              <text x={xAt(i)} y={CHART_HEIGHT + 18} textAnchor="middle" className="fill-neutral-500 text-[10px]">
-                {p.label}
-              </text>
-            </g>
-          ))}
+        <svg width={width + 44} height={padTop + LINE_CHART_HEIGHT + 36} className="min-w-full">
+          <g transform="translate(44, 0)">
+            {ticks.map((t) => (
+              <g key={t}>
+                <line
+                  x1={0}
+                  x2={width}
+                  y1={yAt(t)}
+                  y2={yAt(t)}
+                  className="stroke-neutral-100"
+                  strokeWidth={1}
+                />
+                <text x={-8} y={yAt(t)} dy={3} textAnchor="end" className="fill-neutral-400 text-[10px]">
+                  {shortAmount(t)}
+                </text>
+              </g>
+            ))}
+            <path d={targetPath} fill="none" strokeWidth={3} className="stroke-neutral-400" />
+            <path d={achievedPath} fill="none" strokeWidth={3} className="stroke-indigo-500" />
+            {points.map((p, i) => {
+              const targetY = yAt(p.targetAmount);
+              const achievedY = yAt(p.achievedAmount);
+              const achievedAbove = achievedY <= targetY;
+              return (
+                <g key={`${p.year}-${p.month}`}>
+                  <text
+                    x={xAt(i)}
+                    y={achievedAbove ? targetY + 16 : targetY - 8}
+                    textAnchor="middle"
+                    className="fill-neutral-500 text-[10px] font-medium"
+                  >
+                    {shortAmount(p.targetAmount)}
+                  </text>
+                  <text
+                    x={xAt(i)}
+                    y={achievedAbove ? achievedY - 8 : achievedY + 16}
+                    textAnchor="middle"
+                    className="fill-indigo-600 text-[10px] font-semibold"
+                  >
+                    {shortAmount(p.achievedAmount)}
+                  </text>
+                  <text
+                    x={xAt(i)}
+                    y={padTop + LINE_CHART_HEIGHT + 18}
+                    textAnchor="middle"
+                    className="fill-neutral-500 text-[10px] font-medium uppercase"
+                  >
+                    {p.label}
+                  </text>
+                </g>
+              );
+            })}
+          </g>
         </svg>
       </div>
     </div>
