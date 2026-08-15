@@ -44,6 +44,14 @@ function RevenueTrendChart({ points }: { points: MonthlyTrendPoint[] }) {
 
   const ticks = Array.from({ length: LINE_CHART_TICKS + 1 }, (_, i) => (axisMax / LINE_CHART_TICKS) * i);
 
+  // Keep value labels clear of both the top edge and the x-axis month
+  // labels — a "below" label on a near-zero point would otherwise land
+  // right on top of the month text underneath it.
+  const plotBottom = padTop + LINE_CHART_HEIGHT;
+  const monthLabelY = plotBottom + 28;
+  const labelAbove = (y: number) => Math.max(y - 10, padTop - 2);
+  const labelBelow = (y: number) => Math.min(y + 16, plotBottom - 6);
+
   return (
     <div className="bg-white border border-neutral-200 rounded-xl p-5">
       <div className="flex flex-col items-center mb-4 text-center">
@@ -59,7 +67,7 @@ function RevenueTrendChart({ points }: { points: MonthlyTrendPoint[] }) {
         </div>
       </div>
       <div className="overflow-x-auto">
-        <svg width={width + 64} height={padTop + LINE_CHART_HEIGHT + 36} className="min-w-full">
+        <svg width={width + 64} height={monthLabelY + 10} className="min-w-full">
           <g transform="translate(64, 0)">
             {ticks.map((t) => (
               <g key={t}>
@@ -86,7 +94,7 @@ function RevenueTrendChart({ points }: { points: MonthlyTrendPoint[] }) {
                 <g key={`${p.year}-${p.month}`}>
                   <text
                     x={xAt(i)}
-                    y={achievedAbove ? targetY + 18 : targetY - 10}
+                    y={achievedAbove ? labelBelow(targetY) : labelAbove(targetY)}
                     textAnchor="middle"
                     className="fill-neutral-500 text-[10px] font-medium"
                   >
@@ -94,18 +102,13 @@ function RevenueTrendChart({ points }: { points: MonthlyTrendPoint[] }) {
                   </text>
                   <text
                     x={xAt(i)}
-                    y={achievedAbove ? achievedY - 10 : achievedY + 18}
+                    y={achievedAbove ? labelAbove(achievedY) : labelBelow(achievedY)}
                     textAnchor="middle"
                     className="fill-indigo-600 text-[10px] font-semibold"
                   >
                     {shortAmount(p.achievedAmount)}
                   </text>
-                  <text
-                    x={xAt(i)}
-                    y={padTop + LINE_CHART_HEIGHT + 18}
-                    textAnchor="middle"
-                    className="fill-neutral-500 text-[10px] font-medium uppercase"
-                  >
+                  <text x={xAt(i)} y={monthLabelY} textAnchor="middle" className="fill-neutral-500 text-[10px] font-medium uppercase">
                     {p.label}
                   </text>
                 </g>
