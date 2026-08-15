@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, Trash2, ScanLine, Upload } from "lucide-react";
 import { addRepairJobAction, updateRepairJobAction } from "@/lib/repairs-actions";
-import { ensureGenbluRegistrationAction } from "@/lib/genblu-actions";
+import { checkGenbluRegisteredAction, ensureGenbluRegistrationAction } from "@/lib/genblu-actions";
 import type { ScannedJobsheet } from "@/lib/jobsheet-actions";
 import { HEAVY_ITEM_COUNT_THRESHOLD, type RepairJob } from "@/lib/types";
 import type { Mechanic } from "@/lib/types";
@@ -144,6 +144,10 @@ export default function WalkInJobForm({
   const [isBigItem, setIsBigItem] = useState(job?.isBigItem ?? false);
   const [items, setItems] = useState<ItemInput[]>(job ? itemsFromJob(job) : []);
   const [hasGenblu, setHasGenblu] = useState(false);
+  const [genbluAlreadyRegistered, setGenbluAlreadyRegistered] = useState<boolean | null>(null);
+  const [genbluCheckPending, setGenbluCheckPending] = useState(false);
+  const [genbluScreenshot, setGenbluScreenshot] = useState<File | null>(null);
+  const genbluFileInputRef = useRef<HTMLInputElement>(null);
   const [isPending, startTransition] = useTransition();
   const [isScanning, setIsScanning] = useState(false);
   const [scanError, setScanError] = useState<string | null>(null);
@@ -333,6 +337,29 @@ export default function WalkInJobForm({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isHeavyJob]);
 
+  // Look up whether this customer already has a GenBlu registration as soon
+  // as the PIC says "yes" — if they're already in the tracker, there's no
+  // need to ask for another screenshot.
+  useEffect(() => {
+    if (!hasGenblu || !customerName.trim() || !effectiveBranch) {
+      setGenbluAlreadyRegistered(null);
+      return;
+    }
+    let cancelled = false;
+    setGenbluCheckPending(true);
+    const timer = setTimeout(async () => {
+      const found = await checkGenbluRegisteredAction(effectiveBranch, customerName.trim());
+      if (!cancelled) {
+        setGenbluAlreadyRegistered(found);
+        setGenbluCheckPending(false);
+      }
+    }, 400);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [hasGenblu, customerName, effectiveBranch]);
+
   function handleLocationChange(next: BranchSelection) {
     setLocationBranch(next);
     setMechanicId("");
@@ -396,6 +423,7 @@ export default function WalkInJobForm({
             customerPlateNo: plateNo.trim(),
             salespersonName: selectedMechanic?.shortName ?? "",
             salespersonCode: selectedMechanic?.shortCode ?? "",
+            screenshot: genbluAlreadyRegistered ? null : genbluScreenshot,
           });
           window.alert(
             `${customerName.trim()} earned ${Math.round(finalRevenue).toLocaleString()} GenBlu points (${formatCurrency(finalRevenue)}) from this job.`
@@ -744,10 +772,38 @@ export default function WalkInJobForm({
               </button>
             </div>
             {hasGenblu && (
-              <p className="text-xs text-neutral-500 mt-1.5">
-                On save, this customer will be added to the GenBlu Tracker (or matched if already registered) and
-                you'll see the points earned from this job.
-              </p>
+              <>
+                {!customerName.trim() ? (
+                  <p className="text-xs text-amber-700 mt-1.5">Enter the customer name above first.</p>
+                ) : genbluCheckPending ? (
+                  <p className="text-xs text-neutral-500 mt-1.5">Checking the GenBlu Tracker…</p>
+                ) : genbluAlreadyRegistered ? (
+                  <p className="text-xs text-emerald-700 mt-1.5">
+                    Already registered in the GenBlu Tracker — no need to upload the screenshot again.
+                  </p>
+                ) : (
+                  <div className="mt-2">
+                    <input
+                      ref={genbluFileInputRef}
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => setGenbluScreenshot(e.target.files?.[0] ?? null)}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => genbluFileInputRef.current?.click()}
+                      className="flex items-center gap-1.5 bg-neutral-50 hover:bg-neutral-100 border border-neutral-200 text-neutral-700 text-sm font-medium px-3.5 py-2 rounded-lg transition-colors"
+                    >
+                      <Upload size={14} /> {genbluScreenshot ? genbluScreenshot.name : "Upload GenBlu Screenshot"}
+                    </button>
+                    <p className="text-xs text-neutral-500 mt-1.5">
+                      New customer — upload their GenBlu screenshot now so it shows up automatically in the GenBlu
+                      Tracker once this job is saved.
+                    </p>
+                  </div>
+                )}
+              </>
             )}
           </div>
         </div>

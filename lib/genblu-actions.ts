@@ -154,17 +154,36 @@ export async function deleteGenbluRegistrationAction(id: string, branch: Branch)
   revalidatePath("/genblu");
 }
 
+// Checked from the Walk-in job form as soon as the PIC says the customer
+// has GenBlu, so the form knows whether to ask for a screenshot (new
+// customer) or skip it (already registered, screenshot already on file).
+export async function checkGenbluRegisteredAction(branch: Branch, customerName: string): Promise<boolean> {
+  await requireApproved();
+  const name = normalizeName(customerName);
+  if (!name) return false;
+
+  const { data, error } = await supabaseAdmin
+    .from("cc_genblu_registrations")
+    .select("customer_name")
+    .eq("branch", branch);
+  if (error) return false;
+
+  return (data ?? []).some((r) => normalizeName(r.customer_name) === name);
+}
+
 // Called from the Walk-in job form when the PIC confirms the customer has
 // GenBlu installed. Finds an existing registration for this customer (by
 // name, case/whitespace-insensitive, within the branch) and leaves it
-// alone, or creates one so they start showing up in the tracker — points
-// are computed separately from their job spending, not stored here.
+// alone, or creates one (with the screenshot the PIC just uploaded) so
+// they start showing up in the tracker — points are computed separately
+// from their job spending, not stored here.
 export async function ensureGenbluRegistrationAction(input: {
   branch: Branch;
   customerName: string;
   customerPlateNo: string;
   salespersonName: string;
   salespersonCode: string;
+  screenshot?: File | null;
 }): Promise<{ error: string } | { created: boolean }> {
   const user = await requireApproved();
   assertCanEditBranch(user, input.branch);
@@ -181,13 +200,25 @@ export async function ensureGenbluRegistrationAction(input: {
   const match = (existing ?? []).find((r) => normalizeName(r.customer_name) === normalizeName(customerName));
   if (match) return { created: false };
 
+  let screenshotPath: string | null = null;
+  const screenshot = input.screenshot;
+  if (screenshot && screenshot.size > 0) {
+    const ext = screenshot.name.split(".").pop() || "jpg";
+    const path = `${input.branch}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+    const { error: uploadError } = await supabaseAdmin.storage.from(BUCKET).upload(path, screenshot, {
+      contentType: screenshot.type || "image/jpeg",
+    });
+    if (uploadError) return { error: `Couldn't upload the GenBlu screenshot: ${uploadError.message}` };
+    screenshotPath = path;
+  }
+
   const { error } = await supabaseAdmin.from("cc_genblu_registrations").insert({
     branch: input.branch,
     salesperson_name: input.salespersonName,
     salesperson_code: input.salespersonCode.toUpperCase(),
     customer_name: customerName,
     customer_plate_no: input.customerPlateNo.trim(),
-    screenshot_path: null,
+    screenshot_path: screenshotPath,
   });
   if (error) return { error: error.message };
   revalidatePath("/genblu");
