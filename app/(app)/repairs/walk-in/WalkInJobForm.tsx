@@ -674,15 +674,6 @@ export default function WalkInJobForm({
           <ItemsEditor items={items} onChange={setItems} />
 
           <div>
-            <label className="block text-xs font-medium text-neutral-600 mb-1.5">Remark</label>
-            <textarea
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              rows={2}
-              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50 resize-none"
-            />
-          </div>
-          <div>
             <label className="block text-xs font-medium text-neutral-600 mb-1.5">Cost Total (RM)</label>
             <input
               type="number"
