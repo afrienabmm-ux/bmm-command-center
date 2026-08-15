@@ -19,6 +19,13 @@ export type BranchBreakdownRow = {
   topRestoreBike: TopMechanic | null;
 };
 
+// Sum of every branch's achieved amount for one month — used to show the
+// "vs last month" trend badge next to the combined Achieved total.
+export async function getAllBranchesAchievedTotal(year: number, month: number): Promise<number> {
+  const summaries = await Promise.all(BRANCHES.map(({ value: branch }) => getBranchMonthSummary(branch, year, month)));
+  return summaries.reduce((sum, s) => sum + s.achievedAmount, 0);
+}
+
 export async function getBranchBreakdown(year: number, month: number): Promise<BranchBreakdownRow[]> {
   return Promise.all(
     BRANCHES.map(async ({ value: branch }) => {
@@ -58,8 +65,7 @@ export default function BranchBreakdownTable({ rows }: { rows: BranchBreakdownRo
           <thead>
             <tr className="text-left text-xs text-neutral-500 border-b border-neutral-200">
               <th className="font-medium px-5 py-3 whitespace-nowrap">Branch</th>
-              <th className="font-medium px-5 py-3 whitespace-nowrap">Target</th>
-              <th className="font-medium px-5 py-3 whitespace-nowrap">Achieved</th>
+              <th className="font-medium px-5 py-3 whitespace-nowrap">Target vs Achieved</th>
               <th className="font-medium px-5 py-3 whitespace-nowrap">Open Claims</th>
               <th className="font-medium px-5 py-3 whitespace-nowrap">Active Repairs</th>
               <th className="font-medium px-5 py-3 whitespace-nowrap">Active Mechanics</th>
@@ -72,8 +78,24 @@ export default function BranchBreakdownTable({ rows }: { rows: BranchBreakdownRo
             {rows.map((b) => (
               <tr key={b.branch} className="border-b border-neutral-100 last:border-0 hover:bg-neutral-50">
                 <td className="px-5 py-3.5 text-neutral-900 font-medium whitespace-nowrap">{branchLabel(b.branch)}</td>
-                <td className="px-5 py-3.5 text-neutral-700 whitespace-nowrap">{formatCurrency(b.target)}</td>
-                <td className="px-5 py-3.5 text-neutral-700 whitespace-nowrap">{formatCurrency(b.achieved)}</td>
+                <td className="px-5 py-3.5 whitespace-nowrap">
+                  {(() => {
+                    const pct = b.target > 0 ? Math.min(100, Math.round((b.achieved / b.target) * 100)) : 0;
+                    return (
+                      <div className="min-w-[160px]">
+                        <p className="text-xs text-neutral-600">
+                          {formatCurrency(b.achieved)} <span className="text-neutral-400">/ {formatCurrency(b.target)}</span>
+                        </p>
+                        <div className="flex items-center gap-2 mt-1">
+                          <div className="w-20 h-1.5 bg-neutral-100 rounded-full overflow-hidden shrink-0">
+                            <div className="h-full bg-indigo-500 rounded-full" style={{ width: `${pct}%` }} />
+                          </div>
+                          <span className="text-xs text-neutral-500">{pct}%</span>
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </td>
                 <td className="px-5 py-3.5 text-neutral-700 whitespace-nowrap">{b.openClaims}</td>
                 <td className="px-5 py-3.5 text-neutral-700 whitespace-nowrap">{b.activeRepairs}</td>
                 <td className="px-5 py-3.5 text-neutral-700 whitespace-nowrap">{b.activeMechanics}</td>

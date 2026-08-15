@@ -1,15 +1,25 @@
 import Link from "next/link";
-import { AlertTriangle, ShieldCheck, Wrench, Users, PackageX, Layers } from "lucide-react";
+import { AlertTriangle, ShieldCheck, Wrench, Users, PackageX, Layers, ArrowUp, ArrowDown } from "lucide-react";
 import { formatCurrency, monthLabel } from "@/lib/format";
 import StatCard from "@/components/StatCard";
 import CombinedTargetEditor from "./CombinedTargetEditor";
-import BranchBreakdownTable, { getBranchBreakdown } from "./BranchBreakdownTable";
+import BranchBreakdownTable, { getBranchBreakdown, getAllBranchesAchievedTotal } from "./BranchBreakdownTable";
 import AllBranchesMechanicPerformanceTable from "./AllBranchesMechanicPerformanceTable";
 import MonthlyTrends from "./MonthlyTrends";
 import { getAllBranchesOverdueRestoreBikeJobs } from "@/lib/repairs-actions";
 
+// Rolls (year, month) back one month, correctly crossing a year boundary.
+function previousMonth(year: number, month: number): { year: number; month: number } {
+  return month === 1 ? { year: year - 1, month: 12 } : { year, month: month - 1 };
+}
+
 export default async function AllBranchesOverview({ year, month }: { year: number; month: number }) {
-  const [rows, overdueJobs] = await Promise.all([getBranchBreakdown(year, month), getAllBranchesOverdueRestoreBikeJobs()]);
+  const prev = previousMonth(year, month);
+  const [rows, overdueJobs, prevAchieved] = await Promise.all([
+    getBranchBreakdown(year, month),
+    getAllBranchesOverdueRestoreBikeJobs(),
+    getAllBranchesAchievedTotal(prev.year, prev.month),
+  ]);
 
   const totals = rows.reduce(
     (acc, b) => ({
@@ -24,6 +34,10 @@ export default async function AllBranchesOverview({ year, month }: { year: numbe
   );
   const pct = totals.target > 0 ? Math.min(100, Math.round((totals.achieved / totals.target) * 100)) : 0;
 
+  // Month-over-month change vs the same combined-achieved figure last month.
+  // No badge when there's nothing to compare against (e.g. a brand new month).
+  const trendPct = prevAchieved > 0 ? Math.round(((totals.achieved - prevAchieved) / prevAchieved) * 100) : null;
+
   return (
     <div className="space-y-8">
       <div className="bg-gradient-to-br from-indigo-50 to-white border border-indigo-200 rounded-xl p-6">
@@ -34,9 +48,21 @@ export default async function AllBranchesOverview({ year, month }: { year: numbe
               <span>All Branches — {monthLabel(month, year)} Target (combined)</span>
             </div>
             <p className="text-3xl font-semibold text-neutral-900">{formatCurrency(totals.target)}</p>
-            <p className="text-sm text-neutral-600 mt-1">
-              {formatCurrency(totals.achieved)} achieved ({pct}%)
-            </p>
+            <div className="flex items-center gap-2 mt-1">
+              <p className="text-sm text-neutral-600">
+                {formatCurrency(totals.achieved)} achieved ({pct}%)
+              </p>
+              {trendPct !== null && (
+                <span
+                  className={`inline-flex items-center gap-0.5 text-xs font-medium px-2 py-0.5 rounded-full ${
+                    trendPct >= 0 ? "bg-emerald-500/10 text-emerald-700" : "bg-red-500/10 text-red-700"
+                  }`}
+                >
+                  {trendPct >= 0 ? <ArrowUp size={11} /> : <ArrowDown size={11} />}
+                  {Math.abs(trendPct)}% vs {monthLabel(prev.month, prev.year)}
+                </span>
+              )}
+            </div>
           </div>
           <CombinedTargetEditor year={year} month={month} currentTotal={totals.target} />
         </div>
