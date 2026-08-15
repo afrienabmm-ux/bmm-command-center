@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, Trash2 } from "lucide-react";
 import { addRepairJobAction, updateRepairJobAction, uploadRestoreBikeImageAction, getRestoreBikeImageUrl } from "@/lib/repairs-actions";
@@ -174,6 +174,9 @@ export default function RepairJobForm({
   const [existingImageUrl, setExistingImageUrl] = useState<string | null>(null);
   const [imageError, setImageError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const plateNoRef = useRef<HTMLInputElement>(null);
+  const mechanicRef = useRef<HTMLSelectElement>(null);
+  const imageRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!job?.imagePath) return;
@@ -221,13 +224,31 @@ export default function RepairJobForm({
   // the bike is required too — either a new upload, or (when editing) one
   // already on file.
   const hasImage = imageFile !== null || existingImageUrl !== null;
-  const canSave = plateNo.trim() !== "" && effectiveBranch !== null && mechanicId !== "" && hasImage;
+
+  // Jumps to and highlights whichever required field is still empty,
+  // instead of leaving the PIC staring at a disabled button with no idea
+  // why it won't save.
+  function scrollToField(el: HTMLElement | null) {
+    if (!el) return;
+    el.scrollIntoView({ behavior: "smooth", block: "center" });
+    el.focus({ preventScroll: true });
+  }
 
   function handleSave() {
-    if (!canSave || !effectiveBranch) {
-      if (!hasImage) setImageError("A photo of the bike is required.");
+    if (plateNo.trim() === "") {
+      scrollToField(plateNoRef.current);
       return;
     }
+    if (mechanicId === "") {
+      scrollToField(mechanicRef.current);
+      return;
+    }
+    if (!hasImage) {
+      setImageError("A photo of the bike is required.");
+      scrollToField(imageRef.current);
+      return;
+    }
+    if (!effectiveBranch) return;
     setImageError(null);
     const cleanItems = items
       .filter((it) => it.description.trim() !== "")
@@ -294,6 +315,7 @@ export default function RepairJobForm({
           <div>
             <label className="block text-xs font-medium text-neutral-600 mb-1.5">Plate No. *</label>
             <input
+              ref={plateNoRef}
               type="text"
               value={plateNo}
               onChange={(e) => setPlateNo(e.target.value)}
@@ -354,7 +376,7 @@ export default function RepairJobForm({
               className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
             />
           </div>
-          <div>
+          <div ref={imageRef} tabIndex={-1}>
             <label className="block text-xs font-medium text-neutral-600 mb-1.5">Bike Photo *</label>
             {existingImageUrl && !imageFile && (
               <img src={existingImageUrl} alt="Bike" className="w-32 h-32 object-cover rounded-lg border border-neutral-200 mb-2" />
@@ -403,6 +425,7 @@ export default function RepairJobForm({
           <div>
             <label className="block text-xs font-medium text-neutral-600 mb-1.5">Mechanic *</label>
             <select
+              ref={mechanicRef}
               value={mechanicId}
               onChange={(e) => setMechanicId(e.target.value)}
               className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
@@ -504,7 +527,7 @@ export default function RepairJobForm({
           </button>
           <button
             onClick={handleSave}
-            disabled={!canSave || isPending}
+            disabled={isPending}
             className="bg-indigo-500 hover:bg-indigo-400 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
           >
             {isPending ? "Saving…" : isEdit ? "Save Changes" : "Add Job"}
