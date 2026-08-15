@@ -1,4 +1,5 @@
 import { getMonthlyTrends, type MonthlyTrendPoint } from "@/lib/trends-actions";
+import type { Branch } from "@/lib/branch";
 
 const CHART_HEIGHT = 120;
 const BAR_GAP = 6;
@@ -121,8 +122,86 @@ function RevenueTrendChart({ points }: { points: MonthlyTrendPoint[] }) {
   );
 }
 
-// Single-series bar chart used for the three simpler counts (repair jobs,
-// claims, packages sold) — same scale/label mechanics as the revenue chart.
+const BRANCH_SERIES: { key: Branch; label: string; stroke: string; text: string; dot: string }[] = [
+  { key: "kapar", label: "Kapar (HQ)", stroke: "stroke-indigo-500", text: "fill-indigo-600", dot: "bg-indigo-500" },
+  { key: "setia_alam", label: "Setia Alam", stroke: "stroke-orange-500", text: "fill-orange-600", dot: "bg-orange-500" },
+  { key: "puncak_alam", label: "Puncak Alam", stroke: "stroke-neutral-400", text: "fill-neutral-500", dot: "bg-neutral-400" },
+];
+
+// Repair jobs completed per month, one line per branch — same gridline/
+// label mechanics as the revenue chart, just three series instead of two.
+function BranchJobsChart({ points }: { points: MonthlyTrendPoint[] }) {
+  const dataMax = Math.max(1, ...points.flatMap((p) => BRANCH_SERIES.map((s) => p.repairJobsByBranch[s.key])));
+  const axisMax = niceMax(dataMax);
+  const step = 90;
+  const padX = 24;
+  const padTop = 24;
+  const chartHeight = 200;
+  const width = Math.max((points.length - 1) * step + padX * 2, 360);
+
+  const xAt = (i: number) => padX + i * step;
+  const yAt = (value: number) => padTop + chartHeight - (value / axisMax) * chartHeight;
+  const plotBottom = padTop + chartHeight;
+  const monthLabelY = plotBottom + 26;
+  const labelAbove = (y: number) => Math.max(y - 10, padTop - 2);
+
+  const ticks = Array.from({ length: LINE_CHART_TICKS + 1 }, (_, i) => (axisMax / LINE_CHART_TICKS) * i);
+
+  return (
+    <div className="bg-white border border-neutral-200 rounded-xl p-5">
+      <div className="flex flex-col items-center mb-4 text-center">
+        <p className="text-sm font-semibold text-neutral-900">Repair Jobs Completed by Branch</p>
+        <p className="text-xs text-neutral-500 mt-0.5">Restore Bike + Walk-in, last {points.length} months</p>
+        <div className="flex items-center gap-4 text-xs text-neutral-500 mt-2">
+          {BRANCH_SERIES.map((s) => (
+            <span key={s.key} className="flex items-center gap-1.5">
+              <span className={`w-3 h-[3px] rounded-full inline-block ${s.dot}`} /> {s.label}
+            </span>
+          ))}
+        </div>
+      </div>
+      <div className="overflow-x-auto">
+        <svg width={width + 48} height={monthLabelY + 10} className="min-w-full">
+          <g transform="translate(48, 0)">
+            {ticks.map((t) => (
+              <g key={t}>
+                <line x1={0} x2={width} y1={yAt(t)} y2={yAt(t)} className="stroke-neutral-100" strokeWidth={1} />
+                <text x={-8} y={yAt(t)} dy={3} textAnchor="end" className="fill-neutral-400 text-[10px]">
+                  {Math.round(t)}
+                </text>
+              </g>
+            ))}
+            {BRANCH_SERIES.map((s) => {
+              const path = points.map((p, i) => `${i === 0 ? "M" : "L"}${xAt(i)},${yAt(p.repairJobsByBranch[s.key])}`).join(" ");
+              return <path key={s.key} d={path} fill="none" strokeWidth={3} className={s.stroke} />;
+            })}
+            {points.map((p, i) => (
+              <g key={`${p.year}-${p.month}`}>
+                {BRANCH_SERIES.map((s) => (
+                  <text
+                    key={s.key}
+                    x={xAt(i)}
+                    y={labelAbove(yAt(p.repairJobsByBranch[s.key]))}
+                    textAnchor="middle"
+                    className={`text-[10px] font-semibold ${s.text}`}
+                  >
+                    {p.repairJobsByBranch[s.key]}
+                  </text>
+                ))}
+                <text x={xAt(i)} y={monthLabelY} textAnchor="middle" className="fill-neutral-500 text-[10px] font-medium uppercase">
+                  {p.label}
+                </text>
+              </g>
+            ))}
+          </g>
+        </svg>
+      </div>
+    </div>
+  );
+}
+
+// Single-series bar chart used for the two remaining counts (claims,
+// packages sold) — same scale/label mechanics as the revenue chart.
 function CountTrendChart({
   heading,
   subtitle,
@@ -177,14 +256,8 @@ export default async function MonthlyTrends({ year, month }: { year: number; mon
       <p className="text-sm font-semibold text-neutral-900 mb-3">Trends</p>
       <div className="space-y-4">
         <RevenueTrendChart points={points} />
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <CountTrendChart
-            heading="Repair Jobs Completed"
-            subtitle="Restore Bike + Walk-in, per month"
-            points={points}
-            valueOf={(p) => p.repairJobsCompleted}
-            colorClass="fill-indigo-500"
-          />
+        <BranchJobsChart points={points} />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <CountTrendChart
             heading="Warranty Claims Submitted"
             subtitle="All branches, per month"

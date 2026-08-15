@@ -2,7 +2,7 @@
 
 import { requireApproved } from "./current-user";
 import { supabaseAdmin } from "./supabase-server";
-import { BRANCHES } from "./branch";
+import { BRANCHES, type Branch } from "./branch";
 
 function monthRange(year: number, month: number): { from: string; to: string } {
   const monthStr = String(month).padStart(2, "0");
@@ -42,6 +42,7 @@ export type MonthlyTrendPoint = {
   repairJobsCompleted: number;
   warrantyClaimsSubmitted: number;
   packagesSold: number;
+  repairJobsByBranch: Record<Branch, number>;
 };
 
 // One combined-across-branches point per month, computed with a handful of
@@ -62,7 +63,12 @@ export async function getMonthlyTrends(endYear: number, endMonth: number, months
           "branch",
           BRANCHES.map((b) => b.value)
         ),
-      supabaseAdmin.from("cc_repair_jobs").select("revenue_amount, completed_date").eq("status", "Completed").gte("completed_date", from).lte("completed_date", to),
+      supabaseAdmin
+        .from("cc_repair_jobs")
+        .select("branch, revenue_amount, completed_date")
+        .eq("status", "Completed")
+        .gte("completed_date", from)
+        .lte("completed_date", to),
       supabaseAdmin.from("cc_warranty_claims").select("submitted_date").gte("submitted_date", from).lte("submitted_date", to),
       supabaseAdmin.from("cc_package_sales").select("sale_date, cc_packages(price)").gte("sale_date", from).lte("sale_date", to),
     ]);
@@ -79,6 +85,10 @@ export async function getMonthlyTrends(endYear: number, endMonth: number, months
 
     const monthJobs = (jobs ?? []).filter((j) => j.completed_date?.startsWith(`${year}-${String(month).padStart(2, "0")}`));
     const repairRevenue = monthJobs.reduce((sum, j) => sum + Number(j.revenue_amount), 0);
+    const repairJobsByBranch = BRANCHES.reduce(
+      (acc, b) => ({ ...acc, [b.value]: monthJobs.filter((j) => j.branch === b.value).length }),
+      {} as Record<Branch, number>
+    );
 
     const monthSales = ((sales ?? []) as unknown as SaleWithPrice[]).filter((s) =>
       s.sale_date?.startsWith(`${year}-${String(month).padStart(2, "0")}`)
@@ -98,6 +108,7 @@ export async function getMonthlyTrends(endYear: number, endMonth: number, months
       repairJobsCompleted: monthJobs.length,
       warrantyClaimsSubmitted: monthClaims.length,
       packagesSold: monthSales.length,
+      repairJobsByBranch,
     };
   });
 }
