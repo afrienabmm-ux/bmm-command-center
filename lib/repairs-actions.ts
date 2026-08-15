@@ -8,7 +8,7 @@ import type { RepairJob, RepairJobItem, RepairStatus, JobType, ApprovalStatus } 
 import { HEAVY_ITEM_COUNT_THRESHOLD } from "./types";
 import { BRANCHES, type Branch } from "./branch";
 
-type ItemRow = { id: string; description: string; quantity: number; price: number };
+type ItemRow = { id: string; code: string; description: string; quantity: number; price: number };
 
 type Row = {
   id: string;
@@ -79,6 +79,7 @@ function toJob(r: Row): RepairJob {
     location: r.location,
     items: (r.cc_repair_job_items ?? []).map((i): RepairJobItem => ({
       id: i.id,
+      code: i.code,
       description: i.description,
       quantity: Number(i.quantity),
       price: Number(i.price),
@@ -236,7 +237,7 @@ export async function getAllBranchesOverdueRestoreBikeJobs(): Promise<OverdueRes
     .sort((a, b) => b.daysRunning - a.daysRunning);
 }
 
-type ItemInput = { description: string; quantity: number; price: number };
+type ItemInput = { code?: string; description: string; quantity: number; price: number };
 
 function itemsTotal(items: ItemInput[]): number {
   return items.reduce((sum, i) => sum + i.quantity * i.price, 0);
@@ -249,6 +250,7 @@ async function replaceJobItems(jobId: string, items: ItemInput[]): Promise<void>
   const { error: insError } = await supabaseAdmin.from("cc_repair_job_items").insert(
     items.map((item, i) => ({
       job_id: jobId,
+      code: item.code ?? "",
       description: item.description,
       quantity: item.quantity,
       price: item.price,

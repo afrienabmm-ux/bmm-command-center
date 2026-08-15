@@ -11,14 +11,19 @@ import type { Mechanic } from "@/lib/types";
 import { BRANCHES, branchLabel, type Branch, type BranchSelection } from "@/lib/branch";
 import { formatCurrency } from "@/lib/format";
 
-type ItemInput = { description: string; quantity: string; price: string };
+type ItemInput = { code: string; description: string; quantity: string; price: string };
 
 function emptyItem(): ItemInput {
-  return { description: "", quantity: "1", price: "" };
+  return { code: "", description: "", quantity: "1", price: "" };
 }
 
 function itemsFromJob(job: RepairJob): ItemInput[] {
-  return job.items.map((i) => ({ description: i.description, quantity: String(i.quantity), price: String(i.price) }));
+  return job.items.map((i) => ({
+    code: i.code,
+    description: i.description,
+    quantity: String(i.quantity),
+    price: String(i.price),
+  }));
 }
 
 function ItemsEditor({ items, onChange }: { items: ItemInput[]; onChange: (items: ItemInput[]) => void }) {
@@ -41,8 +46,15 @@ function ItemsEditor({ items, onChange }: { items: ItemInput[]; onChange: (items
       <label className="block text-xs font-medium text-neutral-600 mb-1.5">Parts / Items</label>
       <div className="space-y-2">
         {items.map((it, i) => (
-          <div key={i} className="grid grid-cols-[auto_1fr_70px_100px_auto] gap-2 items-center">
+          <div key={i} className="grid grid-cols-[auto_90px_1fr_70px_100px_auto] gap-2 items-center">
             <span className="text-xs text-neutral-400 w-5 text-right tabular-nums">{i + 1}.</span>
+            <input
+              type="text"
+              value={it.code}
+              onChange={(e) => update(i, { code: e.target.value })}
+              placeholder="Code"
+              className="bg-neutral-50 border border-neutral-200 rounded-lg px-2.5 py-2 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+            />
             <input
               type="text"
               value={it.description}
@@ -289,7 +301,14 @@ export default function WalkInJobForm({
         }
       }
       if (scanned.items.length > 0) {
-        setItems(scanned.items.map((it) => ({ description: it.description, quantity: String(it.quantity), price: String(it.price) })));
+        setItems(
+          scanned.items.map((it) => ({
+            code: it.code,
+            description: it.description,
+            quantity: String(it.quantity),
+            price: String(it.price),
+          }))
+        );
         filled.push(`${scanned.items.length} item${scanned.items.length === 1 ? "" : "s"}`);
       }
       setScanNotice(
@@ -374,6 +393,7 @@ export default function WalkInJobForm({
     const cleanItems = items
       .filter((it) => it.description.trim() !== "")
       .map((it) => ({
+        code: it.code.trim(),
         description: it.description.trim(),
         quantity: Number(it.quantity) || 0,
         price: Number(it.price) || 0,

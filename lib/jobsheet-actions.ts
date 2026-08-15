@@ -7,7 +7,7 @@ import { requireApproved } from "./current-user";
 import { extractTextFromImage, extractTextFromPdf } from "./vision";
 import type { Branch } from "./branch";
 
-export type ScannedJobsheetItem = { description: string; quantity: number; price: number };
+export type ScannedJobsheetItem = { code: string; description: string; quantity: number; price: number };
 
 export type ScannedJobsheet = {
   customerCode: string;
@@ -132,12 +132,13 @@ function parseJobsheetText(text: string): ScannedJobsheet {
   // don't follow that shape (discount lines, blank rows) are skipped rather
   // than guessed at.
   const items: ScannedJobsheetItem[] = [];
-  const itemLinePattern = /^\d+\s+\S+\s+(.+?)\s+(\d+(?:\.\d+)?)\s+\S+\s+(\d+(?:\.\d{2}))\s+\d+(?:\.\d{2})/;
+  const itemLinePattern = /^\d+\s+(\S+)\s+(.+?)\s+(\d+(?:\.\d+)?)\s+\S+\s+(\d+(?:\.\d{2}))\s+\d+(?:\.\d{2})/;
   for (const line of text.split("\n")) {
     const m = line.match(itemLinePattern);
     if (!m) continue;
-    const [, description, qty, unitPrice] = m;
+    const [, code, description, qty, unitPrice] = m;
     items.push({
+      code: code.trim(),
       description: description.trim(),
       quantity: Number(qty) || 1,
       price: Number(unitPrice) || 0,

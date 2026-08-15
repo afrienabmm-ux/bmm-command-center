@@ -66,6 +66,7 @@ export const APPROVAL_STATUSES: ApprovalStatus[] = ["Pending", "Approved", "Not 
 
 export type RepairJobItem = {
   id: string;
+  code: string;
   description: string;
   quantity: number;
   price: number;

@@ -9,14 +9,19 @@ import type { Mechanic, Package } from "@/lib/types";
 import { BRANCHES, branchLabel, type Branch, type BranchSelection } from "@/lib/branch";
 import { formatCurrency } from "@/lib/format";
 
-type ItemInput = { description: string; quantity: string; price: string };
+type ItemInput = { code: string; description: string; quantity: string; price: string };
 
 function emptyItem(): ItemInput {
-  return { description: "", quantity: "1", price: "" };
+  return { code: "", description: "", quantity: "1", price: "" };
 }
 
 function itemsFromJob(job: RepairJob): ItemInput[] {
-  return job.items.map((i) => ({ description: i.description, quantity: String(i.quantity), price: String(i.price) }));
+  return job.items.map((i) => ({
+    code: i.code,
+    description: i.description,
+    quantity: String(i.quantity),
+    price: String(i.price),
+  }));
 }
 
 function ItemsEditor({
@@ -43,7 +48,7 @@ function ItemsEditor({
   function addPackage(pkgId: string) {
     const pkg = packages.find((p) => p.id === pkgId);
     if (!pkg) return;
-    onChange([...items, { description: pkg.name, quantity: "1", price: String(pkg.price) }]);
+    onChange([...items, { code: "", description: pkg.name, quantity: "1", price: String(pkg.price) }]);
   }
   const total = items.reduce((sum, it) => sum + (Number(it.quantity) || 0) * (Number(it.price) || 0), 0);
 
@@ -69,8 +74,15 @@ function ItemsEditor({
       )}
       <div className="space-y-2">
         {items.map((it, i) => (
-          <div key={i} className="grid grid-cols-[auto_1fr_70px_100px_auto] gap-2 items-center">
+          <div key={i} className="grid grid-cols-[auto_90px_1fr_70px_100px_auto] gap-2 items-center">
             <span className="text-xs text-neutral-400 w-5 text-right tabular-nums">{i + 1}.</span>
+            <input
+              type="text"
+              value={it.code}
+              onChange={(e) => update(i, { code: e.target.value })}
+              placeholder="Code"
+              className="bg-neutral-50 border border-neutral-200 rounded-lg px-2.5 py-2 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+            />
             <input
               type="text"
               value={it.description}
@@ -253,6 +265,7 @@ export default function RepairJobForm({
     const cleanItems = items
       .filter((it) => it.description.trim() !== "")
       .map((it) => ({
+        code: it.code.trim(),
         description: it.description.trim(),
         quantity: Number(it.quantity) || 0,
         price: Number(it.price) || 0,
