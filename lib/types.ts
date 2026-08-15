@@ -170,8 +170,8 @@ export type Package = {
 
 export const LOW_STOCK_THRESHOLD = 10;
 
-export type CatalogBrand = "Yamalube" | "Rock Oil" | "Motul";
-export const CATALOG_BRANDS: CatalogBrand[] = ["Yamalube", "Rock Oil", "Motul"];
+export type CatalogBrand = "Yamalube" | "Rock Oil" | "Motul" | "Yamaha Spare Parts";
+export const CATALOG_BRANDS: CatalogBrand[] = ["Yamalube", "Rock Oil", "Motul", "Yamaha Spare Parts"];
 export type CatalogProduct = {
   id: string;
   brand: CatalogBrand;
@@ -179,4 +179,5 @@ export type CatalogProduct = {
   productName: string;
   spec: string;
   price: number;
+  code: string;
 };

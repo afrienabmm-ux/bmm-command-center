@@ -23,7 +23,7 @@ export default async function CatalogPage() {
     <div className="flex flex-col h-full">
       <PageHeader
         title="Catalog"
-        subtitle={`${branchLabel(branch)} — Yamalube, Rock Oil & Motul products and maintenance sprays`}
+        subtitle={`${branchLabel(branch)} — Yamalube, Rock Oil, Motul & Yamaha Spare Parts`}
       />
       <div className="p-8">
         <CatalogClient data={data} stockMap={stockMap} branch={branch} />

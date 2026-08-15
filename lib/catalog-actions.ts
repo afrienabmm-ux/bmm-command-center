@@ -7,7 +7,7 @@ import type { CatalogProduct, CatalogBrand } from "./types";
 import type { Branch } from "./branch";
 import { LOW_STOCK_THRESHOLD } from "./types";
 
-type Row = { id: string; brand: CatalogBrand; category: string; product_name: string; spec: string; price: number };
+type Row = { id: string; brand: CatalogBrand; category: string; product_name: string; spec: string; price: number; code: string };
 
 function toProduct(r: Row): CatalogProduct {
   return {
@@ -17,6 +17,7 @@ function toProduct(r: Row): CatalogProduct {
     productName: r.product_name,
     spec: r.spec,
     price: Number(r.price),
+    code: r.code,
   };
 }
 
@@ -38,6 +39,7 @@ export async function addCatalogProductAction(input: {
   productName: string;
   spec: string;
   price: number;
+  code: string;
   branch: Branch;
   quantity: number;
 }): Promise<void> {
@@ -50,6 +52,7 @@ export async function addCatalogProductAction(input: {
       product_name: input.productName,
       spec: input.spec,
       price: input.price,
+      code: input.code,
     })
     .select()
     .single();

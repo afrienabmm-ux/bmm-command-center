@@ -66,6 +66,7 @@ export default function CatalogClient({
               <table className="w-full text-sm">
                 <thead>
                   <tr className="text-left text-xs text-neutral-500">
+                    <th className="font-medium px-5 py-2 whitespace-nowrap">Code</th>
                     <th className="font-medium px-5 py-2">Product</th>
                     <th className="font-medium px-5 py-2">Spec</th>
                     <th className="font-medium px-5 py-2 whitespace-nowrap">Price (RM)</th>
@@ -114,6 +115,7 @@ function ProductRow({ product, quantity, branch }: { product: CatalogProduct; qu
 
   return (
     <tr className="border-b border-neutral-100 last:border-0 hover:bg-neutral-50">
+      <td className="px-5 py-3 text-neutral-500 font-mono text-xs whitespace-nowrap">{product.code}</td>
       <td className="px-5 py-3 text-neutral-800 font-medium whitespace-nowrap">{product.productName}</td>
       <td className="px-5 py-3 text-neutral-500">{product.spec}</td>
       <td className="px-5 py-3">
@@ -176,6 +178,7 @@ function AddProductModal({ brand, branch, onClose }: { brand: CatalogBrand; bran
   const [productName, setProductName] = useState("");
   const [spec, setSpec] = useState("");
   const [price, setPrice] = useState("");
+  const [code, setCode] = useState("");
   const [quantity, setQuantity] = useState("0");
   const [isPending, startTransition] = useTransition();
 
@@ -190,6 +193,7 @@ function AddProductModal({ brand, branch, onClose }: { brand: CatalogBrand; bran
         productName: productName.trim(),
         spec: spec.trim(),
         price: Math.max(0, Number(price) || 0),
+        code: code.trim(),
         branch,
         quantity: Math.max(0, Number(quantity) || 0),
       });
@@ -209,6 +213,18 @@ function AddProductModal({ brand, branch, onClose }: { brand: CatalogBrand; bran
               value={category}
               onChange={(e) => setCategory(e.target.value)}
               placeholder="e.g. Oil filters, Spark plugs, Brake pads"
+              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-neutral-600 mb-1.5">
+              Code / Barcode <span className="text-neutral-400">(optional)</span>
+            </label>
+            <input
+              type="text"
+              value={code}
+              onChange={(e) => setCode(e.target.value)}
+              placeholder="e.g. B5D-E4450-00"
               className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
             />
           </div>
