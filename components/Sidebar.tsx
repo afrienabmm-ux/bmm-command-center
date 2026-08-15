@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import {
   LayoutDashboard,
   ShieldCheck,
@@ -21,8 +21,6 @@ import {
 import { signOutAction, changeOwnPasswordAction } from "@/lib/auth-actions";
 import type { Role } from "@/lib/current-user";
 import type { PageKey } from "@/lib/permissions";
-
-const STORAGE_KEY = "cc_sidebar_collapsed";
 
 const links: { href: string; label: string; icon: typeof LayoutDashboard; page: PageKey | null; color: string }[] = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard, page: null, color: "text-indigo-500" },
@@ -43,31 +41,20 @@ export default function Sidebar({
   role,
   positionTitle,
   pages,
+  collapsed,
+  onToggle,
 }: {
   email: string;
   name: string;
   role: Role | null;
   positionTitle: string | null;
   pages: PageKey[];
+  collapsed: boolean;
+  onToggle: () => void;
 }) {
   const pathname = usePathname();
   const canSeeTeam = role === "Management";
-  const [collapsed, setCollapsed] = useState(false);
   const [changePasswordOpen, setChangePasswordOpen] = useState(false);
-
-  // Read the saved preference after mount so the server and client render
-  // the same markup on first paint.
-  useEffect(() => {
-    setCollapsed(window.localStorage.getItem(STORAGE_KEY) === "true");
-  }, []);
-
-  function toggle() {
-    setCollapsed((prev) => {
-      const next = !prev;
-      window.localStorage.setItem(STORAGE_KEY, String(next));
-      return next;
-    });
-  }
 
   const visibleLinks = links.filter((l) => l.page === null || pages.includes(l.page));
   const navLinks = canSeeTeam
@@ -89,7 +76,7 @@ export default function Sidebar({
               <p className="text-[11px] text-neutral-500 truncate">Berjaya Mega Motors</p>
             </div>
             <button
-              onClick={toggle}
+              onClick={onToggle}
               title="Collapse menu"
               aria-label="Collapse menu"
               className="text-neutral-400 hover:text-neutral-700 transition-colors p-1 shrink-0"
@@ -103,7 +90,7 @@ export default function Sidebar({
       {collapsed && (
         <div className="flex justify-center pt-3">
           <button
-            onClick={toggle}
+            onClick={onToggle}
             title="Expand menu"
             aria-label="Expand menu"
             className="text-neutral-400 hover:text-neutral-700 transition-colors p-1.5 rounded-lg hover:bg-neutral-100"

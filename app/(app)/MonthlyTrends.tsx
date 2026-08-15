@@ -8,13 +8,19 @@ function scale(value: number, max: number): number {
   return Math.max(2, Math.round((value / max) * CHART_HEIGHT));
 }
 
-// Two bars per month (target, achieved) sharing one scale, drawn as plain
-// SVG rather than pulling in a charting library for a handful of bars.
+// Two lines per month (target, achieved) sharing one scale, drawn as plain
+// SVG rather than pulling in a charting library for a handful of points.
 function RevenueTrendChart({ points }: { points: MonthlyTrendPoint[] }) {
   const max = Math.max(1, ...points.map((p) => Math.max(p.targetAmount, p.achievedAmount)));
-  const barWidth = 14;
-  const groupWidth = barWidth * 2 + BAR_GAP;
-  const width = points.length * (groupWidth + 16);
+  const step = 90;
+  const padX = 24;
+  const width = Math.max((points.length - 1) * step + padX * 2, 320);
+
+  const xAt = (i: number) => padX + i * step;
+  const yAt = (value: number) => CHART_HEIGHT - scale(value, max);
+
+  const targetPath = points.map((p, i) => `${i === 0 ? "M" : "L"}${xAt(i)},${yAt(p.targetAmount)}`).join(" ");
+  const achievedPath = points.map((p, i) => `${i === 0 ? "M" : "L"}${xAt(i)},${yAt(p.achievedAmount)}`).join(" ");
 
   return (
     <div className="bg-white border border-neutral-200 rounded-xl p-5">
@@ -25,36 +31,31 @@ function RevenueTrendChart({ points }: { points: MonthlyTrendPoint[] }) {
         </div>
         <div className="flex items-center gap-3 text-xs text-neutral-500">
           <span className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-sm bg-neutral-300 inline-block" /> Target
+            <span className="w-2.5 h-0.5 rounded-full bg-neutral-300 inline-block" /> Target
           </span>
           <span className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-sm bg-indigo-500 inline-block" /> Achieved
+            <span className="w-2.5 h-0.5 rounded-full bg-indigo-500 inline-block" /> Achieved
           </span>
         </div>
       </div>
       <div className="overflow-x-auto">
-        <svg width={Math.max(width, 320)} height={CHART_HEIGHT + 36} className="min-w-full">
-          {points.map((p, i) => {
-            const x = i * (groupWidth + 16) + 8;
-            const targetH = scale(p.targetAmount, max);
-            const achievedH = scale(p.achievedAmount, max);
-            return (
-              <g key={`${p.year}-${p.month}`}>
-                <rect x={x} y={CHART_HEIGHT - targetH} width={barWidth} height={targetH} rx={2} className="fill-neutral-300" />
-                <rect
-                  x={x + barWidth + BAR_GAP}
-                  y={CHART_HEIGHT - achievedH}
-                  width={barWidth}
-                  height={achievedH}
-                  rx={2}
-                  className={p.achievedAmount >= p.targetAmount && p.targetAmount > 0 ? "fill-emerald-500" : "fill-indigo-500"}
-                />
-                <text x={x + groupWidth / 2 - BAR_GAP / 2} y={CHART_HEIGHT + 18} textAnchor="middle" className="fill-neutral-500 text-[10px]">
-                  {p.label}
-                </text>
-              </g>
-            );
-          })}
+        <svg width={width} height={CHART_HEIGHT + 36} className="min-w-full">
+          <path d={targetPath} fill="none" strokeWidth={2} strokeDasharray="4 4" className="stroke-neutral-300" />
+          <path d={achievedPath} fill="none" strokeWidth={2.5} className="stroke-indigo-500" />
+          {points.map((p, i) => (
+            <g key={`${p.year}-${p.month}`}>
+              <circle cx={xAt(i)} cy={yAt(p.targetAmount)} r={3} className="fill-white stroke-neutral-300" strokeWidth={2} />
+              <circle
+                cx={xAt(i)}
+                cy={yAt(p.achievedAmount)}
+                r={3.5}
+                className={p.achievedAmount >= p.targetAmount && p.targetAmount > 0 ? "fill-emerald-500" : "fill-indigo-500"}
+              />
+              <text x={xAt(i)} y={CHART_HEIGHT + 18} textAnchor="middle" className="fill-neutral-500 text-[10px]">
+                {p.label}
+              </text>
+            </g>
+          ))}
         </svg>
       </div>
     </div>
