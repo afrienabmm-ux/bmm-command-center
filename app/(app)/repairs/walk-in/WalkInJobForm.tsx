@@ -417,7 +417,7 @@ export default function WalkInJobForm({
           await addRepairJobAction({ ...payload, branch: effectiveBranch, jobType: "Walk-in" });
         }
         if (hasGenblu) {
-          await ensureGenbluRegistrationAction({
+          const genbluResult = await ensureGenbluRegistrationAction({
             branch: effectiveBranch,
             customerName: customerName.trim(),
             customerPlateNo: plateNo.trim(),
@@ -425,9 +425,15 @@ export default function WalkInJobForm({
             salespersonCode: selectedMechanic?.shortCode ?? "",
             screenshot: genbluAlreadyRegistered ? null : genbluScreenshot,
           });
-          window.alert(
-            `${customerName.trim()} earned ${Math.round(finalRevenue).toLocaleString()} GenBlu points (${formatCurrency(finalRevenue)}) from this job.`
-          );
+          if (genbluResult && "error" in genbluResult) {
+            window.alert(
+              `Job saved, but the GenBlu registration failed: ${genbluResult.error}\n\nYou can register this customer directly from the GenBlu Tracker page.`
+            );
+          } else {
+            window.alert(
+              `${customerName.trim()} earned ${Math.round(finalRevenue).toLocaleString()} GenBlu points (${formatCurrency(finalRevenue)}) from this job.`
+            );
+          }
         }
         router.push("/repairs/walk-in");
       } catch (err) {

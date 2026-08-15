@@ -5,6 +5,7 @@ import { supabaseAdmin } from "./supabase-server";
 import { requireApproved, assertCanEditBranch } from "./current-user";
 import type { GenbluRegistration } from "./types";
 import { BRANCHES, type Branch } from "./branch";
+import { extractTextFromImage } from "./vision";
 
 const BUCKET = "genblu-screenshots";
 
@@ -34,6 +35,24 @@ function toReg(r: Row): GenbluRegistration {
 
 function normalizeName(name: string): string {
   return name.trim().toLowerCase();
+}
+
+// Strips everything but letters/digits so OCR line breaks or stray
+// punctuation between name parts don't break the comparison.
+function condensedName(name: string): string {
+  return name.toLowerCase().replace(/[^a-z0-9]/g, "");
+}
+
+// The GenBlu app screenshot should show the same customer's name — read it
+// with the same OCR used for jobsheet scans and check it appears somewhere
+// on the screenshot before accepting the upload.
+async function screenshotMatchesName(screenshot: File, customerName: string): Promise<boolean> {
+  const condensed = condensedName(customerName);
+  if (!condensed) return true;
+  const buffer = Buffer.from(await screenshot.arrayBuffer());
+  const base64 = buffer.toString("base64");
+  const text = await extractTextFromImage(base64);
+  return condensedName(text).includes(condensed);
 }
 
 export async function getGenbluRegistrations(branch: Branch): Promise<GenbluRegistration[]> {
@@ -203,6 +222,20 @@ export async function ensureGenbluRegistrationAction(input: {
   let screenshotPath: string | null = null;
   const screenshot = input.screenshot;
   if (screenshot && screenshot.size > 0) {
+    let nameMatches = true;
+    try {
+      nameMatches = await screenshotMatchesName(screenshot, customerName);
+    } catch {
+      // If the OCR check itself fails (e.g. Vision hiccup), don't block
+      // the registration over it — just skip the verification.
+      nameMatches = true;
+    }
+    if (!nameMatches) {
+      return {
+        error: `The name on the GenBlu screenshot doesn't match "${customerName}" — please check the screenshot is for the right customer and try again.`,
+      };
+    }
+
     const ext = screenshot.name.split(".").pop() || "jpg";
     const path = `${input.branch}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
     const { error: uploadError } = await supabaseAdmin.storage.from(BUCKET).upload(path, screenshot, {
