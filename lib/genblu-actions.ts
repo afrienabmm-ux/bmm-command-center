@@ -13,6 +13,7 @@ type Row = {
   branch: Branch;
   salesperson_name: string;
   salesperson_code: string;
+  customer_name: string;
   customer_plate_no: string;
   screenshot_path: string | null;
   created_at: string;
@@ -24,10 +25,15 @@ function toReg(r: Row): GenbluRegistration {
     branch: r.branch,
     salespersonName: r.salesperson_name,
     salespersonCode: r.salesperson_code,
+    customerName: r.customer_name,
     customerPlateNo: r.customer_plate_no,
     screenshotPath: r.screenshot_path,
     createdAt: r.created_at,
   };
+}
+
+function normalizeName(name: string): string {
+  return name.trim().toLowerCase();
 }
 
 export async function getGenbluRegistrations(branch: Branch): Promise<GenbluRegistration[]> {
@@ -54,6 +60,27 @@ export async function getScreenshotUrl(path: string): Promise<string | null> {
   return data.signedUrl;
 }
 
+// GenBlu points: 1 point per RM1 spent. Points aren't stored — they're
+// computed on the fly by matching a registration's customer name (case/
+// whitespace-insensitive) against completed Walk-in job spending, so a
+// customer's total always reflects every job they've ever had, past or
+// future, without a separate ledger to keep in sync.
+export async function getGenbluPointsByName(): Promise<Record<string, number>> {
+  const { data, error } = await supabaseAdmin
+    .from("cc_repair_jobs")
+    .select("customer_name, revenue_amount")
+    .eq("job_type", "Walk-in");
+  if (error) throw new Error(error.message);
+
+  const points: Record<string, number> = {};
+  for (const row of data ?? []) {
+    const key = normalizeName(row.customer_name ?? "");
+    if (!key) continue;
+    points[key] = (points[key] ?? 0) + Number(row.revenue_amount);
+  }
+  return points;
+}
+
 export async function addGenbluRegistrationAction(formData: FormData): Promise<{ error: string } | void> {
   const user = await requireApproved();
   const branch = String(formData.get("branch") || "") as Branch;
@@ -61,6 +88,7 @@ export async function addGenbluRegistrationAction(formData: FormData): Promise<{
 
   const salespersonName = String(formData.get("salesperson_name") || "").trim();
   const salespersonCode = String(formData.get("salesperson_code") || "").trim();
+  const customerName = String(formData.get("customer_name") || "").trim();
   const customerPlateNo = String(formData.get("customer_plate_no") || "").trim();
   const screenshot = formData.get("screenshot") as File | null;
 
@@ -83,6 +111,7 @@ export async function addGenbluRegistrationAction(formData: FormData): Promise<{
     branch,
     salesperson_name: salespersonName,
     salesperson_code: salespersonCode.toUpperCase(),
+    customer_name: customerName,
     customer_plate_no: customerPlateNo,
     screenshot_path: screenshotPath,
   });
@@ -93,7 +122,7 @@ export async function addGenbluRegistrationAction(formData: FormData): Promise<{
 export async function updateGenbluRegistrationAction(
   id: string,
   branch: Branch,
-  input: { salespersonName: string; salespersonCode: string; customerPlateNo: string }
+  input: { salespersonName: string; salespersonCode: string; customerName: string; customerPlateNo: string }
 ): Promise<{ error: string } | void> {
   const user = await requireApproved();
   assertCanEditBranch(user, branch);
@@ -109,6 +138,7 @@ export async function updateGenbluRegistrationAction(
     .update({
       salesperson_name: salespersonName,
       salesperson_code: input.salespersonCode.trim().toUpperCase(),
+      customer_name: input.customerName.trim(),
       customer_plate_no: customerPlateNo,
     })
     .eq("id", id);
@@ -122,4 +152,44 @@ export async function deleteGenbluRegistrationAction(id: string, branch: Branch)
   const { error } = await supabaseAdmin.from("cc_genblu_registrations").delete().eq("id", id);
   if (error) throw new Error(error.message);
   revalidatePath("/genblu");
+}
+
+// Called from the Walk-in job form when the PIC confirms the customer has
+// GenBlu installed. Finds an existing registration for this customer (by
+// name, case/whitespace-insensitive, within the branch) and leaves it
+// alone, or creates one so they start showing up in the tracker — points
+// are computed separately from their job spending, not stored here.
+export async function ensureGenbluRegistrationAction(input: {
+  branch: Branch;
+  customerName: string;
+  customerPlateNo: string;
+  salespersonName: string;
+  salespersonCode: string;
+}): Promise<{ error: string } | { created: boolean }> {
+  const user = await requireApproved();
+  assertCanEditBranch(user, input.branch);
+
+  const customerName = input.customerName.trim();
+  if (!customerName) return { error: "Customer name is required to register GenBlu." };
+
+  const { data: existing, error: fetchError } = await supabaseAdmin
+    .from("cc_genblu_registrations")
+    .select("id, customer_name")
+    .eq("branch", input.branch);
+  if (fetchError) return { error: fetchError.message };
+
+  const match = (existing ?? []).find((r) => normalizeName(r.customer_name) === normalizeName(customerName));
+  if (match) return { created: false };
+
+  const { error } = await supabaseAdmin.from("cc_genblu_registrations").insert({
+    branch: input.branch,
+    salesperson_name: input.salespersonName,
+    salesperson_code: input.salespersonCode.toUpperCase(),
+    customer_name: customerName,
+    customer_plate_no: input.customerPlateNo.trim(),
+    screenshot_path: null,
+  });
+  if (error) return { error: error.message };
+  revalidatePath("/genblu");
+  return { created: true };
 }

@@ -152,6 +152,7 @@ export type GenbluRegistration = {
   branch: Branch;
   salespersonName: string;
   salespersonCode: string;
+  customerName: string;
   customerPlateNo: string;
   screenshotPath: string | null;
   createdAt: string;

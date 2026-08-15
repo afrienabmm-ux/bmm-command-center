@@ -1,5 +1,10 @@
 import { requirePageContext, requirePage, canViewAllBranches, getActiveBranchSelection } from "@/lib/current-user";
-import { getGenbluRegistrations, getAllBranchesGenbluRegistrations, getScreenshotUrl } from "@/lib/genblu-actions";
+import {
+  getGenbluRegistrations,
+  getAllBranchesGenbluRegistrations,
+  getScreenshotUrl,
+  getGenbluPointsByName,
+} from "@/lib/genblu-actions";
 import { getAllMechanics } from "@/lib/mechanics-actions";
 import { branchLabel } from "@/lib/branch";
 import PageHeader from "@/components/PageHeader";
@@ -13,21 +18,23 @@ export default async function GenbluPage() {
   const branchSelection = await getActiveBranchSelection(user);
   const showAllBranches = branchSelection === "all";
 
-  const [registrations, mechanics] = await Promise.all([
+  const [registrations, mechanics, pointsByName] = await Promise.all([
     showAllBranches ? getAllBranchesGenbluRegistrations() : getGenbluRegistrations(branch),
     getAllMechanics(),
+    getGenbluPointsByName(),
   ]);
   const withUrls = await Promise.all(
     registrations.map(async (r) => ({
       ...r,
       screenshotUrl: r.screenshotPath ? await getScreenshotUrl(r.screenshotPath) : null,
+      points: pointsByName[r.customerName.trim().toLowerCase()] ?? 0,
     }))
   );
 
   return (
     <div className="flex flex-col h-full">
       <PageHeader
-        title="GenBlu Registration"
+        title="GenBlu Tracker"
         subtitle={`${showAllBranches ? "All Branches" : branchLabel(branch)} — ${registrations.length} registered`}
       />
       <div className="p-8">

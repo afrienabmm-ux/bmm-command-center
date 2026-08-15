@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, useTransition } from "react";
-import { Plus, ImageIcon, Download, X, Pencil, Trash2 } from "lucide-react";
+import { useMemo, useState, useTransition } from "react";
+import { Plus, ImageIcon, Download, X, Pencil, Trash2, Search, Award } from "lucide-react";
 import { addGenbluRegistrationAction, updateGenbluRegistrationAction, deleteGenbluRegistrationAction } from "@/lib/genblu-actions";
 import { exportGenbluCsv, exportAllBranchesGenbluCsv } from "@/lib/export-actions";
 import { BRANCHES, branchLabel, type Branch, type BranchSelection } from "@/lib/branch";
-import { formatDate } from "@/lib/format";
+import { formatDate, formatCurrency } from "@/lib/format";
 import type { Mechanic } from "@/lib/types";
 
 type RegWithUrl = {
@@ -13,9 +13,11 @@ type RegWithUrl = {
   branch: Branch;
   salespersonName: string;
   salespersonCode: string;
+  customerName: string;
   customerPlateNo: string;
   screenshotUrl: string | null;
   createdAt: string;
+  points: number;
 };
 
 export default function GenbluClient({
@@ -38,7 +40,16 @@ export default function GenbluClient({
   const [exporting, setExporting] = useState(false);
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
+  const [query, setQuery] = useState("");
   const [isPending, startTransition] = useTransition();
+
+  const visible = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return registrations;
+    return registrations.filter(
+      (r) => r.customerName.toLowerCase().includes(q) || r.customerPlateNo.toLowerCase().includes(q)
+    );
+  }, [registrations, query]);
 
   async function handleExport() {
     setExporting(true);
@@ -70,7 +81,18 @@ export default function GenbluClient({
 
   return (
     <div>
-      <div className="flex items-center justify-end gap-3 mb-4 flex-wrap">
+      <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
+        <div className="relative">
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
+          <input
+            type="text"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search customer name or plate…"
+            className="bg-white border border-neutral-200 rounded-lg pl-8 pr-3 py-2 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50 w-64"
+          />
+        </div>
+        <div className="flex items-center gap-3 flex-wrap">
         <div className="flex items-center gap-2">
           <label className="text-xs font-medium text-neutral-500">From</label>
           <input
@@ -100,10 +122,11 @@ export default function GenbluClient({
         >
           <Plus size={15} /> New Registration
         </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {registrations.map((r) => (
+        {visible.map((r) => (
           <div key={r.id} className="bg-white border border-neutral-200 rounded-xl overflow-hidden">
             <div
               className="aspect-video bg-neutral-50 flex items-center justify-center cursor-pointer"
@@ -119,13 +142,19 @@ export default function GenbluClient({
             </div>
             <div className="p-4 flex items-start justify-between gap-2">
               <div className="min-w-0">
-                <p className="text-sm font-medium text-neutral-800">
-                  {r.salespersonName} {r.salespersonCode && <span className="text-neutral-500">({r.salespersonCode})</span>}
-                </p>
+                <p className="text-sm font-medium text-neutral-800 truncate">{r.customerName || "—"}</p>
                 <p className="text-xs text-neutral-500 mt-0.5">Plate: {r.customerPlateNo}</p>
+                <p className="text-xs text-neutral-500 mt-0.5">
+                  Registered by {r.salespersonName} {r.salespersonCode && `(${r.salespersonCode})`}
+                </p>
                 <p className="text-xs text-neutral-400 mt-1">
                   {formatDate(r.createdAt)} · {branchLabel(r.branch)}
                 </p>
+                {r.points > 0 && (
+                  <span className="inline-flex items-center gap-1 text-xs font-medium text-amber-700 bg-amber-500/10 border border-amber-500/20 rounded-full px-2 py-0.5 mt-2">
+                    <Award size={11} /> {r.points.toLocaleString()} points ({formatCurrency(r.points)})
+                  </span>
+                )}
               </div>
               <div className="flex items-center gap-1 shrink-0">
                 <button
@@ -148,8 +177,10 @@ export default function GenbluClient({
             </div>
           </div>
         ))}
-        {registrations.length === 0 && (
-          <p className="text-sm text-neutral-500 col-span-full text-center py-10">No GenBlu registrations yet.</p>
+        {visible.length === 0 && (
+          <p className="text-sm text-neutral-500 col-span-full text-center py-10">
+            {registrations.length === 0 ? "No GenBlu registrations yet." : "No registrations match your search."}
+          </p>
         )}
       </div>
 
@@ -303,6 +334,15 @@ function RegisterModal({
           )}
 
           <div>
+            <label className="block text-xs font-medium text-neutral-600 mb-1.5">Customer Name</label>
+            <input
+              type="text"
+              name="customer_name"
+              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+            />
+            <p className="text-xs text-neutral-500 mt-1.5">Used to match this customer's spending to GenBlu points.</p>
+          </div>
+          <div>
             <label className="block text-xs font-medium text-neutral-600 mb-1.5">Customer Plate No. *</label>
             <input
               type="text"
@@ -377,6 +417,7 @@ function EditModal({
   const [salespersonId, setSalespersonId] = useState(matchingMechanic?.id ?? "custom");
   const [salespersonName, setSalespersonName] = useState(registration.salespersonName);
   const [salespersonCode, setSalespersonCode] = useState(registration.salespersonCode);
+  const [customerName, setCustomerName] = useState(registration.customerName);
   const [plateNo, setPlateNo] = useState(registration.customerPlateNo);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -395,6 +436,7 @@ function EditModal({
       const result = await updateGenbluRegistrationAction(registration.id, registration.branch, {
         salespersonName,
         salespersonCode,
+        customerName,
         customerPlateNo: plateNo,
       });
       if (result && "error" in result) {
@@ -452,6 +494,15 @@ function EditModal({
             </div>
           )}
 
+          <div>
+            <label className="block text-xs font-medium text-neutral-600 mb-1.5">Customer Name</label>
+            <input
+              type="text"
+              value={customerName}
+              onChange={(e) => setCustomerName(e.target.value)}
+              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+            />
+          </div>
           <div>
             <label className="block text-xs font-medium text-neutral-600 mb-1.5">Customer Plate No. *</label>
             <input

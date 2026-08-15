@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, Trash2, ScanLine, Upload } from "lucide-react";
 import { addRepairJobAction, updateRepairJobAction } from "@/lib/repairs-actions";
+import { ensureGenbluRegistrationAction } from "@/lib/genblu-actions";
 import type { ScannedJobsheet } from "@/lib/jobsheet-actions";
 import { HEAVY_ITEM_COUNT_THRESHOLD, type RepairJob } from "@/lib/types";
 import type { Mechanic } from "@/lib/types";
@@ -142,6 +143,7 @@ export default function WalkInJobForm({
   const [completedDate, setCompletedDate] = useState(job?.completedDate ?? "");
   const [isBigItem, setIsBigItem] = useState(job?.isBigItem ?? false);
   const [items, setItems] = useState<ItemInput[]>(job ? itemsFromJob(job) : []);
+  const [hasGenblu, setHasGenblu] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [isScanning, setIsScanning] = useState(false);
   const [scanError, setScanError] = useState<string | null>(null);
@@ -378,11 +380,25 @@ export default function WalkInJobForm({
       isBigItem,
     };
 
+    const finalRevenue = items.length > 0 ? itemsTotal : Number(revenueAmount) || 0;
+
     startTransition(async () => {
       if (isEdit && job) {
         await updateRepairJobAction(job.id, job.branch, payload);
       } else {
         await addRepairJobAction({ ...payload, branch: effectiveBranch, jobType: "Walk-in" });
+      }
+      if (hasGenblu) {
+        await ensureGenbluRegistrationAction({
+          branch: effectiveBranch,
+          customerName: customerName.trim(),
+          customerPlateNo: plateNo.trim(),
+          salespersonName: selectedMechanic?.shortName ?? "",
+          salespersonCode: selectedMechanic?.shortCode ?? "",
+        });
+        window.alert(
+          `${customerName.trim()} earned ${Math.round(finalRevenue).toLocaleString()} GenBlu points (${formatCurrency(finalRevenue)}) from this job.`
+        );
       }
       router.push("/repairs/walk-in");
     });
@@ -688,6 +704,39 @@ export default function WalkInJobForm({
             <p className="text-xs text-neutral-500 mt-1.5">
               Leave the end date blank to fill it in automatically when the job is marked Completed.
             </p>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-neutral-600 mb-1.5">Customer has GenBlu?</label>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setHasGenblu(true)}
+                className={`px-4 py-2 rounded-lg text-sm font-medium border transition-colors ${
+                  hasGenblu
+                    ? "bg-indigo-500 border-indigo-500 text-white"
+                    : "bg-neutral-50 border-neutral-200 text-neutral-600 hover:border-indigo-500/50"
+                }`}
+              >
+                Yes
+              </button>
+              <button
+                type="button"
+                onClick={() => setHasGenblu(false)}
+                className={`px-4 py-2 rounded-lg text-sm font-medium border transition-colors ${
+                  !hasGenblu
+                    ? "bg-indigo-500 border-indigo-500 text-white"
+                    : "bg-neutral-50 border-neutral-200 text-neutral-600 hover:border-indigo-500/50"
+                }`}
+              >
+                No
+              </button>
+            </div>
+            {hasGenblu && (
+              <p className="text-xs text-neutral-500 mt-1.5">
+                On save, this customer will be added to the GenBlu Tracker (or matched if already registered) and
+                you'll see the points earned from this job.
+              </p>
+            )}
           </div>
         </div>
         <div className="flex items-center justify-end gap-3 mt-6 pt-4 border-t border-neutral-200">

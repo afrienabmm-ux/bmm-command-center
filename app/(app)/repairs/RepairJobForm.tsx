@@ -485,17 +485,22 @@ export default function RepairJobForm({
           </div>
           <div>
             <label className="block text-xs font-medium text-neutral-600 mb-1.5">Trade In / Tarik</label>
-            <select
-              value={dealType}
-              onChange={(e) => setDealType(e.target.value as (typeof DEAL_TYPES)[number])}
-              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
-            >
+            <div className="flex items-center gap-2">
               {DEAL_TYPES.map((t) => (
-                <option key={t} value={t}>
+                <button
+                  key={t}
+                  type="button"
+                  onClick={() => setDealType(t)}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium border transition-colors ${
+                    dealType === t
+                      ? "bg-indigo-500 border-indigo-500 text-white"
+                      : "bg-neutral-50 border-neutral-200 text-neutral-600 hover:border-indigo-500/50"
+                  }`}
+                >
                   {t}
-                </option>
+                </button>
               ))}
-            </select>
+            </div>
           </div>
           <div className="flex items-end gap-4">
             <div>

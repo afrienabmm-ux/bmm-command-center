@@ -5,7 +5,7 @@ export const PAGE_DEFS = [
   { key: "repairs", label: "Restore Bike", href: "/repairs" },
   { key: "walk-in", label: "Walk-in", href: "/repairs/walk-in" },
   { key: "mechanics", label: "Mechanics", href: "/mechanics" },
-  { key: "genblu", label: "GenBlu Registration", href: "/genblu" },
+  { key: "genblu", label: "GenBlu Tracker", href: "/genblu" },
   { key: "catalog", label: "Catalog", href: "/catalog" },
   { key: "packages", label: "Services Combo", href: "/packages" },
 ] as const;
