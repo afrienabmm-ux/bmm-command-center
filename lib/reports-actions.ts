@@ -57,6 +57,8 @@ export type MechanicAchievement = {
   shortCode: string;
   restoreBikeCount: number;
   restoreBikeRevenue: number;
+  walkInCount: number;
+  walkInRevenue: number;
   totalRevenue: number;
 };
 
@@ -71,12 +73,15 @@ const cachedMechanicAchievements = cache(
 
     // Counts every job assigned this month regardless of status (Pending/In
     // Progress/Completed) — a mechanic's revenue credit shouldn't wait on
-    // the job being marked finished, only on when it started.
+    // the job being marked finished, only on when it started. Restore Bike
+    // is counted per bike (one job = one bike) separately from Walk-in so
+    // "Top Restore Bike" reflects only bike-restoration earnings, while a
+    // mechanic's overall revenue is still Restore Bike + Walk-in combined.
     const [{ data: mechanics, error: mErr }, { data: jobs, error: jErr }] = await Promise.all([
       supabaseAdmin.from("cc_mechanics").select("id, full_name, short_code").eq("branch", branch),
       supabaseAdmin
         .from("cc_repair_jobs")
-        .select("mechanic_id, revenue_amount")
+        .select("mechanic_id, job_type, revenue_amount")
         .eq("branch", branch)
         .gte("started_date", from)
         .lte("started_date", to),
@@ -86,13 +91,19 @@ const cachedMechanicAchievements = cache(
 
     return (mechanics ?? []).map((m) => {
       const own = (jobs ?? []).filter((j) => j.mechanic_id === m.id);
+      const restoreBike = own.filter((j) => j.job_type === "Restore Bike");
+      const walkIn = own.filter((j) => j.job_type === "Walk-in");
+      const restoreBikeRevenue = restoreBike.reduce((s, j) => s + Number(j.revenue_amount), 0);
+      const walkInRevenue = walkIn.reduce((s, j) => s + Number(j.revenue_amount), 0);
       return {
         mechanicId: m.id,
         fullName: m.full_name,
         shortCode: m.short_code,
-        restoreBikeCount: own.length,
-        restoreBikeRevenue: own.reduce((s, j) => s + Number(j.revenue_amount), 0),
-        totalRevenue: own.reduce((s, j) => s + Number(j.revenue_amount), 0),
+        restoreBikeCount: restoreBike.length,
+        restoreBikeRevenue,
+        walkInCount: walkIn.length,
+        walkInRevenue,
+        totalRevenue: restoreBikeRevenue + walkInRevenue,
       };
     });
   }
@@ -211,6 +222,8 @@ export type MechanicPerformanceRow = {
   shortCode: string;
   restoreBikeRevenue: number;
   restoreBikeCount: number;
+  walkInRevenue: number;
+  walkInCount: number;
   packageRevenue: number;
   packageSetsSold: number;
   totalRevenue: number;
@@ -238,6 +251,8 @@ export async function getBranchPerformance(
       shortCode: a.shortCode,
       restoreBikeRevenue: a.restoreBikeRevenue,
       restoreBikeCount: a.restoreBikeCount,
+      walkInRevenue: a.walkInRevenue,
+      walkInCount: a.walkInCount,
       packageRevenue: pkg?.revenue ?? 0,
       packageSetsSold: pkg?.setsSold ?? 0,
       totalRevenue: a.totalRevenue + (pkg?.revenue ?? 0),
