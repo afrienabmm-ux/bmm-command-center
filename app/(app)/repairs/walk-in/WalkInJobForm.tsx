@@ -383,24 +383,28 @@ export default function WalkInJobForm({
     const finalRevenue = items.length > 0 ? itemsTotal : Number(revenueAmount) || 0;
 
     startTransition(async () => {
-      if (isEdit && job) {
-        await updateRepairJobAction(job.id, job.branch, payload);
-      } else {
-        await addRepairJobAction({ ...payload, branch: effectiveBranch, jobType: "Walk-in" });
+      try {
+        if (isEdit && job) {
+          await updateRepairJobAction(job.id, job.branch, payload);
+        } else {
+          await addRepairJobAction({ ...payload, branch: effectiveBranch, jobType: "Walk-in" });
+        }
+        if (hasGenblu) {
+          await ensureGenbluRegistrationAction({
+            branch: effectiveBranch,
+            customerName: customerName.trim(),
+            customerPlateNo: plateNo.trim(),
+            salespersonName: selectedMechanic?.shortName ?? "",
+            salespersonCode: selectedMechanic?.shortCode ?? "",
+          });
+          window.alert(
+            `${customerName.trim()} earned ${Math.round(finalRevenue).toLocaleString()} GenBlu points (${formatCurrency(finalRevenue)}) from this job.`
+          );
+        }
+        router.push("/repairs/walk-in");
+      } catch (err) {
+        window.alert(err instanceof Error ? err.message : "Something went wrong saving this job.");
       }
-      if (hasGenblu) {
-        await ensureGenbluRegistrationAction({
-          branch: effectiveBranch,
-          customerName: customerName.trim(),
-          customerPlateNo: plateNo.trim(),
-          salespersonName: selectedMechanic?.shortName ?? "",
-          salespersonCode: selectedMechanic?.shortCode ?? "",
-        });
-        window.alert(
-          `${customerName.trim()} earned ${Math.round(finalRevenue).toLocaleString()} GenBlu points (${formatCurrency(finalRevenue)}) from this job.`
-        );
-      }
-      router.push("/repairs/walk-in");
     });
   }
 
