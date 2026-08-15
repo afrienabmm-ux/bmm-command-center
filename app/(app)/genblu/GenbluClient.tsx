@@ -286,6 +286,23 @@ function RegisterModal({
         <h2 className="text-sm font-semibold text-neutral-900 mb-5">New GenBlu Registration</h2>
         <form action={handleSubmit} className="space-y-4">
           <div>
+            <label className="block text-xs font-medium text-neutral-600 mb-1.5">Branch</label>
+            <select
+              name="branch"
+              value={regBranch}
+              onChange={(e) => handleBranchChange(e.target.value as Branch)}
+              disabled={locked}
+              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50 disabled:opacity-60"
+            >
+              {BRANCHES.map((b) => (
+                <option key={b.value} value={b.value}>
+                  {b.label}
+                </option>
+              ))}
+            </select>
+            <p className="text-xs text-neutral-500 mt-1.5">Pick the branch first — it decides which salespeople show up below.</p>
+          </div>
+          <div>
             <label className="block text-xs font-medium text-neutral-600 mb-1.5">Salesperson Name *</label>
             {branchMechanics.length > 0 ? (
               <select
@@ -350,22 +367,6 @@ function RegisterModal({
               required
               className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
             />
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-neutral-600 mb-1.5">Branch</label>
-            <select
-              name="branch"
-              value={regBranch}
-              onChange={(e) => handleBranchChange(e.target.value as Branch)}
-              disabled={locked}
-              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50 disabled:opacity-60"
-            >
-              {BRANCHES.map((b) => (
-                <option key={b.value} value={b.value}>
-                  {b.label}
-                </option>
-              ))}
-            </select>
           </div>
           <div>
             <label className="block text-xs font-medium text-neutral-600 mb-1.5">Screenshot</label>
