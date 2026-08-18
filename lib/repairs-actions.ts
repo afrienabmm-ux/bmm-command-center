@@ -579,28 +579,36 @@ export async function setRestoreBikeWorkflowDateAction(
   const user = await requireApproved();
   assertCanEditBranch(user, branch);
 
-  if (value !== null && (stage === "started" || stage === "completed")) {
-    const { data: existing, error: fetchError } = await supabaseAdmin
+  let existing: { approval_status?: ApprovalStatus; started_date?: string | null } | null = null;
+  if (stage === "started" || stage === "completed") {
+    const { data, error: fetchError } = await supabaseAdmin
       .from("cc_repair_jobs")
       .select("approval_status, started_date")
       .eq("id", id)
       .single();
     if (fetchError) throw new Error(fetchError.message);
-    if (stage === "started" && existing?.approval_status !== "Approved") {
+    existing = data;
+    if (value !== null && stage === "started" && existing?.approval_status !== "Approved") {
       throw new Error("This job needs GM approval before the repair can start.");
     }
-    if (stage === "completed" && !existing?.started_date) {
+    if (value !== null && stage === "completed" && !existing?.started_date) {
       throw new Error("The job hasn't started yet.");
     }
   }
 
   const column = WORKFLOW_STAGE_COLUMNS[stage];
-  const { error } = await supabaseAdmin
-    .from("cc_repair_jobs")
-    .update({ [column]: value })
-    .eq("id", id);
+  const update: Record<string, string | null> = { [column]: value };
+  // Stamping the End date also marks the job Completed — clearing it puts
+  // the job back to In Progress (it had already started) so Status never
+  // drifts out of sync with the End Date stamp.
+  if (stage === "completed") {
+    update.status = value ? "Completed" : existing?.started_date ? "In Progress" : "Pending";
+  }
+
+  const { error } = await supabaseAdmin.from("cc_repair_jobs").update(update).eq("id", id);
   if (error) throw new Error(error.message);
   revalidatePath("/repairs");
+  revalidatePath("/");
 }
 
 export async function updateRepairStatusAction(id: string, branch: Branch, status: RepairStatus): Promise<void> {
