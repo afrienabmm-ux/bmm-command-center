@@ -58,7 +58,7 @@ export default function AppShell({
         onToggle={toggle}
       />
       <div className="flex-1 min-w-0 flex flex-col">
-        <div className="h-14 border-b border-neutral-200 flex items-center justify-between px-8 shrink-0">
+        <div className="h-14 border-b border-neutral-200 relative flex items-center justify-between px-8 shrink-0">
           {collapsed ? (
             <p className="text-sm font-semibold text-neutral-800 tracking-wide">
               BERJAYA MEGA MOTORS <span className="text-neutral-400 font-normal">— AFTERSALES</span>
@@ -66,6 +66,11 @@ export default function AppShell({
           ) : (
             <span />
           )}
+          <img
+            src="/bmm-logo-full.png"
+            alt="Berjaya Mega Motors"
+            className="h-8 absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2"
+          />
           <BranchSwitcher activeBranch={activeBranch} locked={locked} allowAll={allowAll} />
         </div>
         <main className="flex-1 min-w-0">{children}</main>
