@@ -20,7 +20,6 @@ function shortAmount(value: number): string {
 
 const LINE_CHART_HEIGHT = 220;
 const LINE_CHART_TICKS = 5;
-const MIN_STEP = 80;
 const LEFT_AXIS_WIDTH = 64;
 const PAD_X = 32;
 const PAD_TOP = 24;
@@ -55,9 +54,11 @@ export function RevenueTrendChart({ points }: { points: MonthlyTrendPoint[] }) {
   const dataMax = Math.max(1, ...points.map((p) => Math.max(p.targetAmount, p.achievedAmount)));
   const axisMax = niceMax(dataMax);
 
-  const plotWidth = Math.max(containerWidth - LEFT_AXIS_WIDTH - PAD_X, 200);
-  const step = points.length > 1 ? Math.max(plotWidth / (points.length - 1), MIN_STEP) : plotWidth;
-  const width = points.length > 1 ? step * (points.length - 1) + PAD_X * 2 : plotWidth;
+  // No minimum step here — the chart always fills exactly the measured
+  // container width, so it never needs a horizontal scrollbar (points just
+  // pack closer together on a narrow screen instead).
+  const width = Math.max(containerWidth - LEFT_AXIS_WIDTH, 120);
+  const step = points.length > 1 ? (width - PAD_X * 2) / (points.length - 1) : width - PAD_X * 2;
 
   const xAt = (i: number) => PAD_X + i * step;
   const yAt = (value: number) => PAD_TOP + LINE_CHART_HEIGHT - (value / axisMax) * LINE_CHART_HEIGHT;
@@ -153,10 +154,9 @@ export function BranchJobsChart({ points }: { points: MonthlyTrendPoint[] }) {
   const axisMax = Math.max(LINE_CHART_TICKS, niceMax(dataMax));
   const chartHeight = 200;
 
-  const plotWidth = Math.max(containerWidth - LEFT_AXIS_WIDTH - 24, 200);
   const padX = 24;
-  const step = points.length > 1 ? Math.max(plotWidth / (points.length - 1), MIN_STEP) : plotWidth;
-  const width = points.length > 1 ? step * (points.length - 1) + padX * 2 : plotWidth;
+  const width = Math.max(containerWidth - LEFT_AXIS_WIDTH, 120);
+  const step = points.length > 1 ? (width - padX * 2) / (points.length - 1) : width - padX * 2;
 
   const xAt = (i: number) => padX + i * step;
   const yAt = (value: number) => PAD_TOP + chartHeight - (value / axisMax) * chartHeight;

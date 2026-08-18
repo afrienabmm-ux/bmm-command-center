@@ -63,42 +63,28 @@ export default function Sidebar({
 
   return (
     <aside
-      className={`${collapsed ? "w-16" : "w-64"} shrink-0 bg-neutral-50 border-r border-neutral-200 flex flex-col transition-[width] duration-200`}
+      className={`relative ${collapsed ? "w-16" : "w-64"} shrink-0 bg-neutral-50 border-r border-neutral-200 flex flex-col transition-[width] duration-200`}
     >
+      <button
+        onClick={onToggle}
+        title={collapsed ? "Expand menu" : "Collapse menu"}
+        aria-label={collapsed ? "Expand menu" : "Collapse menu"}
+        className="absolute top-1/2 -right-3 -translate-y-1/2 z-10 w-6 h-6 flex items-center justify-center rounded-full bg-white border border-neutral-200 text-neutral-400 hover:text-indigo-600 hover:border-indigo-300 shadow-sm transition-colors"
+      >
+        {collapsed ? <PanelLeftOpen size={13} /> : <PanelLeftClose size={13} />}
+      </button>
+
       <div
         className={`h-16 flex items-center border-b border-neutral-200 ${collapsed ? "justify-center px-2" : "gap-2.5 px-5"}`}
       >
         <img src="/bmm-logo.png" alt="Berjaya Mega Motors" className="w-8 h-8 rounded-full object-cover shrink-0" />
         {!collapsed && (
-          <>
-            <div className="leading-none min-w-0 flex-1">
-              <p className="text-sm font-semibold text-neutral-900">After-Sales</p>
-              <p className="text-[11px] text-neutral-500 truncate">Berjaya Mega Motors</p>
-            </div>
-            <button
-              onClick={onToggle}
-              title="Collapse menu"
-              aria-label="Collapse menu"
-              className="text-neutral-400 hover:text-neutral-700 transition-colors p-1 shrink-0"
-            >
-              <PanelLeftClose size={17} />
-            </button>
-          </>
+          <div className="leading-none min-w-0 flex-1">
+            <p className="text-sm font-semibold text-neutral-900">After-Sales</p>
+            <p className="text-[11px] text-neutral-500 truncate">Berjaya Mega Motors</p>
+          </div>
         )}
       </div>
-
-      {collapsed && (
-        <div className="flex justify-center pt-3">
-          <button
-            onClick={onToggle}
-            title="Expand menu"
-            aria-label="Expand menu"
-            className="text-neutral-400 hover:text-neutral-700 transition-colors p-1.5 rounded-lg hover:bg-neutral-100"
-          >
-            <PanelLeftOpen size={17} />
-          </button>
-        </div>
-      )}
 
       <nav className={`flex-1 py-4 space-y-1 overflow-y-auto ${collapsed ? "px-2" : "px-3"}`}>
         {navLinks.map((link) => {
