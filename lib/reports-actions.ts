@@ -19,7 +19,9 @@ export type BranchMonthSummary = {
   achievedAmount: number;
 };
 
-export async function getBranchMonthSummary(branch: Branch, year: number, month: number): Promise<BranchMonthSummary> {
+// Memoized per request — Reports/Dashboard pages ask for the same
+// (branch, year, month) summary from multiple places in one render.
+const cachedBranchMonthSummary = cache(async (branch: Branch, year: number, month: number): Promise<BranchMonthSummary> => {
   await requireApproved();
   const { from, to } = monthRange(year, month);
 
@@ -66,6 +68,10 @@ export async function getBranchMonthSummary(branch: Branch, year: number, month:
     targetAmount: targetRow ? Number(targetRow.target_amount) : 0,
     achievedAmount: repairRevenue + packageRevenue,
   };
+});
+
+export async function getBranchMonthSummary(branch: Branch, year: number, month: number): Promise<BranchMonthSummary> {
+  return cachedBranchMonthSummary(branch, year, month);
 }
 
 export type MechanicAchievement = {

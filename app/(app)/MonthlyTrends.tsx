@@ -1,4 +1,4 @@
-import { getMonthlyTrends, type MonthlyTrendPoint } from "@/lib/trends-actions";
+import type { MonthlyTrendPoint } from "@/lib/trends-actions";
 import { RevenueTrendChart, BranchJobsChart } from "./TrendCharts";
 
 const CHART_HEIGHT = 120;
@@ -56,9 +56,7 @@ function CountTrendChart({
   );
 }
 
-export default async function MonthlyTrends({ year, month }: { year: number; month: number }) {
-  const points = await getMonthlyTrends(year, month, 6);
-
+export default function MonthlyTrends({ points }: { points: MonthlyTrendPoint[] }) {
   return (
     <div>
       <p className="text-sm font-semibold text-neutral-900 mb-3">Trends</p>

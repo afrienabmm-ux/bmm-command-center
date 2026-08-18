@@ -1,7 +1,6 @@
-import { getAllBranchesPerformance } from "@/lib/reports-actions";
+import type { MechanicPerformanceRowWithBranch } from "@/lib/reports-actions";
 import AllBranchesMechanicPerformanceClient from "./AllBranchesMechanicPerformanceClient";
 
-export default async function AllBranchesMechanicPerformanceTable({ year, month }: { year: number; month: number }) {
-  const rows = await getAllBranchesPerformance(year, month);
+export default function AllBranchesMechanicPerformanceTable({ rows }: { rows: MechanicPerformanceRowWithBranch[] }) {
   return <AllBranchesMechanicPerformanceClient rows={rows} />;
 }

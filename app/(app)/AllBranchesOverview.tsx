@@ -7,6 +7,8 @@ import BranchBreakdownTable, { getBranchBreakdown, getAllBranchesAchievedTotal }
 import AllBranchesMechanicPerformanceTable from "./AllBranchesMechanicPerformanceTable";
 import MonthlyTrends from "./MonthlyTrends";
 import { getAllBranchesOverdueRestoreBikeJobs } from "@/lib/repairs-actions";
+import { getAllBranchesPerformance } from "@/lib/reports-actions";
+import { getMonthlyTrends } from "@/lib/trends-actions";
 
 // Rolls (year, month) back one month, correctly crossing a year boundary.
 function previousMonth(year: number, month: number): { year: number; month: number } {
@@ -15,10 +17,16 @@ function previousMonth(year: number, month: number): { year: number; month: numb
 
 export default async function AllBranchesOverview({ year, month }: { year: number; month: number }) {
   const prev = previousMonth(year, month);
-  const [rows, overdueJobs, prevAchieved] = await Promise.all([
+  // Fetched together (rather than each as its own async Server Component
+  // further down the tree) so they run as one wave of parallel queries
+  // instead of three sequential waterfalls — this was the main source of
+  // dashboard lag before.
+  const [rows, overdueJobs, prevAchieved, trendPoints, mechanicPerformanceRows] = await Promise.all([
     getBranchBreakdown(year, month),
     getAllBranchesOverdueRestoreBikeJobs(),
     getAllBranchesAchievedTotal(prev.year, prev.month),
+    getMonthlyTrends(year, month, 6),
+    getAllBranchesPerformance(year, month),
   ]);
 
   const totals = rows.reduce(
@@ -71,7 +79,7 @@ export default async function AllBranchesOverview({ year, month }: { year: numbe
         </div>
       </div>
 
-      <MonthlyTrends year={year} month={month} />
+      <MonthlyTrends points={trendPoints} />
 
       {overdueJobs.length > 0 && (
         <Link
@@ -125,7 +133,7 @@ export default async function AllBranchesOverview({ year, month }: { year: numbe
 
       <BranchBreakdownTable rows={rows} />
 
-      <AllBranchesMechanicPerformanceTable year={year} month={month} />
+      <AllBranchesMechanicPerformanceTable rows={mechanicPerformanceRows} />
     </div>
   );
 }
