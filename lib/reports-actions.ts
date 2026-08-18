@@ -94,12 +94,19 @@ const cachedMechanicAchievements = cache(
     // is counted per bike (one job = one bike) separately from Walk-in so
     // "Top Restore Bike" reflects only bike-restoration earnings, while a
     // mechanic's overall revenue is still Restore Bike + Walk-in combined.
+    //
+    // The jobs query is deliberately NOT filtered by branch: a job's Location
+    // can be set independently of the assigned mechanic's own branch (e.g. a
+    // mechanic works a job at another branch, or gets reassigned to a
+    // different branch after the job was created). Filtering jobs by branch
+    // here would silently drop that job from every mechanic's revenue —
+    // attribution should follow the mechanic, not whatever branch value
+    // happens to be stored on the job.
     const [{ data: mechanics, error: mErr }, { data: jobs, error: jErr }] = await Promise.all([
       supabaseAdmin.from("cc_mechanics").select("id, full_name, short_code").eq("branch", branch),
       supabaseAdmin
         .from("cc_repair_jobs")
         .select("mechanic_id, job_type, revenue_amount")
-        .eq("branch", branch)
         .gte("started_date", from)
         .lte("started_date", to),
     ]);
@@ -147,12 +154,14 @@ const cachedMechanicPackageAchievements = cache(
   async (branch: Branch, year: number, month: number): Promise<MechanicPackageAchievement[]> => {
     const { from, to } = monthRange(year, month);
 
+    // Not filtered by branch — same reasoning as the repair-job query above:
+    // attribute a sale to the mechanic who made it, not whatever branch
+    // value the sale record happens to carry.
     const [{ data: mechanics, error: mErr }, { data: sales, error: sErr }] = await Promise.all([
       supabaseAdmin.from("cc_mechanics").select("id, full_name, short_code").eq("branch", branch),
       supabaseAdmin
         .from("cc_package_sales")
         .select("mechanic_id, cc_packages(price)")
-        .eq("branch", branch)
         .gte("sale_date", from)
         .lte("sale_date", to),
     ]);
