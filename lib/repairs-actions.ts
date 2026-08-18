@@ -260,6 +260,49 @@ async function replaceJobItems(jobId: string, items: ItemInput[]): Promise<void>
   if (insError) throw new Error(insError.message);
 }
 
+function countItemCodes(items: ItemInput[]): Map<string, number> {
+  const counts = new Map<string, number>();
+  for (const item of items) {
+    const code = item.code?.trim();
+    if (!code) continue;
+    counts.set(code, (counts.get(code) ?? 0) + 1);
+  }
+  return counts;
+}
+
+// Deducts 1 unit of stock per newly-added item row whose code matches a
+// catalog product — a part used on a job comes out of that branch's shelf
+// count. Only the net increase per code is deducted, so re-saving a job
+// without adding rows doesn't deduct again, and removing a row doesn't
+// silently restock (no evidence the part was actually returned).
+async function deductCatalogStockForNewItems(branch: Branch, oldItems: ItemInput[], newItems: ItemInput[]): Promise<void> {
+  const oldCounts = countItemCodes(oldItems);
+  const newCounts = countItemCodes(newItems);
+  const codes = new Set([...oldCounts.keys(), ...newCounts.keys()]);
+
+  for (const code of codes) {
+    const delta = (newCounts.get(code) ?? 0) - (oldCounts.get(code) ?? 0);
+    if (delta <= 0) continue;
+
+    const { data: product } = await supabaseAdmin.from("cc_catalog_products").select("id").eq("code", code).maybeSingle();
+    if (!product) continue;
+
+    const { data: stockRow } = await supabaseAdmin
+      .from("cc_catalog_stock")
+      .select("quantity")
+      .eq("product_id", product.id)
+      .eq("branch", branch)
+      .maybeSingle();
+    const nextQuantity = Math.max(0, (stockRow?.quantity ?? 0) - delta);
+    await supabaseAdmin
+      .from("cc_catalog_stock")
+      .upsert(
+        { product_id: product.id, branch, quantity: nextQuantity, updated_at: new Date().toISOString() },
+        { onConflict: "product_id,branch" }
+      );
+  }
+}
+
 // "Bike Arrived" quick-add: creates a bare Restore Bike job stamped with
 // today's arrival date, skipping the usual mechanic-assignment check since
 // there's no mechanic yet — the PIC fills in the rest (plate, mechanic,
@@ -395,9 +438,13 @@ export async function addRepairJobAction(input: {
     .single();
   if (error) throw new Error(error.message);
 
-  if (items.length > 0) await replaceJobItems(data.id, items);
+  if (items.length > 0) {
+    await replaceJobItems(data.id, items);
+    await deductCatalogStockForNewItems(input.branch, [], items);
+  }
   revalidatePath("/repairs");
   revalidatePath("/repairs/walk-in");
+  revalidatePath("/catalog");
   return { id: data.id };
 }
 
@@ -448,6 +495,11 @@ export async function updateRepairJobAction(
   await assertMechanicAssignment(input.mechanicId, items, input.isBigItem ?? false, id);
   const revenueAmount = items.length > 0 ? itemsTotal(items) : input.revenueAmount;
 
+  const { data: existingItems } = await supabaseAdmin
+    .from("cc_repair_job_items")
+    .select("code, description, quantity, price")
+    .eq("job_id", id);
+
   const { error } = await supabaseAdmin
     .from("cc_repair_jobs")
     .update({
@@ -488,8 +540,10 @@ export async function updateRepairJobAction(
   if (error) throw new Error(error.message);
 
   await replaceJobItems(id, items);
+  await deductCatalogStockForNewItems(branch, (existingItems as ItemInput[] | null) ?? [], items);
   revalidatePath("/repairs");
   revalidatePath("/repairs/walk-in");
+  revalidatePath("/catalog");
   revalidatePath("/");
 }
 

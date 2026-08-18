@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useTransition } from "react";
-import { Plus, Trash2, Package, AlertTriangle } from "lucide-react";
+import { useMemo, useState, useTransition } from "react";
+import { Plus, Trash2, Package, AlertTriangle, Search } from "lucide-react";
 import {
   addCatalogProductAction,
   deleteCatalogProductAction,
@@ -29,13 +29,46 @@ export default function CatalogClient({
 }) {
   const [tab, setTab] = useState<Tab>("Yamalube");
   const [modalOpen, setModalOpen] = useState(false);
+  const [query, setQuery] = useState("");
   const products = tab === "Labour Charge" ? [] : data[tab] ?? [];
+  const isSearching = query.trim() !== "";
+
+  function matchesQuery(p: CatalogProduct, q: string) {
+    return (
+      p.productName.toLowerCase().includes(q) ||
+      p.code.toLowerCase().includes(q) ||
+      p.spec.toLowerCase().includes(q) ||
+      p.category.toLowerCase().includes(q)
+    );
+  }
+
+  // Searching looks across every brand at once — not just whichever tab
+  // happens to be open — so a PIC doesn't have to guess which brand an
+  // item is filed under before they can find it.
+  const searchResults = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return [];
+    return CATALOG_BRANDS.flatMap((b) => (data[b] ?? []).filter((p) => matchesQuery(p, q)).map((p) => ({ ...p, brand: b })));
+  }, [data, query]);
+
+  const visibleProducts = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return products;
+    return products.filter((p) => matchesQuery(p, q));
+  }, [products, query]);
 
   const byCategory: Record<string, CatalogProduct[]> = {};
-  for (const p of products) {
+  for (const p of visibleProducts) {
     const cat = p.category || "General";
     if (!byCategory[cat]) byCategory[cat] = [];
     byCategory[cat].push(p);
+  }
+
+  const searchByBrandCategory: Record<string, CatalogProduct[]> = {};
+  for (const p of searchResults) {
+    const key = `${p.brand} — ${p.category || "General"}`;
+    if (!searchByBrandCategory[key]) searchByBrandCategory[key] = [];
+    searchByBrandCategory[key].push(p);
   }
 
   return (
@@ -72,7 +105,65 @@ export default function CatalogClient({
         )}
       </div>
 
-      {tab === "Labour Charge" ? (
+      <div className="relative mb-4 max-w-sm">
+        <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
+        <input
+          type="text"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Search every brand by name, code, or spec…"
+          className="w-full bg-white border border-neutral-200 rounded-lg pl-9 pr-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+        />
+      </div>
+
+      {isSearching ? (
+        <div className="space-y-6">
+          {Object.entries(searchByBrandCategory).map(([key, items]) => {
+            const itemBrand = items[0].brand as CatalogBrand;
+            return (
+              <div key={key} className="bg-white border border-neutral-200 rounded-xl overflow-hidden">
+                <div className="px-5 py-3 border-b border-neutral-200 flex items-center justify-between gap-2">
+                  <span className="flex items-center gap-2">
+                    <Package size={14} className="text-neutral-500" />
+                    <p className="text-sm font-medium text-neutral-800">{key}</p>
+                  </span>
+                  <button
+                    onClick={() => {
+                      setTab(itemBrand);
+                      setQuery("");
+                    }}
+                    className="text-xs font-medium text-indigo-600 hover:text-indigo-700 transition-colors whitespace-nowrap"
+                  >
+                    View in {itemBrand} tab
+                  </button>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="text-left text-xs text-neutral-500">
+                        <th className="font-medium px-5 py-2 whitespace-nowrap">Code</th>
+                        <th className="font-medium px-5 py-2">Product</th>
+                        <th className="font-medium px-5 py-2">Spec</th>
+                        <th className="font-medium px-5 py-2 whitespace-nowrap">Price (RM)</th>
+                        <th className="font-medium px-5 py-2 whitespace-nowrap">In Stock</th>
+                        <th className="px-5 py-2" />
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {items.map((p) => (
+                        <ProductRow key={p.id} product={p} quantity={stockMap[p.id] ?? 0} branch={branch} />
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            );
+          })}
+          {searchResults.length === 0 && (
+            <p className="text-sm text-neutral-500 text-center py-10">No items match &ldquo;{query}&rdquo; in any brand.</p>
+          )}
+        </div>
+      ) : tab === "Labour Charge" ? (
         <LabourChargeSection charges={labourCharges} />
       ) : (
         <div className="space-y-6">
