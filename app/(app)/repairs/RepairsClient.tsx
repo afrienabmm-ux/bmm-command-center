@@ -562,14 +562,14 @@ function QuotationCell({ job, editable }: { job: RepairJob; editable: boolean })
       label="Quo"
       date={job.quotationDate}
       onClick={() =>
-        startTransition(() =>
-          setRestoreBikeWorkflowDateAction(
+        startTransition(async () => {
+          await setRestoreBikeWorkflowDateAction(
             job.id,
             job.branch,
             "quotation",
             job.quotationDate ? null : new Date().toISOString().slice(0, 10)
-          )
-        )
+          );
+        })
       }
       disabled={isPending || !editable}
     />
@@ -597,7 +597,9 @@ function StockDateCell({
       label={stage === "stockOrder" ? "Ord" : "Arv"}
       date={date}
       onClick={() =>
-        startTransition(() => setRestoreBikeWorkflowDateAction(job.id, branch, stage, date ? null : new Date().toISOString().slice(0, 10)))
+        startTransition(async () => {
+          await setRestoreBikeWorkflowDateAction(job.id, branch, stage, date ? null : new Date().toISOString().slice(0, 10));
+        })
       }
       disabled={isPending || !editable}
     />
@@ -633,15 +635,14 @@ function RepairDateCell({
 
   function handleClick() {
     startTransition(async () => {
-      try {
-        await setRestoreBikeWorkflowDateAction(
-          job.id,
-          job.branch,
-          stage,
-          date ? null : new Date().toISOString().slice(0, 10)
-        );
-      } catch (err) {
-        window.alert(err instanceof Error ? err.message : "Something went wrong.");
+      const result = await setRestoreBikeWorkflowDateAction(
+        job.id,
+        job.branch,
+        stage,
+        date ? null : new Date().toISOString().slice(0, 10)
+      );
+      if (result && "error" in result) {
+        window.alert(result.error);
       }
     });
   }

@@ -580,12 +580,17 @@ const WORKFLOW_STAGE_COLUMNS: Record<
 // job's existing Approval status (Approved) rather than a separate GM
 // stamp. "Completed" doesn't hard-block, but refuses to set a date if the
 // job hasn't started yet — the caller shows that as a warning.
+// Returns { error } instead of throwing — a thrown Error from a Server
+// Action gets mangled into an unhelpful "Minified React error #441" on the
+// client in production builds, instead of surfacing the message. Returning
+// a plain value sidesteps that entirely (same pattern as the GenBlu
+// actions below).
 export async function setRestoreBikeWorkflowDateAction(
   id: string,
   branch: Branch,
   stage: RestoreBikeWorkflowStage,
   value: string | null
-): Promise<void> {
+): Promise<{ error: string } | void> {
   const user = await requireApproved();
   assertCanEditBranch(user, branch);
 
@@ -601,16 +606,16 @@ export async function setRestoreBikeWorkflowDateAction(
       .select("approval_status, started_date, stock_order_date, stock_arrive_date")
       .eq("id", id)
       .single();
-    if (fetchError) throw new Error(fetchError.message);
+    if (fetchError) return { error: fetchError.message };
     existing = data;
     if (value !== null && stage === "started" && existing?.approval_status !== "Approved") {
-      throw new Error("This job needs GM approval before the repair can start.");
+      return { error: "This job needs GM approval before the repair can start." };
     }
     if (value !== null && stage === "started" && (!existing?.stock_order_date || !existing?.stock_arrive_date)) {
-      throw new Error("Set the Stock Order date and Stock Arrival date before starting the repair.");
+      return { error: "Set the Stock Order date and Stock Arrival date before starting the repair." };
     }
     if (value !== null && stage === "completed" && !existing?.started_date) {
-      throw new Error("The job hasn't started yet.");
+      return { error: "The job hasn't started yet." };
     }
   }
 
@@ -628,7 +633,7 @@ export async function setRestoreBikeWorkflowDateAction(
   }
 
   const { error } = await supabaseAdmin.from("cc_repair_jobs").update(update).eq("id", id);
-  if (error) throw new Error(error.message);
+  if (error) return { error: error.message };
   revalidatePath("/repairs");
   revalidatePath("/");
 }
