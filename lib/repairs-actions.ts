@@ -579,17 +579,25 @@ export async function setRestoreBikeWorkflowDateAction(
   const user = await requireApproved();
   assertCanEditBranch(user, branch);
 
-  let existing: { approval_status?: ApprovalStatus; started_date?: string | null } | null = null;
+  let existing: {
+    approval_status?: ApprovalStatus;
+    started_date?: string | null;
+    stock_order_date?: string | null;
+    stock_arrive_date?: string | null;
+  } | null = null;
   if (stage === "started" || stage === "completed") {
     const { data, error: fetchError } = await supabaseAdmin
       .from("cc_repair_jobs")
-      .select("approval_status, started_date")
+      .select("approval_status, started_date, stock_order_date, stock_arrive_date")
       .eq("id", id)
       .single();
     if (fetchError) throw new Error(fetchError.message);
     existing = data;
     if (value !== null && stage === "started" && existing?.approval_status !== "Approved") {
       throw new Error("This job needs GM approval before the repair can start.");
+    }
+    if (value !== null && stage === "started" && (!existing?.stock_order_date || !existing?.stock_arrive_date)) {
+      throw new Error("Set the Stock Order date and Stock Arrival date before starting the repair.");
     }
     if (value !== null && stage === "completed" && !existing?.started_date) {
       throw new Error("The job hasn't started yet.");

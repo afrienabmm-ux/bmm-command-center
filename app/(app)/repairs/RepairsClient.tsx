@@ -589,11 +589,15 @@ function RepairDateCell({
 }) {
   const [isPending, startTransition] = useTransition();
   const date = stage === "started" ? job.startedDate : job.completedDate;
-  const disabled = isPending || !editable || (stage === "started" && job.approvalStatus !== "Approved");
+  const missingStockDates = stage === "started" && (!job.stockOrderDate || !job.stockArriveDate);
+  const disabled =
+    isPending || !editable || (stage === "started" && (job.approvalStatus !== "Approved" || missingStockDates));
   const title =
     stage === "started" && job.approvalStatus !== "Approved"
       ? "This job needs GM approval (see the Approval column) before the repair can start"
-      : undefined;
+      : stage === "started" && missingStockDates
+        ? "Set the Stock Order date and Stock Arrival date before starting the repair"
+        : undefined;
 
   function handleClick() {
     startTransition(async () => {
