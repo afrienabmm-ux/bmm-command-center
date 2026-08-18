@@ -28,36 +28,35 @@ export default function BranchSwitcher({
     );
   }
 
+  function select(value: BranchSelection) {
+    if (value === activeBranch || isPending) return;
+    startTransition(async () => {
+      await setBranchAction(value);
+      router.refresh();
+    });
+  }
+
+  const options: { value: BranchSelection; label: string }[] = [
+    ...(allowAll ? [{ value: "all" as BranchSelection, label: "All" }] : []),
+    ...BRANCHES.map((b) => ({ value: b.value, label: b.label.replace(" (HQ)", "") })),
+  ];
+
   return (
-    <div className="flex items-center gap-2 bg-white border border-neutral-200 rounded-lg px-3 py-2">
-      {activeBranch === "all" ? (
-        <Layers size={15} className="text-indigo-600 shrink-0" />
-      ) : (
-        <Building2 size={15} className="text-neutral-500 shrink-0" />
-      )}
-      <select
-        value={activeBranch}
-        disabled={isPending}
-        onChange={(e) => {
-          const value = e.target.value as BranchSelection;
-          startTransition(async () => {
-            await setBranchAction(value);
-            router.refresh();
-          });
-        }}
-        className="bg-transparent text-sm text-neutral-800 focus:outline-none disabled:opacity-50"
-      >
-        {allowAll && (
-          <option value="all" className="bg-white">
-            All Branches
-          </option>
-        )}
-        {BRANCHES.map((b) => (
-          <option key={b.value} value={b.value} className="bg-white">
-            {b.label}
-          </option>
-        ))}
-      </select>
+    <div className="flex items-center gap-1 bg-neutral-50 border border-neutral-200 rounded-lg p-1">
+      {options.map((opt) => (
+        <button
+          key={opt.value}
+          type="button"
+          onClick={() => select(opt.value)}
+          disabled={isPending}
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors whitespace-nowrap disabled:opacity-50 ${
+            activeBranch === opt.value ? "bg-indigo-500 text-white" : "text-neutral-600 hover:text-neutral-800"
+          }`}
+        >
+          {opt.value === "all" ? <Layers size={12} /> : <Building2 size={12} />}
+          {opt.label}
+        </button>
+      ))}
     </div>
   );
 }
