@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
-import { Plus, Download, Pencil, Search, Trash2, Check } from "lucide-react";
+import { Plus, Download, Pencil, Search, Trash2, Check, Printer } from "lucide-react";
 import { setWalkInEndDateAction, deleteRepairJobAction } from "@/lib/repairs-actions";
 import { isHeavyRepairJob, type RepairStatus, type RepairJob } from "@/lib/types";
 import type { Mechanic } from "@/lib/types";
@@ -511,6 +511,15 @@ function WalkInRow({
             aria-label="Edit job"
           >
             <Pencil size={14} />
+          </Link>
+          <Link
+            href={`/repairs/walk-in/${job.id}/print`}
+            target="_blank"
+            className="text-neutral-400 hover:text-indigo-600 transition-colors p-1 inline-block"
+            title="Print job"
+            aria-label="Print job"
+          >
+            <Printer size={14} />
           </Link>
           <button
             onClick={() => setConfirmOpen(true)}
