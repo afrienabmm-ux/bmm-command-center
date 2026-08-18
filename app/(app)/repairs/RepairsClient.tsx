@@ -474,21 +474,27 @@ function StatusCell({ status }: { status: RepairStatus }) {
   return <span className={`text-xs font-medium px-2.5 py-1 rounded-full border ${STATUS_STYLES[status]}`}>{status}</span>;
 }
 
+// Click-to-cycle through Pending -> Approved -> Not Approved -> Pending,
+// same click-button pattern as the workflow stamps instead of a dropdown.
 function ApprovalCell({ job, branch }: { job: RepairJob; branch: Branch }) {
   const [isPending, startTransition] = useTransition();
+
+  function handleClick() {
+    const currentIndex = APPROVAL_STATUSES.indexOf(job.approvalStatus);
+    const next = APPROVAL_STATUSES[(currentIndex + 1) % APPROVAL_STATUSES.length];
+    startTransition(() => updateRepairApprovalAction(job.id, branch, next));
+  }
+
   return (
-    <select
-      value={job.approvalStatus}
+    <button
+      type="button"
+      onClick={handleClick}
       disabled={isPending}
-      onChange={(e) => startTransition(() => updateRepairApprovalAction(job.id, branch, e.target.value as ApprovalStatus))}
-      className={`text-xs font-medium px-2.5 py-1.5 rounded-full border focus:outline-none disabled:opacity-50 ${APPROVAL_STYLES[job.approvalStatus]}`}
+      title="Click to cycle: Pending -> Approved -> Not Approved"
+      className={`text-xs font-medium px-2.5 py-1.5 rounded-full border transition-colors disabled:opacity-50 ${APPROVAL_STYLES[job.approvalStatus]}`}
     >
-      {APPROVAL_STATUSES.map((s) => (
-        <option key={s} value={s} className="bg-white text-neutral-800">
-          {s}
-        </option>
-      ))}
-    </select>
+      {job.approvalStatus}
+    </button>
   );
 }
 
