@@ -33,6 +33,9 @@ export default async function PrintRepairJobPage({ params }: { params: Promise<{
             <p>
               <span className="font-semibold">NO PLATE :</span> {job.plateNo}
             </p>
+            <p>
+              <span className="font-semibold">MILEAGE :</span> {job.mileageKm ? `${job.mileageKm} km` : "—"}
+            </p>
           </div>
         </div>
 
