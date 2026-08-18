@@ -37,6 +37,17 @@ function normalizeName(name: string): string {
   return name.trim().toLowerCase();
 }
 
+// Auto-registrations should credit whoever is actually logged in and doing
+// the job (their initials, e.g. "Nurul Izzah" -> "NI"), not the mechanic
+// assigned to the job — a PIC can register a customer for GenBlu on a job
+// that isn't theirs to work on.
+function initialsFromName(name: string): string {
+  const words = name.trim().split(/\s+/).filter(Boolean);
+  if (words.length === 0) return "";
+  if (words.length === 1) return words[0].slice(0, 2).toUpperCase();
+  return (words[0][0] + words[1][0]).toUpperCase();
+}
+
 // Strips everything but letters/digits so OCR line breaks or stray
 // punctuation between name parts don't break the comparison.
 function condensedName(name: string): string {
@@ -200,8 +211,6 @@ export async function ensureGenbluRegistrationAction(input: {
   branch: Branch;
   customerName: string;
   customerPlateNo: string;
-  salespersonName: string;
-  salespersonCode: string;
   screenshot?: File | null;
 }): Promise<{ error: string } | { created: boolean }> {
   const user = await requireApproved();
@@ -247,8 +256,8 @@ export async function ensureGenbluRegistrationAction(input: {
 
   const { error } = await supabaseAdmin.from("cc_genblu_registrations").insert({
     branch: input.branch,
-    salesperson_name: input.salespersonName,
-    salesperson_code: input.salespersonCode.toUpperCase(),
+    salesperson_name: user.name,
+    salesperson_code: initialsFromName(user.name),
     customer_name: customerName,
     customer_plate_no: input.customerPlateNo.trim(),
     screenshot_path: screenshotPath,

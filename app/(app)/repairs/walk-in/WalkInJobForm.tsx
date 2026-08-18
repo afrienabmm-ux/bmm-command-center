@@ -480,8 +480,6 @@ export default function WalkInJobForm({
             branch: effectiveBranch,
             customerName: customerName.trim(),
             customerPlateNo: plateNo.trim(),
-            salespersonName: selectedMechanic?.shortName ?? "",
-            salespersonCode: selectedMechanic?.shortCode ?? "",
             screenshot: genbluScreenshot,
           });
           if (genbluResult && "error" in genbluResult) {
@@ -515,8 +513,6 @@ export default function WalkInJobForm({
               branch: effectiveBranch,
               customerName: customerName.trim(),
               customerPlateNo: plateNo.trim(),
-              salespersonName: selectedMechanic?.shortName ?? "",
-              salespersonCode: selectedMechanic?.shortCode ?? "",
               screenshot: null,
             });
           } catch {
