@@ -33,6 +33,15 @@ export async function getCatalogProducts(brand: CatalogBrand): Promise<CatalogPr
   return (data as Row[]).map(toProduct);
 }
 
+// Flat list across every brand — used to search-and-fill a part straight
+// into a Restore Bike/Walk-in job's item list from the catalog.
+export async function getAllCatalogProducts(): Promise<CatalogProduct[]> {
+  await requireApproved();
+  const { data, error } = await supabaseAdmin.from("cc_catalog_products").select("*").order("product_name");
+  if (error) throw new Error(error.message);
+  return (data as Row[]).map(toProduct);
+}
+
 export async function addCatalogProductAction(input: {
   brand: CatalogBrand;
   category: string;

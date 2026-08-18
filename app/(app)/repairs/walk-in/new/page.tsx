@@ -1,6 +1,7 @@
 import { requirePageContext, requirePage, getActiveBranchSelection, canViewAllBranches } from "@/lib/current-user";
 import { getAllBranchesActiveRepairJobs } from "@/lib/repairs-actions";
 import { getAllMechanics } from "@/lib/mechanics-actions";
+import { getAllCatalogProducts } from "@/lib/catalog-actions";
 import PageHeader from "@/components/PageHeader";
 import WalkInJobForm from "../WalkInJobForm";
 
@@ -13,10 +14,11 @@ export const maxDuration = 60;
 export default async function NewWalkInJobPage() {
   await requirePage("walk-in");
   const { user } = await requirePageContext();
-  const [branchSelection, allActiveJobs, mechanics] = await Promise.all([
+  const [branchSelection, allActiveJobs, mechanics, catalogProducts] = await Promise.all([
     getActiveBranchSelection(user),
     getAllBranchesActiveRepairJobs(),
     getAllMechanics(),
+    getAllCatalogProducts(),
   ]);
 
   return (
@@ -29,6 +31,7 @@ export default async function NewWalkInJobPage() {
           locked={!canViewAllBranches(user)}
           mechanics={mechanics}
           allActiveJobs={allActiveJobs}
+          catalogProducts={catalogProducts}
         />
       </div>
     </div>

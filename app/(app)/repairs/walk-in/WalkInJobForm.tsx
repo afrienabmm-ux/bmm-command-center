@@ -7,9 +7,10 @@ import { addRepairJobAction, updateRepairJobAction } from "@/lib/repairs-actions
 import { checkGenbluRegisteredAction, ensureGenbluRegistrationAction } from "@/lib/genblu-actions";
 import type { ScannedJobsheet } from "@/lib/jobsheet-actions";
 import { HEAVY_ITEM_COUNT_THRESHOLD, type RepairJob } from "@/lib/types";
-import type { Mechanic } from "@/lib/types";
+import type { Mechanic, CatalogProduct } from "@/lib/types";
 import { BRANCHES, branchLabel, type Branch, type BranchSelection } from "@/lib/branch";
 import { formatCurrency } from "@/lib/format";
+import CatalogItemPicker from "@/components/CatalogItemPicker";
 
 type ItemInput = { code: string; description: string; quantity: string; price: string };
 
@@ -26,7 +27,15 @@ function itemsFromJob(job: RepairJob): ItemInput[] {
   }));
 }
 
-function ItemsEditor({ items, onChange }: { items: ItemInput[]; onChange: (items: ItemInput[]) => void }) {
+function ItemsEditor({
+  items,
+  onChange,
+  catalogProducts,
+}: {
+  items: ItemInput[];
+  onChange: (items: ItemInput[]) => void;
+  catalogProducts: CatalogProduct[];
+}) {
   function update(i: number, patch: Partial<ItemInput>) {
     onChange(items.map((it, idx) => (idx === i ? { ...it, ...patch } : it)));
   }
@@ -39,11 +48,15 @@ function ItemsEditor({ items, onChange }: { items: ItemInput[]; onChange: (items
   function removeRow(i: number) {
     onChange(items.filter((_, idx) => idx !== i));
   }
+  function addCatalogProduct(product: CatalogProduct) {
+    onChange([...items, { code: product.code, description: product.productName, quantity: "1", price: String(product.price) }]);
+  }
   const total = items.reduce((sum, it) => sum + (Number(it.quantity) || 0) * (Number(it.price) || 0), 0);
 
   return (
     <div>
       <label className="block text-xs font-medium text-neutral-600 mb-1.5">Parts / Items</label>
+      {catalogProducts.length > 0 && <CatalogItemPicker products={catalogProducts} onSelect={addCatalogProduct} />}
       <div className="space-y-2">
         {items.map((it, i) => (
           <div key={i} className="grid grid-cols-[auto_90px_1fr_70px_100px_auto] gap-2 items-center">
@@ -120,12 +133,14 @@ export default function WalkInJobForm({
   locked,
   mechanics,
   allActiveJobs,
+  catalogProducts,
 }: {
   job: RepairJob | null;
   branchSelection: BranchSelection;
   locked: boolean;
   mechanics: Mechanic[];
   allActiveJobs: RepairJob[];
+  catalogProducts: CatalogProduct[];
 }) {
   const router = useRouter();
   const isEdit = job !== null;
@@ -803,7 +818,7 @@ export default function WalkInJobForm({
             </label>
           </div>
 
-          <ItemsEditor items={items} onChange={setItems} />
+          <ItemsEditor items={items} onChange={setItems} catalogProducts={catalogProducts} />
 
           <div>
             <label className="block text-xs font-medium text-neutral-600 mb-1.5">Cost Total (RM)</label>

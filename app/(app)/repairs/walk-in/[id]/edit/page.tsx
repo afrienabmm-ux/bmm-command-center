@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { requirePageContext, requirePage, getActiveBranchSelection, canViewAllBranches } from "@/lib/current-user";
 import { getRepairJobById, getAllBranchesActiveRepairJobs } from "@/lib/repairs-actions";
 import { getAllMechanics } from "@/lib/mechanics-actions";
+import { getAllCatalogProducts } from "@/lib/catalog-actions";
 import PageHeader from "@/components/PageHeader";
 import WalkInJobForm from "../../WalkInJobForm";
 
@@ -12,11 +13,12 @@ export default async function EditWalkInJobPage({ params }: { params: Promise<{ 
   await requirePage("walk-in");
   const { id } = await params;
   const { user } = await requirePageContext();
-  const [job, branchSelection, allActiveJobs, mechanics] = await Promise.all([
+  const [job, branchSelection, allActiveJobs, mechanics, catalogProducts] = await Promise.all([
     getRepairJobById(id),
     getActiveBranchSelection(user),
     getAllBranchesActiveRepairJobs(),
     getAllMechanics(),
+    getAllCatalogProducts(),
   ]);
 
   if (!job) notFound();
@@ -31,6 +33,7 @@ export default async function EditWalkInJobPage({ params }: { params: Promise<{ 
           locked={!canViewAllBranches(user)}
           mechanics={mechanics}
           allActiveJobs={allActiveJobs}
+          catalogProducts={catalogProducts}
         />
       </div>
     </div>

@@ -3,6 +3,7 @@ import { requirePageContext, requirePage, getActiveBranchSelection, canViewAllBr
 import { getRepairJobById, getAllBranchesActiveRepairJobs } from "@/lib/repairs-actions";
 import { getAllMechanics } from "@/lib/mechanics-actions";
 import { getPackages } from "@/lib/packages-actions";
+import { getAllCatalogProducts } from "@/lib/catalog-actions";
 import PageHeader from "@/components/PageHeader";
 import RepairJobForm from "../../RepairJobForm";
 
@@ -12,12 +13,13 @@ export default async function EditRepairJobPage({ params }: { params: Promise<{ 
   await requirePage("repairs");
   const { id } = await params;
   const { user } = await requirePageContext();
-  const [job, branchSelection, allActiveJobs, mechanics, packages] = await Promise.all([
+  const [job, branchSelection, allActiveJobs, mechanics, packages, catalogProducts] = await Promise.all([
     getRepairJobById(id),
     getActiveBranchSelection(user),
     getAllBranchesActiveRepairJobs(),
     getAllMechanics(),
     getPackages(),
+    getAllCatalogProducts(),
   ]);
 
   if (!job) notFound();
@@ -33,6 +35,7 @@ export default async function EditRepairJobPage({ params }: { params: Promise<{ 
           mechanics={mechanics}
           allActiveJobs={allActiveJobs}
           packages={packages}
+          catalogProducts={catalogProducts}
         />
       </div>
     </div>
