@@ -141,7 +141,7 @@ export function RevenueTrendChart({ points }: { points: MonthlyTrendPoint[] }) {
 const BRANCH_SERIES: { key: Branch; label: string; stroke: string; text: string; dot: string }[] = [
   { key: "kapar", label: "Kapar (HQ)", stroke: "stroke-indigo-500", text: "fill-indigo-600", dot: "bg-indigo-500" },
   { key: "setia_alam", label: "Setia Alam", stroke: "stroke-orange-500", text: "fill-orange-600", dot: "bg-orange-500" },
-  { key: "puncak_alam", label: "Puncak Alam", stroke: "stroke-neutral-400", text: "fill-neutral-500", dot: "bg-neutral-400" },
+  { key: "puncak_alam", label: "Puncak Alam", stroke: "stroke-emerald-500", text: "fill-emerald-600", dot: "bg-emerald-500" },
 ];
 
 // Repair jobs completed per month, one line per branch — same gridline/
