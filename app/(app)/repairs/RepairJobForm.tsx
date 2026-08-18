@@ -12,6 +12,9 @@ import CatalogItemPicker from "@/components/CatalogItemPicker";
 
 type ItemInput = { code: string; description: string; quantity: string; price: string };
 
+const PIC_BY_BRANCH: Record<Branch, string> = { kapar: "TAUFIQ", puncak_alam: "SK", setia_alam: "PENG" };
+const PIC_NAMES = Object.values(PIC_BY_BRANCH);
+
 function emptyItem(): ItemInput {
   return { code: "", description: "", quantity: "1", price: "" };
 }
@@ -179,7 +182,9 @@ export default function RepairJobForm({
   const [dealType, setDealType] = useState<(typeof DEAL_TYPES)[number]>(
     (job?.dealType as (typeof DEAL_TYPES)[number]) || "Trade In"
   );
-  const [picName, setPicName] = useState(job?.picName ?? "");
+  const [picName, setPicName] = useState(
+    job?.picName ?? (locationBranch !== "all" ? PIC_BY_BRANCH[locationBranch] : "")
+  );
   const [model, setModel] = useState(job?.model ?? "");
   const [bikeYear, setBikeYear] = useState(job?.bikeYear ?? "");
   const [condition, setCondition] = useState<RestoreBikeCondition>(
@@ -239,6 +244,7 @@ export default function RepairJobForm({
   function handleLocationChange(next: BranchSelection) {
     setLocationBranch(next);
     setMechanicId("");
+    if (next !== "all") setPicName(PIC_BY_BRANCH[next]);
   }
 
   // Every job needs a mechanic assigned before it can be saved. A photo of
@@ -346,12 +352,21 @@ export default function RepairJobForm({
           </div>
           <div>
             <label className="block text-xs font-medium text-neutral-600 mb-1.5">PIC</label>
-            <input
-              type="text"
+            <select
               value={picName}
               onChange={(e) => setPicName(e.target.value)}
               className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
-            />
+            >
+              <option value="" disabled>
+                Select PIC…
+              </option>
+              {picName && !PIC_NAMES.includes(picName) && <option value={picName}>{picName}</option>}
+              {PIC_NAMES.map((name) => (
+                <option key={name} value={name}>
+                  {name}
+                </option>
+              ))}
+            </select>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
