@@ -188,7 +188,7 @@ function MemberRow({ member, isSelf }: { member: TeamMember; isSelf: boolean }) 
               onBlur={saveTitle}
               placeholder="Title (optional)"
               disabled={isPending || member.status === "revoked"}
-              className="bg-neutral-50 border border-neutral-200 rounded-lg px-2.5 py-1.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50 disabled:opacity-50 w-40"
+              className="bg-neutral-50 border border-neutral-200 rounded-lg px-2.5 py-1.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50 disabled:opacity-50 w-56"
             />
           </div>
         </td>
