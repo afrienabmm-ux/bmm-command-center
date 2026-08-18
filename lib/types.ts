@@ -136,9 +136,11 @@ export type RepairJob = {
 export const RESTORE_BIKE_CONDITIONS = ["L", "H"] as const;
 export type RestoreBikeCondition = (typeof RESTORE_BIKE_CONDITIONS)[number];
 
-export const HEAVY_ITEM_COUNT_THRESHOLD = 3;
-export function isHeavyRepairJob(job: { items: RepairJobItem[]; isBigItem: boolean }): boolean {
-  return job.items.length > HEAVY_ITEM_COUNT_THRESHOLD || job.isBigItem;
+// Heavy is a purely manual flag — the "Big / heavy item repair" checkbox on
+// the job form — so a PIC can always assign any mechanic unless they've
+// explicitly marked the job heavy.
+export function isHeavyRepairJob(job: { isBigItem: boolean }): boolean {
+  return job.isBigItem;
 }
 
 export const DEAL_TYPES = ["Trade In", "Tarik"] as const;

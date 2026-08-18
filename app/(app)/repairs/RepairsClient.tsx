@@ -267,6 +267,8 @@ export default function RepairsClient({
                 <th className="font-medium px-5 py-3 whitespace-nowrap">Mechanic</th>
                 <th className="font-medium px-5 py-3 whitespace-nowrap">Location</th>
                 <th className="font-medium px-5 py-3 whitespace-nowrap">Approval</th>
+                <th className="font-medium px-5 py-3 whitespace-nowrap">Stock Order</th>
+                <th className="font-medium px-5 py-3 whitespace-nowrap">Stock Arrive</th>
                 <th className="font-medium px-5 py-3 whitespace-nowrap">Start Date</th>
                 <th className="font-medium px-5 py-3 whitespace-nowrap">End Date</th>
                 <th className="font-medium px-5 py-3 whitespace-nowrap">Cost Restore</th>
@@ -288,7 +290,7 @@ export default function RepairsClient({
               ))}
               {jobs.length === 0 && (
                 <tr>
-                  <td colSpan={showBranchColumn ? 18 : 17} className="px-5 py-10 text-center text-neutral-500 text-sm">
+                  <td colSpan={showBranchColumn ? 20 : 19} className="px-5 py-10 text-center text-neutral-500 text-sm">
                     {tab === "active" ? "No active" : "No completed"} Restore Bike jobs.
                   </td>
                 </tr>
@@ -574,6 +576,34 @@ function QuotationCell({ job, editable }: { job: RepairJob; editable: boolean })
   );
 }
 
+// Stock Order/Arrival click-to-stamp cells — same plain toggle as Quotation,
+// no gating of their own, but Start (below) won't unlock until both of
+// these are set.
+function StockDateCell({
+  job,
+  branch,
+  stage,
+  editable,
+}: {
+  job: RepairJob;
+  branch: Branch;
+  stage: "stockOrder" | "stockArrive";
+  editable: boolean;
+}) {
+  const [isPending, startTransition] = useTransition();
+  const date = stage === "stockOrder" ? job.stockOrderDate : job.stockArriveDate;
+  return (
+    <StageButton
+      label={stage === "stockOrder" ? "Ord" : "Arv"}
+      date={date}
+      onClick={() =>
+        startTransition(() => setRestoreBikeWorkflowDateAction(job.id, branch, stage, date ? null : new Date().toISOString().slice(0, 10)))
+      }
+      disabled={isPending || !editable}
+    />
+  );
+}
+
 // Repair Start/Last click-to-stamp cells. Start is hard-gated on the
 // existing Approval status; Last isn't gated, but the server refuses to set
 // a date if the job hasn't started yet — shown here as a warning alert
@@ -681,6 +711,12 @@ function RestoreBikeRow({
       <td className="px-5 py-3.5 text-neutral-600 whitespace-nowrap">{job.location || "—"}</td>
       <td className="px-5 py-3.5">
         <ApprovalCell job={job} branch={job.branch} />
+      </td>
+      <td className="px-5 py-3.5">
+        <StockDateCell job={job} branch={job.branch} stage="stockOrder" editable={editable} />
+      </td>
+      <td className="px-5 py-3.5">
+        <StockDateCell job={job} branch={job.branch} stage="stockArrive" editable={editable} />
       </td>
       <td className="px-5 py-3.5">
         <span className="inline-flex items-center gap-1.5">

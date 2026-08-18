@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { supabaseAdmin } from "./supabase-server";
 import { requireApproved, assertCanEditBranch } from "./current-user";
 import type { RepairJob, RepairJobItem, RepairStatus, JobType, ApprovalStatus } from "./types";
-import { HEAVY_ITEM_COUNT_THRESHOLD, DEAL_TYPES } from "./types";
+import { DEAL_TYPES } from "./types";
 import { BRANCHES, type Branch } from "./branch";
 
 type ItemRow = { id: string; code: string; description: string; quantity: number; price: number };
@@ -109,13 +109,12 @@ function toJob(r: Row): RepairJob {
 }
 
 // Every job needs a mechanic assigned, a mechanic can only carry one active
-// (non-Completed) job at a time, and heavy jobs (more than 3 items, or
-// manually flagged as a big item) can only go to mechanics in the "Heavy
-// Repair" category. Enforced server-side so it can't be bypassed even if
-// the UI's own filtering is stale.
+// (non-Completed) job at a time, and heavy jobs (manually flagged as a big
+// item via the "Big / heavy item repair" checkbox) can only go to mechanics
+// in the "Heavy Repair" category. Enforced server-side so it can't be
+// bypassed even if the UI's own filtering is stale.
 async function assertMechanicAssignment(
   mechanicId: string | null,
-  items: ItemInput[],
   isBigItem: boolean,
   excludeJobId?: string
 ): Promise<void> {
@@ -128,8 +127,7 @@ async function assertMechanicAssignment(
     .single();
   if (mechError) throw new Error(mechError.message);
 
-  const isHeavy = items.length > HEAVY_ITEM_COUNT_THRESHOLD || isBigItem;
-  if (isHeavy && mechanic.category !== "Heavy Repair") {
+  if (isBigItem && mechanic.category !== "Heavy Repair") {
     throw new Error("This is a heavy repair job — it can only be assigned to a Heavy Repair mechanic.");
   }
 
@@ -381,11 +379,14 @@ export async function addRepairJobAction(input: {
   serviceType?: string;
   nextServiceDate?: string;
   jobsheetUserId?: string;
+  // Restore Bike only — filling in and saving the form counts as the
+  // quotation being done, no separate click needed.
+  quotationDate?: string | null;
 }): Promise<{ id: string }> {
   const user = await requireApproved();
   assertCanEditBranch(user, input.branch);
   const items = input.items ?? [];
-  await assertMechanicAssignment(input.mechanicId, items, input.isBigItem ?? false);
+  await assertMechanicAssignment(input.mechanicId, input.isBigItem ?? false);
 
   const { count } = await supabaseAdmin
     .from("cc_repair_jobs")
@@ -433,6 +434,7 @@ export async function addRepairJobAction(input: {
       service_type: input.serviceType ?? "",
       next_service_date: input.nextServiceDate ?? "",
       jobsheet_user_id: input.jobsheetUserId ?? "",
+      quotation_date: input.quotationDate ?? null,
     })
     .select("id")
     .single();
@@ -487,12 +489,15 @@ export async function updateRepairJobAction(
     serviceType?: string;
     nextServiceDate?: string;
     jobsheetUserId?: string;
+    // Restore Bike only — omitted for Walk-in so its updates never touch
+    // this column.
+    quotationDate?: string | null;
   }
 ): Promise<void> {
   const user = await requireApproved();
   assertCanEditBranch(user, branch);
   const items = input.items ?? [];
-  await assertMechanicAssignment(input.mechanicId, items, input.isBigItem ?? false, id);
+  await assertMechanicAssignment(input.mechanicId, input.isBigItem ?? false, id);
   const revenueAmount = items.length > 0 ? itemsTotal(items) : input.revenueAmount;
 
   const { data: existingItems } = await supabaseAdmin
@@ -500,43 +505,43 @@ export async function updateRepairJobAction(
     .select("code, description, quantity, price")
     .eq("job_id", id);
 
-  const { error } = await supabaseAdmin
-    .from("cc_repair_jobs")
-    .update({
-      customer_name: input.customerName,
-      plate_no: input.plateNo,
-      mechanic_id: input.mechanicId,
-      description: input.description,
-      revenue_amount: revenueAmount,
-      deal_type: input.dealType,
-      started_date: input.startedDate,
-      form_date: input.formDate,
-      pic_name: input.picName ?? "",
-      model: input.model ?? "",
-      bike_year: input.bikeYear ?? "",
-      condition: input.condition ?? "",
-      location: input.location ?? "",
-      arrived_date: input.arrivedDate ?? null,
-      stock_order_date: input.stockOrderDate ?? null,
-      stock_arrive_date: input.stockArriveDate ?? null,
-      completed_date: input.completedDate,
-      prepared_by: input.preparedBy ?? "",
-      is_big_item: input.isBigItem ?? false,
-      customer_code: input.customerCode ?? "",
-      colour: input.colour ?? "",
-      engine_no: input.engineNo ?? "",
-      chassis_no: input.chassisNo ?? "",
-      jobsheet_no: input.jobsheetNo ?? "",
-      sales_no: input.salesNo ?? "",
-      sales_date: input.salesDate ?? "",
-      warranty_card_no: input.warrantyCardNo ?? "",
-      mileage_km: input.mileageKm ?? "",
-      next_mileage_km: input.nextMileageKm ?? "",
-      service_type: input.serviceType ?? "",
-      next_service_date: input.nextServiceDate ?? "",
-      jobsheet_user_id: input.jobsheetUserId ?? "",
-    })
-    .eq("id", id);
+  const update: Record<string, unknown> = {
+    customer_name: input.customerName,
+    plate_no: input.plateNo,
+    mechanic_id: input.mechanicId,
+    description: input.description,
+    revenue_amount: revenueAmount,
+    deal_type: input.dealType,
+    started_date: input.startedDate,
+    form_date: input.formDate,
+    pic_name: input.picName ?? "",
+    model: input.model ?? "",
+    bike_year: input.bikeYear ?? "",
+    condition: input.condition ?? "",
+    location: input.location ?? "",
+    arrived_date: input.arrivedDate ?? null,
+    stock_order_date: input.stockOrderDate ?? null,
+    stock_arrive_date: input.stockArriveDate ?? null,
+    completed_date: input.completedDate,
+    prepared_by: input.preparedBy ?? "",
+    is_big_item: input.isBigItem ?? false,
+    customer_code: input.customerCode ?? "",
+    colour: input.colour ?? "",
+    engine_no: input.engineNo ?? "",
+    chassis_no: input.chassisNo ?? "",
+    jobsheet_no: input.jobsheetNo ?? "",
+    sales_no: input.salesNo ?? "",
+    sales_date: input.salesDate ?? "",
+    warranty_card_no: input.warrantyCardNo ?? "",
+    mileage_km: input.mileageKm ?? "",
+    next_mileage_km: input.nextMileageKm ?? "",
+    service_type: input.serviceType ?? "",
+    next_service_date: input.nextServiceDate ?? "",
+    jobsheet_user_id: input.jobsheetUserId ?? "",
+  };
+  if (input.quotationDate !== undefined) update.quotation_date = input.quotationDate;
+
+  const { error } = await supabaseAdmin.from("cc_repair_jobs").update(update).eq("id", id);
   if (error) throw new Error(error.message);
 
   await replaceJobItems(id, items);
@@ -556,10 +561,15 @@ export async function updateRepairApprovalAction(id: string, branch: Branch, app
   revalidatePath("/repairs/walk-in");
 }
 
-export type RestoreBikeWorkflowStage = "quotation" | "started" | "completed";
+export type RestoreBikeWorkflowStage = "quotation" | "stockOrder" | "stockArrive" | "started" | "completed";
 
-const WORKFLOW_STAGE_COLUMNS: Record<RestoreBikeWorkflowStage, "quotation_date" | "started_date" | "completed_date"> = {
+const WORKFLOW_STAGE_COLUMNS: Record<
+  RestoreBikeWorkflowStage,
+  "quotation_date" | "stock_order_date" | "stock_arrive_date" | "started_date" | "completed_date"
+> = {
   quotation: "quotation_date",
+  stockOrder: "stock_order_date",
+  stockArrive: "stock_arrive_date",
   started: "started_date",
   completed: "completed_date",
 };

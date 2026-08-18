@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, Trash2 } from "lucide-react";
 import { addRepairJobAction, updateRepairJobAction, uploadRestoreBikeImageAction, getRestoreBikeImageUrl } from "@/lib/repairs-actions";
-import { DEAL_TYPES, HEAVY_ITEM_COUNT_THRESHOLD, RESTORE_BIKE_CONDITIONS, type RestoreBikeCondition, type RepairJob } from "@/lib/types";
+import { DEAL_TYPES, RESTORE_BIKE_CONDITIONS, type RestoreBikeCondition, type RepairJob } from "@/lib/types";
 import type { Mechanic, Package, CatalogProduct } from "@/lib/types";
 import { BRANCHES, branchLabel, type Branch, type BranchSelection } from "@/lib/branch";
 import { formatCurrency } from "@/lib/format";
@@ -209,8 +209,7 @@ export default function RepairJobForm({
     getRestoreBikeImageUrl(job.imagePath).then(setExistingImageUrl);
   }, [job?.imagePath]);
 
-  const itemCount = items.filter((it) => it.description.trim() !== "").length;
-  const isHeavyJob = itemCount > HEAVY_ITEM_COUNT_THRESHOLD || isBigItem;
+  const isHeavyJob = isBigItem;
 
   // A mechanic already carrying another active (non-Completed) job can't be
   // handed a second one until it's marked Completed.
@@ -305,6 +304,10 @@ export default function RepairJobForm({
       stockOrderDate: stockOrderDate || null,
       stockArriveDate: stockArriveDate || null,
       isBigItem,
+      // Filling in and saving this form IS the quotation — no separate
+      // click needed. Preserve an already-set date rather than restamping
+      // it every time the job is edited again.
+      quotationDate: job?.quotationDate ?? new Date().toISOString().slice(0, 10),
     };
 
     startTransition(async () => {
@@ -480,7 +483,7 @@ export default function RepairJobForm({
             </select>
             {isHeavyJob && (
               <p className="text-xs text-amber-700 mt-1.5">
-                Heavy job (more than {HEAVY_ITEM_COUNT_THRESHOLD} items{isBigItem ? " / marked as a big item" : ""}) — only Heavy Repair mechanics can be assigned.
+                Marked as a heavy / big item repair — only Heavy Repair mechanics can be assigned.
               </p>
             )}
             {branchMechanics.length > eligibleMechanics.length && (
@@ -502,7 +505,7 @@ export default function RepairJobForm({
               className="accent-indigo-500"
             />
             <label htmlFor="is-big-item" className="text-xs font-medium text-neutral-600">
-              Big / heavy item repair — even with {HEAVY_ITEM_COUNT_THRESHOLD} items or fewer
+              Big / heavy item repair — only Heavy Repair mechanics can be assigned
             </label>
           </div>
 

@@ -6,7 +6,7 @@ import { Plus, Trash2, ScanLine, Upload } from "lucide-react";
 import { addRepairJobAction, updateRepairJobAction } from "@/lib/repairs-actions";
 import { checkGenbluRegisteredAction, ensureGenbluRegistrationAction } from "@/lib/genblu-actions";
 import type { ScannedJobsheet } from "@/lib/jobsheet-actions";
-import { HEAVY_ITEM_COUNT_THRESHOLD, type RepairJob } from "@/lib/types";
+import type { RepairJob } from "@/lib/types";
 import type { Mechanic, CatalogProduct } from "@/lib/types";
 import { BRANCHES, branchLabel, type Branch, type BranchSelection } from "@/lib/branch";
 import { formatCurrency } from "@/lib/format";
@@ -342,8 +342,7 @@ export default function WalkInJobForm({
     }
   }
 
-  const itemCount = items.filter((it) => it.description.trim() !== "").length;
-  const isHeavyJob = itemCount > HEAVY_ITEM_COUNT_THRESHOLD || isBigItem;
+  const isHeavyJob = isBigItem;
 
   // A mechanic already carrying another active (non-Completed) job — of
   // either type — can't be handed a second one until it's marked Completed.
@@ -788,7 +787,7 @@ export default function WalkInJobForm({
             </select>
             {isHeavyJob && (
               <p className="text-xs text-amber-700 mt-1.5">
-                Heavy job (more than {HEAVY_ITEM_COUNT_THRESHOLD} items{isBigItem ? " / marked as a big item" : ""}) — only Heavy Repair mechanics can be assigned.
+                Marked as a heavy / big item repair — only Heavy Repair mechanics can be assigned.
               </p>
             )}
             {branchMechanics.length > eligibleMechanics.length && (
@@ -810,7 +809,7 @@ export default function WalkInJobForm({
               className="accent-indigo-500"
             />
             <label htmlFor="is-big-item" className="text-xs font-medium text-neutral-600">
-              Big / heavy item repair — even with {HEAVY_ITEM_COUNT_THRESHOLD} items or fewer
+              Big / heavy item repair — only Heavy Repair mechanics can be assigned
             </label>
           </div>
 
