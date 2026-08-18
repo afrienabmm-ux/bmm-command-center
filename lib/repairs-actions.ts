@@ -575,6 +575,21 @@ export async function updateRepairStatusAction(id: string, branch: Branch, statu
   revalidatePath("/");
 }
 
+// Click-to-stamp End Date for Walk-in jobs — status isn't a manual choice
+// here, it just follows the date: stamping it marks the job Completed,
+// clearing it puts the job back to Pending.
+export async function setWalkInEndDateAction(id: string, branch: Branch, date: string | null): Promise<void> {
+  const user = await requireApproved();
+  assertCanEditBranch(user, branch);
+  const { error } = await supabaseAdmin
+    .from("cc_repair_jobs")
+    .update({ completed_date: date, status: date ? "Completed" : "Pending" })
+    .eq("id", id);
+  if (error) throw new Error(error.message);
+  revalidatePath("/repairs/walk-in");
+  revalidatePath("/");
+}
+
 export async function deleteRepairJobAction(id: string, branch: Branch): Promise<void> {
   const user = await requireApproved();
   assertCanEditBranch(user, branch);

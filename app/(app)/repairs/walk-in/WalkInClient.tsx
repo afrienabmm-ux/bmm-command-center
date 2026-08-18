@@ -2,9 +2,9 @@
 
 import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
-import { Plus, Download, Pencil, Search, Trash2 } from "lucide-react";
-import { updateRepairStatusAction, deleteRepairJobAction } from "@/lib/repairs-actions";
-import { REPAIR_STATUSES, isHeavyRepairJob, type RepairStatus, type RepairJob } from "@/lib/types";
+import { Plus, Download, Pencil, Search, Trash2, Check } from "lucide-react";
+import { setWalkInEndDateAction, deleteRepairJobAction } from "@/lib/repairs-actions";
+import { isHeavyRepairJob, type RepairStatus, type RepairJob } from "@/lib/types";
 import type { Mechanic } from "@/lib/types";
 import { branchLabel, type Branch, type BranchSelection } from "@/lib/branch";
 import { formatCurrency, formatDate, daysBetween, toCsv } from "@/lib/format";
@@ -401,34 +401,53 @@ function ExportJobModal({
   );
 }
 
-function StatusCell({
-  job,
-  branch,
-  editable,
-  isPending,
-  startTransition,
-}: {
-  job: RepairJob;
-  branch: Branch;
-  editable: boolean;
-  isPending: boolean;
-  startTransition: (fn: () => void) => void;
-}) {
-  return editable ? (
-    <select
-      value={job.status}
-      disabled={isPending}
-      onChange={(e) => startTransition(() => updateRepairStatusAction(job.id, branch, e.target.value as RepairStatus))}
-      className={`text-xs font-medium px-2.5 py-1.5 rounded-full border focus:outline-none disabled:opacity-50 ${STATUS_STYLES[job.status]}`}
-    >
-      {REPAIR_STATUSES.map((s) => (
-        <option key={s} value={s} className="bg-white text-neutral-800">
-          {s}
-        </option>
-      ))}
-    </select>
-  ) : (
-    <span className={`text-xs font-medium px-2.5 py-1 rounded-full border ${STATUS_STYLES[job.status]}`}>{job.status}</span>
+// Status is no longer a manual choice here — it just follows the End Date
+// stamp (see EndDateCell), so this is read-only.
+function StatusCell({ status }: { status: RepairStatus }) {
+  return <span className={`text-xs font-medium px-2.5 py-1 rounded-full border ${STATUS_STYLES[status]}`}>{status}</span>;
+}
+
+// Same shape as Restore Bike's date-format helper — "17/8" is compact
+// enough to sit inside the small stamp button without wrapping.
+function shortDate(iso: string): string {
+  const d = new Date(iso);
+  return `${d.getDate()}/${d.getMonth() + 1}`;
+}
+
+// Click-to-stamp End Date, same pattern as the Restore Bike list. Setting
+// the date also marks the job Completed; clearing it puts it back to
+// Pending — see setWalkInEndDateAction.
+function EndDateCell({ job, editable }: { job: RepairJob; editable: boolean }) {
+  const [isPending, startTransition] = useTransition();
+  const date = job.completedDate;
+
+  function handleClick() {
+    startTransition(async () => {
+      try {
+        await setWalkInEndDateAction(job.id, job.branch, date ? null : new Date().toISOString().slice(0, 10));
+      } catch (err) {
+        window.alert(err instanceof Error ? err.message : "Something went wrong.");
+      }
+    });
+  }
+
+  return (
+    <div className="flex flex-col items-center gap-0.5">
+      <button
+        type="button"
+        onClick={handleClick}
+        disabled={isPending || !editable}
+        title={date ? `${formatDate(date)} — click to clear` : "Click to mark done today"}
+        className={`flex items-center justify-center w-8 h-8 rounded-lg border text-[10px] font-semibold transition-colors disabled:opacity-50 ${
+          date
+            ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-700"
+            : "bg-neutral-50 border-neutral-200 text-neutral-400 hover:border-indigo-300 hover:text-indigo-600"
+        }`}
+      >
+        {date ? <Check size={13} /> : "End"}
+      </button>
+      <span className="text-[9px] text-neutral-500 whitespace-nowrap">{date ? shortDate(date) : " "}</span>
+    </div>
   );
 }
 
@@ -476,10 +495,12 @@ function WalkInRow({
       </td>
       <td className="px-5 py-3.5 text-neutral-700 whitespace-nowrap">{formatCurrency(job.revenueAmount)}</td>
       <td className="px-5 py-3.5 text-neutral-500 whitespace-nowrap">{job.startedDate ? formatDate(job.startedDate) : "—"}</td>
-      <td className="px-5 py-3.5 text-neutral-500 whitespace-nowrap">{job.completedDate ? formatDate(job.completedDate) : "—"}</td>
+      <td className="px-5 py-3.5">
+        <EndDateCell job={job} editable={editable} />
+      </td>
       <td className="px-5 py-3.5 text-neutral-500 whitespace-nowrap">{days ?? 0}d</td>
       <td className="px-5 py-3.5">
-        <StatusCell job={job} branch={job.branch} editable={editable} isPending={isPending} startTransition={startTransition} />
+        <StatusCell status={job.status} />
       </td>
       <td className="px-5 py-3.5">
         <div className="flex items-center gap-1">
