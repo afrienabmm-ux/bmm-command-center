@@ -620,8 +620,10 @@ function RepairDateCell({
   const [isPending, startTransition] = useTransition();
   const date = stage === "started" ? job.startedDate : job.completedDate;
   const missingStockDates = stage === "started" && (!job.stockOrderDate || !job.stockArriveDate);
-  const disabled =
-    isPending || !editable || (stage === "started" && (job.approvalStatus !== "Approved" || missingStockDates));
+  // Not blocked by approval/stock-date state here — clicking still fires,
+  // and the server's rejection surfaces as an alert below, so the PIC gets
+  // an explicit "get approval first" message instead of a dead button.
+  const disabled = isPending || !editable;
   const title =
     stage === "started" && job.approvalStatus !== "Approved"
       ? "This job needs GM approval (see the Approval column) before the repair can start"
