@@ -598,9 +598,13 @@ export async function setRestoreBikeWorkflowDateAction(
 
   const column = WORKFLOW_STAGE_COLUMNS[stage];
   const update: Record<string, string | null> = { [column]: value };
-  // Stamping the End date also marks the job Completed — clearing it puts
-  // the job back to In Progress (it had already started) so Status never
-  // drifts out of sync with the End Date stamp.
+  // Status is no longer a manual choice — it just follows the Start/End
+  // stamps: Start sets In Progress, End sets Completed, clearing either
+  // steps back down. This keeps Status from drifting out of sync with the
+  // stamps a PIC actually clicks.
+  if (stage === "started") {
+    update.status = value ? "In Progress" : "Pending";
+  }
   if (stage === "completed") {
     update.status = value ? "Completed" : existing?.started_date ? "In Progress" : "Pending";
   }
@@ -608,32 +612,6 @@ export async function setRestoreBikeWorkflowDateAction(
   const { error } = await supabaseAdmin.from("cc_repair_jobs").update(update).eq("id", id);
   if (error) throw new Error(error.message);
   revalidatePath("/repairs");
-  revalidatePath("/");
-}
-
-export async function updateRepairStatusAction(id: string, branch: Branch, status: RepairStatus): Promise<void> {
-  const user = await requireApproved();
-  assertCanEditBranch(user, branch);
-
-  // The end date can also be set by hand on the job form, so only fill it
-  // in automatically when marking a job Completed that doesn't have one
-  // yet — never overwrite or clear a date someone chose deliberately.
-  const update: { status: RepairStatus; completed_date?: string } = { status };
-  if (status === "Completed") {
-    const { data: existing } = await supabaseAdmin
-      .from("cc_repair_jobs")
-      .select("completed_date")
-      .eq("id", id)
-      .single();
-    if (!existing?.completed_date) {
-      update.completed_date = new Date().toISOString().slice(0, 10);
-    }
-  }
-
-  const { error } = await supabaseAdmin.from("cc_repair_jobs").update(update).eq("id", id);
-  if (error) throw new Error(error.message);
-  revalidatePath("/repairs");
-  revalidatePath("/repairs/walk-in");
   revalidatePath("/");
 }
 

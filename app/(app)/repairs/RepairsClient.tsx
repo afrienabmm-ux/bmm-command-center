@@ -5,14 +5,12 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Plus, Download, Pencil, AlertTriangle, Search, Check, Trash2, Printer } from "lucide-react";
 import {
-  updateRepairStatusAction,
   updateRepairApprovalAction,
   setRestoreBikeWorkflowDateAction,
   deleteRepairJobAction,
   quickAddRestoreBikeArrivalAction,
 } from "@/lib/repairs-actions";
 import {
-  REPAIR_STATUSES,
   APPROVAL_STATUSES,
   isHeavyRepairJob,
   type RepairStatus,
@@ -470,35 +468,10 @@ function ExportJobModal({
   );
 }
 
-function StatusCell({
-  job,
-  branch,
-  editable,
-  isPending,
-  startTransition,
-}: {
-  job: RepairJob;
-  branch: Branch;
-  editable: boolean;
-  isPending: boolean;
-  startTransition: (fn: () => void) => void;
-}) {
-  return editable ? (
-    <select
-      value={job.status}
-      disabled={isPending}
-      onChange={(e) => startTransition(() => updateRepairStatusAction(job.id, branch, e.target.value as RepairStatus))}
-      className={`text-xs font-medium px-2.5 py-1.5 rounded-full border focus:outline-none disabled:opacity-50 ${STATUS_STYLES[job.status]}`}
-    >
-      {REPAIR_STATUSES.map((s) => (
-        <option key={s} value={s} className="bg-white text-neutral-800">
-          {s}
-        </option>
-      ))}
-    </select>
-  ) : (
-    <span className={`text-xs font-medium px-2.5 py-1 rounded-full border ${STATUS_STYLES[job.status]}`}>{job.status}</span>
-  );
+// Status is no longer a manual choice — it just follows the Start/End
+// stamps (see setRestoreBikeWorkflowDateAction), so this is read-only.
+function StatusCell({ status }: { status: RepairStatus }) {
+  return <span className={`text-xs font-medium px-2.5 py-1 rounded-full border ${STATUS_STYLES[status]}`}>{status}</span>;
 }
 
 function ApprovalCell({ job, branch }: { job: RepairJob; branch: Branch }) {
@@ -711,7 +684,7 @@ function RestoreBikeRow({
       <td className="px-5 py-3.5 text-neutral-700 whitespace-nowrap">{formatCurrency(job.revenueAmount)}</td>
       <td className="px-5 py-3.5 text-neutral-600 whitespace-nowrap">{job.dealType || "—"}</td>
       <td className="px-5 py-3.5">
-        <StatusCell job={job} branch={job.branch} editable={editable} isPending={isPending} startTransition={startTransition} />
+        <StatusCell status={job.status} />
       </td>
       <td className="px-5 py-3.5">
         <div className="flex items-center gap-1">
