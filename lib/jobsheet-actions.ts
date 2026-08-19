@@ -67,6 +67,17 @@ const FIELD_LABELS: { key: string; regex: RegExp }[] = [
   { key: "mileageKm", regex: /(?<!Next )Mileage\s*\(?\s*KM\s*\)?/gi },
   { key: "serviceType", regex: /Service Type/gi },
   { key: "nextServiceDate", regex: /Next Service Date/gi },
+  // These three aren't fields the form needs (their values are never read
+  // below) — they're here purely as boundary markers. The jobsheet's
+  // two columns get merged onto the same reconstructed row (e.g. "Sales
+  // No." lines up with "Page", "Chassis No." lines up with
+  // "Dealer/Manufacture"), so without a recognized label to stop at, the
+  // real field on that row swallows the other column's label and value
+  // too — which is how "Warranty Card No." ended up reading
+  // "Dealer / Manufacture".
+  { key: "page", regex: /\bPage\b/gi },
+  { key: "dealerManufacture", regex: /Dealer\s*\/?\s*Manufacture/gi },
+  { key: "complaints", regex: /Complaints/gi },
 ];
 
 function extractFields(text: string): Record<string, string> {
