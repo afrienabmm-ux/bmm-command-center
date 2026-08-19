@@ -420,6 +420,7 @@ function EditModal({
   const [salespersonCode, setSalespersonCode] = useState(registration.salespersonCode);
   const [customerName, setCustomerName] = useState(registration.customerName);
   const [plateNo, setPlateNo] = useState(registration.customerPlateNo);
+  const [screenshot, setScreenshot] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
@@ -439,6 +440,7 @@ function EditModal({
         salespersonCode,
         customerName,
         customerPlateNo: plateNo,
+        screenshot,
       });
       if (result && "error" in result) {
         setError(result.error);
@@ -512,6 +514,26 @@ function EditModal({
               onChange={(e) => setPlateNo(e.target.value)}
               className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
             />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-neutral-600 mb-1.5">Screenshot</label>
+            {registration.screenshotUrl && !screenshot && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={registration.screenshotUrl}
+                alt="Current GenBlu screenshot"
+                className="w-full h-28 object-cover rounded-lg border border-neutral-200 mb-2"
+              />
+            )}
+            <input
+              type="file"
+              accept="image/*"
+              onChange={(e) => setScreenshot(e.target.files?.[0] ?? null)}
+              className="w-full text-sm text-neutral-700 file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:bg-neutral-100 file:text-neutral-800 file:text-xs"
+            />
+            <p className="text-xs text-neutral-500 mt-1.5">
+              {registration.screenshotUrl ? "Pick a new photo to replace the one above." : "No screenshot on file yet."}
+            </p>
           </div>
         </div>
 

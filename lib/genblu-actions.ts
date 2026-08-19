@@ -152,7 +152,16 @@ export async function addGenbluRegistrationAction(formData: FormData): Promise<{
 export async function updateGenbluRegistrationAction(
   id: string,
   branch: Branch,
-  input: { salespersonName: string; salespersonCode: string; customerName: string; customerPlateNo: string }
+  input: {
+    salespersonName: string;
+    salespersonCode: string;
+    customerName: string;
+    customerPlateNo: string;
+    // Only present when the PIC picked a new file — the existing
+    // screenshot (and its path) is left untouched otherwise, since most
+    // edits are just fixing a typo'd name and shouldn't wipe the photo.
+    screenshot?: File | null;
+  }
 ): Promise<{ error: string } | void> {
   const user = await requireApproved();
   assertCanEditBranch(user, branch);
@@ -163,15 +172,24 @@ export async function updateGenbluRegistrationAction(
     return { error: "Fill in the salesperson name and plate number." };
   }
 
-  const { error } = await supabaseAdmin
-    .from("cc_genblu_registrations")
-    .update({
-      salesperson_name: salespersonName,
-      salesperson_code: input.salespersonCode.trim().toUpperCase(),
-      customer_name: input.customerName.trim(),
-      customer_plate_no: customerPlateNo,
-    })
-    .eq("id", id);
+  const update: Record<string, string> = {
+    salesperson_name: salespersonName,
+    salesperson_code: input.salespersonCode.trim().toUpperCase(),
+    customer_name: input.customerName.trim(),
+    customer_plate_no: customerPlateNo,
+  };
+
+  if (input.screenshot && input.screenshot.size > 0) {
+    const ext = input.screenshot.name.split(".").pop() || "jpg";
+    const path = `${branch}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+    const { error: uploadError } = await supabaseAdmin.storage.from(BUCKET).upload(path, input.screenshot, {
+      contentType: input.screenshot.type || "image/jpeg",
+    });
+    if (uploadError) return { error: `Couldn't upload the screenshot: ${uploadError.message}` };
+    update.screenshot_path = path;
+  }
+
+  const { error } = await supabaseAdmin.from("cc_genblu_registrations").update(update).eq("id", id);
   if (error) return { error: error.message };
   revalidatePath("/genblu");
 }
