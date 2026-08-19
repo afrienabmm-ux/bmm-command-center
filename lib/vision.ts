@@ -12,16 +12,26 @@ import path from "path";
 // serverless function's time limit. (Passing the trained-data bytes
 // directly via createWorker's Lang-object form looked cleaner but hits a
 // bug in this version that corrupts the path used to open it — langPath
-// is the well-trodden code path, so that's what's used here.) Less
-// accurate on messy handwriting than a paid cloud OCR service, but works
-// fine on printed/typed jobsheets and GenBlu screenshots, which is all
-// this app needs it for.
+// is the well-trodden code path, so that's what's used here.)
+//
+// workerPath is also set explicitly, using process.cwd() rather than
+// leaving tesseract.js to compute it from its own __dirname: Next's
+// bundler rewrites __dirname inside compiled server code, so the
+// library's default computation resolves to a bogus path (observed in
+// production as "Cannot find module '/ROOT/node_modules/...'"). cwd()
+// isn't affected by that rewriting, so pointing it at the real on-disk
+// package files directly sidesteps the bug.
+//
+// Less accurate on messy handwriting than a paid cloud OCR service, but
+// works fine on printed/typed jobsheets and GenBlu screenshots, which is
+// all this app needs it for.
 let cachedWorker: Promise<Worker> | null = null;
 
 function getWorker(): Promise<Worker> {
   if (!cachedWorker) {
     const langPath = path.join(process.cwd(), "lib/tesseract-data");
-    cachedWorker = createWorker("eng", 1, { langPath, cachePath: "/tmp", gzip: false });
+    const workerPath = path.join(process.cwd(), "node_modules/tesseract.js/src/worker-script/node/index.js");
+    cachedWorker = createWorker("eng", 1, { langPath, workerPath, cachePath: "/tmp", gzip: false });
   }
   return cachedWorker;
 }
