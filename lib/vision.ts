@@ -37,10 +37,9 @@ function getWorker(): Promise<Worker> {
   return cachedWorker;
 }
 
-type Vertex = { x: number; y: number };
 type PositionedWord = { text: string; x: number; yCenter: number; height: number };
 
-function collectWords(blocks: Tesseract.Block[] | null): PositionedWord[] {
+function collectWordsFromTesseractBlocks(blocks: Tesseract.Block[] | null): PositionedWord[] {
   const words: PositionedWord[] = [];
   for (const block of blocks ?? []) {
     for (const paragraph of block.paragraphs ?? []) {
@@ -57,13 +56,12 @@ function collectWords(blocks: Tesseract.Block[] | null): PositionedWord[] {
   return words;
 }
 
-// Same reasoning as the old Google Vision integration: OCR groups text
-// into blocks/paragraphs by its own layout heuristics, which for a
+// Same reasoning regardless of which OCR engine produced the words: OCR
+// groups text into lines/blocks by its own layout heuristics, which for a
 // two-column "label ... value" form often separates a label from its
 // value — rebuilding rows from each word's actual on-page position (top
 // to bottom, left to right within a row) fixes that.
-function reconstructRows(blocks: Tesseract.Block[] | null, fallbackText: string): string {
-  const words = collectWords(blocks);
+function reconstructRowsFromWords(words: PositionedWord[], fallbackText: string): string {
   if (words.length === 0) return fallbackText;
 
   const sorted = [...words].sort((a, b) => a.yCenter - b.yCenter);
@@ -92,25 +90,82 @@ function reconstructRows(blocks: Tesseract.Block[] | null, fallbackText: string)
 }
 
 // A phone photo of a paper form has uneven lighting, shadows, and JPEG
-// noise that free/local OCR struggles with much more than a clean
+// noise that hurts OCR accuracy (either engine) much more than a clean
 // screenshot — grayscale + contrast stretch + a touch of sharpening
 // noticeably cuts down on misread characters (which otherwise break the
 // label-matching regexes in jobsheet-actions.ts and silently leave a
 // field blank rather than obviously wrong). Upscaling small images gives
-// Tesseract more pixels per character to work with.
+// the OCR engine more pixels per character to work with. Output is
+// normalized to JPEG so file size stays predictable regardless of the
+// original photo's format (relevant for OCR.space's upload size limit).
 async function preprocessForOcr(buffer: Buffer): Promise<Buffer> {
   const image = sharp(buffer, { failOn: "none" }).rotate(); // auto-orients using the photo's EXIF tag
   const metadata = await image.metadata();
   const width = metadata.width ?? 0;
   const pipeline = width > 0 && width < 1600 ? image.resize({ width: 1600 }) : image;
-  return pipeline.grayscale().normalize().sharpen().toBuffer();
+  return pipeline.grayscale().normalize().sharpen().jpeg({ quality: 85 }).toBuffer();
 }
 
-// Sends a photo (base64, no data: prefix) to the local OCR engine. Runs
-// tuned for a printed form/table rather than scattered scene text — best
-// fit for a jobsheet or GenBlu screenshot photo.
+type OcrSpaceWord = { WordText?: string; Left?: number; Top?: number; Width?: number; Height?: number };
+type OcrSpaceResponse = {
+  IsErroredOnProcessing?: boolean;
+  ParsedResults?: {
+    ParsedText?: string;
+    TextOverlay?: { Lines?: { Words?: OcrSpaceWord[] }[] };
+  }[];
+};
+
+// Primary OCR engine — a hosted API with a genuinely free tier (no card
+// on file, unlike Google Cloud Vision) that's noticeably more accurate
+// than the local Tesseract fallback on real phone photos. Returns null
+// (rather than throwing) for any reason it can't be used, so the caller
+// falls back to Tesseract instead of failing the whole scan.
+async function extractViaOcrSpace(buffer: Buffer): Promise<string | null> {
+  const apiKey = process.env.OCR_SPACE_API_KEY;
+  if (!apiKey) return null;
+
+  const form = new FormData();
+  form.append("apikey", apiKey);
+  form.append("language", "eng");
+  form.append("isOverlayRequired", "true");
+  form.append("OCREngine", "2");
+  form.append("scale", "true");
+  form.append("detectOrientation", "true");
+  form.append("file", new Blob([new Uint8Array(buffer)], { type: "image/jpeg" }), "scan.jpg");
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 25000);
+  try {
+    const res = await fetch("https://api.ocr.space/parse/image", { method: "POST", body: form, signal: controller.signal });
+    if (!res.ok) return null;
+    const json = (await res.json()) as OcrSpaceResponse;
+    if (json.IsErroredOnProcessing) return null;
+    const result = json.ParsedResults?.[0];
+    if (!result) return null;
+
+    const words: PositionedWord[] = [];
+    for (const line of result.TextOverlay?.Lines ?? []) {
+      for (const word of line.Words ?? []) {
+        const text = word.WordText?.trim();
+        if (!text) continue;
+        const top = word.Top ?? 0;
+        const height = word.Height ?? 20;
+        words.push({ text, x: word.Left ?? 0, yCenter: top + height / 2, height });
+      }
+    }
+    return reconstructRowsFromWords(words, result.ParsedText ?? "");
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+// Sends a photo (base64, no data: prefix) for OCR — OCR.space first, with
+// the local Tesseract engine as a fallback if that's unavailable or
+// fails for any reason (missing/exhausted API key, network issue, etc.),
+// so scanning still works even if the hosted service has a bad moment.
 export async function extractTextFromImage(base64Image: string): Promise<string> {
-  const worker = await getWorker();
   const rawBuffer = Buffer.from(base64Image, "base64");
   let buffer: Buffer;
   try {
@@ -120,8 +175,13 @@ export async function extractTextFromImage(base64Image: string): Promise<string>
     // original photo rather than blocking the scan entirely.
     buffer = rawBuffer;
   }
+
+  const hosted = await extractViaOcrSpace(buffer);
+  if (hosted !== null && hosted.trim() !== "") return hosted;
+
+  const worker = await getWorker();
   const { data } = await worker.recognize(buffer, {}, { blocks: true, text: true });
-  return reconstructRows(data.blocks, data.text ?? "");
+  return reconstructRowsFromWords(collectWordsFromTesseractBlocks(data.blocks), data.text ?? "");
 }
 
 // PDFs aren't supported by the free local OCR path (no card-free way to
