@@ -3,6 +3,7 @@ import type { ClaimStatusBreakdownRow, PackageBreakdownRow } from "@/lib/dashboa
 import { BRANCHES, branchLabel, type Branch } from "@/lib/branch";
 import { RevenueTrendChart, BranchJobsChart } from "./TrendCharts";
 import { PieChartCard, type PieSlice } from "./PieChart";
+import RestoreBikeStatus, { type RestoreBikeStatusCounts } from "./RestoreBikeStatus";
 
 const CLAIM_STATUS_COLORS: Record<ClaimStatusBreakdownRow["status"], { colorClass: string; dot: string }> = {
   Pending: { colorClass: "fill-neutral-400", dot: "bg-neutral-400" },
@@ -27,10 +28,12 @@ export default function MonthlyTrends({
   points,
   claimStatusBreakdown,
   packageBreakdown,
+  restoreBikeStatusCounts,
 }: {
   points: MonthlyTrendPoint[];
   claimStatusBreakdown: ClaimStatusBreakdownRow[];
   packageBreakdown: Record<Branch, PackageBreakdownRow[]>;
+  restoreBikeStatusCounts: RestoreBikeStatusCounts;
 }) {
   const claimSlices: PieSlice[] = claimStatusBreakdown.map((row) => ({
     label: row.status,
@@ -44,7 +47,10 @@ export default function MonthlyTrends({
       <div className="space-y-4">
         <RevenueTrendChart points={points} />
         <BranchJobsChart points={points} />
-        <PieChartCard heading="Warranty Claims by Status" subtitle="All branches, this month" slices={claimSlices} />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <PieChartCard heading="Warranty Claims by Status" subtitle="All branches, this month" slices={claimSlices} />
+          <RestoreBikeStatus counts={restoreBikeStatusCounts} />
+        </div>
         <div>
           <p className="text-sm font-semibold text-neutral-900 mb-3">Services Combo Sold by Branch</p>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { AlertTriangle, ShieldCheck, Wrench, Clock, Users, ClipboardList, Layers, ArrowUp, ArrowDown } from "lucide-react";
+import { AlertTriangle, ShieldCheck, ClipboardList, Layers, ArrowUp, ArrowDown } from "lucide-react";
 import { formatCurrency, monthLabel } from "@/lib/format";
 import type { Branch } from "@/lib/branch";
 import StatCard from "@/components/StatCard";
@@ -43,17 +43,29 @@ export default async function AllBranchesOverview({ year, month }: { year: numbe
       target: acc.target + b.target,
       achieved: acc.achieved + b.achieved,
       approvedClaims: acc.approvedClaims + b.approvedClaims,
-      activeRepairs: acc.activeRepairs + b.activeRepairs,
-      activeMechanics: acc.activeMechanics + b.activeMechanics,
     }),
-    { target: 0, achieved: 0, approvedClaims: 0, activeRepairs: 0, activeMechanics: 0 }
+    { target: 0, achieved: 0, approvedClaims: 0 }
   );
   const pct = totals.target > 0 ? Math.min(100, Math.round((totals.achieved / totals.target) * 100)) : 0;
 
-  const restoreBikeActiveCount = activeJobs.filter((j) => j.jobType === "Restore Bike").length;
-  const restoreBikeOverdueCount = overdueJobs.length;
-  const restoreBikeOnTrackCount = restoreBikeActiveCount - restoreBikeOverdueCount;
   const totalJobsheetCount = activeJobs.filter((j) => j.jobType === "Walk-in").length;
+
+  // Same 5-day overdue cutoff as the "running past 5 days" alert below —
+  // amber is the 3-5 day warning zone before a job actually goes red. Jobs
+  // that haven't started yet (no startedDate) aren't running the clock, so
+  // they count as green rather than being left out entirely.
+  const restoreBikeStatusCounts = activeJobs
+    .filter((j) => j.jobType === "Restore Bike")
+    .reduce(
+      (acc, j) => {
+        const days = j.startedDate ? Math.floor((Date.now() - new Date(j.startedDate).getTime()) / 86400000) : null;
+        if (days === null || days < 3) acc.green += 1;
+        else if (days <= 5) acc.amber += 1;
+        else acc.red += 1;
+        return acc;
+      },
+      { green: 0, amber: 0, red: 0 }
+    );
 
   // Month-over-month change vs the same combined-achieved figure last month.
   // No badge when there's nothing to compare against (e.g. a brand new month).
@@ -98,7 +110,12 @@ export default async function AllBranchesOverview({ year, month }: { year: numbe
 
       <RevenuePace data={revenuePace} />
 
-      <MonthlyTrends points={trendPoints} claimStatusBreakdown={claimStatusBreakdown} packageBreakdown={packageBreakdown} />
+      <MonthlyTrends
+        points={trendPoints}
+        claimStatusBreakdown={claimStatusBreakdown}
+        packageBreakdown={packageBreakdown}
+        restoreBikeStatusCounts={restoreBikeStatusCounts}
+      />
 
       {overdueJobs.length > 0 && (
         <Link
@@ -126,11 +143,8 @@ export default async function AllBranchesOverview({ year, month }: { year: numbe
         </Link>
       )}
 
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 gap-4 max-w-xl">
         <StatCard icon={ShieldCheck} label="Approved Claims" value={totals.approvedClaims} color="text-emerald-700 bg-emerald-500/10" href="/warranty-claims" />
-        <StatCard icon={Wrench} label="Restore Bike On Track" value={restoreBikeOnTrackCount} color="text-indigo-600 bg-indigo-500/10" href="/repairs" />
-        <StatCard icon={Clock} label="Restore Bike Overdue" value={restoreBikeOverdueCount} color="text-red-700 bg-red-500/10" href="/repairs" />
-        <StatCard icon={Users} label="Active Mechanics" value={totals.activeMechanics} color="text-amber-700 bg-amber-500/10" href="/mechanics" />
         <StatCard icon={ClipboardList} label="Total Jobsheet" value={totalJobsheetCount} color="text-purple-700 bg-purple-500/10" href="/repairs/walk-in" />
       </div>
 
