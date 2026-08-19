@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import { Crown, Wrench, Download, ChevronDown, ChevronUp, Check, X } from "lucide-react";
 import { formatCurrency, toCsv } from "@/lib/format";
 import { BRANCHES, branchLabel, type BranchSelection } from "@/lib/branch";
@@ -42,6 +42,60 @@ function KpiCell({ revenue, count }: { revenue: number; count: number }) {
   );
 }
 
+function PackageRow({ r, isTop }: { r: MechanicPerformanceRowWithBranch; isTop: boolean }) {
+  return (
+    <tr className="border-b border-neutral-100 last:border-0 hover:bg-neutral-50">
+      <td className="px-5 py-3.5 text-neutral-800 font-medium whitespace-nowrap">
+        <span className="inline-flex items-center gap-1.5">
+          {isTop && r.packageSetsSold > 0 && <Crown size={14} className="text-amber-500" />}
+          {r.fullName} <span className="text-neutral-500 font-normal">({r.shortCode})</span>
+        </span>
+      </td>
+      <td className="px-5 py-3.5 text-neutral-900 font-semibold whitespace-nowrap">{r.packageSetsSold} sets</td>
+      <td className="px-5 py-3.5 text-neutral-600 whitespace-nowrap">{formatCurrency(r.packageRevenue)}</td>
+    </tr>
+  );
+}
+
+function RevenueRow({
+  r,
+  isTop,
+  isTopRestoreBike,
+}: {
+  r: MechanicPerformanceRowWithBranch;
+  isTop: boolean;
+  isTopRestoreBike: boolean;
+}) {
+  return (
+    <tr className="border-b border-neutral-100 last:border-0 hover:bg-neutral-50">
+      <td className="px-5 py-3.5 text-neutral-800 font-medium whitespace-nowrap">
+        <span className="inline-flex items-center gap-1.5">
+          {isTop && r.totalRevenue > 0 && <Crown size={14} className="text-amber-500" />}
+          {r.fullName} <span className="text-neutral-500 font-normal">({r.shortCode})</span>
+          {isTopRestoreBike && (
+            <span className="flex items-center gap-1 text-xs font-medium text-purple-700 bg-purple-500/10 border border-purple-500/20 rounded-full px-2 py-0.5">
+              <Wrench size={10} /> Top Restore Bike
+            </span>
+          )}
+        </span>
+      </td>
+      <td className="px-5 py-3.5 text-neutral-600 whitespace-nowrap">
+        {r.restoreBikeCount} jobs · {formatCurrency(r.restoreBikeRevenue)}
+      </td>
+      <td className="px-5 py-3.5 text-neutral-600 whitespace-nowrap">
+        {r.walkInCount} jobs · {formatCurrency(r.walkInRevenue)}
+      </td>
+      <td className="px-5 py-3.5 text-neutral-600 whitespace-nowrap">
+        {r.packageSetsSold} sets · {formatCurrency(r.packageRevenue)}
+      </td>
+      <td className="px-5 py-3.5 text-neutral-900 font-semibold whitespace-nowrap">{formatCurrency(r.totalRevenue)}</td>
+      <td className="px-5 py-3.5">
+        <KpiCell revenue={r.restoreBikeRevenue} count={r.restoreBikeCount} />
+      </td>
+    </tr>
+  );
+}
+
 type View = "revenue" | "packages";
 
 export default function AllBranchesMechanicPerformanceClient({ rows }: { rows: MechanicPerformanceRowWithBranch[] }) {
@@ -60,11 +114,29 @@ export default function AllBranchesMechanicPerformanceClient({ rows }: { rows: M
     return sorted;
   }, [rows, branchFilter, view]);
 
+  // Viewing "All Branches" groups the list under a highlighted per-branch
+  // total row instead of one flat ranking — otherwise there's no way to
+  // tell which branch a mechanic belongs to now that the Branch column is
+  // gone (it's redundant with the branch dropdown for a single branch, but
+  // not when everyone's mixed together). Each branch's own rows stay in
+  // the same order as the global sort, so the ranking within a branch is
+  // still by revenue/packages.
+  const grouped = branchFilter === "all";
+  const groups = useMemo(() => {
+    if (!grouped) return [];
+    return BRANCHES.map(({ value: branch }) => ({ branch, rows: filtered.filter((r) => r.branch === branch) })).filter(
+      (g) => g.rows.length > 0
+    );
+  }, [filtered, grouped]);
+
   useEffect(() => {
     setShowAll(false);
   }, [branchFilter, view]);
 
-  const visible = showAll ? filtered : filtered.slice(0, COLLAPSED_COUNT);
+  // Grouped view always shows everyone (organized into per-branch
+  // sections already keeps it readable); the flat single-branch view
+  // still collapses long lists behind "View All".
+  const visible = grouped ? filtered : showAll ? filtered : filtered.slice(0, COLLAPSED_COUNT);
   const hiddenCount = filtered.length - visible.length;
 
   const topRestoreBikeId = filtered.reduce<{ id: string; revenue: number } | null>((top, r) => {
@@ -73,6 +145,12 @@ export default function AllBranchesMechanicPerformanceClient({ rows }: { rows: M
     }
     return top;
   }, null)?.id;
+
+  // The crown marks the single top earner in the current sort — computed
+  // from filtered[0] rather than a row's position in the table, since
+  // grouping by branch means each branch's first row is no longer
+  // necessarily index 0 of the overall list.
+  const topOverallId = filtered[0]?.mechanicId;
 
   function handleExport() {
     const csv = toCsv(
@@ -172,18 +250,24 @@ export default function AllBranchesMechanicPerformanceClient({ rows }: { rows: M
                 </tr>
               </thead>
               <tbody>
-                {visible.map((r, i) => (
-                  <tr key={r.mechanicId} className="border-b border-neutral-100 last:border-0 hover:bg-neutral-50">
-                    <td className="px-5 py-3.5 text-neutral-800 font-medium whitespace-nowrap">
-                      <span className="inline-flex items-center gap-1.5">
-                        {i === 0 && r.packageSetsSold > 0 && <Crown size={14} className="text-amber-500" />}
-                        {r.fullName} <span className="text-neutral-500 font-normal">({r.shortCode})</span>
-                      </span>
-                    </td>
-                    <td className="px-5 py-3.5 text-neutral-900 font-semibold whitespace-nowrap">{r.packageSetsSold} sets</td>
-                    <td className="px-5 py-3.5 text-neutral-600 whitespace-nowrap">{formatCurrency(r.packageRevenue)}</td>
-                  </tr>
-                ))}
+                {grouped
+                  ? groups.map((g) => (
+                      <Fragment key={g.branch}>
+                        <tr className="bg-emerald-50">
+                          <td className="px-5 py-2.5 text-emerald-800 font-semibold text-xs uppercase tracking-wide whitespace-nowrap">
+                            {branchLabel(g.branch)} — Branch Total
+                          </td>
+                          <td className="px-5 py-2.5 text-emerald-800 font-semibold text-sm whitespace-nowrap">
+                            {g.rows.reduce((sum, r) => sum + r.packageSetsSold, 0)} sets
+                          </td>
+                          <td />
+                        </tr>
+                        {g.rows.map((r) => (
+                          <PackageRow key={r.mechanicId} r={r} isTop={r.mechanicId === topOverallId} />
+                        ))}
+                      </Fragment>
+                    ))
+                  : visible.map((r) => <PackageRow key={r.mechanicId} r={r} isTop={r.mechanicId === topOverallId} />)}
                 {filtered.length === 0 && (
                   <tr>
                     <td colSpan={3} className="px-5 py-10 text-center text-neutral-500 text-sm">
@@ -206,36 +290,37 @@ export default function AllBranchesMechanicPerformanceClient({ rows }: { rows: M
                 </tr>
               </thead>
               <tbody>
-                {visible.map((r, i) => (
-                  <tr key={r.mechanicId} className="border-b border-neutral-100 last:border-0 hover:bg-neutral-50">
-                    <td className="px-5 py-3.5 text-neutral-800 font-medium whitespace-nowrap">
-                      <span className="inline-flex items-center gap-1.5">
-                        {i === 0 && r.totalRevenue > 0 && <Crown size={14} className="text-amber-500" />}
-                        {r.fullName} <span className="text-neutral-500 font-normal">({r.shortCode})</span>
-                        {r.mechanicId === topRestoreBikeId && (
-                          <span className="flex items-center gap-1 text-xs font-medium text-purple-700 bg-purple-500/10 border border-purple-500/20 rounded-full px-2 py-0.5">
-                            <Wrench size={10} /> Top Restore Bike
-                          </span>
-                        )}
-                      </span>
-                    </td>
-                    <td className="px-5 py-3.5 text-neutral-600 whitespace-nowrap">
-                      {r.restoreBikeCount} jobs · {formatCurrency(r.restoreBikeRevenue)}
-                    </td>
-                    <td className="px-5 py-3.5 text-neutral-600 whitespace-nowrap">
-                      {r.walkInCount} jobs · {formatCurrency(r.walkInRevenue)}
-                    </td>
-                    <td className="px-5 py-3.5 text-neutral-600 whitespace-nowrap">
-                      {r.packageSetsSold} sets · {formatCurrency(r.packageRevenue)}
-                    </td>
-                    <td className="px-5 py-3.5 text-neutral-900 font-semibold whitespace-nowrap">
-                      {formatCurrency(r.totalRevenue)}
-                    </td>
-                    <td className="px-5 py-3.5">
-                      <KpiCell revenue={r.restoreBikeRevenue} count={r.restoreBikeCount} />
-                    </td>
-                  </tr>
-                ))}
+                {grouped
+                  ? groups.map((g) => (
+                      <Fragment key={g.branch}>
+                        <tr className="bg-emerald-50">
+                          <td className="px-5 py-2.5 text-emerald-800 font-semibold text-xs uppercase tracking-wide whitespace-nowrap">
+                            {branchLabel(g.branch)} — Branch Total
+                          </td>
+                          <td colSpan={3} />
+                          <td className="px-5 py-2.5 text-emerald-800 font-semibold text-sm whitespace-nowrap">
+                            {formatCurrency(g.rows.reduce((sum, r) => sum + r.totalRevenue, 0))}
+                          </td>
+                          <td />
+                        </tr>
+                        {g.rows.map((r) => (
+                          <RevenueRow
+                            key={r.mechanicId}
+                            r={r}
+                            isTop={r.mechanicId === topOverallId}
+                            isTopRestoreBike={r.mechanicId === topRestoreBikeId}
+                          />
+                        ))}
+                      </Fragment>
+                    ))
+                  : visible.map((r) => (
+                      <RevenueRow
+                        key={r.mechanicId}
+                        r={r}
+                        isTop={r.mechanicId === topOverallId}
+                        isTopRestoreBike={r.mechanicId === topRestoreBikeId}
+                      />
+                    ))}
                 {filtered.length === 0 && (
                   <tr>
                     <td colSpan={6} className="px-5 py-10 text-center text-neutral-500 text-sm">
@@ -248,7 +333,7 @@ export default function AllBranchesMechanicPerformanceClient({ rows }: { rows: M
           )}
         </table>
       </div>
-      {filtered.length > COLLAPSED_COUNT && (
+      {!grouped && filtered.length > COLLAPSED_COUNT && (
         <div className="px-5 py-3 border-t border-neutral-200">
           <button
             onClick={() => setShowAll((v) => !v)}
