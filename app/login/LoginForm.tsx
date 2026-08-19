@@ -4,7 +4,7 @@ import { useActionState } from "react";
 import Link from "next/link";
 import { signInAction, type AuthResult } from "@/lib/auth-actions";
 
-export default function LoginForm() {
+export default function LoginForm({ next }: { next?: string }) {
   const [state, formAction, isPending] = useActionState<AuthResult, FormData>(
     (_prev, formData) => signInAction(formData),
     undefined
@@ -12,6 +12,7 @@ export default function LoginForm() {
 
   return (
     <form action={formAction} className="space-y-4">
+      {next && <input type="hidden" name="next" value={next} />}
       <div>
         <label className="block text-xs font-medium text-neutral-600 mb-1.5">Email</label>
         <input

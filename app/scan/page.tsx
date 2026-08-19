@@ -34,7 +34,7 @@ export const metadata: Metadata = {
 // dashboard is untouched by any of this.
 export default async function ScanPage() {
   const user = await getCurrentUser();
-  if (!user) redirect("/login");
+  if (!user) redirect("/login?next=/scan");
 
   await requirePage("walk-in");
   const { user: currentUser } = await requirePageContext();

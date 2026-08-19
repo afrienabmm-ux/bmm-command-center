@@ -1,6 +1,10 @@
 import LoginForm from "./LoginForm";
 
-export default function LoginPage() {
+// A page like /scan redirects here with ?next=/scan when signed out, so
+// after a successful sign-in the user lands back where they were headed
+// instead of always the main dashboard.
+export default async function LoginPage({ searchParams }: { searchParams: Promise<{ next?: string }> }) {
+  const { next } = await searchParams;
   return (
     <div className="min-h-screen w-full flex items-center justify-center px-4">
       <div className="w-full max-w-sm">
@@ -12,7 +16,7 @@ export default function LoginPage() {
 
         <div className="bg-white border border-neutral-200 rounded-xl p-6">
           <h1 className="text-sm font-semibold text-neutral-900 mb-5">Sign in</h1>
-          <LoginForm />
+          <LoginForm next={next} />
         </div>
       </div>
     </div>

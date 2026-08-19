@@ -32,6 +32,7 @@ export async function signUpAction(formData: FormData): Promise<AuthResult> {
 export async function signInAction(formData: FormData): Promise<AuthResult> {
   const email = String(formData.get("email") || "").trim();
   const password = String(formData.get("password") || "");
+  const next = String(formData.get("next") || "");
 
   if (!email || !password) return { error: "Enter your email and password." };
 
@@ -40,7 +41,11 @@ export async function signInAction(formData: FormData): Promise<AuthResult> {
 
   if (error) return { error: "Incorrect email or password." };
 
-  redirect("/");
+  // Only ever redirect to a path within this app (starts with a single
+  // "/", not "//") — a "next" value is attacker-controllable via the URL,
+  // and an unchecked redirect could otherwise send a freshly-authenticated
+  // session off to an external site.
+  redirect(next.startsWith("/") && !next.startsWith("//") ? next : "/");
 }
 
 export async function signOutAction(): Promise<void> {
