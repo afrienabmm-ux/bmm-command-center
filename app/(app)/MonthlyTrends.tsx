@@ -6,11 +6,10 @@ import { PieChartCard, type PieSlice } from "./PieChart";
 import RestoreBikeStatus, { type RestoreBikeStatusCounts } from "./RestoreBikeStatus";
 
 const CLAIM_STATUS_COLORS: Record<ClaimStatusBreakdownRow["status"], { colorClass: string; dot: string }> = {
-  Pending: { colorClass: "fill-neutral-400", dot: "bg-neutral-400" },
-  "In Progress": { colorClass: "fill-amber-500", dot: "bg-amber-500" },
+  "In Process": { colorClass: "fill-amber-500", dot: "bg-amber-500" },
   Approved: { colorClass: "fill-emerald-500", dot: "bg-emerald-500" },
   Rejected: { colorClass: "fill-red-500", dot: "bg-red-500" },
-  Closed: { colorClass: "fill-indigo-500", dot: "bg-indigo-500" },
+  "Close Ticket": { colorClass: "fill-indigo-500", dot: "bg-indigo-500" },
 };
 
 const PACKAGE_COLOR_PALETTE: { colorClass: string; dot: string }[] = [

@@ -135,6 +135,7 @@ export default function WalkInJobForm({
   allActiveJobs,
   catalogProducts,
   preferCamera = false,
+  redirectTo = "/repairs/walk-in",
 }: {
   job: RepairJob | null;
   branchSelection: BranchSelection;
@@ -146,6 +147,11 @@ export default function WalkInJobForm({
   // picker — only set from the standalone phone scan page (/scan), where
   // "take a photo of the jobsheet" is the whole point of the page.
   preferCamera?: boolean;
+  // Where Save/Cancel send the browser afterward — the dashboard's full
+  // Jobsheet list by default, but the standalone /scan page points this
+  // back at itself so saving a job never drags a phone visitor into the
+  // desktop dashboard's sidebar layout.
+  redirectTo?: string;
 }) {
   const router = useRouter();
   const isEdit = job !== null;
@@ -530,7 +536,7 @@ export default function WalkInJobForm({
           `${customerName.trim()} earned ${Math.round(finalRevenue).toLocaleString()} GenBlu points (${formatCurrency(finalRevenue)}) from this job.`
         );
       }
-      router.push("/repairs/walk-in");
+      router.push(redirectTo);
     });
   }
 
@@ -915,7 +921,7 @@ export default function WalkInJobForm({
         </div>
         <div className="flex items-center justify-end gap-3 mt-6 pt-4 border-t border-neutral-200">
           <button
-            onClick={() => router.push("/repairs/walk-in")}
+            onClick={() => router.push(redirectTo)}
             className="text-sm font-medium text-neutral-600 hover:text-neutral-800 px-4 py-2 transition-colors"
           >
             Cancel

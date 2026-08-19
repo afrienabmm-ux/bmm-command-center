@@ -107,7 +107,7 @@ export async function addWarrantyClaimAction(input: {
     stock_status: input.stockStatus,
     bike_make: input.bikeMake,
     submitted_date: input.submittedDate,
-    status: "Pending",
+    status: "In Process",
     pic: input.pic?.trim() ?? "",
     latest_status: input.latestStatus?.trim() ?? "",
     reason: input.reason?.trim() ?? "",

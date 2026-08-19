@@ -22,12 +22,12 @@ export type Mechanic = {
   createdAt: string;
 };
 
-export type ClaimStatus = "Pending" | "In Progress" | "Approved" | "Rejected" | "Closed";
-export const CLAIM_STATUSES: ClaimStatus[] = ["Pending", "In Progress", "Approved", "Rejected", "Closed"];
+export type ClaimStatus = "Approved" | "In Process" | "Close Ticket" | "Rejected";
+export const CLAIM_STATUSES: ClaimStatus[] = ["Approved", "In Process", "Close Ticket", "Rejected"];
 
 // A claim still needing action — used for the dashboard's "open claims"
 // count, so approved/rejected/closed ones drop out of it.
-export const OPEN_CLAIM_STATUSES: ClaimStatus[] = ["Pending", "In Progress"];
+export const OPEN_CLAIM_STATUSES: ClaimStatus[] = ["In Process"];
 export function isOpenClaim(status: ClaimStatus): boolean {
   return OPEN_CLAIM_STATUSES.includes(status);
 }

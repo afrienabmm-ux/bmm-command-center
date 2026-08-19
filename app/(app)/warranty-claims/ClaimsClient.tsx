@@ -23,11 +23,10 @@ import { BRANCHES, branchLabel, type Branch, type BranchSelection } from "@/lib/
 import { formatDate, toCsv } from "@/lib/format";
 
 const STATUS_STYLES: Record<ClaimStatus, string> = {
-  Pending: "bg-neutral-100 text-neutral-700 border-neutral-300",
-  "In Progress": "bg-amber-500/10 text-amber-700 border-amber-500/20",
+  "In Process": "bg-amber-500/10 text-amber-700 border-amber-500/20",
   Approved: "bg-emerald-500/10 text-emerald-700 border-emerald-500/20",
   Rejected: "bg-red-500/10 text-red-700 border-red-500/20",
-  Closed: "bg-neutral-200 text-neutral-600 border-neutral-300",
+  "Close Ticket": "bg-neutral-200 text-neutral-600 border-neutral-300",
 };
 
 const STOCK_STYLES: Record<StockStatus, string> = {
@@ -336,27 +335,29 @@ function ClaimRow({ claim, showBranch, knownPics }: { claim: WarrantyClaim; show
   );
 }
 
-// Click-to-cycle Status button — steps through CLAIM_STATUSES in order,
-// wrapping back to the start, instead of a dropdown.
+// Status dropdown — picks directly from the 4 statuses instead of
+// clicking through them one at a time.
 function StatusCell({ claim }: { claim: WarrantyClaim }) {
   const [isPending, startTransition] = useTransition();
-  function handleClick() {
-    const next = CLAIM_STATUSES[(CLAIM_STATUSES.indexOf(claim.status) + 1) % CLAIM_STATUSES.length];
+  function handleChange(next: ClaimStatus) {
     startTransition(async () => {
       const result = await updateClaimStatusAction(claim.id, claim.branch, next);
       if (result && "error" in result) window.alert(result.error);
     });
   }
   return (
-    <button
-      type="button"
-      onClick={handleClick}
+    <select
+      value={claim.status}
+      onChange={(e) => handleChange(e.target.value as ClaimStatus)}
       disabled={isPending}
-      title={`Click to cycle: ${CLAIM_STATUSES.join(" -> ")}`}
-      className={`text-xs font-medium px-2.5 py-1.5 rounded-full border transition-colors disabled:opacity-50 ${STATUS_STYLES[claim.status]}`}
+      className={`text-xs font-medium pl-2.5 pr-6 py-1.5 rounded-full border transition-colors disabled:opacity-50 cursor-pointer ${STATUS_STYLES[claim.status]}`}
     >
-      {claim.status}
-    </button>
+      {CLAIM_STATUSES.map((s) => (
+        <option key={s} value={s}>
+          {s}
+        </option>
+      ))}
+    </select>
   );
 }
 
@@ -460,7 +461,7 @@ function PicScoreboard({ claims }: { claims: WarrantyClaim[] }) {
       const key = c.pic.trim() || "Unassigned";
       let row = byPic.get(key);
       if (!row) {
-        row = { Pending: 0, "In Progress": 0, Approved: 0, Rejected: 0, Closed: 0, total: 0 };
+        row = { Approved: 0, "In Process": 0, "Close Ticket": 0, Rejected: 0, total: 0 };
         byPic.set(key, row);
       }
       row[c.status] += 1;

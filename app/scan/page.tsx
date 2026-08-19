@@ -8,11 +8,12 @@ import {
   canViewAllBranches,
   hasPageAccess,
 } from "@/lib/current-user";
-import { getAllBranchesActiveRepairJobs, getAllBranchesCompletedRepairJobs } from "@/lib/repairs-actions";
+import { getAllBranchesActiveRepairJobs, getAllBranchesCompletedRepairJobs, getRepairJobById } from "@/lib/repairs-actions";
 import { getAllMechanics } from "@/lib/mechanics-actions";
 import { getAllCatalogProducts } from "@/lib/catalog-actions";
 import WalkInJobForm from "../(app)/repairs/walk-in/WalkInJobForm";
 import GenbluQuickForm, { type RecentJobsheetCustomer } from "./GenbluQuickForm";
+import JobsheetPicker from "./JobsheetPicker";
 import ScanTabs from "./ScanTabs";
 
 export const dynamic = "force-dynamic";
@@ -32,31 +33,47 @@ export const metadata: Metadata = {
 // never gets AppShell's desktop sidebar, and ships with manifest.ts so it
 // can be added to a phone's home screen as its own shortcut — the main
 // dashboard is untouched by any of this.
-export default async function ScanPage() {
+export default async function ScanPage({ searchParams }: { searchParams: Promise<{ job?: string }> }) {
   const user = await getCurrentUser();
   if (!user) redirect("/login?next=/scan");
 
   await requirePage("walk-in");
   const { user: currentUser } = await requirePageContext();
+  const { job: jobId } = await searchParams;
   const locked = !canViewAllBranches(currentUser);
-  const [branchSelection, allActiveJobs, completedJobs, mechanics, catalogProducts] = await Promise.all([
+  const [branchSelection, allActiveJobs, completedJobs, mechanics, catalogProducts, editingJob] = await Promise.all([
     getActiveBranchSelection(currentUser),
     getAllBranchesActiveRepairJobs(),
     getAllBranchesCompletedRepairJobs(),
     getAllMechanics(),
     getAllCatalogProducts(),
+    jobId ? getRepairJobById(jobId) : null,
   ]);
 
+  // Any active Walk-in job without an End Date yet is a candidate to pick
+  // here — this is what lets a PIC set the End Date from their phone and
+  // have it show up on the dashboard's Jobsheet list immediately, without
+  // needing to re-type the whole job.
+  const openJobsheets = allActiveJobs
+    .filter((j) => j.jobType === "Walk-in" && !j.completedDate && (!locked || j.branch === currentUser.homeBranch))
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+    .map((j) => ({ id: j.id, jobNo: j.jobNo, customerName: j.customerName, plateNo: j.plateNo }));
+
   const jobsheetForm = (
-    <WalkInJobForm
-      job={null}
-      branchSelection={branchSelection}
-      locked={locked}
-      mechanics={mechanics}
-      allActiveJobs={allActiveJobs}
-      catalogProducts={catalogProducts}
-      preferCamera
-    />
+    <div>
+      <JobsheetPicker jobs={openJobsheets} selectedId={jobId} />
+      <WalkInJobForm
+        key={jobId ?? "new"}
+        job={editingJob ?? null}
+        branchSelection={branchSelection}
+        locked={locked}
+        mechanics={mechanics}
+        allActiveJobs={allActiveJobs}
+        catalogProducts={catalogProducts}
+        preferCamera
+        redirectTo="/scan"
+      />
+    </div>
   );
 
   const canUploadGenblu = hasPageAccess(currentUser, "genblu");
