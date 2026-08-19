@@ -853,9 +853,7 @@ export default function WalkInJobForm({
               onChange={(e) => setCompletedDate(e.target.value)}
               className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
             />
-            <p className="text-xs text-neutral-500 mt-1.5">
-              Leave the end date blank to fill it in automatically when the job is marked Completed.
-            </p>
+            <p className="text-xs text-neutral-500 mt-1.5">Set this to the date the job is officially done.</p>
           </div>
           <div>
             <label className="block text-xs font-medium text-neutral-600 mb-1.5">Customer has GenBlu?</label>
