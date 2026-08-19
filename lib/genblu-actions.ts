@@ -284,3 +284,70 @@ export async function ensureGenbluRegistrationAction(input: {
   revalidatePath("/genblu");
   return { created: true };
 }
+
+// Used by the standalone phone Upload page, where uploading the photo IS
+// the action — unlike ensureGenbluRegistrationAction (which skips the
+// upload once a customer is already registered, since the jobsheet form
+// that calls it only needs the screenshot once), this always attaches the
+// screenshot: onto the existing registration if the customer already has
+// one, or a newly created one otherwise.
+export async function attachGenbluScreenshotAction(input: {
+  branch: Branch;
+  customerName: string;
+  customerPlateNo: string;
+  screenshot: File;
+}): Promise<{ error: string } | { updated: boolean }> {
+  const user = await requireApproved();
+  assertCanEditBranch(user, input.branch);
+
+  const customerName = input.customerName.trim();
+  if (!customerName) return { error: "Customer name is required." };
+  if (input.screenshot.size === 0) return { error: "Pick a screenshot to upload." };
+
+  let nameMatches = true;
+  try {
+    nameMatches = await screenshotMatchesName(input.screenshot, customerName);
+  } catch {
+    nameMatches = true;
+  }
+  if (!nameMatches) {
+    return {
+      error: `The name on the screenshot doesn't match "${customerName}" — please check it's the right screenshot and try again.`,
+    };
+  }
+
+  const ext = input.screenshot.name.split(".").pop() || "jpg";
+  const path = `${input.branch}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+  const { error: uploadError } = await supabaseAdmin.storage.from(BUCKET).upload(path, input.screenshot, {
+    contentType: input.screenshot.type || "image/jpeg",
+  });
+  if (uploadError) return { error: `Couldn't upload the screenshot: ${uploadError.message}` };
+
+  const { data: existing, error: fetchError } = await supabaseAdmin
+    .from("cc_genblu_registrations")
+    .select("id, customer_name")
+    .eq("branch", input.branch);
+  if (fetchError) return { error: fetchError.message };
+  const match = (existing ?? []).find((r) => normalizeName(r.customer_name) === normalizeName(customerName));
+
+  if (match) {
+    const { error } = await supabaseAdmin
+      .from("cc_genblu_registrations")
+      .update({ screenshot_path: path })
+      .eq("id", match.id);
+    if (error) return { error: error.message };
+  } else {
+    const { error } = await supabaseAdmin.from("cc_genblu_registrations").insert({
+      branch: input.branch,
+      salesperson_name: user.name,
+      salesperson_code: initialsFromName(user.name),
+      customer_name: customerName,
+      customer_plate_no: input.customerPlateNo.trim(),
+      screenshot_path: path,
+    });
+    if (error) return { error: error.message };
+  }
+
+  revalidatePath("/genblu");
+  return { updated: true };
+}

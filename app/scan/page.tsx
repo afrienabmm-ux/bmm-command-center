@@ -8,11 +8,11 @@ import {
   canViewAllBranches,
   hasPageAccess,
 } from "@/lib/current-user";
-import { getAllBranchesActiveRepairJobs } from "@/lib/repairs-actions";
+import { getAllBranchesActiveRepairJobs, getAllBranchesCompletedRepairJobs } from "@/lib/repairs-actions";
 import { getAllMechanics } from "@/lib/mechanics-actions";
 import { getAllCatalogProducts } from "@/lib/catalog-actions";
 import WalkInJobForm from "../(app)/repairs/walk-in/WalkInJobForm";
-import GenbluQuickForm from "./GenbluQuickForm";
+import GenbluQuickForm, { type RecentJobsheetCustomer } from "./GenbluQuickForm";
 import ScanTabs from "./ScanTabs";
 
 export const dynamic = "force-dynamic";
@@ -37,10 +37,12 @@ export default async function ScanPage() {
   if (!user) redirect("/login");
 
   await requirePage("walk-in");
-  const { user: currentUser, branch } = await requirePageContext();
-  const [branchSelection, allActiveJobs, mechanics, catalogProducts] = await Promise.all([
+  const { user: currentUser } = await requirePageContext();
+  const locked = !canViewAllBranches(currentUser);
+  const [branchSelection, allActiveJobs, completedJobs, mechanics, catalogProducts] = await Promise.all([
     getActiveBranchSelection(currentUser),
     getAllBranchesActiveRepairJobs(),
+    getAllBranchesCompletedRepairJobs(),
     getAllMechanics(),
     getAllCatalogProducts(),
   ]);
@@ -49,7 +51,7 @@ export default async function ScanPage() {
     <WalkInJobForm
       job={null}
       branchSelection={branchSelection}
-      locked={!canViewAllBranches(currentUser)}
+      locked={locked}
       mechanics={mechanics}
       allActiveJobs={allActiveJobs}
       catalogProducts={catalogProducts}
@@ -58,6 +60,15 @@ export default async function ScanPage() {
   );
 
   const canUploadGenblu = hasPageAccess(currentUser, "genblu");
+
+  // Most recent Walk-in jobs (active or completed) are what a GenBlu
+  // screenshot actually gets attached to — the whole point of this tab is
+  // reusing whatever the jobsheet already has on file, not asking again.
+  const recentJobs: RecentJobsheetCustomer[] = [...allActiveJobs, ...completedJobs]
+    .filter((j) => j.jobType === "Walk-in" && (!locked || j.branch === currentUser.homeBranch))
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+    .slice(0, 25)
+    .map((j) => ({ jobId: j.id, branch: j.branch, customerName: j.customerName, customerPlateNo: j.plateNo, date: j.createdAt }));
 
   return (
     <div className="min-h-screen bg-neutral-50">
@@ -71,10 +82,7 @@ export default async function ScanPage() {
       </div>
       <div className="p-4">
         {canUploadGenblu ? (
-          <ScanTabs
-            jobsheet={jobsheetForm}
-            genblu={<GenbluQuickForm branch={branch} locked={!canViewAllBranches(currentUser)} mechanics={mechanics} />}
-          />
+          <ScanTabs jobsheet={jobsheetForm} genblu={<GenbluQuickForm recentJobs={recentJobs} />} />
         ) : (
           jobsheetForm
         )}
