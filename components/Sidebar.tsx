@@ -26,7 +26,7 @@ const links: { href: string; label: string; icon: typeof LayoutDashboard; page: 
   { href: "/", label: "Dashboard", icon: LayoutDashboard, page: null, color: "text-indigo-500" },
   { href: "/warranty-claims", label: "Warranty Claims", icon: ShieldCheck, page: "warranty-claims", color: "text-amber-500" },
   { href: "/repairs", label: "Restore Bike", icon: Wrench, page: "repairs", color: "text-sky-500" },
-  { href: "/repairs/walk-in", label: "Walk-in", icon: ClipboardList, page: "walk-in", color: "text-purple-500" },
+  { href: "/repairs/walk-in", label: "Jobsheet", icon: ClipboardList, page: "walk-in", color: "text-purple-500" },
   { href: "/mechanics", label: "Mechanics", icon: MechanicIcon, page: "mechanics", color: "text-emerald-500" },
   { href: "/genblu", label: "GenBlu Tracker", icon: Smartphone, page: "genblu", color: "text-pink-500" },
   { href: "/catalog", label: "Catalog", icon: Package, page: "catalog", color: "text-orange-500" },

@@ -82,8 +82,8 @@ export default function AllBranchesMechanicPerformanceClient({ rows }: { rows: M
         "Branch",
         "Restore Bike Jobs",
         "Restore Bike Revenue (RM)",
-        "Walk-in Jobs",
-        "Walk-in Revenue (RM)",
+        "Jobsheet Jobs",
+        "Jobsheet Revenue (RM)",
         "Package Sets",
         "Package Revenue (RM)",
         "Total Revenue (RM)",
@@ -204,7 +204,7 @@ export default function AllBranchesMechanicPerformanceClient({ rows }: { rows: M
                   <th className="font-medium px-5 py-3 whitespace-nowrap">Mechanic</th>
                   <th className="font-medium px-5 py-3 whitespace-nowrap">Branch</th>
                   <th className="font-medium px-5 py-3 whitespace-nowrap">Restore Bike</th>
-                  <th className="font-medium px-5 py-3 whitespace-nowrap">Walk-in</th>
+                  <th className="font-medium px-5 py-3 whitespace-nowrap">Jobsheet</th>
                   <th className="font-medium px-5 py-3 whitespace-nowrap">Packages</th>
                   <th className="font-medium px-5 py-3 whitespace-nowrap">Total Revenue</th>
                   <th className="font-medium px-5 py-3 whitespace-nowrap">KPI (RM10k / 2 bikes)</th>

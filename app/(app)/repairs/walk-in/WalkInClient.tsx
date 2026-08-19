@@ -222,7 +222,7 @@ export default function WalkInClient({
               {jobs.length === 0 && (
                 <tr>
                   <td colSpan={showBranchColumn ? 12 : 11} className="px-5 py-10 text-center text-neutral-500 text-sm">
-                    {tab === "active" ? "No active" : "No completed"} Walk-in jobs.
+                    {tab === "active" ? "No active" : "No completed"} Jobsheet jobs.
                   </td>
                 </tr>
               )}
@@ -277,9 +277,9 @@ function ExportFilteredModal({
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 px-4">
       <div className="bg-white border border-neutral-200 rounded-xl w-full max-w-md p-6">
-        <h2 className="text-sm font-semibold text-neutral-900 mb-1">Export Walk-in Jobs</h2>
+        <h2 className="text-sm font-semibold text-neutral-900 mb-1">Export Jobsheet Jobs</h2>
         <p className="text-xs text-neutral-500 mb-4">
-          Export every Walk-in job, or narrow it down by mechanic, job no., plate no. or customer name first.
+          Export every Jobsheet job, or narrow it down by mechanic, job no., plate no. or customer name first.
         </p>
         <div className="space-y-3 mb-4">
           <div>
@@ -312,7 +312,7 @@ function ExportFilteredModal({
           </div>
         </div>
         <p className="text-xs text-neutral-500 mb-2">
-          {matches.length} of {jobs.length} Walk-in job{jobs.length === 1 ? "" : "s"} match
+          {matches.length} of {jobs.length} Jobsheet job{jobs.length === 1 ? "" : "s"} match
           {hasFilters ? " your filters" : ""}.
         </p>
         <div className="max-h-56 overflow-y-auto border border-neutral-200 rounded-lg divide-y divide-neutral-100 mb-4">

@@ -64,6 +64,13 @@ export async function getAllBranchesWarrantyClaims(): Promise<WarrantyClaim[]> {
   return perBranch.flat().sort((a, b) => b.submittedDate.localeCompare(a.submittedDate));
 }
 
+export async function getWarrantyClaimById(id: string): Promise<WarrantyClaim | null> {
+  await requireApproved();
+  const { data, error } = await supabaseAdmin.from("cc_warranty_claims").select("*").eq("id", id).maybeSingle();
+  if (error) throw new Error(error.message);
+  return data ? toClaim(data as Row) : null;
+}
+
 export async function addWarrantyClaimAction(input: {
   branch: Branch;
   ticketId: string;
@@ -131,20 +138,28 @@ export async function updateClaimNotesAction(
   revalidatePath("/warranty-claims");
 }
 
-export async function updateClaimStatusAction(id: string, branch: Branch, status: ClaimStatus): Promise<void> {
+export async function updateClaimStatusAction(
+  id: string,
+  branch: Branch,
+  status: ClaimStatus
+): Promise<{ error: string } | void> {
   const user = await requireApproved();
   assertCanEditBranch(user, branch);
   const { error } = await supabaseAdmin.from("cc_warranty_claims").update({ status }).eq("id", id);
-  if (error) throw new Error(error.message);
+  if (error) return { error: error.message };
   revalidatePath("/warranty-claims");
   revalidatePath("/");
 }
 
-export async function updateClaimStockStatusAction(id: string, branch: Branch, stockStatus: StockStatus): Promise<void> {
+export async function updateClaimStockStatusAction(
+  id: string,
+  branch: Branch,
+  stockStatus: StockStatus
+): Promise<{ error: string } | void> {
   const user = await requireApproved();
   assertCanEditBranch(user, branch);
   const { error } = await supabaseAdmin.from("cc_warranty_claims").update({ stock_status: stockStatus }).eq("id", id);
-  if (error) throw new Error(error.message);
+  if (error) return { error: error.message };
   revalidatePath("/warranty-claims");
 }
 

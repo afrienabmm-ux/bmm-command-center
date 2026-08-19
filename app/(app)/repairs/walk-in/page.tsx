@@ -24,7 +24,7 @@ export default async function WalkInPage() {
   return (
     <div className="flex flex-col h-full">
       <PageHeader
-        title="Walk-in"
+        title="Jobsheet"
         subtitle={`${showAllBranches ? "All Branches" : branchLabel(branch)} — ${active.length} active job${active.length === 1 ? "" : "s"}`}
       />
       <div className="p-8">

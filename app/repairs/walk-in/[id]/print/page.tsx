@@ -25,7 +25,7 @@ export default async function PrintWalkInJobPage({ params }: { params: Promise<{
       <div className="max-w-3xl mx-auto bg-white p-8 print:p-0 print:max-w-none text-black">
         <div className="flex items-start justify-between mb-1">
           <div>
-            <p className="text-[10px] font-bold">WALK-IN JOB SHEET</p>
+            <p className="text-[10px] font-bold">JOBSHEET</p>
             <img src="/bmm-logo-full.png" alt="Berjaya Mega Motors" className="h-16 mt-1" />
           </div>
           <div className="text-sm text-right pt-2 space-y-0.5">
@@ -41,7 +41,7 @@ export default async function PrintWalkInJobPage({ params }: { params: Promise<{
           </div>
         </div>
 
-        <h1 className="text-sm font-bold underline mb-3">WALK-IN JOB SHEET</h1>
+        <h1 className="text-sm font-bold underline mb-3">JOBSHEET</h1>
 
         <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-xs mb-4">
           <p>

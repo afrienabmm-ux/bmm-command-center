@@ -23,7 +23,7 @@ export default async function NewWalkInJobPage() {
 
   return (
     <div className="flex flex-col h-full">
-      <PageHeader title="Add Walk-in Job" subtitle="Fill in the job details below, then save to return to the list" />
+      <PageHeader title="Add Jobsheet" subtitle="Fill in the job details below, then save to return to the list" />
       <div className="p-8">
         <WalkInJobForm
           job={null}

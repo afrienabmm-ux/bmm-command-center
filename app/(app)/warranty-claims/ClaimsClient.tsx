@@ -1,7 +1,8 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
-import { Plus, Search, Download, Trash2, Pencil } from "lucide-react";
+import Link from "next/link";
+import { Plus, Search, Download, Trash2, Pencil, Printer, Check, X } from "lucide-react";
 import {
   addWarrantyClaimAction,
   updateClaimStatusAction,
@@ -69,12 +70,13 @@ export default function ClaimsClient({
     [claims]
   );
 
-  const EXPORT_HEADERS = ["Ticket ID", "PIC", "Customer", "Plate No", "Model", "Phone", "Issue", "Stock Status", "Status", "Latest Status", "Reason", "Submitted Date"];
+  const EXPORT_HEADERS = ["Ticket ID", "Submitted Date", "PIC", "Customer", "Plate No", "Model", "Phone", "Issue", "Stock Status", "Status", "Latest Status"];
 
   function exportRows(list: WarrantyClaim[]): (string | number)[][] {
     return list.map((c) => {
       const row: (string | number)[] = [
         c.ticketId,
+        formatDate(c.submittedDate),
         c.pic,
         c.customerName,
         c.plateNo,
@@ -84,8 +86,6 @@ export default function ClaimsClient({
         c.stockStatus,
         c.status,
         c.latestStatus,
-        c.reason,
-        formatDate(c.submittedDate),
       ];
       if (showBranchColumn) row.splice(1, 0, branchLabel(c.branch));
       return row;
@@ -190,6 +190,7 @@ export default function ClaimsClient({
               <tr className="text-left text-xs text-neutral-500 border-b border-neutral-200">
                 <th className="font-medium px-5 py-3 whitespace-nowrap">Ticket ID</th>
                 {showBranchColumn && <th className="font-medium px-5 py-3 whitespace-nowrap">Branch</th>}
+                <th className="font-medium px-5 py-3 whitespace-nowrap">Submitted</th>
                 <th className="font-medium px-5 py-3 whitespace-nowrap">PIC</th>
                 <th className="font-medium px-5 py-3 whitespace-nowrap">Customer</th>
                 <th className="font-medium px-5 py-3 whitespace-nowrap">Plate No.</th>
@@ -198,10 +199,8 @@ export default function ClaimsClient({
                 <th className="font-medium px-5 py-3 whitespace-nowrap">Phone</th>
                 <th className="font-medium px-5 py-3 whitespace-nowrap">Issue</th>
                 <th className="font-medium px-5 py-3 whitespace-nowrap">Stock</th>
-                <th className="font-medium px-5 py-3 whitespace-nowrap">Submitted</th>
                 <th className="font-medium px-5 py-3 whitespace-nowrap">Status</th>
                 <th className="font-medium px-5 py-3 whitespace-nowrap">Latest Status</th>
-                <th className="font-medium px-5 py-3 whitespace-nowrap">Reason</th>
                 <th className="font-medium px-5 py-3 whitespace-nowrap"></th>
               </tr>
             </thead>
@@ -211,7 +210,7 @@ export default function ClaimsClient({
               ))}
               {visible.length === 0 && (
                 <tr>
-                  <td colSpan={showBranchColumn ? 15 : 14} className="px-5 py-10 text-center text-neutral-500 text-sm">
+                  <td colSpan={showBranchColumn ? 14 : 13} className="px-5 py-10 text-center text-neutral-500 text-sm">
                     {claims.length === 0 ? "No warranty claims yet." : "No claims match your search."}
                   </td>
                 </tr>
@@ -247,6 +246,7 @@ function ClaimRow({ claim, showBranch, knownPics }: { claim: WarrantyClaim; show
     <tr className="border-b border-neutral-100 last:border-0 hover:bg-neutral-50">
       <td className="px-5 py-3.5 text-neutral-900 font-semibold whitespace-nowrap">{claim.ticketId}</td>
       {showBranch && <td className="px-5 py-3.5 text-neutral-600 whitespace-nowrap">{branchLabel(claim.branch)}</td>}
+      <td className="px-5 py-3.5 text-neutral-500 whitespace-nowrap">{formatDate(claim.submittedDate)}</td>
       <td className="px-5 py-3.5 text-neutral-700 whitespace-nowrap">{claim.pic || "—"}</td>
       <td className="px-5 py-3.5 text-neutral-700 whitespace-nowrap">{claim.customerName}</td>
       <td className="px-5 py-3.5 text-neutral-600 whitespace-nowrap">{claim.plateNo}</td>
@@ -265,53 +265,32 @@ function ClaimRow({ claim, showBranch, knownPics }: { claim: WarrantyClaim; show
       <td className="px-5 py-3.5 text-neutral-600 whitespace-nowrap">{claim.phone || "—"}</td>
       <td className="px-5 py-3.5 text-neutral-600 max-w-xs truncate">{claim.description}</td>
       <td className="px-5 py-3.5">
-        <select
-          value={claim.stockStatus}
-          disabled={isPending}
-          onChange={(e) =>
-            startTransition(() => updateClaimStockStatusAction(claim.id, claim.branch, e.target.value as StockStatus))
-          }
-          className={`text-xs font-medium px-2.5 py-1.5 rounded-full border focus:outline-none disabled:opacity-50 ${STOCK_STYLES[claim.stockStatus]}`}
-        >
-          {STOCK_STATUSES.map((s) => (
-            <option key={s} value={s} className="bg-white text-neutral-800">
-              {s}
-            </option>
-          ))}
-        </select>
+        <StockCell claim={claim} />
       </td>
-      <td className="px-5 py-3.5 text-neutral-500 whitespace-nowrap">{formatDate(claim.submittedDate)}</td>
       <td className="px-5 py-3.5">
-        <select
-          value={claim.status}
-          disabled={isPending}
-          onChange={(e) =>
-            startTransition(() => updateClaimStatusAction(claim.id, claim.branch, e.target.value as ClaimStatus))
-          }
-          className={`text-xs font-medium px-2.5 py-1.5 rounded-full border focus:outline-none disabled:opacity-50 ${STATUS_STYLES[claim.status]}`}
-        >
-          {CLAIM_STATUSES.map((s) => (
-            <option key={s} value={s} className="bg-white text-neutral-800">
-              {s}
-            </option>
-          ))}
-        </select>
+        <StatusCell claim={claim} />
       </td>
-      <td className="px-5 py-3.5 text-neutral-600 max-w-xs truncate" title={claim.latestStatus || undefined}>
-        {claim.latestStatus || "—"}
-      </td>
-      <td className="px-5 py-3.5 text-neutral-600 max-w-xs truncate" title={claim.reason || undefined}>
-        {claim.reason || "—"}
+      <td className="px-5 py-3.5">
+        <LatestStatusCell claim={claim} />
       </td>
       <td className="px-5 py-3.5 whitespace-nowrap">
         <button
           onClick={() => setNotesOpen(true)}
           className="text-neutral-400 hover:text-indigo-600 transition-colors p-1"
-          title="Update PIC and follow-up notes"
-          aria-label="Update PIC and follow-up notes"
+          title="Edit PIC"
+          aria-label="Edit PIC"
         >
           <Pencil size={15} />
         </button>
+        <Link
+          href={`/warranty-claims/${claim.id}/print`}
+          target="_blank"
+          className="text-neutral-400 hover:text-indigo-600 transition-colors p-1 inline-block"
+          title="Print claim"
+          aria-label="Print claim"
+        >
+          <Printer size={15} />
+        </Link>
         <button
           onClick={() => setConfirmOpen(true)}
           className="text-neutral-400 hover:text-red-600 transition-colors p-1"
@@ -354,6 +333,121 @@ function ClaimRow({ claim, showBranch, knownPics }: { claim: WarrantyClaim; show
         )}
       </td>
     </tr>
+  );
+}
+
+// Click-to-cycle Status button — steps through CLAIM_STATUSES in order,
+// wrapping back to the start, instead of a dropdown.
+function StatusCell({ claim }: { claim: WarrantyClaim }) {
+  const [isPending, startTransition] = useTransition();
+  function handleClick() {
+    const next = CLAIM_STATUSES[(CLAIM_STATUSES.indexOf(claim.status) + 1) % CLAIM_STATUSES.length];
+    startTransition(async () => {
+      const result = await updateClaimStatusAction(claim.id, claim.branch, next);
+      if (result && "error" in result) window.alert(result.error);
+    });
+  }
+  return (
+    <button
+      type="button"
+      onClick={handleClick}
+      disabled={isPending}
+      title={`Click to cycle: ${CLAIM_STATUSES.join(" -> ")}`}
+      className={`text-xs font-medium px-2.5 py-1.5 rounded-full border transition-colors disabled:opacity-50 ${STATUS_STYLES[claim.status]}`}
+    >
+      {claim.status}
+    </button>
+  );
+}
+
+// Click-to-cycle Stock button — same idea, just two states.
+function StockCell({ claim }: { claim: WarrantyClaim }) {
+  const [isPending, startTransition] = useTransition();
+  function handleClick() {
+    const next = STOCK_STATUSES[(STOCK_STATUSES.indexOf(claim.stockStatus) + 1) % STOCK_STATUSES.length];
+    startTransition(async () => {
+      const result = await updateClaimStockStatusAction(claim.id, claim.branch, next);
+      if (result && "error" in result) window.alert(result.error);
+    });
+  }
+  return (
+    <button
+      type="button"
+      onClick={handleClick}
+      disabled={isPending}
+      title={`Click to cycle: ${STOCK_STATUSES.join(" -> ")}`}
+      className={`text-xs font-medium px-2.5 py-1.5 rounded-full border transition-colors disabled:opacity-50 ${STOCK_STYLES[claim.stockStatus]}`}
+    >
+      {claim.stockStatus}
+    </button>
+  );
+}
+
+// Quick inline edit for just the Latest Status note — a pencil right next
+// to the text, so a PIC doesn't have to open the full "edit everything"
+// modal just to update this one field.
+function LatestStatusCell({ claim }: { claim: WarrantyClaim }) {
+  const [editing, setEditing] = useState(false);
+  const [value, setValue] = useState(claim.latestStatus);
+  const [isPending, startTransition] = useTransition();
+
+  function handleSave() {
+    startTransition(async () => {
+      await updateClaimNotesAction(claim.id, claim.branch, { pic: claim.pic, latestStatus: value, reason: claim.reason });
+      setEditing(false);
+    });
+  }
+
+  function handleCancel() {
+    setValue(claim.latestStatus);
+    setEditing(false);
+  }
+
+  if (editing) {
+    return (
+      <div className="flex items-center gap-1 min-w-[180px]">
+        <input
+          type="text"
+          autoFocus
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") handleSave();
+            if (e.key === "Escape") handleCancel();
+          }}
+          placeholder="e.g. ETA: waiting SCM reply"
+          className="flex-1 bg-neutral-50 border border-indigo-300 rounded-lg px-2 py-1 text-xs text-neutral-800 focus:outline-none"
+        />
+        <button
+          onClick={handleSave}
+          disabled={isPending}
+          className="text-emerald-600 hover:text-emerald-700 disabled:opacity-50 p-1"
+          title="Save"
+          aria-label="Save"
+        >
+          <Check size={14} />
+        </button>
+        <button onClick={handleCancel} className="text-neutral-400 hover:text-red-600 p-1" title="Cancel" aria-label="Cancel">
+          <X size={14} />
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex items-center gap-1.5 max-w-xs">
+      <span className="text-neutral-600 truncate" title={claim.latestStatus || undefined}>
+        {claim.latestStatus || "—"}
+      </span>
+      <button
+        onClick={() => setEditing(true)}
+        className="text-neutral-400 hover:text-indigo-600 transition-colors p-1 shrink-0"
+        title="Update latest status"
+        aria-label="Update latest status"
+      >
+        <Pencil size={13} />
+      </button>
+    </div>
   );
 }
 
@@ -431,13 +525,11 @@ function NotesModal({
   onClose: () => void;
 }) {
   const [pic, setPic] = useState(claim.pic);
-  const [latestStatus, setLatestStatus] = useState(claim.latestStatus);
-  const [reason, setReason] = useState(claim.reason);
   const [isPending, startTransition] = useTransition();
 
   function handleSave() {
     startTransition(async () => {
-      await updateClaimNotesAction(claim.id, claim.branch, { pic, latestStatus, reason });
+      await updateClaimNotesAction(claim.id, claim.branch, { pic, latestStatus: claim.latestStatus, reason: claim.reason });
       onClose();
     });
   }
@@ -445,47 +537,25 @@ function NotesModal({
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 px-4">
       <div className="bg-white border border-neutral-200 rounded-xl w-full max-w-sm p-6 text-left">
-        <h2 className="text-sm font-semibold text-neutral-900 mb-1">Update claim</h2>
+        <h2 className="text-sm font-semibold text-neutral-900 mb-1">Edit PIC</h2>
         <p className="text-xs text-neutral-500 mb-5">
           Ticket {claim.ticketId} · {claim.plateNo}
         </p>
-        <div className="space-y-4">
-          <div>
-            <label className="block text-xs font-medium text-neutral-600 mb-1.5">Person in Charge</label>
-            <input
-              type="text"
-              list="known-pics"
-              value={pic}
-              onChange={(e) => setPic(e.target.value)}
-              placeholder="e.g. SK"
-              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
-            />
-            <datalist id="known-pics">
-              {knownPics.map((p) => (
-                <option key={p} value={p} />
-              ))}
-            </datalist>
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-neutral-600 mb-1.5">Latest Status</label>
-            <textarea
-              value={latestStatus}
-              onChange={(e) => setLatestStatus(e.target.value)}
-              rows={2}
-              placeholder="e.g. ETA: waiting SCM reply"
-              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50 resize-none"
-            />
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-neutral-600 mb-1.5">Reason</label>
-            <textarea
-              value={reason}
-              onChange={(e) => setReason(e.target.value)}
-              rows={2}
-              placeholder="e.g. 2/3 items have arrived"
-              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50 resize-none"
-            />
-          </div>
+        <div>
+          <label className="block text-xs font-medium text-neutral-600 mb-1.5">Person in Charge</label>
+          <input
+            type="text"
+            list="known-pics"
+            value={pic}
+            onChange={(e) => setPic(e.target.value)}
+            placeholder="e.g. SK"
+            className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+          />
+          <datalist id="known-pics">
+            {knownPics.map((p) => (
+              <option key={p} value={p} />
+            ))}
+          </datalist>
         </div>
         <div className="flex items-center justify-end gap-3 mt-6">
           <button

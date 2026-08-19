@@ -170,7 +170,7 @@ export function BranchJobsChart({ points }: { points: MonthlyTrendPoint[] }) {
     <div className="bg-white border border-neutral-200 rounded-xl p-5">
       <div className="flex flex-col items-center mb-4 text-center">
         <p className="text-sm font-semibold text-neutral-900">Repair Jobs Completed by Branch</p>
-        <p className="text-xs text-neutral-500 mt-0.5">Restore Bike + Walk-in, last {points.length} months</p>
+        <p className="text-xs text-neutral-500 mt-0.5">Restore Bike + Jobsheet, last {points.length} months</p>
         <div className="flex items-center gap-4 text-xs text-neutral-500 mt-2">
           {BRANCH_SERIES.map((s) => (
             <span key={s.key} className="flex items-center gap-1.5">
