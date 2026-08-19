@@ -2,6 +2,7 @@
 
 import { createWorker, type Worker } from "tesseract.js";
 import path from "path";
+import sharp from "sharp";
 
 // Free, self-hosted OCR — no Google Cloud account, no card, no per-scan
 // cost. Runs entirely inside this server process. The English language
@@ -90,12 +91,35 @@ function reconstructRows(blocks: Tesseract.Block[] | null, fallbackText: string)
     .join("\n");
 }
 
+// A phone photo of a paper form has uneven lighting, shadows, and JPEG
+// noise that free/local OCR struggles with much more than a clean
+// screenshot — grayscale + contrast stretch + a touch of sharpening
+// noticeably cuts down on misread characters (which otherwise break the
+// label-matching regexes in jobsheet-actions.ts and silently leave a
+// field blank rather than obviously wrong). Upscaling small images gives
+// Tesseract more pixels per character to work with.
+async function preprocessForOcr(buffer: Buffer): Promise<Buffer> {
+  const image = sharp(buffer, { failOn: "none" }).rotate(); // auto-orients using the photo's EXIF tag
+  const metadata = await image.metadata();
+  const width = metadata.width ?? 0;
+  const pipeline = width > 0 && width < 1600 ? image.resize({ width: 1600 }) : image;
+  return pipeline.grayscale().normalize().sharpen().toBuffer();
+}
+
 // Sends a photo (base64, no data: prefix) to the local OCR engine. Runs
 // tuned for a printed form/table rather than scattered scene text — best
 // fit for a jobsheet or GenBlu screenshot photo.
 export async function extractTextFromImage(base64Image: string): Promise<string> {
   const worker = await getWorker();
-  const buffer = Buffer.from(base64Image, "base64");
+  const rawBuffer = Buffer.from(base64Image, "base64");
+  let buffer: Buffer;
+  try {
+    buffer = await preprocessForOcr(rawBuffer);
+  } catch {
+    // If preprocessing itself fails for some reason, fall back to the
+    // original photo rather than blocking the scan entirely.
+    buffer = rawBuffer;
+  }
   const { data } = await worker.recognize(buffer, {}, { blocks: true, text: true });
   return reconstructRows(data.blocks, data.text ?? "");
 }
