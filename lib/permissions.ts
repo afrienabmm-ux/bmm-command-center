@@ -1,11 +1,12 @@
 import type { Role } from "./current-user";
 
 export const PAGE_DEFS = [
-  { key: "warranty-claims", label: "Warranty Claims", href: "/warranty-claims" },
-  { key: "repairs", label: "Restore Bike", href: "/repairs" },
   { key: "walk-in", label: "Jobsheet", href: "/repairs/walk-in" },
-  { key: "mechanics", label: "Mechanics", href: "/mechanics" },
+  { key: "sales-performance", label: "Sales Performance", href: "/sales-performance" },
+  { key: "repairs", label: "Restore Bike", href: "/repairs" },
   { key: "genblu", label: "GenBlu Tracker", href: "/genblu" },
+  { key: "warranty-claims", label: "Claims", href: "/warranty-claims" },
+  { key: "mechanics", label: "Mechanics", href: "/mechanics" },
   { key: "catalog", label: "Catalog", href: "/catalog" },
   { key: "packages", label: "Services Combo", href: "/packages" },
 ] as const;

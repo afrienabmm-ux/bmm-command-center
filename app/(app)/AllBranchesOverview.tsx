@@ -5,10 +5,8 @@ import type { Branch } from "@/lib/branch";
 import StatCard from "@/components/StatCard";
 import CombinedTargetEditor from "./CombinedTargetEditor";
 import BranchBreakdownTable, { getBranchBreakdown, getAllBranchesAchievedTotal } from "./BranchBreakdownTable";
-import AllBranchesMechanicPerformanceTable from "./AllBranchesMechanicPerformanceTable";
 import MonthlyTrends from "./MonthlyTrends";
 import { getAllBranchesOverdueRestoreBikeJobs, getAllBranchesActiveRepairJobs } from "@/lib/repairs-actions";
-import { getAllBranchesPerformance } from "@/lib/reports-actions";
 import { getMonthlyTrends } from "@/lib/trends-actions";
 import { getRevenuePace } from "@/lib/revenue-pace-actions";
 import RevenuePace from "./RevenuePace";
@@ -31,7 +29,6 @@ export default async function AllBranchesOverview({ year, month }: { year: numbe
     overdueJobs,
     prevAchieved,
     trendPoints,
-    mechanicPerformanceRows,
     revenuePace,
     claimStatusBreakdown,
     packageBreakdown,
@@ -42,7 +39,6 @@ export default async function AllBranchesOverview({ year, month }: { year: numbe
     getAllBranchesOverdueRestoreBikeJobs(),
     getAllBranchesAchievedTotal(prev.year, prev.month),
     getMonthlyTrends(year, month, 6),
-    getAllBranchesPerformance(year, month),
     getRevenuePace(year, month),
     getWarrantyClaimStatusBreakdown(year, month),
     getPackageSalesBreakdown(year, month),
@@ -163,8 +159,6 @@ export default async function AllBranchesOverview({ year, month }: { year: numbe
       </div>
 
       <BranchBreakdownTable rows={rows} />
-
-      <AllBranchesMechanicPerformanceTable rows={mechanicPerformanceRows} />
     </div>
   );
 }

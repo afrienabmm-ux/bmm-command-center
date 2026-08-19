@@ -9,8 +9,8 @@ import {
   Wrench,
   Wrench as MechanicIcon,
   Smartphone,
-  Package,
   Layers,
+  TrendingUp,
   UserCog,
   LogOut,
   PanelLeftClose,
@@ -22,14 +22,22 @@ import { signOutAction, changeOwnPasswordAction } from "@/lib/auth-actions";
 import type { Role } from "@/lib/current-user";
 import type { PageKey } from "@/lib/permissions";
 
-const links: { href: string; label: string; icon: typeof LayoutDashboard; page: PageKey | null; color: string }[] = [
+type NavLink = { href: string; label: string; icon: typeof LayoutDashboard; page: PageKey | null; color: string };
+
+// Main links (dashboard through Claims), Manage Team (Management only),
+// then the trailing links — kept as two groups so Manage Team can be
+// spliced in between them rather than always landing at the very end.
+const mainLinks: NavLink[] = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard, page: null, color: "text-indigo-500" },
-  { href: "/warranty-claims", label: "Warranty Claims", icon: ShieldCheck, page: "warranty-claims", color: "text-amber-500" },
-  { href: "/repairs", label: "Restore Bike", icon: Wrench, page: "repairs", color: "text-sky-500" },
   { href: "/repairs/walk-in", label: "Jobsheet", icon: ClipboardList, page: "walk-in", color: "text-purple-500" },
-  { href: "/mechanics", label: "Mechanics", icon: MechanicIcon, page: "mechanics", color: "text-emerald-500" },
+  { href: "/sales-performance", label: "Sales Performance", icon: TrendingUp, page: "sales-performance", color: "text-sky-500" },
+  { href: "/repairs", label: "Restore Bike", icon: Wrench, page: "repairs", color: "text-sky-500" },
   { href: "/genblu", label: "GenBlu Tracker", icon: Smartphone, page: "genblu", color: "text-pink-500" },
-  { href: "/catalog", label: "Catalog", icon: Package, page: "catalog", color: "text-orange-500" },
+  { href: "/warranty-claims", label: "Claims", icon: ShieldCheck, page: "warranty-claims", color: "text-amber-500" },
+];
+
+const trailingLinks: NavLink[] = [
+  { href: "/mechanics", label: "Mechanics", icon: MechanicIcon, page: "mechanics", color: "text-emerald-500" },
   { href: "/packages", label: "Services Combo", icon: Layers, page: "packages", color: "text-teal-500" },
 ];
 
@@ -56,10 +64,12 @@ export default function Sidebar({
   const canSeeTeam = role === "Management";
   const [changePasswordOpen, setChangePasswordOpen] = useState(false);
 
-  const visibleLinks = links.filter((l) => l.page === null || pages.includes(l.page));
-  const navLinks = canSeeTeam
-    ? [...visibleLinks, { href: "/team", label: "Manage Team", icon: UserCog, page: null, color: TEAM_LINK_COLOR }]
-    : visibleLinks;
+  const visible = (list: NavLink[]) => list.filter((l) => l.page === null || pages.includes(l.page));
+  const navLinks: NavLink[] = [
+    ...visible(mainLinks),
+    ...(canSeeTeam ? [{ href: "/team", label: "Manage Team", icon: UserCog, page: null, color: TEAM_LINK_COLOR }] : []),
+    ...visible(trailingLinks),
+  ];
 
   return (
     <aside

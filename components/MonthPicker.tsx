@@ -5,7 +5,7 @@ import { useTransition } from "react";
 import { Calendar } from "lucide-react";
 import { MONTH_NAMES } from "@/lib/format";
 
-export default function MonthPicker({ year, month }: { year: number; month: number }) {
+export default function MonthPicker({ year, month, basePath = "/" }: { year: number; month: number; basePath?: string }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
 
@@ -15,7 +15,7 @@ export default function MonthPicker({ year, month }: { year: number; month: numb
 
   function go(nextYear: number, nextMonth: number) {
     startTransition(() => {
-      router.push(`/?year=${nextYear}&month=${nextMonth}`);
+      router.push(`${basePath}?year=${nextYear}&month=${nextMonth}`);
     });
   }
 
