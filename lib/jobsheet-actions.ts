@@ -48,25 +48,39 @@ function toIsoDate(raw: string): string | null {
 // label is located by position across the whole text, sorted, and each
 // value is cut off at whichever comes first: the next label on the same
 // line, or the end of the line.
-const FIELD_LABELS: { key: string; regex: RegExp }[] = [
-  { key: "customerCode", regex: /Customer Code/gi },
-  { key: "customerName", regex: /Customer Name/gi },
-  { key: "salesNo", regex: /Sales No\.?/gi },
-  { key: "salesDate", regex: /Sales Date/gi },
-  { key: "plateNo", regex: /Vehicle No\.?/gi },
-  { key: "model", regex: /\bModel\b/gi },
-  { key: "colour", regex: /Colour/gi },
-  { key: "engineNo", regex: /Engine No\.?/gi },
-  { key: "chassisNo", regex: /Chassis No\.?/gi },
-  { key: "warrantyCardNo", regex: /Warranty Card No\.?/gi },
-  { key: "jobsheetNo", regex: /Job No\.?/gi },
-  { key: "jobDate", regex: /Job Date/gi },
-  { key: "mechanicCode", regex: /Mechanic Code/gi },
-  { key: "jobsheetUserId", regex: /User ID/gi },
-  { key: "nextMileageKm", regex: /Next Mileage\s*\(?\s*KM\s*\)?/gi },
-  { key: "mileageKm", regex: /(?<!Next )Mileage\s*\(?\s*KM\s*\)?/gi },
-  { key: "serviceType", regex: /Service Type/gi },
-  { key: "nextServiceDate", regex: /Next Service Date/gi },
+//
+// Labels are matched fuzzily, word by word, using edit distance rather
+// than an exact or prefix regex — OCR mangles labels unpredictably
+// ("Mileage" -> "Mlleage", "Sales" -> "Saies", "User ID" -> "User 1D"),
+// and a fixed prefix like /Sal\w*/ still misses "Saies" (the "l" read as
+// "i" changes a letter prefix matches expect exactly). Comparing each
+// observed word's edit distance to the expected word tolerates a
+// substitution/insertion/deletion anywhere in the word, not just after a
+// clean prefix — trading a little precision for actually filling the
+// field, since the PIC is expected to check every scanned value before
+// saving anyway.
+const FIELD_LABELS: { key: string; words: string[]; excludeIfPrecededBy?: string }[] = [
+  { key: "customerCode", words: ["customer", "code"] },
+  { key: "customerName", words: ["customer", "name"] },
+  { key: "salesNo", words: ["sales", "no"] },
+  { key: "salesDate", words: ["sales", "date"] },
+  { key: "plateNo", words: ["vehicle", "no"] },
+  { key: "model", words: ["model"] },
+  { key: "colour", words: ["colour"] },
+  { key: "engineNo", words: ["engine", "no"] },
+  { key: "chassisNo", words: ["chassis", "no"] },
+  { key: "warrantyCardNo", words: ["warranty", "card", "no"] },
+  { key: "jobsheetNo", words: ["job", "no"] },
+  { key: "jobDate", words: ["job", "date"] },
+  { key: "mechanicCode", words: ["mechanic", "code"] },
+  { key: "jobsheetUserId", words: ["user", "id"] },
+  { key: "nextMileageKm", words: ["next", "mileage", "km"] },
+  // The two Mileage fields are told apart by the word before them, not by
+  // spelling — skip a match here if it's really the tail end of "Next
+  // Mileage (KM)" (already claimed by nextMileageKm above).
+  { key: "mileageKm", words: ["mileage", "km"], excludeIfPrecededBy: "next" },
+  { key: "serviceType", words: ["service", "type"] },
+  { key: "nextServiceDate", words: ["next", "service", "date"] },
   // These three aren't fields the form needs (their values are never read
   // below) — they're here purely as boundary markers. The jobsheet's
   // two columns get merged onto the same reconstructed row (e.g. "Sales
@@ -75,20 +89,85 @@ const FIELD_LABELS: { key: string; regex: RegExp }[] = [
   // real field on that row swallows the other column's label and value
   // too — which is how "Warranty Card No." ended up reading
   // "Dealer / Manufacture".
-  { key: "page", regex: /\bPage\b/gi },
-  { key: "dealerManufacture", regex: /Dealer\s*\/?\s*Manufacture/gi },
-  { key: "complaints", regex: /Complaints/gi },
+  { key: "page", words: ["page"] },
+  { key: "dealerManufacture", words: ["dealer", "manufacture"] },
+  { key: "complaints", words: ["complaints"] },
 ];
 
-function extractFields(text: string): Record<string, string> {
-  const matches: { key: string; start: number; end: number }[] = [];
-  for (const { key, regex } of FIELD_LABELS) {
-    for (const m of text.matchAll(regex)) {
-      if (m.index === undefined) continue;
-      matches.push({ key, start: m.index, end: m.index + m[0].length });
+function levenshtein(a: string, b: string): number {
+  if (a === b) return 0;
+  const m = a.length;
+  const n = b.length;
+  if (m === 0) return n;
+  if (n === 0) return m;
+  const dp = new Array(n + 1);
+  for (let j = 0; j <= n; j++) dp[j] = j;
+  for (let i = 1; i <= m; i++) {
+    let prev = dp[0];
+    dp[0] = i;
+    for (let j = 1; j <= n; j++) {
+      const tmp = dp[j];
+      dp[j] = a[i - 1] === b[j - 1] ? prev : 1 + Math.min(prev, dp[j - 1], dp[j]);
+      prev = tmp;
     }
   }
-  matches.sort((a, b) => a.start - b.start);
+  return dp[n];
+}
+
+function normalizeWord(raw: string): string {
+  return raw.toLowerCase().replace(/[^a-z0-9]/g, "");
+}
+
+// How many character edits a scanned word may be off from the expected
+// label word and still count as a match — roughly a third of the word's
+// length (min 1), which absorbs a typical single OCR misread without
+// letting the word drift into something unrelated.
+function wordMatchesLoosely(observed: string, canonical: string): boolean {
+  if (!observed) return false;
+  const threshold = Math.max(1, Math.floor(canonical.length * 0.34));
+  return levenshtein(observed, canonical) <= threshold;
+}
+
+type PositionedToken = { text: string; start: number; end: number };
+
+function tokenize(text: string): PositionedToken[] {
+  const tokens: PositionedToken[] = [];
+  for (const m of text.matchAll(/\S+/g)) {
+    if (m.index === undefined) continue;
+    const normalized = normalizeWord(m[0]);
+    // Punctuation-only tokens (like the "/" in "Dealer / Manufacture")
+    // carry no signal and would otherwise sit between two label words and
+    // break their adjacency, so they're dropped rather than compared.
+    if (!normalized) continue;
+    tokens.push({ text: normalized, start: m.index, end: m.index + m[0].length });
+  }
+  return tokens;
+}
+
+function findLabelMatches(tokens: PositionedToken[]): { key: string; start: number; end: number }[] {
+  const matches: { key: string; start: number; end: number }[] = [];
+  for (const label of FIELD_LABELS) {
+    const wordCount = label.words.length;
+    for (let i = 0; i + wordCount <= tokens.length; i++) {
+      let matchesAllWords = true;
+      for (let w = 0; w < wordCount; w++) {
+        if (!wordMatchesLoosely(tokens[i + w].text, label.words[w])) {
+          matchesAllWords = false;
+          break;
+        }
+      }
+      if (!matchesAllWords) continue;
+      if (label.excludeIfPrecededBy && i > 0 && wordMatchesLoosely(tokens[i - 1].text, label.excludeIfPrecededBy)) {
+        continue;
+      }
+      matches.push({ key: label.key, start: tokens[i].start, end: tokens[i + wordCount - 1].end });
+    }
+  }
+  return matches;
+}
+
+function extractFields(text: string): Record<string, string> {
+  const matches = findLabelMatches(tokenize(text)).sort((a, b) => a.start - b.start);
 
   const values: Record<string, string> = {};
   for (let i = 0; i < matches.length; i++) {
