@@ -134,6 +134,7 @@ export default function WalkInJobForm({
   mechanics,
   allActiveJobs,
   catalogProducts,
+  preferCamera = false,
 }: {
   job: RepairJob | null;
   branchSelection: BranchSelection;
@@ -141,6 +142,10 @@ export default function WalkInJobForm({
   mechanics: Mechanic[];
   allActiveJobs: RepairJob[];
   catalogProducts: CatalogProduct[];
+  // Jumps the scan input straight to the camera instead of a file/gallery
+  // picker — only set from the standalone phone scan page (/scan), where
+  // "take a photo of the jobsheet" is the whole point of the page.
+  preferCamera?: boolean;
 }) {
   const router = useRouter();
   const isEdit = job !== null;
@@ -546,6 +551,11 @@ export default function WalkInJobForm({
                 ref={fileInputRef}
                 type="file"
                 accept="image/*,application/pdf"
+                // On some mobile browsers "capture" skips straight to the
+                // camera app, with no way back to pick an existing photo
+                // or PDF — only worth that trade-off on the dedicated
+                // phone scan page, not here where desktop is common too.
+                {...(preferCamera ? { capture: "environment" as const } : {})}
                 className="hidden"
                 onChange={(e) => {
                   const file = e.target.files?.[0];
