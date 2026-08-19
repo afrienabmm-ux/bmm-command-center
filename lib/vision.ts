@@ -1,18 +1,27 @@
 "use server";
 
 import { createWorker, type Worker } from "tesseract.js";
+import path from "path";
 
 // Free, self-hosted OCR — no Google Cloud account, no card, no per-scan
-// cost. Runs entirely inside this server process (downloads the English
-// model to /tmp on first use, then reuses it for the life of the
-// instance). Less accurate on messy handwriting than a paid cloud OCR
-// service, but works fine on printed/typed jobsheets and GenBlu
-// screenshots, which is all this app needs it for.
+// cost. Runs entirely inside this server process. The English language
+// data is bundled into the deployment (see next.config.ts's
+// outputFileTracingIncludes) and read straight off local disk via
+// langPath, instead of being fetched from tesseract.js's default CDN on
+// every cold start — that network fetch was slow enough to blow past the
+// serverless function's time limit. (Passing the trained-data bytes
+// directly via createWorker's Lang-object form looked cleaner but hits a
+// bug in this version that corrupts the path used to open it — langPath
+// is the well-trodden code path, so that's what's used here.) Less
+// accurate on messy handwriting than a paid cloud OCR service, but works
+// fine on printed/typed jobsheets and GenBlu screenshots, which is all
+// this app needs it for.
 let cachedWorker: Promise<Worker> | null = null;
 
 function getWorker(): Promise<Worker> {
   if (!cachedWorker) {
-    cachedWorker = createWorker("eng", 1, { cachePath: "/tmp" });
+    const langPath = path.join(process.cwd(), "lib/tesseract-data");
+    cachedWorker = createWorker("eng", 1, { langPath, cachePath: "/tmp", gzip: false });
   }
   return cachedWorker;
 }
