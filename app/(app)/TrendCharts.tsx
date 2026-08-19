@@ -6,7 +6,7 @@ import type { Branch } from "@/lib/branch";
 
 // Rounds a max value up to a "nice" number (1/2/2.5/5 × a power of ten) so
 // the gridlines land on tidy amounts instead of the raw data max.
-function niceMax(value: number): number {
+export function niceMax(value: number): number {
   if (value <= 0) return 100;
   const magnitude = Math.pow(10, Math.floor(Math.log10(value)));
   const normalized = value / magnitude;
@@ -14,20 +14,20 @@ function niceMax(value: number): number {
   return step * magnitude;
 }
 
-function shortAmount(value: number): string {
+export function shortAmount(value: number): string {
   return Math.round(value).toLocaleString("en-MY");
 }
 
 const LINE_CHART_HEIGHT = 220;
-const LINE_CHART_TICKS = 5;
-const LEFT_AXIS_WIDTH = 64;
+export const LINE_CHART_TICKS = 5;
+export const LEFT_AXIS_WIDTH = 64;
 const PAD_X = 32;
-const PAD_TOP = 24;
+export const PAD_TOP = 24;
 
 // Measures the card's actual width so the chart can space its points to
 // fill it exactly, instead of either a fixed pixel width that leaves a big
 // empty gap on wide screens, or a CSS-stretched SVG that distorts text.
-function useContainerWidth(fallback: number): [React.RefObject<HTMLDivElement | null>, number] {
+export function useContainerWidth(fallback: number): [React.RefObject<HTMLDivElement | null>, number] {
   const ref = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(fallback);
 

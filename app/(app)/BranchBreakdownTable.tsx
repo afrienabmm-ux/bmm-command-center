@@ -2,7 +2,6 @@ import { getBranchMonthSummary, getTopMechanic, getTopRestoreBikeMechanic, type 
 import { getActiveRepairJobs } from "@/lib/repairs-actions";
 import { getWarrantyClaims } from "@/lib/claims-actions";
 import { getMechanics } from "@/lib/mechanics-actions";
-import { getLowStockProducts } from "@/lib/catalog-actions";
 import { BRANCHES, branchLabel, type Branch } from "@/lib/branch";
 import { isOpenClaim } from "@/lib/types";
 import { formatCurrency } from "@/lib/format";
@@ -12,9 +11,9 @@ export type BranchBreakdownRow = {
   target: number;
   achieved: number;
   openClaims: number;
+  approvedClaims: number;
   activeRepairs: number;
   activeMechanics: number;
-  lowStock: number;
   topMechanic: TopMechanic | null;
   topRestoreBike: TopMechanic | null;
 };
@@ -29,12 +28,11 @@ export async function getAllBranchesAchievedTotal(year: number, month: number): 
 export async function getBranchBreakdown(year: number, month: number): Promise<BranchBreakdownRow[]> {
   return Promise.all(
     BRANCHES.map(async ({ value: branch }) => {
-      const [summary, claims, repairs, mechanics, lowStock, topMechanic, topRestoreBike] = await Promise.all([
+      const [summary, claims, repairs, mechanics, topMechanic, topRestoreBike] = await Promise.all([
         getBranchMonthSummary(branch, year, month),
         getWarrantyClaims(branch),
         getActiveRepairJobs(branch),
         getMechanics(branch),
-        getLowStockProducts(branch),
         getTopMechanic(branch, year, month),
         getTopRestoreBikeMechanic(branch, year, month),
       ]);
@@ -43,9 +41,9 @@ export async function getBranchBreakdown(year: number, month: number): Promise<B
         target: summary.targetAmount,
         achieved: summary.achievedAmount,
         openClaims: claims.filter((c) => isOpenClaim(c.status)).length,
+        approvedClaims: claims.filter((c) => c.status === "Approved").length,
         activeRepairs: repairs.length,
         activeMechanics: mechanics.filter((m) => m.status === "Active").length,
-        lowStock: lowStock.length,
         topMechanic,
         topRestoreBike,
       };
@@ -66,10 +64,9 @@ export default function BranchBreakdownTable({ rows }: { rows: BranchBreakdownRo
             <tr className="text-left text-xs text-neutral-500 border-b border-neutral-200">
               <th className="font-medium px-5 py-3 whitespace-nowrap">Branch</th>
               <th className="font-medium px-5 py-3 whitespace-nowrap">Target vs Achieved</th>
-              <th className="font-medium px-5 py-3 whitespace-nowrap">Open Claims</th>
+              <th className="font-medium px-5 py-3 whitespace-nowrap">Approved Claims</th>
               <th className="font-medium px-5 py-3 whitespace-nowrap">Active Repairs</th>
               <th className="font-medium px-5 py-3 whitespace-nowrap">Active Mechanics</th>
-              <th className="font-medium px-5 py-3 whitespace-nowrap">Low Stock</th>
               <th className="font-medium px-5 py-3 whitespace-nowrap">Top Overall (Revenue)</th>
               <th className="font-medium px-5 py-3 whitespace-nowrap">Top Restore Bike</th>
             </tr>
@@ -96,16 +93,9 @@ export default function BranchBreakdownTable({ rows }: { rows: BranchBreakdownRo
                     );
                   })()}
                 </td>
-                <td className="px-5 py-3.5 text-neutral-700 whitespace-nowrap">{b.openClaims}</td>
+                <td className="px-5 py-3.5 text-neutral-700 whitespace-nowrap">{b.approvedClaims}</td>
                 <td className="px-5 py-3.5 text-neutral-700 whitespace-nowrap">{b.activeRepairs}</td>
                 <td className="px-5 py-3.5 text-neutral-700 whitespace-nowrap">{b.activeMechanics}</td>
-                <td className="px-5 py-3.5 whitespace-nowrap">
-                  {b.lowStock > 0 ? (
-                    <span className="text-red-700 font-medium">{b.lowStock}</span>
-                  ) : (
-                    <span className="text-neutral-500">0</span>
-                  )}
-                </td>
                 <td className="px-5 py-3.5 whitespace-nowrap">
                   {b.topMechanic ? (
                     <span className="text-emerald-700 font-medium">

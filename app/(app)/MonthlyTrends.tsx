@@ -1,83 +1,65 @@
 import type { MonthlyTrendPoint } from "@/lib/trends-actions";
+import type { ClaimStatusBreakdownRow, PackageBreakdownRow } from "@/lib/dashboard-breakdowns-actions";
+import { BRANCHES, branchLabel, type Branch } from "@/lib/branch";
 import { RevenueTrendChart, BranchJobsChart } from "./TrendCharts";
+import { PieChartCard, type PieSlice } from "./PieChart";
 
-const CHART_HEIGHT = 120;
+const CLAIM_STATUS_COLORS: Record<ClaimStatusBreakdownRow["status"], { colorClass: string; dot: string }> = {
+  Pending: { colorClass: "fill-neutral-400", dot: "bg-neutral-400" },
+  "In Progress": { colorClass: "fill-amber-500", dot: "bg-amber-500" },
+  Approved: { colorClass: "fill-emerald-500", dot: "bg-emerald-500" },
+  Rejected: { colorClass: "fill-red-500", dot: "bg-red-500" },
+  Closed: { colorClass: "fill-indigo-500", dot: "bg-indigo-500" },
+};
 
-function scale(value: number, max: number): number {
-  if (max <= 0) return 0;
-  return Math.max(2, Math.round((value / max) * CHART_HEIGHT));
-}
+const PACKAGE_COLOR_PALETTE: { colorClass: string; dot: string }[] = [
+  { colorClass: "fill-indigo-500", dot: "bg-indigo-500" },
+  { colorClass: "fill-emerald-500", dot: "bg-emerald-500" },
+  { colorClass: "fill-amber-500", dot: "bg-amber-500" },
+  { colorClass: "fill-rose-500", dot: "bg-rose-500" },
+  { colorClass: "fill-purple-500", dot: "bg-purple-500" },
+  { colorClass: "fill-sky-500", dot: "bg-sky-500" },
+  { colorClass: "fill-orange-500", dot: "bg-orange-500" },
+  { colorClass: "fill-lime-500", dot: "bg-lime-500" },
+];
 
-// Single-series bar chart used for the two remaining counts (claims,
-// packages sold) — same scale/label mechanics as the revenue chart.
-function CountTrendChart({
-  heading,
-  subtitle,
+export default function MonthlyTrends({
   points,
-  valueOf,
-  colorClass,
+  claimStatusBreakdown,
+  packageBreakdown,
 }: {
-  heading: string;
-  subtitle: string;
   points: MonthlyTrendPoint[];
-  valueOf: (p: MonthlyTrendPoint) => number;
-  colorClass: string;
+  claimStatusBreakdown: ClaimStatusBreakdownRow[];
+  packageBreakdown: Record<Branch, PackageBreakdownRow[]>;
 }) {
-  const values = points.map(valueOf);
-  const max = Math.max(1, ...values);
-  const barWidth = 20;
-  const width = points.length * (barWidth + 16);
+  const claimSlices: PieSlice[] = claimStatusBreakdown.map((row) => ({
+    label: row.status,
+    value: row.count,
+    ...CLAIM_STATUS_COLORS[row.status],
+  }));
 
-  return (
-    <div className="bg-white border border-neutral-200 rounded-xl p-5">
-      <p className="text-sm font-semibold text-neutral-900">{heading}</p>
-      <p className="text-xs text-neutral-500 mt-0.5 mb-4">{subtitle}</p>
-      <div className="overflow-x-auto">
-        <svg width={Math.max(width, 240)} height={CHART_HEIGHT + 36} className="min-w-full">
-          {points.map((p, i) => {
-            const value = valueOf(p);
-            const h = scale(value, max);
-            const x = i * (barWidth + 16) + 8;
-            return (
-              <g key={`${p.year}-${p.month}`}>
-                <rect x={x} y={CHART_HEIGHT - h} width={barWidth} height={h} rx={3} className={colorClass} />
-                <text x={x + barWidth / 2} y={CHART_HEIGHT - h - 4} textAnchor="middle" className="fill-neutral-600 text-[10px] font-medium">
-                  {value > 0 ? value : ""}
-                </text>
-                <text x={x + barWidth / 2} y={CHART_HEIGHT + 18} textAnchor="middle" className="fill-neutral-500 text-[10px]">
-                  {p.label}
-                </text>
-              </g>
-            );
-          })}
-        </svg>
-      </div>
-    </div>
-  );
-}
-
-export default function MonthlyTrends({ points }: { points: MonthlyTrendPoint[] }) {
   return (
     <div>
       <p className="text-sm font-semibold text-neutral-900 mb-3">Trends</p>
       <div className="space-y-4">
         <RevenueTrendChart points={points} />
         <BranchJobsChart points={points} />
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <CountTrendChart
-            heading="Warranty Claims Submitted"
-            subtitle="All branches, per month"
-            points={points}
-            valueOf={(p) => p.warrantyClaimsSubmitted}
-            colorClass="fill-amber-500"
-          />
-          <CountTrendChart
-            heading="Services Combo Sold"
-            subtitle="All branches, per month"
-            points={points}
-            valueOf={(p) => p.packagesSold}
-            colorClass="fill-purple-500"
-          />
+        <PieChartCard heading="Warranty Claims by Status" subtitle="All branches, this month" slices={claimSlices} />
+        <div>
+          <p className="text-sm font-semibold text-neutral-900 mb-3">Services Combo Sold by Branch</p>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {BRANCHES.map(({ value: branch }) => {
+              const rows = packageBreakdown[branch] ?? [];
+              const slices: PieSlice[] = rows.map((row, i) => ({
+                label: row.name,
+                value: row.count,
+                ...PACKAGE_COLOR_PALETTE[i % PACKAGE_COLOR_PALETTE.length],
+              }));
+              return (
+                <PieChartCard key={branch} heading={branchLabel(branch)} subtitle="Package sold this month" slices={slices} />
+              );
+            })}
+          </div>
         </div>
       </div>
     </div>

@@ -1,14 +1,18 @@
 import Link from "next/link";
-import { AlertTriangle, ShieldCheck, Wrench, Users, PackageX, Layers, ArrowUp, ArrowDown } from "lucide-react";
+import { AlertTriangle, ShieldCheck, Wrench, Clock, Users, ClipboardList, Layers, ArrowUp, ArrowDown } from "lucide-react";
 import { formatCurrency, monthLabel } from "@/lib/format";
+import type { Branch } from "@/lib/branch";
 import StatCard from "@/components/StatCard";
 import CombinedTargetEditor from "./CombinedTargetEditor";
 import BranchBreakdownTable, { getBranchBreakdown, getAllBranchesAchievedTotal } from "./BranchBreakdownTable";
 import AllBranchesMechanicPerformanceTable from "./AllBranchesMechanicPerformanceTable";
 import MonthlyTrends from "./MonthlyTrends";
-import { getAllBranchesOverdueRestoreBikeJobs } from "@/lib/repairs-actions";
+import { getAllBranchesOverdueRestoreBikeJobs, getAllBranchesActiveRepairJobs } from "@/lib/repairs-actions";
 import { getAllBranchesPerformance } from "@/lib/reports-actions";
 import { getMonthlyTrends } from "@/lib/trends-actions";
+import { getRevenuePace } from "@/lib/revenue-pace-actions";
+import RevenuePace from "./RevenuePace";
+import { getWarrantyClaimStatusBreakdown, getPackageSalesBreakdown } from "@/lib/dashboard-breakdowns-actions";
 
 // Rolls (year, month) back one month, correctly crossing a year boundary.
 function previousMonth(year: number, month: number): { year: number; month: number } {
@@ -21,26 +25,35 @@ export default async function AllBranchesOverview({ year, month }: { year: numbe
   // further down the tree) so they run as one wave of parallel queries
   // instead of three sequential waterfalls — this was the main source of
   // dashboard lag before.
-  const [rows, overdueJobs, prevAchieved, trendPoints, mechanicPerformanceRows] = await Promise.all([
-    getBranchBreakdown(year, month),
-    getAllBranchesOverdueRestoreBikeJobs(),
-    getAllBranchesAchievedTotal(prev.year, prev.month),
-    getMonthlyTrends(year, month, 6),
-    getAllBranchesPerformance(year, month),
-  ]);
+  const [rows, overdueJobs, prevAchieved, trendPoints, mechanicPerformanceRows, revenuePace, claimStatusBreakdown, packageBreakdown, activeJobs] =
+    await Promise.all([
+      getBranchBreakdown(year, month),
+      getAllBranchesOverdueRestoreBikeJobs(),
+      getAllBranchesAchievedTotal(prev.year, prev.month),
+      getMonthlyTrends(year, month, 6),
+      getAllBranchesPerformance(year, month),
+      getRevenuePace(year, month),
+      getWarrantyClaimStatusBreakdown(year, month),
+      getPackageSalesBreakdown(year, month),
+      getAllBranchesActiveRepairJobs(),
+    ]);
 
   const totals = rows.reduce(
     (acc, b) => ({
       target: acc.target + b.target,
       achieved: acc.achieved + b.achieved,
-      openClaims: acc.openClaims + b.openClaims,
+      approvedClaims: acc.approvedClaims + b.approvedClaims,
       activeRepairs: acc.activeRepairs + b.activeRepairs,
       activeMechanics: acc.activeMechanics + b.activeMechanics,
-      lowStock: acc.lowStock + b.lowStock,
     }),
-    { target: 0, achieved: 0, openClaims: 0, activeRepairs: 0, activeMechanics: 0, lowStock: 0 }
+    { target: 0, achieved: 0, approvedClaims: 0, activeRepairs: 0, activeMechanics: 0 }
   );
   const pct = totals.target > 0 ? Math.min(100, Math.round((totals.achieved / totals.target) * 100)) : 0;
+
+  const restoreBikeActiveCount = activeJobs.filter((j) => j.jobType === "Restore Bike").length;
+  const restoreBikeOverdueCount = overdueJobs.length;
+  const restoreBikeOnTrackCount = restoreBikeActiveCount - restoreBikeOverdueCount;
+  const totalJobsheetCount = activeJobs.filter((j) => j.jobType === "Walk-in").length;
 
   // Month-over-month change vs the same combined-achieved figure last month.
   // No badge when there's nothing to compare against (e.g. a brand new month).
@@ -72,14 +85,20 @@ export default async function AllBranchesOverview({ year, month }: { year: numbe
               )}
             </div>
           </div>
-          <CombinedTargetEditor year={year} month={month} currentTotal={totals.target} />
+          <CombinedTargetEditor
+            year={year}
+            month={month}
+            branchTargets={rows.reduce((acc, b) => ({ ...acc, [b.branch]: b.target }), {} as Record<Branch, number>)}
+          />
         </div>
         <div className="mt-4 h-2 bg-neutral-100 rounded-full overflow-hidden">
           <div className="h-full bg-indigo-500 transition-all" style={{ width: `${pct}%` }} />
         </div>
       </div>
 
-      <MonthlyTrends points={trendPoints} />
+      <RevenuePace data={revenuePace} />
+
+      <MonthlyTrends points={trendPoints} claimStatusBreakdown={claimStatusBreakdown} packageBreakdown={packageBreakdown} />
 
       {overdueJobs.length > 0 && (
         <Link
@@ -107,28 +126,12 @@ export default async function AllBranchesOverview({ year, month }: { year: numbe
         </Link>
       )}
 
-      {totals.lowStock > 0 && (
-        <Link
-          href="/catalog"
-          className="block bg-red-50 border border-red-200 rounded-xl p-5 hover:border-red-300 transition-colors"
-        >
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-lg bg-red-500/10 flex items-center justify-center shrink-0">
-              <AlertTriangle size={17} className="text-red-600" />
-            </div>
-            <p className="text-sm font-semibold text-red-700">
-              {totals.lowStock} item{totals.lowStock === 1 ? "" : "s"} running low across all branches — restock
-              needed
-            </p>
-          </div>
-        </Link>
-      )}
-
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard icon={ShieldCheck} label="Open Warranty Claims" value={totals.openClaims} color="text-amber-700 bg-amber-500/10" href="/warranty-claims" />
-        <StatCard icon={Wrench} label="Active Repair Jobs" value={totals.activeRepairs} color="text-indigo-600 bg-indigo-500/10" href="/repairs" />
-        <StatCard icon={Users} label="Active Mechanics" value={totals.activeMechanics} color="text-emerald-700 bg-emerald-500/10" href="/mechanics" />
-        <StatCard icon={PackageX} label="Low Stock Items" value={totals.lowStock} color="text-red-700 bg-red-500/10" href="/catalog" />
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+        <StatCard icon={ShieldCheck} label="Approved Claims" value={totals.approvedClaims} color="text-emerald-700 bg-emerald-500/10" href="/warranty-claims" />
+        <StatCard icon={Wrench} label="Restore Bike On Track" value={restoreBikeOnTrackCount} color="text-indigo-600 bg-indigo-500/10" href="/repairs" />
+        <StatCard icon={Clock} label="Restore Bike Overdue" value={restoreBikeOverdueCount} color="text-red-700 bg-red-500/10" href="/repairs" />
+        <StatCard icon={Users} label="Active Mechanics" value={totals.activeMechanics} color="text-amber-700 bg-amber-500/10" href="/mechanics" />
+        <StatCard icon={ClipboardList} label="Total Jobsheet" value={totalJobsheetCount} color="text-purple-700 bg-purple-500/10" href="/repairs/walk-in" />
       </div>
 
       <BranchBreakdownTable rows={rows} />

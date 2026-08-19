@@ -79,7 +79,6 @@ export default function AllBranchesMechanicPerformanceClient({ rows }: { rows: M
       [
         "Mechanic",
         "Code",
-        "Branch",
         "Restore Bike Jobs",
         "Restore Bike Revenue (RM)",
         "Jobsheet Jobs",
@@ -93,7 +92,6 @@ export default function AllBranchesMechanicPerformanceClient({ rows }: { rows: M
       filtered.map((r) => [
         r.fullName,
         r.shortCode,
-        branchLabel(r.branch),
         r.restoreBikeCount,
         r.restoreBikeRevenue.toFixed(2),
         r.walkInCount,
@@ -169,7 +167,6 @@ export default function AllBranchesMechanicPerformanceClient({ rows }: { rows: M
               <thead>
                 <tr className="text-left text-xs text-neutral-500 border-b border-neutral-200">
                   <th className="font-medium px-5 py-3 whitespace-nowrap">Mechanic</th>
-                  <th className="font-medium px-5 py-3 whitespace-nowrap">Branch</th>
                   <th className="font-medium px-5 py-3 whitespace-nowrap">Package Sets Sold</th>
                   <th className="font-medium px-5 py-3 whitespace-nowrap">Package Revenue</th>
                 </tr>
@@ -183,14 +180,13 @@ export default function AllBranchesMechanicPerformanceClient({ rows }: { rows: M
                         {r.fullName} <span className="text-neutral-500 font-normal">({r.shortCode})</span>
                       </span>
                     </td>
-                    <td className="px-5 py-3.5 text-neutral-600 whitespace-nowrap">{branchLabel(r.branch)}</td>
                     <td className="px-5 py-3.5 text-neutral-900 font-semibold whitespace-nowrap">{r.packageSetsSold} sets</td>
                     <td className="px-5 py-3.5 text-neutral-600 whitespace-nowrap">{formatCurrency(r.packageRevenue)}</td>
                   </tr>
                 ))}
                 {filtered.length === 0 && (
                   <tr>
-                    <td colSpan={4} className="px-5 py-10 text-center text-neutral-500 text-sm">
+                    <td colSpan={3} className="px-5 py-10 text-center text-neutral-500 text-sm">
                       No mechanics {branchFilter === "all" ? "yet" : `at ${branchLabel(branchFilter)} yet`}.
                     </td>
                   </tr>
@@ -202,7 +198,6 @@ export default function AllBranchesMechanicPerformanceClient({ rows }: { rows: M
               <thead>
                 <tr className="text-left text-xs text-neutral-500 border-b border-neutral-200">
                   <th className="font-medium px-5 py-3 whitespace-nowrap">Mechanic</th>
-                  <th className="font-medium px-5 py-3 whitespace-nowrap">Branch</th>
                   <th className="font-medium px-5 py-3 whitespace-nowrap">Restore Bike</th>
                   <th className="font-medium px-5 py-3 whitespace-nowrap">Jobsheet</th>
                   <th className="font-medium px-5 py-3 whitespace-nowrap">Packages</th>
@@ -224,7 +219,6 @@ export default function AllBranchesMechanicPerformanceClient({ rows }: { rows: M
                         )}
                       </span>
                     </td>
-                    <td className="px-5 py-3.5 text-neutral-600 whitespace-nowrap">{branchLabel(r.branch)}</td>
                     <td className="px-5 py-3.5 text-neutral-600 whitespace-nowrap">
                       {r.restoreBikeCount} jobs · {formatCurrency(r.restoreBikeRevenue)}
                     </td>
@@ -244,7 +238,7 @@ export default function AllBranchesMechanicPerformanceClient({ rows }: { rows: M
                 ))}
                 {filtered.length === 0 && (
                   <tr>
-                    <td colSpan={7} className="px-5 py-10 text-center text-neutral-500 text-sm">
+                    <td colSpan={6} className="px-5 py-10 text-center text-neutral-500 text-sm">
                       No mechanics {branchFilter === "all" ? "yet" : `at ${branchLabel(branchFilter)} yet`}.
                     </td>
                   </tr>
