@@ -12,7 +12,8 @@ import { getAllBranchesPerformance } from "@/lib/reports-actions";
 import { getMonthlyTrends } from "@/lib/trends-actions";
 import { getRevenuePace } from "@/lib/revenue-pace-actions";
 import RevenuePace from "./RevenuePace";
-import { getWarrantyClaimStatusBreakdown, getPackageSalesBreakdown } from "@/lib/dashboard-breakdowns-actions";
+import { getWarrantyClaimStatusBreakdown, getPackageSalesBreakdown, getMechanicsNotActiveToday } from "@/lib/dashboard-breakdowns-actions";
+import IdleMechanicsNotice from "./IdleMechanicsNotice";
 
 // Rolls (year, month) back one month, correctly crossing a year boundary.
 function previousMonth(year: number, month: number): { year: number; month: number } {
@@ -25,18 +26,29 @@ export default async function AllBranchesOverview({ year, month }: { year: numbe
   // further down the tree) so they run as one wave of parallel queries
   // instead of three sequential waterfalls — this was the main source of
   // dashboard lag before.
-  const [rows, overdueJobs, prevAchieved, trendPoints, mechanicPerformanceRows, revenuePace, claimStatusBreakdown, packageBreakdown, activeJobs] =
-    await Promise.all([
-      getBranchBreakdown(year, month),
-      getAllBranchesOverdueRestoreBikeJobs(),
-      getAllBranchesAchievedTotal(prev.year, prev.month),
-      getMonthlyTrends(year, month, 6),
-      getAllBranchesPerformance(year, month),
-      getRevenuePace(year, month),
-      getWarrantyClaimStatusBreakdown(year, month),
-      getPackageSalesBreakdown(year, month),
-      getAllBranchesActiveRepairJobs(),
-    ]);
+  const [
+    rows,
+    overdueJobs,
+    prevAchieved,
+    trendPoints,
+    mechanicPerformanceRows,
+    revenuePace,
+    claimStatusBreakdown,
+    packageBreakdown,
+    activeJobs,
+    idleMechanics,
+  ] = await Promise.all([
+    getBranchBreakdown(year, month),
+    getAllBranchesOverdueRestoreBikeJobs(),
+    getAllBranchesAchievedTotal(prev.year, prev.month),
+    getMonthlyTrends(year, month, 6),
+    getAllBranchesPerformance(year, month),
+    getRevenuePace(year, month),
+    getWarrantyClaimStatusBreakdown(year, month),
+    getPackageSalesBreakdown(year, month),
+    getAllBranchesActiveRepairJobs(),
+    getMechanicsNotActiveToday(),
+  ]);
 
   const totals = rows.reduce(
     (acc, b) => ({
@@ -107,6 +119,8 @@ export default async function AllBranchesOverview({ year, month }: { year: numbe
           <div className="h-full bg-indigo-500 transition-all" style={{ width: `${pct}%` }} />
         </div>
       </div>
+
+      <IdleMechanicsNotice mechanics={idleMechanics} />
 
       <RevenuePace data={revenuePace} />
 
