@@ -313,9 +313,17 @@ export default function RepairJobForm({
     startTransition(async () => {
       let jobId = job?.id;
       if (isEdit && job) {
-        await updateRepairJobAction(job.id, job.branch, payload);
+        const result = await updateRepairJobAction(job.id, job.branch, payload);
+        if (result && "error" in result) {
+          window.alert(result.error);
+          return;
+        }
       } else {
         const result = await addRepairJobAction({ ...payload, branch: effectiveBranch, jobType: "Restore Bike" });
+        if ("error" in result) {
+          window.alert(result.error);
+          return;
+        }
         jobId = result.id;
       }
       if (imageFile && jobId) {

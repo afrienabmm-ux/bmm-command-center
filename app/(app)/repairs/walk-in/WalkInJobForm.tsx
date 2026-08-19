@@ -493,15 +493,18 @@ export default function WalkInJobForm({
         }
       }
 
-      try {
-        if (isEdit && job) {
-          await updateRepairJobAction(job.id, job.branch, payload);
-        } else {
-          await addRepairJobAction({ ...payload, branch: effectiveBranch, jobType: "Walk-in" });
+      if (isEdit && job) {
+        const result = await updateRepairJobAction(job.id, job.branch, payload);
+        if (result && "error" in result) {
+          window.alert(result.error);
+          return;
         }
-      } catch (err) {
-        window.alert(err instanceof Error ? err.message : "Something went wrong saving this job.");
-        return;
+      } else {
+        const result = await addRepairJobAction({ ...payload, branch: effectiveBranch, jobType: "Walk-in" });
+        if ("error" in result) {
+          window.alert(result.error);
+          return;
+        }
       }
 
       if (hasGenblu) {

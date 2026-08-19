@@ -113,22 +113,26 @@ function toJob(r: Row): RepairJob {
 // item via the "Big / heavy item repair" checkbox) can only go to mechanics
 // in the "Heavy Repair" category. Enforced server-side so it can't be
 // bypassed even if the UI's own filtering is stale.
+//
+// Returns { error } instead of throwing — a thrown Error from a Server
+// Action gets mangled into an unhelpful "Minified React error #441" on the
+// client in production builds, instead of surfacing the message.
 async function assertMechanicAssignment(
   mechanicId: string | null,
   isBigItem: boolean,
   excludeJobId?: string
-): Promise<void> {
-  if (!mechanicId) throw new Error("A mechanic must be assigned to this job.");
+): Promise<{ error: string } | void> {
+  if (!mechanicId) return { error: "A mechanic must be assigned to this job." };
 
   const { data: mechanic, error: mechError } = await supabaseAdmin
     .from("cc_mechanics")
     .select("category")
     .eq("id", mechanicId)
     .single();
-  if (mechError) throw new Error(mechError.message);
+  if (mechError) return { error: mechError.message };
 
   if (isBigItem && mechanic.category !== "Heavy Repair") {
-    throw new Error("This is a heavy repair job — it can only be assigned to a Heavy Repair mechanic.");
+    return { error: "This is a heavy repair job — it can only be assigned to a Heavy Repair mechanic." };
   }
 
   let busyQuery = supabaseAdmin
@@ -138,9 +142,9 @@ async function assertMechanicAssignment(
     .neq("status", "Completed");
   if (excludeJobId) busyQuery = busyQuery.neq("id", excludeJobId);
   const { count, error: busyError } = await busyQuery;
-  if (busyError) throw new Error(busyError.message);
+  if (busyError) return { error: busyError.message };
   if ((count ?? 0) > 0) {
-    throw new Error("This mechanic already has an active job assigned — they're free again once it's marked Completed.");
+    return { error: "This mechanic already has an active job assigned — they're free again once it's marked Completed." };
   }
 }
 
@@ -382,11 +386,12 @@ export async function addRepairJobAction(input: {
   // Restore Bike only — filling in and saving the form counts as the
   // quotation being done, no separate click needed.
   quotationDate?: string | null;
-}): Promise<{ id: string }> {
+}): Promise<{ error: string } | { id: string }> {
   const user = await requireApproved();
   assertCanEditBranch(user, input.branch);
   const items = input.items ?? [];
-  await assertMechanicAssignment(input.mechanicId, input.isBigItem ?? false);
+  const assignmentCheck = await assertMechanicAssignment(input.mechanicId, input.isBigItem ?? false);
+  if (assignmentCheck && "error" in assignmentCheck) return assignmentCheck;
 
   const { count } = await supabaseAdmin
     .from("cc_repair_jobs")
@@ -493,11 +498,12 @@ export async function updateRepairJobAction(
     // this column.
     quotationDate?: string | null;
   }
-): Promise<void> {
+): Promise<{ error: string } | void> {
   const user = await requireApproved();
   assertCanEditBranch(user, branch);
   const items = input.items ?? [];
-  await assertMechanicAssignment(input.mechanicId, input.isBigItem ?? false, id);
+  const assignmentCheck = await assertMechanicAssignment(input.mechanicId, input.isBigItem ?? false, id);
+  if (assignmentCheck && "error" in assignmentCheck) return assignmentCheck;
   const revenueAmount = items.length > 0 ? itemsTotal(items) : input.revenueAmount;
 
   const { data: existingItems } = await supabaseAdmin
