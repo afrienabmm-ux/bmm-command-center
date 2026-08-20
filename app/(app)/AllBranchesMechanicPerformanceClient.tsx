@@ -104,8 +104,16 @@ function RevenueRow({
 
 type View = "revenue" | "packages";
 
-export default function AllBranchesMechanicPerformanceClient({ rows }: { rows: MechanicPerformanceRowWithBranch[] }) {
-  const [branchFilter, setBranchFilter] = useState<BranchSelection>("all");
+export default function AllBranchesMechanicPerformanceClient({
+  rows,
+  branchSelection,
+  locked,
+}: {
+  rows: MechanicPerformanceRowWithBranch[];
+  branchSelection?: BranchSelection;
+  locked?: boolean;
+}) {
+  const [branchFilter, setBranchFilter] = useState<BranchSelection>(branchSelection ?? "all");
   const [view, setView] = useState<View>("revenue");
   const [showAll, setShowAll] = useState(false);
 
@@ -228,18 +236,20 @@ export default function AllBranchesMechanicPerformanceClient({ rows }: { rows: M
               Total Revenue
             </button>
           </div>
-          <select
-            value={branchFilter}
-            onChange={(e) => setBranchFilter(e.target.value as BranchSelection)}
-            className="bg-neutral-50 border border-neutral-200 rounded-lg px-3 py-2 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
-          >
-            <option value="all">All Branches</option>
-            {BRANCHES.map((b) => (
-              <option key={b.value} value={b.value}>
-                {b.label}
-              </option>
-            ))}
-          </select>
+          {!locked && (
+            <select
+              value={branchFilter}
+              onChange={(e) => setBranchFilter(e.target.value as BranchSelection)}
+              className="bg-neutral-50 border border-neutral-200 rounded-lg px-3 py-2 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+            >
+              <option value="all">All Branches</option>
+              {BRANCHES.map((b) => (
+                <option key={b.value} value={b.value}>
+                  {b.label}
+                </option>
+              ))}
+            </select>
+          )}
           <button
             onClick={handleExport}
             className="flex items-center gap-1.5 bg-neutral-100 hover:bg-neutral-200 text-neutral-800 text-sm font-medium px-4 py-2 rounded-lg transition-colors whitespace-nowrap"

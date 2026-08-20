@@ -193,7 +193,7 @@ export default function RevenuePace({ data, title = "Revenue Run-Rate — all br
   return (
     <div className="space-y-4">
       <RevenueRunRateChart data={data} title={title} />
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className={data.branches.length === 1 ? "grid grid-cols-1 gap-4" : "grid grid-cols-1 md:grid-cols-3 gap-4"}>
         {data.branches.map((b) => (
           <BranchRevenueCard key={b.branch} pace={b} revenueToday={b.revenueToday} />
         ))}

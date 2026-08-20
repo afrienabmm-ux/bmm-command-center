@@ -30,7 +30,7 @@ export default function PackageBreakdownCharts({
       <p className="text-sm font-semibold text-neutral-900 mb-3">
         {onlyBranch ? "Services Combo Sold" : "Services Combo Sold by Branch"}
       </p>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className={onlyBranch ? "grid grid-cols-1 max-w-sm gap-4" : "grid grid-cols-1 md:grid-cols-3 gap-4"}>
         {comboBranches.map(({ value: branch }) => {
           const rows = packageBreakdown[branch] ?? [];
           const slices: PieSlice[] = rows.map((row, i) => ({

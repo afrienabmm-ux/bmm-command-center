@@ -319,6 +319,31 @@ export async function getAllBranchesOverdueQcJobs(onlyBranch?: Branch): Promise<
     .sort((a, b) => b.daysWaiting - a.daysWaiting);
 }
 
+export type QcReminderJob = RepairJob & { daysWaiting: number; dueDate: string };
+
+// QC jobs still inside their 72-hour (3-day) window — the "reminder"
+// counterpart to getAllBranchesOverdueQcJobs above. Shown as soon as a job
+// lands in QC (End Date clicked) and stops once it's either passed/failed
+// or crosses into the overdue list, so the PIC sees one banner or the
+// other, never both for the same job.
+export async function getAllBranchesQcReminderJobs(onlyBranch?: Branch): Promise<QcReminderJob[]> {
+  const branches = onlyBranch ? [onlyBranch] : BRANCHES.map((b) => b.value);
+  const perBranch = await Promise.all(branches.map((value) => getQcRepairJobs(value)));
+  const today = new Date();
+  return perBranch
+    .flat()
+    .filter((j) => j.completedDate)
+    .map((j) => {
+      const finished = new Date(j.completedDate as string);
+      const daysWaiting = Math.floor((today.getTime() - finished.getTime()) / 86400000);
+      const due = new Date(finished);
+      due.setDate(due.getDate() + 3);
+      return { ...j, daysWaiting, dueDate: due.toISOString().slice(0, 10) };
+    })
+    .filter((j) => j.daysWaiting <= 3)
+    .sort((a, b) => a.dueDate.localeCompare(b.dueDate));
+}
+
 type ItemInput = { code?: string; description: string; quantity: number; price: number };
 
 function itemsTotal(items: ItemInput[]): number {
