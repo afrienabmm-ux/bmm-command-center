@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import {
   getCurrentUser,
@@ -16,6 +17,7 @@ import WalkInJobForm from "../(app)/repairs/walk-in/WalkInJobForm";
 import GenbluQuickForm, { type RecentJobsheetCustomer } from "./GenbluQuickForm";
 import JobsheetPicker from "./JobsheetPicker";
 import ScanTabs from "./ScanTabs";
+import SavedToast from "./SavedToast";
 
 export const dynamic = "force-dynamic";
 // The GenBlu screenshot check runs an OCR call (with retries) inside this
@@ -92,6 +94,9 @@ export default async function ScanPage({ searchParams }: { searchParams: Promise
 
   return (
     <div className="min-h-screen bg-neutral-50">
+      <Suspense fallback={null}>
+        <SavedToast />
+      </Suspense>
       <div className="sticky top-0 z-10 bg-white border-b border-neutral-200 px-4 py-3 flex items-center gap-2.5">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/bmm-logo.png" alt="Berjaya Mega Motors" className="w-7 h-7 rounded-full object-cover shrink-0" />

@@ -561,7 +561,7 @@ export default function WalkInJobForm({
           `${customerName.trim()} earned ${Math.round(finalRevenue).toLocaleString()} GenBlu points (${formatCurrency(finalRevenue)}) from this job.`
         );
       }
-      router.push(redirectTo);
+      router.push(`${redirectTo}${redirectTo.includes("?") ? "&" : "?"}saved=1`);
     });
   }
 
