@@ -204,7 +204,13 @@ export default function RepairJobForm({
   const [existingPhotos, setExistingPhotos] = useState<{ path: string; url: string }[]>([]);
   const [imageError, setImageError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const formDateRef = useRef<HTMLInputElement>(null);
   const plateNoRef = useRef<HTMLInputElement>(null);
+  const picNameRef = useRef<HTMLInputElement>(null);
+  const modelRef = useRef<HTMLInputElement>(null);
+  const bikeYearRef = useRef<HTMLInputElement>(null);
+  const arrivedDateRef = useRef<HTMLInputElement>(null);
+  const mileageRef = useRef<HTMLInputElement>(null);
   const imageRef = useRef<HTMLDivElement>(null);
   const photoInputRef = useRef<HTMLInputElement>(null);
 
@@ -250,8 +256,8 @@ export default function RepairJobForm({
     });
   }
 
-  // At least one photo (existing or newly picked) is required before saving.
-  const hasPhoto = photoSlotsUsed > 0;
+  // All 5 photo slots must be filled before saving.
+  const hasAllPhotos = photoSlotsUsed >= MAX_PHOTOS;
 
   // Jumps to and highlights whichever required field is still empty,
   // instead of leaving the PIC staring at a disabled button with no idea
@@ -263,13 +269,37 @@ export default function RepairJobForm({
   }
 
   function handleSave() {
+    if (formDate.trim() === "") {
+      scrollToField(formDateRef.current);
+      return;
+    }
     if (plateNo.trim() === "") {
       scrollToField(plateNoRef.current);
       return;
     }
-    if (!hasPhoto) {
-      setImageError("A photo of the bike is required.");
+    if (picName.trim() === "") {
+      scrollToField(picNameRef.current);
+      return;
+    }
+    if (model.trim() === "") {
+      scrollToField(modelRef.current);
+      return;
+    }
+    if (bikeYear.trim() === "") {
+      scrollToField(bikeYearRef.current);
+      return;
+    }
+    if (arrivedDate.trim() === "") {
+      scrollToField(arrivedDateRef.current);
+      return;
+    }
+    if (!hasAllPhotos) {
+      setImageError(`All ${MAX_PHOTOS} bike photos are required.`);
       scrollToField(imageRef.current);
+      return;
+    }
+    if (mileageKm.trim() === "") {
+      scrollToField(mileageRef.current);
       return;
     }
     setImageError(null);
@@ -342,8 +372,9 @@ export default function RepairJobForm({
       <div className="bg-white border border-neutral-200 rounded-xl p-6">
         <div className="space-y-4">
           <div>
-            <label className="block text-xs font-medium text-neutral-600 mb-1.5">Date Filled</label>
+            <label className="block text-xs font-medium text-neutral-600 mb-1.5">Date Filled *</label>
             <input
+              ref={formDateRef}
               type="date"
               value={formDate}
               onChange={(e) => setFormDate(e.target.value)}
@@ -364,8 +395,9 @@ export default function RepairJobForm({
             />
           </div>
           <div>
-            <label className="block text-xs font-medium text-neutral-600 mb-1.5">Thumbprint</label>
+            <label className="block text-xs font-medium text-neutral-600 mb-1.5">Thumbprint *</label>
             <input
+              ref={picNameRef}
               type="text"
               list="thumbprint-names"
               value={picName}
@@ -381,8 +413,9 @@ export default function RepairJobForm({
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-medium text-neutral-600 mb-1.5">Model</label>
+              <label className="block text-xs font-medium text-neutral-600 mb-1.5">Model *</label>
               <input
+                ref={modelRef}
                 type="text"
                 value={model}
                 onChange={(e) => setModel(e.target.value)}
@@ -391,8 +424,9 @@ export default function RepairJobForm({
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-neutral-600 mb-1.5">Tahun</label>
+              <label className="block text-xs font-medium text-neutral-600 mb-1.5">Tahun *</label>
               <input
+                ref={bikeYearRef}
                 type="text"
                 value={bikeYear}
                 onChange={(e) => setBikeYear(e.target.value)}
@@ -402,7 +436,7 @@ export default function RepairJobForm({
             </div>
           </div>
           <div>
-            <label className="block text-xs font-medium text-neutral-600 mb-1.5">Condition</label>
+            <label className="block text-xs font-medium text-neutral-600 mb-1.5">Condition *</label>
             <select
               value={condition}
               onChange={(e) => setCondition(e.target.value as RestoreBikeCondition)}
@@ -416,8 +450,9 @@ export default function RepairJobForm({
             </select>
           </div>
           <div>
-            <label className="block text-xs font-medium text-neutral-600 mb-1.5">Arrived Date</label>
+            <label className="block text-xs font-medium text-neutral-600 mb-1.5">Arrived Date *</label>
             <input
+              ref={arrivedDateRef}
               type="date"
               value={arrivedDate}
               onChange={(e) => setArrivedDate(e.target.value)}
@@ -425,7 +460,7 @@ export default function RepairJobForm({
             />
           </div>
           <div ref={imageRef} tabIndex={-1}>
-            <label className="block text-xs font-medium text-neutral-600 mb-1.5">Bike Photos * (up to {MAX_PHOTOS})</label>
+            <label className="block text-xs font-medium text-neutral-600 mb-1.5">Bike Photos * ({MAX_PHOTOS} required)</label>
             {(existingPhotos.length > 0 || newPhotoFiles.length > 0) && (
               <div className="flex flex-wrap gap-2 mb-2">
                 {existingPhotos.map((p) => (
@@ -473,12 +508,13 @@ export default function RepairJobForm({
             )}
             {imageError && <p className="text-xs text-red-600 mt-1.5">{imageError}</p>}
             <p className="text-xs text-neutral-500 mt-1.5">
-              At least one photo is required — {photoSlotsUsed} of {MAX_PHOTOS} used.
+              All {MAX_PHOTOS} photos are required — {photoSlotsUsed} of {MAX_PHOTOS} uploaded.
             </p>
           </div>
           <div>
-            <label className="block text-xs font-medium text-neutral-600 mb-1.5">Mileage (KM)</label>
+            <label className="block text-xs font-medium text-neutral-600 mb-1.5">Mileage (KM) *</label>
             <input
+              ref={mileageRef}
               type="text"
               value={mileageKm}
               onChange={(e) => setMileageKm(e.target.value)}
@@ -486,7 +522,7 @@ export default function RepairJobForm({
             />
           </div>
           <div>
-            <label className="block text-xs font-medium text-neutral-600 mb-1.5">Location</label>
+            <label className="block text-xs font-medium text-neutral-600 mb-1.5">Location *</label>
             <select
               value={locationBranch}
               disabled={locked}
@@ -529,7 +565,7 @@ export default function RepairJobForm({
             <p className="text-xs text-neutral-500 mt-1.5">Calculated automatically from the parts/items list above.</p>
           </div>
           <div>
-            <label className="block text-xs font-medium text-neutral-600 mb-1.5">Trade In / Tarik / Jual</label>
+            <label className="block text-xs font-medium text-neutral-600 mb-1.5">Trade In / Tarik / Jual *</label>
             <div className="flex items-center gap-2">
               {DEAL_TYPES.map((t) => (
                 <button
