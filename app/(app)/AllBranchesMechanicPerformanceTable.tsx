@@ -6,10 +6,14 @@ export default function AllBranchesMechanicPerformanceTable({
   rows,
   branchSelection,
   locked,
+  daysElapsed,
 }: {
   rows: MechanicPerformanceRowWithBranch[];
   branchSelection?: BranchSelection;
   locked?: boolean;
+  daysElapsed: number;
 }) {
-  return <AllBranchesMechanicPerformanceClient rows={rows} branchSelection={branchSelection} locked={locked} />;
+  return (
+    <AllBranchesMechanicPerformanceClient rows={rows} branchSelection={branchSelection} locked={locked} daysElapsed={daysElapsed} />
+  );
 }

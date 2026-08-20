@@ -24,6 +24,13 @@ export default async function SalesPerformancePage({
   const locked = !canViewAllBranches(user);
   const onlyBranch = branchSelection === "all" ? undefined : branchSelection;
 
+  // How many days of the selected month to divide by for each mechanic's
+  // daily pace — the full month once it's over, or just the days elapsed
+  // so far when looking at the current month.
+  const daysInMonth = new Date(year, month, 0).getDate();
+  const isCurrentMonth = year === now.getFullYear() && month === now.getMonth() + 1;
+  const daysElapsed = isCurrentMonth ? now.getDate() : daysInMonth;
+
   const [rows, packageBreakdown] = await Promise.all([
     onlyBranch
       ? getBranchPerformance(onlyBranch, year, month).then(
@@ -41,7 +48,7 @@ export default async function SalesPerformancePage({
         action={<MonthPicker year={year} month={month} basePath="/sales-performance" />}
       />
       <div className="p-8 space-y-8">
-        <AllBranchesMechanicPerformanceTable rows={rows} branchSelection={branchSelection} locked={locked} />
+        <AllBranchesMechanicPerformanceTable rows={rows} branchSelection={branchSelection} locked={locked} daysElapsed={daysElapsed} />
         <PackageBreakdownCharts packageBreakdown={packageBreakdown} onlyBranch={onlyBranch} />
       </div>
     </div>
