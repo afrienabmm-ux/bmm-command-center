@@ -191,6 +191,7 @@ export default function RepairJobForm({
     (job?.dealType as (typeof DEAL_TYPES)[number]) || "Trade In"
   );
   const [picName, setPicName] = useState(job?.picName ?? "");
+  const [preparedBy, setPreparedBy] = useState(job?.preparedBy ?? "");
   const [model, setModel] = useState(job?.model ?? "");
   const [bikeYear, setBikeYear] = useState(job?.bikeYear ?? "");
   const [condition, setCondition] = useState<RestoreBikeCondition>(
@@ -325,6 +326,7 @@ export default function RepairJobForm({
       dealType,
       formDate,
       picName: picName.trim(),
+      preparedBy: preparedBy.trim(),
       model: model.trim(),
       bikeYear: bikeYear.trim(),
       condition: condition.trim(),
@@ -410,6 +412,16 @@ export default function RepairJobForm({
                 <option key={m.id} value={m.shortName} />
               ))}
             </datalist>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-neutral-600 mb-1.5">Prepare By</label>
+            <input
+              type="text"
+              value={preparedBy}
+              onChange={(e) => setPreparedBy(e.target.value)}
+              placeholder="Name of whoever prepared this quotation"
+              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+            />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>

@@ -2,17 +2,9 @@ import { notFound } from "next/navigation";
 import { requirePage } from "@/lib/current-user";
 import { getRepairJobById, getRestoreBikeImageUrls } from "@/lib/repairs-actions";
 import { formatDate } from "@/lib/format";
-import type { Branch } from "@/lib/branch";
 import PrintButton from "./PrintButton";
 
 export const dynamic = "force-dynamic";
-
-// Fixed per Jason — the PIC who prepares/signs this form at each branch.
-const PREPARE_BY_NAME: Record<Branch, string> = {
-  kapar: "TAUFIQ",
-  puncak_alam: "SK",
-  setia_alam: "PENG",
-};
 
 export default async function PrintRepairJobPage({ params }: { params: Promise<{ id: string }> }) {
   await requirePage("repairs");
@@ -150,7 +142,7 @@ export default async function PrintRepairJobPage({ params }: { params: Promise<{
 
         <div className="grid grid-cols-2 gap-4 mt-10 text-xs">
           <div>
-            <p className="font-semibold">PREPARE BY : {job.preparedBy || PREPARE_BY_NAME[job.branch]}</p>
+            <p className="font-semibold">PREPARE BY : {job.preparedBy || ""}</p>
           </div>
           <div>
             <p className="font-semibold mb-8">APPROVE/NOT APPROVE : {job.approvalStatus}</p>
