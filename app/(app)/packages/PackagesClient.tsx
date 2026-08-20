@@ -2,39 +2,31 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { Plus, Search, Download, Trash2 } from "lucide-react";
-import {
-  addPackageAction,
-  deletePackageAction,
-  addPackageSaleAction,
-  deletePackageSaleAction,
-  type PackageSaleWithNames,
-} from "@/lib/packages-actions";
+import { addPackageAction, deletePackageAction, deletePackageSaleAction, type PackageSaleWithNames } from "@/lib/packages-actions";
 import { exportPackageSalesCsv, exportAllBranchesPackageSalesCsv } from "@/lib/export-actions";
-import { formatCurrency, formatDate } from "@/lib/format";
-import { BRANCHES, branchLabel, type Branch, type BranchSelection } from "@/lib/branch";
-import type { Package, Mechanic } from "@/lib/types";
+import { formatDate } from "@/lib/format";
+import { branchLabel, type Branch, type BranchSelection } from "@/lib/branch";
+import type { Package } from "@/lib/types";
 
+// Sales are recorded from the Jobsheet form now (mirrors the GenBlu
+// toggle there) — this page is sales log + admin package management only,
+// no standalone "Record Sale" form of its own.
 export default function PackagesClient({
   packages,
   sales,
   soldCounts,
-  mechanics,
   branch,
   branchSelection,
-  locked,
   isAdmin,
 }: {
   packages: Package[];
   sales: PackageSaleWithNames[];
   soldCounts: Record<string, number>;
-  mechanics: Mechanic[];
   branch: Branch;
   branchSelection: BranchSelection;
-  locked: boolean;
   isAdmin: boolean;
 }) {
   const [addPackageOpen, setAddPackageOpen] = useState(false);
-  const [recordSaleOpen, setRecordSaleOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [exporting, setExporting] = useState(false);
 
@@ -74,12 +66,6 @@ export default function PackagesClient({
             <Plus size={15} /> Add Package
           </button>
         )}
-        <button
-          onClick={() => setRecordSaleOpen(true)}
-          className="flex items-center gap-1.5 bg-indigo-500 hover:bg-indigo-400 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
-        >
-          <Plus size={15} /> Record Sale
-        </button>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -148,15 +134,6 @@ export default function PackagesClient({
       </div>
 
       {addPackageOpen && <AddPackageModal onClose={() => setAddPackageOpen(false)} />}
-      {recordSaleOpen && (
-        <RecordSaleModal
-          branchSelection={branchSelection}
-          locked={locked}
-          packages={packages}
-          mechanics={mechanics}
-          onClose={() => setRecordSaleOpen(false)}
-        />
-      )}
     </div>
   );
 }
@@ -324,145 +301,6 @@ function AddPackageModal({ onClose }: { onClose: () => void }) {
             className="bg-indigo-500 hover:bg-indigo-400 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
           >
             Add Package
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function RecordSaleModal({
-  branchSelection,
-  locked,
-  packages,
-  mechanics,
-  onClose,
-}: {
-  branchSelection: BranchSelection;
-  locked: boolean;
-  packages: Package[];
-  mechanics: Mechanic[];
-  onClose: () => void;
-}) {
-  const [receiptId, setReceiptId] = useState("");
-  const [packageId, setPackageId] = useState(packages[0]?.id ?? "");
-  const [saleBranch, setSaleBranch] = useState<BranchSelection>(branchSelection);
-  const [mechanicId, setMechanicId] = useState("");
-  const [saleDate, setSaleDate] = useState(new Date().toISOString().slice(0, 10));
-  const [isPending, startTransition] = useTransition();
-
-  const branchMechanics = saleBranch === "all" ? mechanics : mechanics.filter((m) => m.branch === saleBranch);
-  const selectedMechanic = branchMechanics.find((m) => m.id === mechanicId) ?? null;
-  const effectiveBranch: Branch | null = saleBranch !== "all" ? saleBranch : (selectedMechanic?.branch ?? null);
-  const canSave = receiptId.trim() !== "" && packageId !== "" && effectiveBranch !== null;
-
-  function handleSave() {
-    if (!canSave || !effectiveBranch) return;
-    startTransition(async () => {
-      await addPackageSaleAction({
-        branch: effectiveBranch,
-        packageId,
-        mechanicId: mechanicId || null,
-        receiptId: receiptId.trim(),
-        saleDate,
-      });
-      onClose();
-    });
-  }
-
-  return (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 px-4">
-      <div className="bg-white border border-neutral-200 rounded-xl w-full max-w-sm p-6">
-        <h2 className="text-sm font-semibold text-neutral-900 mb-5">Record Package Sale</h2>
-        <div className="space-y-4">
-          <div>
-            <label className="block text-xs font-medium text-neutral-600 mb-1.5">Receipt ID *</label>
-            <input
-              type="text"
-              value={receiptId}
-              onChange={(e) => setReceiptId(e.target.value)}
-              placeholder="e.g. CSA030927"
-              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
-            />
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-neutral-600 mb-1.5">Package *</label>
-            <select
-              value={packageId}
-              onChange={(e) => setPackageId(e.target.value)}
-              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
-            >
-              {packages.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name} — {formatCurrency(p.price)}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-neutral-600 mb-1.5">Branch *</label>
-            <select
-              value={saleBranch}
-              disabled={locked}
-              onChange={(e) => {
-                setSaleBranch(e.target.value as BranchSelection);
-                setMechanicId("");
-              }}
-              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50 disabled:opacity-60"
-            >
-              {BRANCHES.map((b) => (
-                <option key={b.value} value={b.value}>
-                  {b.label}
-                </option>
-              ))}
-              {!locked && <option value="all">All Branches</option>}
-            </select>
-            {saleBranch === "all" && !selectedMechanic && (
-              <p className="text-xs text-amber-700 mt-1.5">Pick a mechanic below to set which branch this sale belongs to.</p>
-            )}
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-neutral-600 mb-1.5">Mechanic (Foreman)</label>
-            <select
-              value={mechanicId}
-              onChange={(e) => setMechanicId(e.target.value)}
-              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
-            >
-              <option value="">Unassigned</option>
-              {branchMechanics.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.shortName} ({m.shortCode})
-                  {saleBranch === "all" ? ` — ${branchLabel(m.branch)}` : ""}
-                </option>
-              ))}
-            </select>
-            {branchMechanics.length === 0 && (
-              <p className="text-xs text-neutral-500 mt-1">No mechanics added for this branch yet.</p>
-            )}
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-neutral-600 mb-1.5">Date</label>
-            <input
-              type="date"
-              value={saleDate}
-              onChange={(e) => setSaleDate(e.target.value)}
-              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
-            />
-          </div>
-        </div>
-        <div className="flex items-center justify-end gap-3 mt-6">
-          <button
-            onClick={onClose}
-            className="text-sm font-medium text-neutral-600 hover:text-neutral-800 px-4 py-2 transition-colors"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={handleSave}
-            disabled={!canSave || isPending}
-            className="bg-indigo-500 hover:bg-indigo-400 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
-          >
-            Record Sale
           </button>
         </div>
       </div>
