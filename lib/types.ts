@@ -59,10 +59,15 @@ export type WarrantyClaim = {
 
 export type JobType = "Restore Bike" | "Walk-in";
 export const JOB_TYPES: JobType[] = ["Restore Bike", "Walk-in"];
-export type RepairStatus = "Pending" | "In Progress" | "Completed";
-export const REPAIR_STATUSES: RepairStatus[] = ["Pending", "In Progress", "Completed"];
+// "QC" sits between a mechanic finishing the repair (End Date stamped) and
+// "Completed" — Restore Bike jobs land there first and need the branch
+// PIC to pass them before they're truly done. Walk-in jobs skip QC
+// entirely and go straight to Completed.
+export type RepairStatus = "Pending" | "In Progress" | "QC" | "Completed";
+export const REPAIR_STATUSES: RepairStatus[] = ["Pending", "In Progress", "QC", "Completed"];
 export type ApprovalStatus = "Pending" | "Approved" | "Not Approved";
 export const APPROVAL_STATUSES: ApprovalStatus[] = ["Pending", "Approved", "Not Approved"];
+export type QcResult = "Passed" | "Failed";
 
 export type RepairJobItem = {
   id: string;
@@ -131,6 +136,11 @@ export type RepairJob = {
   // field (Approved), not a separate date.
   arrivedDate: string | null;
   quotationDate: string | null;
+  // Restore Bike only — set once the branch PIC passes or fails QC.
+  // Passing moves the job to Completed; failing sends it back to In
+  // Progress (and clears both fields) for the mechanic to redo.
+  qcResult: QcResult | null;
+  qcDate: string | null;
 };
 
 export const RESTORE_BIKE_CONDITIONS = ["L", "H"] as const;

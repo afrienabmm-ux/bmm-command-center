@@ -3,6 +3,7 @@ import { requirePageContext, requirePage, getActiveBranchSelection, canViewAllBr
 import { getRepairJobById, getAllBranchesActiveRepairJobs } from "@/lib/repairs-actions";
 import { getAllMechanics } from "@/lib/mechanics-actions";
 import { getAllCatalogProducts } from "@/lib/catalog-actions";
+import { getPackages } from "@/lib/packages-actions";
 import PageHeader from "@/components/PageHeader";
 import WalkInJobForm from "../../WalkInJobForm";
 
@@ -13,12 +14,13 @@ export default async function EditWalkInJobPage({ params }: { params: Promise<{ 
   await requirePage("walk-in");
   const { id } = await params;
   const { user } = await requirePageContext();
-  const [job, branchSelection, allActiveJobs, mechanics, catalogProducts] = await Promise.all([
+  const [job, branchSelection, allActiveJobs, mechanics, catalogProducts, packages] = await Promise.all([
     getRepairJobById(id),
     getActiveBranchSelection(user),
     getAllBranchesActiveRepairJobs(),
     getAllMechanics(),
     getAllCatalogProducts(),
+    getPackages(),
   ]);
 
   if (!job) notFound();
@@ -34,6 +36,7 @@ export default async function EditWalkInJobPage({ params }: { params: Promise<{ 
           mechanics={mechanics}
           allActiveJobs={allActiveJobs}
           catalogProducts={catalogProducts}
+          packages={packages}
         />
       </div>
     </div>

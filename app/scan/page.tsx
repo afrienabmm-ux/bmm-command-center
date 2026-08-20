@@ -11,6 +11,7 @@ import {
 import { getAllBranchesActiveRepairJobs, getAllBranchesCompletedRepairJobs, getRepairJobById } from "@/lib/repairs-actions";
 import { getAllMechanics } from "@/lib/mechanics-actions";
 import { getAllCatalogProducts } from "@/lib/catalog-actions";
+import { getPackages } from "@/lib/packages-actions";
 import WalkInJobForm from "../(app)/repairs/walk-in/WalkInJobForm";
 import GenbluQuickForm, { type RecentJobsheetCustomer } from "./GenbluQuickForm";
 import JobsheetPicker from "./JobsheetPicker";
@@ -41,12 +42,13 @@ export default async function ScanPage({ searchParams }: { searchParams: Promise
   const { user: currentUser } = await requirePageContext();
   const { job: jobId } = await searchParams;
   const locked = !canViewAllBranches(currentUser);
-  const [branchSelection, allActiveJobs, completedJobs, mechanics, catalogProducts, editingJob] = await Promise.all([
+  const [branchSelection, allActiveJobs, completedJobs, mechanics, catalogProducts, packages, editingJob] = await Promise.all([
     getActiveBranchSelection(currentUser),
     getAllBranchesActiveRepairJobs(),
     getAllBranchesCompletedRepairJobs(),
     getAllMechanics(),
     getAllCatalogProducts(),
+    getPackages(),
     jobId ? getRepairJobById(jobId) : null,
   ]);
 
@@ -70,6 +72,7 @@ export default async function ScanPage({ searchParams }: { searchParams: Promise
         mechanics={mechanics}
         allActiveJobs={allActiveJobs}
         catalogProducts={catalogProducts}
+        packages={packages}
         preferCamera
         redirectTo="/scan"
       />

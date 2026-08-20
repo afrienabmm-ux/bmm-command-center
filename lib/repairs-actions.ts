@@ -4,7 +4,7 @@ import { cache } from "react";
 import { revalidatePath } from "next/cache";
 import { supabaseAdmin } from "./supabase-server";
 import { requireApproved, assertCanEditBranch } from "./current-user";
-import type { RepairJob, RepairJobItem, RepairStatus, JobType, ApprovalStatus } from "./types";
+import type { RepairJob, RepairJobItem, RepairStatus, JobType, ApprovalStatus, QcResult } from "./types";
 import { DEAL_TYPES } from "./types";
 import { BRANCHES, type Branch } from "./branch";
 
@@ -52,6 +52,8 @@ type Row = {
   image_path: string | null;
   arrived_date: string | null;
   quotation_date: string | null;
+  qc_result: QcResult | null;
+  qc_date: string | null;
   cc_repair_job_items: ItemRow[] | null;
 };
 
@@ -105,6 +107,8 @@ function toJob(r: Row): RepairJob {
     imagePath: r.image_path,
     arrivedDate: r.arrived_date,
     quotationDate: r.quotation_date,
+    qcResult: r.qc_result,
+    qcDate: r.qc_date,
   };
 }
 
@@ -135,11 +139,14 @@ async function assertMechanicAssignment(
     return { error: "This is a heavy repair job — it can only be assigned to a Heavy Repair mechanic." };
   }
 
+  // A job sitting in QC no longer needs the mechanic — their part of the
+  // work is done, so they're free for the next job while the PIC QCs this
+  // one.
   let busyQuery = supabaseAdmin
     .from("cc_repair_jobs")
     .select("id", { count: "exact", head: true })
     .eq("mechanic_id", mechanicId)
-    .neq("status", "Completed");
+    .not("status", "in", '("Completed","QC")');
   if (excludeJobId) busyQuery = busyQuery.neq("id", excludeJobId);
   const { count, error: busyError } = await busyQuery;
   if (busyError) return { error: busyError.message };
@@ -150,16 +157,17 @@ async function assertMechanicAssignment(
 
 const SELECT_WITH_ITEMS = "*, cc_repair_job_items(*)";
 
-// Completed jobs are excluded here so they automatically drop off the
-// active list as soon as they're marked Completed — no manual cleanup.
-// Memoized per request: the dashboard asks for the same branch's active
-// jobs twice (branch breakdown, then the overdue check).
+// Completed and QC jobs are excluded here so they automatically drop off
+// the active list — Completed because it's done, QC because it's now
+// waiting on the branch PIC rather than the mechanic. Memoized per
+// request: the dashboard asks for the same branch's active jobs twice
+// (branch breakdown, then the overdue check).
 const cachedActiveRepairJobs = cache(async (branch: Branch): Promise<RepairJob[]> => {
   const { data, error } = await supabaseAdmin
     .from("cc_repair_jobs")
     .select(SELECT_WITH_ITEMS)
     .eq("branch", branch)
-    .neq("status", "Completed")
+    .not("status", "in", '("Completed","QC")')
     .order("started_date", { ascending: false });
   if (error) throw new Error(error.message);
   return (data as unknown as Row[]).map(toJob);
@@ -196,6 +204,28 @@ export async function getAllBranchesCompletedRepairJobs(): Promise<RepairJob[]> 
   await requireApproved();
   const perBranch = await Promise.all(BRANCHES.map(({ value }) => getCompletedRepairJobs(value)));
   return perBranch.flat().sort((a, b) => (b.completedDate ?? "").localeCompare(a.completedDate ?? ""));
+}
+
+// Restore Bike jobs waiting on the branch PIC's QC pass/fail — the
+// mechanic's repair is done (completed_date is when that happened, and
+// doubles as when the QC clock starts).
+export async function getQcRepairJobs(branch: Branch): Promise<RepairJob[]> {
+  await requireApproved();
+  const { data, error } = await supabaseAdmin
+    .from("cc_repair_jobs")
+    .select(SELECT_WITH_ITEMS)
+    .eq("branch", branch)
+    .eq("status", "QC")
+    .order("completed_date", { ascending: false });
+  if (error) throw new Error(error.message);
+  return (data as unknown as Row[]).map(toJob);
+}
+
+// QC jobs across all 3 branches — for the "All Branches" view.
+export async function getAllBranchesQcRepairJobs(): Promise<RepairJob[]> {
+  await requireApproved();
+  const perBranch = await Promise.all(BRANCHES.map((b) => getQcRepairJobs(b.value)));
+  return perBranch.flat();
 }
 
 // Looked up by id alone (no branch filter) — used by the full-page edit
@@ -237,6 +267,35 @@ export async function getAllBranchesOverdueRestoreBikeJobs(): Promise<OverdueRes
       daysRunning: j.startedDate ? Math.floor((today.getTime() - new Date(j.startedDate).getTime()) / 86400000) : 0,
     }))
     .sort((a, b) => b.daysRunning - a.daysRunning);
+}
+
+// QC jobs that have been waiting more than 3 days since the repair
+// finished — the PIC's own overdue alert, same shape as the mechanics'
+// 5-day one above.
+export async function getOverdueQcJobs(branch: Branch): Promise<RepairJob[]> {
+  const qc = await getQcRepairJobs(branch);
+  const today = new Date();
+  return qc.filter((j) => {
+    if (!j.completedDate) return false;
+    const finished = new Date(j.completedDate);
+    const days = Math.floor((today.getTime() - finished.getTime()) / 86400000);
+    return days > 3;
+  });
+}
+
+export type OverdueQcJob = RepairJob & { daysWaiting: number };
+
+// Same overdue check, merged across all 3 branches for the Dashboard alert.
+export async function getAllBranchesOverdueQcJobs(): Promise<OverdueQcJob[]> {
+  const perBranch = await Promise.all(BRANCHES.map((b) => getOverdueQcJobs(b.value)));
+  const today = new Date();
+  return perBranch
+    .flat()
+    .map((j) => ({
+      ...j,
+      daysWaiting: j.completedDate ? Math.floor((today.getTime() - new Date(j.completedDate).getTime()) / 86400000) : 0,
+    }))
+    .sort((a, b) => b.daysWaiting - a.daysWaiting);
 }
 
 type ItemInput = { code?: string; description: string; quantity: number; price: number };
@@ -584,8 +643,11 @@ const WORKFLOW_STAGE_COLUMNS: Record<
 // open the full edit form. Clicking sets today's date; clicking an
 // already-stamped one clears it back to unset. "Started" is gated on the
 // job's existing Approval status (Approved) rather than a separate GM
-// stamp. "Completed" doesn't hard-block, but refuses to set a date if the
-// job hasn't started yet — the caller shows that as a warning.
+// stamp. "Completed" (really "repair finished") doesn't hard-block, but
+// refuses to set a date if the job hasn't started yet — the caller shows
+// that as a warning. It also doesn't mark the job Completed directly
+// anymore — it moves to QC, and setQcResultAction below is what finally
+// completes it (or sends it back) once the branch PIC signs off.
 // Returns { error } instead of throwing — a thrown Error from a Server
 // Action gets mangled into an unhelpful "Minified React error #441" on the
 // client in production builds, instead of surfacing the message. Returning
@@ -635,8 +697,29 @@ export async function setRestoreBikeWorkflowDateAction(
     update.status = value ? "In Progress" : "Pending";
   }
   if (stage === "completed") {
-    update.status = value ? "Completed" : existing?.started_date ? "In Progress" : "Pending";
+    update.status = value ? "QC" : existing?.started_date ? "In Progress" : "Pending";
   }
+
+  const { error } = await supabaseAdmin.from("cc_repair_jobs").update(update).eq("id", id);
+  if (error) return { error: error.message };
+  revalidatePath("/repairs");
+  revalidatePath("/");
+}
+
+// The branch PIC's QC call on a Restore Bike job sitting in the QC tab.
+// Passing moves it to Completed for good; failing sends it back to the
+// mechanic — clears the End Date and QC result so the job reappears in
+// Active exactly like it hadn't been finished yet, ready to be re-ended
+// once the rework is done.
+export async function setQcResultAction(id: string, branch: Branch, result: QcResult): Promise<{ error: string } | void> {
+  const user = await requireApproved();
+  assertCanEditBranch(user, branch);
+
+  const today = new Date().toISOString().slice(0, 10);
+  const update =
+    result === "Passed"
+      ? { status: "Completed", qc_result: "Passed", qc_date: today }
+      : { status: "In Progress", completed_date: null, qc_result: null, qc_date: null };
 
   const { error } = await supabaseAdmin.from("cc_repair_jobs").update(update).eq("id", id);
   if (error) return { error: error.message };

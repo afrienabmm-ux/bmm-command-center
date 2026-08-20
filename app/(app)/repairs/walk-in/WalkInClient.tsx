@@ -9,9 +9,12 @@ import type { Mechanic } from "@/lib/types";
 import { branchLabel, type Branch, type BranchSelection } from "@/lib/branch";
 import { formatCurrency, formatDate, daysBetween, toCsv } from "@/lib/format";
 
+// Walk-in jobs never enter QC (that's Restore Bike only), but the shared
+// RepairStatus type still includes it, so this map needs an entry too.
 const STATUS_STYLES: Record<RepairStatus, string> = {
   Pending: "bg-neutral-100 text-neutral-700 border-neutral-300",
   "In Progress": "bg-amber-500/10 text-amber-700 border-amber-500/20",
+  QC: "bg-sky-500/10 text-sky-700 border-sky-500/20",
   Completed: "bg-emerald-500/10 text-emerald-700 border-emerald-500/20",
 };
 

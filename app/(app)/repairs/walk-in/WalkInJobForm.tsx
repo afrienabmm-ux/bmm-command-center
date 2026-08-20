@@ -5,9 +5,10 @@ import { useRouter } from "next/navigation";
 import { Plus, Trash2, ScanLine, Upload } from "lucide-react";
 import { addRepairJobAction, updateRepairJobAction } from "@/lib/repairs-actions";
 import { checkGenbluRegisteredAction, ensureGenbluRegistrationAction } from "@/lib/genblu-actions";
+import { addPackageSaleAction } from "@/lib/packages-actions";
 import type { ScannedJobsheet } from "@/lib/jobsheet-actions";
 import type { RepairJob } from "@/lib/types";
-import type { Mechanic, CatalogProduct } from "@/lib/types";
+import type { Mechanic, CatalogProduct, Package } from "@/lib/types";
 import { BRANCHES, branchLabel, type Branch, type BranchSelection } from "@/lib/branch";
 import { formatCurrency } from "@/lib/format";
 import CatalogItemPicker from "@/components/CatalogItemPicker";
@@ -134,6 +135,7 @@ export default function WalkInJobForm({
   mechanics,
   allActiveJobs,
   catalogProducts,
+  packages,
   preferCamera = false,
   redirectTo = "/repairs/walk-in",
 }: {
@@ -143,6 +145,7 @@ export default function WalkInJobForm({
   mechanics: Mechanic[];
   allActiveJobs: RepairJob[];
   catalogProducts: CatalogProduct[];
+  packages: Package[];
   // Jumps the scan input straight to the camera instead of a file/gallery
   // picker — only set from the standalone phone scan page (/scan), where
   // "take a photo of the jobsheet" is the whole point of the page.
@@ -186,6 +189,9 @@ export default function WalkInJobForm({
   const [genbluCheckPending, setGenbluCheckPending] = useState(false);
   const [genbluScreenshot, setGenbluScreenshot] = useState<File | null>(null);
   const genbluFileInputRef = useRef<HTMLInputElement>(null);
+  const [wantsCombo, setWantsCombo] = useState(false);
+  const [comboPackageId, setComboPackageId] = useState(packages[0]?.id ?? "");
+  const [comboReceiptId, setComboReceiptId] = useState("");
   const [isPending, startTransition] = useTransition();
   const [isScanning, setIsScanning] = useState(false);
   const [scanError, setScanError] = useState<string | null>(null);
@@ -439,6 +445,10 @@ export default function WalkInJobForm({
       window.alert("Upload the customer's GenBlu screenshot before saving, or switch \"Customer has GenBlu?\" to No.");
       return;
     }
+    if (wantsCombo && (!comboPackageId || comboReceiptId.trim() === "")) {
+      window.alert("Pick a package and enter the receipt ID, or switch \"Services Combo sold?\" to No.");
+      return;
+    }
     const cleanItems = items
       .filter((it) => it.description.trim() !== "")
       .map((it) => ({
@@ -515,6 +525,20 @@ export default function WalkInJobForm({
         if ("error" in result) {
           window.alert(result.error);
           return;
+        }
+      }
+
+      if (wantsCombo && comboPackageId) {
+        try {
+          await addPackageSaleAction({
+            branch: effectiveBranch,
+            packageId: comboPackageId,
+            mechanicId: mechanicId || null,
+            receiptId: comboReceiptId.trim(),
+            saleDate: startedDate,
+          });
+        } catch {
+          // Non-fatal — the job is already saved either way.
         }
       }
 
@@ -914,6 +938,62 @@ export default function WalkInJobForm({
                   </div>
                 )}
               </>
+            )}
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-neutral-600 mb-1.5">Services Combo sold?</label>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setWantsCombo(true)}
+                className={`px-4 py-2 rounded-lg text-sm font-medium border transition-colors ${
+                  wantsCombo
+                    ? "bg-indigo-500 border-indigo-500 text-white"
+                    : "bg-neutral-50 border-neutral-200 text-neutral-600 hover:border-indigo-500/50"
+                }`}
+              >
+                Yes
+              </button>
+              <button
+                type="button"
+                onClick={() => setWantsCombo(false)}
+                className={`px-4 py-2 rounded-lg text-sm font-medium border transition-colors ${
+                  !wantsCombo
+                    ? "bg-indigo-500 border-indigo-500 text-white"
+                    : "bg-neutral-50 border-neutral-200 text-neutral-600 hover:border-indigo-500/50"
+                }`}
+              >
+                No
+              </button>
+            </div>
+            {wantsCombo && (
+              <div className="mt-2 grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-neutral-600 mb-1.5">Package *</label>
+                  <select
+                    value={comboPackageId}
+                    onChange={(e) => setComboPackageId(e.target.value)}
+                    className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+                  >
+                    {packages.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.name} — {formatCurrency(p.price)}
+                      </option>
+                    ))}
+                  </select>
+                  {packages.length === 0 && <p className="text-xs text-neutral-500 mt-1">No packages set up yet.</p>}
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-neutral-600 mb-1.5">Receipt ID *</label>
+                  <input
+                    type="text"
+                    value={comboReceiptId}
+                    onChange={(e) => setComboReceiptId(e.target.value)}
+                    placeholder="e.g. CSA030927"
+                    className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+                  />
+                </div>
+              </div>
             )}
           </div>
         </div>

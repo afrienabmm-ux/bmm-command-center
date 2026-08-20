@@ -6,7 +6,7 @@ import StatCard from "@/components/StatCard";
 import CombinedTargetEditor from "./CombinedTargetEditor";
 import BranchBreakdownTable, { getBranchBreakdown, getAllBranchesAchievedTotal } from "./BranchBreakdownTable";
 import MonthlyTrends from "./MonthlyTrends";
-import { getAllBranchesOverdueRestoreBikeJobs, getAllBranchesActiveRepairJobs } from "@/lib/repairs-actions";
+import { getAllBranchesOverdueRestoreBikeJobs, getAllBranchesOverdueQcJobs, getAllBranchesActiveRepairJobs } from "@/lib/repairs-actions";
 import { getMonthlyTrends } from "@/lib/trends-actions";
 import { getRevenuePace } from "@/lib/revenue-pace-actions";
 import RevenuePace from "./RevenuePace";
@@ -27,6 +27,7 @@ export default async function AllBranchesOverview({ year, month }: { year: numbe
   const [
     rows,
     overdueJobs,
+    overdueQcJobs,
     prevAchieved,
     trendPoints,
     revenuePace,
@@ -37,6 +38,7 @@ export default async function AllBranchesOverview({ year, month }: { year: numbe
   ] = await Promise.all([
     getBranchBreakdown(year, month),
     getAllBranchesOverdueRestoreBikeJobs(),
+    getAllBranchesOverdueQcJobs(),
     getAllBranchesAchievedTotal(prev.year, prev.month),
     getMonthlyTrends(year, month, 6),
     getRevenuePace(year, month),
@@ -147,6 +149,32 @@ export default async function AllBranchesOverview({ year, month }: { year: numbe
                   .map((j) => `${j.plateNo} (${j.daysRunning}d)`)
                   .join(", ")}
                 {overdueJobs.length > 6 ? `, +${overdueJobs.length - 6} more` : ""}
+              </p>
+            </div>
+          </div>
+        </Link>
+      )}
+
+      {overdueQcJobs.length > 0 && (
+        <Link
+          href="/repairs"
+          className="block bg-red-50 border border-red-200 rounded-xl p-5 hover:border-red-300 transition-colors"
+        >
+          <div className="flex items-start gap-3">
+            <div className="w-9 h-9 rounded-lg bg-red-500/10 flex items-center justify-center shrink-0">
+              <AlertTriangle size={17} className="text-red-600" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-red-700">
+                {overdueQcJobs.length} job{overdueQcJobs.length === 1 ? "" : "s"} waiting on QC past 3 days — check
+                with the branch PIC
+              </p>
+              <p className="text-xs text-red-600 mt-1">
+                {overdueQcJobs
+                  .slice(0, 6)
+                  .map((j) => `${j.plateNo} — ${j.picName || "no PIC"} (${j.daysWaiting}d)`)
+                  .join(", ")}
+                {overdueQcJobs.length > 6 ? `, +${overdueQcJobs.length - 6} more` : ""}
               </p>
             </div>
           </div>

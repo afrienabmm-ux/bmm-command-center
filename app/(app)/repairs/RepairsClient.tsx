@@ -7,6 +7,7 @@ import { Plus, Download, Pencil, AlertTriangle, Search, Check, Trash2, Printer }
 import {
   updateRepairApprovalAction,
   setRestoreBikeWorkflowDateAction,
+  setQcResultAction,
   deleteRepairJobAction,
   quickAddRestoreBikeArrivalAction,
 } from "@/lib/repairs-actions";
@@ -15,6 +16,7 @@ import {
   isHeavyRepairJob,
   type RepairStatus,
   type ApprovalStatus,
+  type QcResult,
   type RepairJob,
 } from "@/lib/types";
 import type { Mechanic } from "@/lib/types";
@@ -24,6 +26,7 @@ import { formatCurrency, formatDate, daysBetween, toCsv } from "@/lib/format";
 const STATUS_STYLES: Record<RepairStatus, string> = {
   Pending: "bg-neutral-100 text-neutral-700 border-neutral-300",
   "In Progress": "bg-amber-500/10 text-amber-700 border-amber-500/20",
+  QC: "bg-sky-500/10 text-sky-700 border-sky-500/20",
   Completed: "bg-emerald-500/10 text-emerald-700 border-emerald-500/20",
 };
 
@@ -34,11 +37,17 @@ const APPROVAL_STYLES: Record<ApprovalStatus, string> = {
 };
 
 const OVERDUE_DAYS = 5;
+const QC_OVERDUE_DAYS = 3;
 
 function isOverdue(job: RepairJob): boolean {
   if (job.status === "Completed") return false;
   const days = daysBetween(job.startedDate, new Date().toISOString().slice(0, 10));
   return (days ?? 0) > OVERDUE_DAYS;
+}
+
+function isQcOverdue(job: RepairJob): boolean {
+  const days = daysBetween(job.completedDate, new Date().toISOString().slice(0, 10));
+  return (days ?? 0) > QC_OVERDUE_DAYS;
 }
 
 // Replaces the old blank "+ Add Job" button: stamps today as the arrival
@@ -68,26 +77,24 @@ function BikeArrivedButton({ branch }: { branch: Branch }) {
 
 export default function RepairsClient({
   active,
+  qc,
   completed,
   mechanics,
   branchSelection,
 }: {
   active: RepairJob[];
+  qc: RepairJob[];
   completed: RepairJob[];
   mechanics: Mechanic[];
   branchSelection: BranchSelection;
 }) {
-  const [tab, setTab] = useState<"active" | "completed">("active");
-  const [loadFilter, setLoadFilter] = useState<"All" | "Heavy Repair" | "Normal Repair">("All");
+  const [tab, setTab] = useState<"active" | "qc" | "completed">("active");
   const [exportJobModalOpen, setExportJobModalOpen] = useState(false);
   const [exportRestoreModalOpen, setExportRestoreModalOpen] = useState(false);
-  const baseJobs = tab === "active" ? active : completed;
-  const jobs =
-    loadFilter === "All"
-      ? baseJobs
-      : baseJobs.filter((j) => (loadFilter === "Heavy Repair" ? isHeavyRepairJob(j) : !isHeavyRepairJob(j)));
+  const jobs = tab === "active" ? active : tab === "qc" ? qc : completed;
   const overdueCount = active.filter(isOverdue).length;
-  const allJobs = useMemo(() => [...active, ...completed], [active, completed]);
+  const overdueQcCount = qc.filter(isQcOverdue).length;
+  const allJobs = useMemo(() => [...active, ...qc, ...completed], [active, qc, completed]);
   const showBranchColumn = branchSelection === "all";
   const quickAddBranch: Branch | null = branchSelection === "all" ? null : branchSelection;
 
@@ -186,6 +193,17 @@ export default function RepairsClient({
         </div>
       )}
 
+      {overdueQcCount > 0 && (
+        <div className="flex items-center gap-3 bg-red-50 border border-red-200 rounded-xl p-4 mb-4">
+          <div className="w-9 h-9 rounded-lg bg-red-500/10 flex items-center justify-center shrink-0">
+            <AlertTriangle size={17} className="text-red-600" />
+          </div>
+          <p className="text-sm font-semibold text-red-700">
+            {overdueQcCount} job{overdueQcCount === 1 ? "" : "s"} waiting on QC past {QC_OVERDUE_DAYS} days — check the QC tab
+          </p>
+        </div>
+      )}
+
       <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
         <div className="flex gap-1 bg-white border border-neutral-200 rounded-lg p-1">
           <button
@@ -195,6 +213,14 @@ export default function RepairsClient({
             }`}
           >
             Active ({active.length})
+          </button>
+          <button
+            onClick={() => setTab("qc")}
+            className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors whitespace-nowrap ${
+              tab === "qc" ? "bg-indigo-500 text-white" : "text-neutral-600 hover:text-neutral-800"
+            }`}
+          >
+            QC ({qc.length}){overdueQcCount > 0 && tab !== "qc" && <span className="ml-1 text-red-600">●</span>}
           </button>
           <button
             onClick={() => setTab("completed")}
@@ -233,23 +259,6 @@ export default function RepairsClient({
         </div>
       </div>
 
-      <div className="flex items-center gap-2 mb-4 flex-wrap">
-        <span className="text-xs font-medium text-neutral-500">Load:</span>
-        <div className="flex gap-1 bg-white border border-neutral-200 rounded-lg p-1">
-          {(["All", "Heavy Repair", "Normal Repair"] as const).map((l) => (
-            <button
-              key={l}
-              onClick={() => setLoadFilter(l)}
-              className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors whitespace-nowrap ${
-                loadFilter === l ? "bg-indigo-500 text-white" : "text-neutral-600 hover:text-neutral-800"
-              }`}
-            >
-              {l === "All" ? "All" : l}
-            </button>
-          ))}
-        </div>
-      </div>
-
       <div className="bg-white border border-neutral-200 rounded-xl overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
@@ -265,7 +274,6 @@ export default function RepairsClient({
                 <th className="font-medium px-5 py-3 whitespace-nowrap">Tahun</th>
                 <th className="font-medium px-5 py-3 whitespace-nowrap">Condition</th>
                 <th className="font-medium px-5 py-3 whitespace-nowrap">Mechanic</th>
-                <th className="font-medium px-5 py-3 whitespace-nowrap">Location</th>
                 <th className="font-medium px-5 py-3 whitespace-nowrap">Approval</th>
                 <th className="font-medium px-5 py-3 whitespace-nowrap">Stock Order</th>
                 <th className="font-medium px-5 py-3 whitespace-nowrap">Stock Arrive</th>
@@ -274,6 +282,7 @@ export default function RepairsClient({
                 <th className="font-medium px-5 py-3 whitespace-nowrap">Cost Restore</th>
                 <th className="font-medium px-5 py-3 whitespace-nowrap">Trade In / Tarik</th>
                 <th className="font-medium px-5 py-3 whitespace-nowrap">Status</th>
+                {tab === "qc" && <th className="font-medium px-5 py-3 whitespace-nowrap">QC Result</th>}
                 <th className="px-5 py-3" />
               </tr>
             </thead>
@@ -286,12 +295,16 @@ export default function RepairsClient({
                   showBranch={showBranchColumn}
                   mechanicLabel={mechanicLabel(job.mechanicId)}
                   editable={tab === "active"}
+                  showQc={tab === "qc"}
                 />
               ))}
               {jobs.length === 0 && (
                 <tr>
-                  <td colSpan={showBranchColumn ? 20 : 19} className="px-5 py-10 text-center text-neutral-500 text-sm">
-                    {tab === "active" ? "No active" : "No completed"} Restore Bike jobs.
+                  <td
+                    colSpan={(showBranchColumn ? 19 : 18) + (tab === "qc" ? 1 : 0)}
+                    className="px-5 py-10 text-center text-neutral-500 text-sm"
+                  >
+                    {tab === "active" ? "No active" : tab === "qc" ? "No jobs waiting on QC" : "No completed"} Restore Bike jobs.
                   </td>
                 </tr>
               )}
@@ -474,6 +487,35 @@ function ExportJobModal({
 // stamps (see setRestoreBikeWorkflowDateAction), so this is read-only.
 function StatusCell({ status }: { status: RepairStatus }) {
   return <span className={`text-xs font-medium px-2.5 py-1 rounded-full border ${STATUS_STYLES[status]}`}>{status}</span>;
+}
+
+// Pass sends the job straight to Completed; Fail sends it back to Active
+// (clearing the End Date) so the mechanic can redo it — the server handles
+// both transitions in setQcResultAction. Picking the current placeholder
+// option again is a no-op since there's nothing to select back to.
+function QcResultCell({ job }: { job: RepairJob }) {
+  const [isPending, startTransition] = useTransition();
+  function handleChange(value: string) {
+    if (value !== "Passed" && value !== "Failed") return;
+    startTransition(async () => {
+      const result = await setQcResultAction(job.id, job.branch, value as QcResult);
+      if (result && "error" in result) window.alert(result.error);
+    });
+  }
+  return (
+    <select
+      value=""
+      onChange={(e) => handleChange(e.target.value)}
+      disabled={isPending}
+      className="text-xs font-medium bg-white border border-neutral-200 rounded-lg px-2.5 py-1.5 disabled:opacity-50"
+    >
+      <option value="" disabled>
+        Pass or fail?
+      </option>
+      <option value="Passed">Pass</option>
+      <option value="Failed">Fail</option>
+    </select>
+  );
 }
 
 // Click-to-cycle through Pending -> Approved -> Not Approved -> Pending,
@@ -666,12 +708,14 @@ function RestoreBikeRow({
   showBranch,
   mechanicLabel,
   editable,
+  showQc,
 }: {
   no: number;
   job: RepairJob;
   showBranch: boolean;
   mechanicLabel: string;
   editable: boolean;
+  showQc: boolean;
 }) {
   const [isPending, startTransition] = useTransition();
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -711,7 +755,6 @@ function RestoreBikeRow({
           )}
         </span>
       </td>
-      <td className="px-5 py-3.5 text-neutral-600 whitespace-nowrap">{job.location || "—"}</td>
       <td className="px-5 py-3.5">
         <ApprovalCell job={job} branch={job.branch} />
       </td>
@@ -735,6 +778,11 @@ function RestoreBikeRow({
       <td className="px-5 py-3.5">
         <StatusCell status={job.status} />
       </td>
+      {showQc && (
+        <td className="px-5 py-3.5">
+          <QcResultCell job={job} />
+        </td>
+      )}
       <td className="px-5 py-3.5">
         <div className="flex items-center gap-1">
           <Link

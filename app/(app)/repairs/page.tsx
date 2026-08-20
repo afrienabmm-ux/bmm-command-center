@@ -1,5 +1,12 @@
 import { requirePageContext, requirePage, getActiveBranchSelection } from "@/lib/current-user";
-import { getActiveRepairJobs, getCompletedRepairJobs, getAllBranchesActiveRepairJobs, getAllBranchesCompletedRepairJobs } from "@/lib/repairs-actions";
+import {
+  getActiveRepairJobs,
+  getQcRepairJobs,
+  getCompletedRepairJobs,
+  getAllBranchesActiveRepairJobs,
+  getAllBranchesQcRepairJobs,
+  getAllBranchesCompletedRepairJobs,
+} from "@/lib/repairs-actions";
 import { getAllMechanics } from "@/lib/mechanics-actions";
 import { branchLabel } from "@/lib/branch";
 import PageHeader from "@/components/PageHeader";
@@ -13,12 +20,14 @@ export default async function RepairsPage() {
   const branchSelection = await getActiveBranchSelection(user);
   const showAllBranches = branchSelection === "all";
 
-  const [allActive, allCompleted, mechanics] = await Promise.all([
+  const [allActive, allQc, allCompleted, mechanics] = await Promise.all([
     showAllBranches ? getAllBranchesActiveRepairJobs() : getActiveRepairJobs(branch),
+    showAllBranches ? getAllBranchesQcRepairJobs() : getQcRepairJobs(branch),
     showAllBranches ? getAllBranchesCompletedRepairJobs() : getCompletedRepairJobs(branch),
     getAllMechanics(),
   ]);
   const active = allActive.filter((j) => j.jobType === "Restore Bike");
+  const qc = allQc.filter((j) => j.jobType === "Restore Bike");
   const completed = allCompleted.filter((j) => j.jobType === "Restore Bike");
 
   return (
@@ -28,7 +37,7 @@ export default async function RepairsPage() {
         subtitle={`${showAllBranches ? "All Branches" : branchLabel(branch)} — ${active.length} active job${active.length === 1 ? "" : "s"}`}
       />
       <div className="p-8">
-        <RepairsClient active={active} completed={completed} mechanics={mechanics} branchSelection={branchSelection} />
+        <RepairsClient active={active} qc={qc} completed={completed} mechanics={mechanics} branchSelection={branchSelection} />
       </div>
     </div>
   );
