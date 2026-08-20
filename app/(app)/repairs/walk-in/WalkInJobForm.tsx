@@ -459,6 +459,7 @@ export default function WalkInJobForm({
       }));
 
     const payload = {
+      jobType: "Walk-in" as const,
       customerCode: customerCode.trim(),
       customerName: customerName.trim(),
       plateNo: plateNo.trim(),

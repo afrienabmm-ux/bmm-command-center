@@ -3,7 +3,7 @@
 import { cache } from "react";
 import { revalidatePath } from "next/cache";
 import { supabaseAdmin } from "./supabase-server";
-import { requireApproved, assertCanEditBranch } from "./current-user";
+import { requireApproved, requireManagement, assertCanEditBranch } from "./current-user";
 import type { RepairJob, RepairJobItem, RepairStatus, JobType, ApprovalStatus, QcResult } from "./types";
 import { DEAL_TYPES } from "./types";
 import { BRANCHES, type Branch } from "./branch";
@@ -112,11 +112,15 @@ function toJob(r: Row): RepairJob {
   };
 }
 
-// Every job needs a mechanic assigned, a mechanic can only carry one active
-// (non-Completed) job at a time, and heavy jobs (manually flagged as a big
-// item via the "Big / heavy item repair" checkbox) can only go to mechanics
-// in the "Heavy Repair" category. Enforced server-side so it can't be
-// bypassed even if the UI's own filtering is stale.
+// Walk-in jobs still need a mechanic picked up front; Restore Bike jobs
+// don't — they start in the Main Listing with just the bike's details,
+// and get a mechanic later via the Restore Bike tab's Assign button.
+// Whenever a mechanic IS provided, though, the same rules apply either
+// way: a mechanic can only carry one active (non-Completed, non-QC) job
+// at a time, and heavy jobs (manually flagged as a big item via the "Big
+// / heavy item repair" checkbox) can only go to mechanics in the "Heavy
+// Repair" category. Enforced server-side so it can't be bypassed even if
+// the UI's own filtering is stale.
 //
 // Returns { error } instead of throwing — a thrown Error from a Server
 // Action gets mangled into an unhelpful "Minified React error #441" on the
@@ -124,9 +128,13 @@ function toJob(r: Row): RepairJob {
 async function assertMechanicAssignment(
   mechanicId: string | null,
   isBigItem: boolean,
-  excludeJobId?: string
+  excludeJobId?: string,
+  required = true
 ): Promise<{ error: string } | void> {
-  if (!mechanicId) return { error: "A mechanic must be assigned to this job." };
+  if (!mechanicId) {
+    if (required) return { error: "A mechanic must be assigned to this job." };
+    return;
+  }
 
   const { data: mechanic, error: mechError } = await supabaseAdmin
     .from("cc_mechanics")
@@ -267,6 +275,15 @@ export async function getAllBranchesOverdueRestoreBikeJobs(): Promise<OverdueRes
       daysRunning: j.startedDate ? Math.floor((today.getTime() - new Date(j.startedDate).getTime()) / 86400000) : 0,
     }))
     .sort((a, b) => b.daysRunning - a.daysRunning);
+}
+
+// Restore Bike jobs sitting at Pending approval — the GM's own to-do
+// list. Any active job counts, whether or not a mechanic's been assigned
+// yet, since approval is what unblocks the Start button either way.
+export async function getAllBranchesPendingApprovalJobs(): Promise<RepairJob[]> {
+  await requireApproved();
+  const active = await getAllBranchesActiveRepairJobs();
+  return active.filter((j) => j.jobType === "Restore Bike" && j.approvalStatus === "Pending");
 }
 
 // QC jobs that have been waiting more than 3 days since the repair
@@ -449,7 +466,12 @@ export async function addRepairJobAction(input: {
   const user = await requireApproved();
   assertCanEditBranch(user, input.branch);
   const items = input.items ?? [];
-  const assignmentCheck = await assertMechanicAssignment(input.mechanicId, input.isBigItem ?? false);
+  const assignmentCheck = await assertMechanicAssignment(
+    input.mechanicId,
+    input.isBigItem ?? false,
+    undefined,
+    input.jobType !== "Restore Bike"
+  );
   if (assignmentCheck && "error" in assignmentCheck) return assignmentCheck;
 
   const { count } = await supabaseAdmin
@@ -518,6 +540,9 @@ export async function updateRepairJobAction(
   id: string,
   branch: Branch,
   input: {
+    // Whether a mechanic is required before saving depends on job type —
+    // see assertMechanicAssignment.
+    jobType: JobType;
     customerName: string;
     plateNo: string;
     mechanicId: string | null;
@@ -561,7 +586,12 @@ export async function updateRepairJobAction(
   const user = await requireApproved();
   assertCanEditBranch(user, branch);
   const items = input.items ?? [];
-  const assignmentCheck = await assertMechanicAssignment(input.mechanicId, input.isBigItem ?? false, id);
+  const assignmentCheck = await assertMechanicAssignment(
+    input.mechanicId,
+    input.isBigItem ?? false,
+    id,
+    input.jobType !== "Restore Bike"
+  );
   if (assignmentCheck && "error" in assignmentCheck) return assignmentCheck;
   const revenueAmount = items.length > 0 ? itemsTotal(items) : input.revenueAmount;
 
@@ -617,13 +647,18 @@ export async function updateRepairJobAction(
   revalidatePath("/");
 }
 
-export async function updateRepairApprovalAction(id: string, branch: Branch, approvalStatus: ApprovalStatus): Promise<void> {
-  const user = await requireApproved();
-  assertCanEditBranch(user, branch);
+// GM approval only — a branch PIC can see the status but not set it
+// themselves, since "the repair start is gated on GM approval" only means
+// something if the PIC can't just approve their own job. Not branch-locked
+// like most other actions here — a Management approval isn't scoped to
+// one branch.
+export async function updateRepairApprovalAction(id: string, approvalStatus: ApprovalStatus): Promise<void> {
+  await requireManagement();
   const { error } = await supabaseAdmin.from("cc_repair_jobs").update({ approval_status: approvalStatus }).eq("id", id);
   if (error) throw new Error(error.message);
   revalidatePath("/repairs");
   revalidatePath("/repairs/walk-in");
+  revalidatePath("/");
 }
 
 export type RestoreBikeWorkflowStage = "quotation" | "stockOrder" | "stockArrive" | "started" | "completed";
@@ -701,6 +736,27 @@ export async function setRestoreBikeWorkflowDateAction(
   }
 
   const { error } = await supabaseAdmin.from("cc_repair_jobs").update(update).eq("id", id);
+  if (error) return { error: error.message };
+  revalidatePath("/repairs");
+  revalidatePath("/");
+}
+
+// The Assign button on the Restore Bike list — picks a mechanic for a job
+// that was added via Main Listing without one. Same busy/heavy-repair
+// rules as everywhere else a mechanic gets set (assertMechanicAssignment),
+// just as its own lightweight action instead of going through the full
+// edit form.
+export async function assignMechanicAction(id: string, branch: Branch, mechanicId: string): Promise<{ error: string } | void> {
+  const user = await requireApproved();
+  assertCanEditBranch(user, branch);
+
+  const { data: job, error: fetchError } = await supabaseAdmin.from("cc_repair_jobs").select("is_big_item").eq("id", id).single();
+  if (fetchError) return { error: fetchError.message };
+
+  const assignmentCheck = await assertMechanicAssignment(mechanicId, job.is_big_item, id);
+  if (assignmentCheck && "error" in assignmentCheck) return assignmentCheck;
+
+  const { error } = await supabaseAdmin.from("cc_repair_jobs").update({ mechanic_id: mechanicId }).eq("id", id);
   if (error) return { error: error.message };
   revalidatePath("/repairs");
   revalidatePath("/");

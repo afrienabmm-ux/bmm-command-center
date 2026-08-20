@@ -6,7 +6,12 @@ import StatCard from "@/components/StatCard";
 import CombinedTargetEditor from "./CombinedTargetEditor";
 import BranchBreakdownTable, { getBranchBreakdown, getAllBranchesAchievedTotal } from "./BranchBreakdownTable";
 import MonthlyTrends from "./MonthlyTrends";
-import { getAllBranchesOverdueRestoreBikeJobs, getAllBranchesOverdueQcJobs, getAllBranchesActiveRepairJobs } from "@/lib/repairs-actions";
+import {
+  getAllBranchesOverdueRestoreBikeJobs,
+  getAllBranchesOverdueQcJobs,
+  getAllBranchesActiveRepairJobs,
+  getAllBranchesPendingApprovalJobs,
+} from "@/lib/repairs-actions";
 import { getMonthlyTrends } from "@/lib/trends-actions";
 import { getRevenuePace } from "@/lib/revenue-pace-actions";
 import RevenuePace from "./RevenuePace";
@@ -18,7 +23,15 @@ function previousMonth(year: number, month: number): { year: number; month: numb
   return month === 1 ? { year: year - 1, month: 12 } : { year, month: month - 1 };
 }
 
-export default async function AllBranchesOverview({ year, month }: { year: number; month: number }) {
+export default async function AllBranchesOverview({
+  year,
+  month,
+  isManagement,
+}: {
+  year: number;
+  month: number;
+  isManagement: boolean;
+}) {
   const prev = previousMonth(year, month);
   // Fetched together (rather than each as its own async Server Component
   // further down the tree) so they run as one wave of parallel queries
@@ -28,6 +41,7 @@ export default async function AllBranchesOverview({ year, month }: { year: numbe
     rows,
     overdueJobs,
     overdueQcJobs,
+    pendingApprovalJobs,
     prevAchieved,
     trendPoints,
     revenuePace,
@@ -39,6 +53,7 @@ export default async function AllBranchesOverview({ year, month }: { year: numbe
     getBranchBreakdown(year, month),
     getAllBranchesOverdueRestoreBikeJobs(),
     getAllBranchesOverdueQcJobs(),
+    isManagement ? getAllBranchesPendingApprovalJobs() : Promise.resolve([]),
     getAllBranchesAchievedTotal(prev.year, prev.month),
     getMonthlyTrends(year, month, 6),
     getRevenuePace(year, month),
@@ -117,6 +132,33 @@ export default async function AllBranchesOverview({ year, month }: { year: numbe
           <div className="h-full bg-indigo-500 transition-all" style={{ width: `${pct}%` }} />
         </div>
       </div>
+
+      {isManagement && pendingApprovalJobs.length > 0 && (
+        <Link
+          href="/repairs"
+          className="block bg-indigo-50 border border-indigo-200 rounded-xl p-5 hover:border-indigo-300 transition-colors"
+        >
+          <div className="flex items-start gap-3">
+            <div className="w-9 h-9 rounded-lg bg-indigo-500/10 flex items-center justify-center shrink-0">
+              <ShieldCheck size={17} className="text-indigo-600" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-indigo-700">
+                {pendingApprovalJobs.length} Restore Bike job{pendingApprovalJobs.length === 1 ? "" : "s"} waiting on your
+                approval
+              </p>
+              <p className="text-xs text-indigo-600 mt-1">
+                {pendingApprovalJobs
+                  .slice(0, 6)
+                  .map((j) => j.plateNo)
+                  .join(", ")}
+                {pendingApprovalJobs.length > 6 ? `, +${pendingApprovalJobs.length - 6} more` : ""} — the PIC can't
+                start repair until you approve.
+              </p>
+            </div>
+          </div>
+        </Link>
+      )}
 
       <IdleMechanicsNotice mechanics={idleMechanics} />
 

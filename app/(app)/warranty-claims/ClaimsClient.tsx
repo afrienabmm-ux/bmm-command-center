@@ -147,7 +147,7 @@ export default function ClaimsClient({
             onChange={(e) => setBikeMakeFilter(e.target.value as BikeMake | "All")}
             className="bg-white border border-neutral-200 rounded-lg px-3 py-2 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
           >
-            <option value="All">Yamaha + Non-Yamaha</option>
+            <option value="All">View All</option>
             {BIKE_MAKES.map((m) => (
               <option key={m} value={m}>
                 {m}

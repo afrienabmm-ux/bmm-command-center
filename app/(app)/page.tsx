@@ -14,7 +14,7 @@ export default async function CommandCenterPage({
 }: {
   searchParams: Promise<{ year?: string; month?: string }>;
 }) {
-  await requireApproved();
+  const user = await requireApproved();
   const params = await searchParams;
   const now = new Date();
   const year = params.year ? Number(params.year) : now.getFullYear();
@@ -28,7 +28,7 @@ export default async function CommandCenterPage({
         action={<MonthPicker year={year} month={month} />}
       />
       <div className="p-8">
-        <AllBranchesOverview year={year} month={month} />
+        <AllBranchesOverview year={year} month={month} isManagement={user.role === "Management"} />
       </div>
     </div>
   );

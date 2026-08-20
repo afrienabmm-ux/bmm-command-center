@@ -37,7 +37,14 @@ export default async function RepairsPage() {
         subtitle={`${showAllBranches ? "All Branches" : branchLabel(branch)} — ${active.length} active job${active.length === 1 ? "" : "s"}`}
       />
       <div className="p-8">
-        <RepairsClient active={active} qc={qc} completed={completed} mechanics={mechanics} branchSelection={branchSelection} />
+        <RepairsClient
+          active={active}
+          qc={qc}
+          completed={completed}
+          mechanics={mechanics}
+          branchSelection={branchSelection}
+          isManagement={user.role === "Management"}
+        />
       </div>
     </div>
   );

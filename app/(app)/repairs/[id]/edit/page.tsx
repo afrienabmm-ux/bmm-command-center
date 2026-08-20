@@ -26,7 +26,7 @@ export default async function EditRepairJobPage({ params }: { params: Promise<{ 
 
   return (
     <div className="flex flex-col h-full">
-      <PageHeader title="Edit Restore Bike Job" subtitle={`${job.jobNo} — ${job.plateNo}`} />
+      <PageHeader title="Main Listing" subtitle={`${job.jobNo} — ${job.plateNo}`} />
       <div className="p-8">
         <RepairJobForm
           job={job}

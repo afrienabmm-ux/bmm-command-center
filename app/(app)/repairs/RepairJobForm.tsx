@@ -265,10 +265,6 @@ export default function RepairJobForm({
       scrollToField(plateNoRef.current);
       return;
     }
-    if (mechanicId === "") {
-      scrollToField(mechanicRef.current);
-      return;
-    }
     if (!hasImage) {
       setImageError("A photo of the bike is required.");
       scrollToField(imageRef.current);
@@ -286,6 +282,7 @@ export default function RepairJobForm({
       }));
 
     const payload = {
+      jobType: "Restore Bike" as const,
       customerName: "",
       plateNo: plateNo.trim(),
       mechanicId: mechanicId || null,
@@ -471,16 +468,14 @@ export default function RepairJobForm({
             )}
           </div>
           <div>
-            <label className="block text-xs font-medium text-neutral-600 mb-1.5">Mechanic *</label>
+            <label className="block text-xs font-medium text-neutral-600 mb-1.5">Mechanic</label>
             <select
               ref={mechanicRef}
               value={mechanicId}
               onChange={(e) => setMechanicId(e.target.value)}
               className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
             >
-              <option value="" disabled>
-                Select a mechanic…
-              </option>
+              <option value="">Not assigned yet</option>
               {eligibleMechanics.map((m) => (
                 <option key={m.id} value={m.id}>
                   {m.shortName} ({m.shortCode})
@@ -500,7 +495,9 @@ export default function RepairJobForm({
               </p>
             )}
             {mechanicId === "" && (
-              <p className="text-xs text-neutral-500 mt-1.5">A mechanic must be assigned before this job can be saved.</p>
+              <p className="text-xs text-neutral-500 mt-1.5">
+                Fine to leave unassigned — assign a mechanic later from the Restore Bike list.
+              </p>
             )}
           </div>
 

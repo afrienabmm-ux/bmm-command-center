@@ -21,7 +21,7 @@ export default async function NewRepairJobPage() {
 
   return (
     <div className="flex flex-col h-full">
-      <PageHeader title="Add Restore Bike Job" subtitle="Fill in the job details below, then save to return to the list" />
+      <PageHeader title="Main Listing" subtitle="Key in the bike's details — a mechanic can be assigned later from the Restore Bike list" />
       <div className="p-8">
         <RepairJobForm
           job={null}

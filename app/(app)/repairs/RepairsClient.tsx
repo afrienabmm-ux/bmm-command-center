@@ -8,6 +8,7 @@ import {
   updateRepairApprovalAction,
   setRestoreBikeWorkflowDateAction,
   setQcResultAction,
+  assignMechanicAction,
   deleteRepairJobAction,
   quickAddRestoreBikeArrivalAction,
 } from "@/lib/repairs-actions";
@@ -50,10 +51,11 @@ function isQcOverdue(job: RepairJob): boolean {
   return (days ?? 0) > QC_OVERDUE_DAYS;
 }
 
-// Replaces the old blank "+ Add Job" button: stamps today as the arrival
-// date right away and jumps straight into the edit form to fill in the
-// rest, instead of making the PIC fill everything in before saving once.
-function BikeArrivedButton({ branch }: { branch: Branch }) {
+// This is Main Listing's entry point: stamps today as the arrival date
+// right away and jumps straight into the form to key in the bike's
+// details — no mechanic required here, that happens later via Assign on
+// the Restore Bike list once the job shows up there.
+function MainListingButton({ branch }: { branch: Branch }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
 
@@ -70,7 +72,7 @@ function BikeArrivedButton({ branch }: { branch: Branch }) {
       disabled={isPending}
       className="flex items-center gap-1.5 bg-indigo-500 hover:bg-indigo-400 disabled:opacity-50 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
     >
-      <Plus size={15} /> {isPending ? "Adding…" : "Bike Arrived"}
+      <Plus size={15} /> {isPending ? "Adding…" : "Main Listing"}
     </button>
   );
 }
@@ -81,12 +83,14 @@ export default function RepairsClient({
   completed,
   mechanics,
   branchSelection,
+  isManagement,
 }: {
   active: RepairJob[];
   qc: RepairJob[];
   completed: RepairJob[];
   mechanics: Mechanic[];
   branchSelection: BranchSelection;
+  isManagement: boolean;
 }) {
   const [tab, setTab] = useState<"active" | "qc" | "completed">("active");
   const [exportJobModalOpen, setExportJobModalOpen] = useState(false);
@@ -247,13 +251,13 @@ export default function RepairsClient({
             </button>
           )}
           {quickAddBranch ? (
-            <BikeArrivedButton branch={quickAddBranch} />
+            <MainListingButton branch={quickAddBranch} />
           ) : (
             <Link
               href="/repairs/new"
               className="flex items-center gap-1.5 bg-indigo-500 hover:bg-indigo-400 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
             >
-              <Plus size={15} /> Add Job
+              <Plus size={15} /> Main Listing
             </Link>
           )}
         </div>
@@ -294,8 +298,10 @@ export default function RepairsClient({
                   job={job}
                   showBranch={showBranchColumn}
                   mechanicLabel={mechanicLabel(job.mechanicId)}
+                  mechanics={mechanics}
                   editable={tab === "active"}
                   showQc={tab === "qc"}
+                  isManagement={isManagement}
                 />
               ))}
               {jobs.length === 0 && (
@@ -520,13 +526,25 @@ function QcResultCell({ job }: { job: RepairJob }) {
 
 // Click-to-cycle through Pending -> Approved -> Not Approved -> Pending,
 // same click-button pattern as the workflow stamps instead of a dropdown.
-function ApprovalCell({ job, branch }: { job: RepairJob; branch: Branch }) {
+// Only Management (the GM) can actually change this — a branch PIC sees
+// the same badge but it's not clickable, since gating the Start button on
+// GM approval only means something if the PIC can't just approve their
+// own job.
+function ApprovalCell({ job, canApprove }: { job: RepairJob; canApprove: boolean }) {
   const [isPending, startTransition] = useTransition();
+
+  if (!canApprove) {
+    return (
+      <span className={`text-xs font-medium px-2.5 py-1.5 rounded-full border inline-block ${APPROVAL_STYLES[job.approvalStatus]}`}>
+        {job.approvalStatus}
+      </span>
+    );
+  }
 
   function handleClick() {
     const currentIndex = APPROVAL_STATUSES.indexOf(job.approvalStatus);
     const next = APPROVAL_STATUSES[(currentIndex + 1) % APPROVAL_STATUSES.length];
-    startTransition(() => updateRepairApprovalAction(job.id, branch, next));
+    startTransition(() => updateRepairApprovalAction(job.id, next));
   }
 
   return (
@@ -692,6 +710,41 @@ function RepairDateCell({
   return <StageButton label={stage === "started" ? "St" : "En"} date={date} onClick={handleClick} disabled={disabled} title={title} />;
 }
 
+// Assign button on a Main Listing job that hasn't been given a mechanic
+// yet — a plain select rather than a modal, same lightweight pattern as
+// the QC result dropdown. Only lists mechanics at the job's own branch;
+// the server (assertMechanicAssignment) is still the real gate on busy/
+// heavy-repair mismatches, so this is a convenience filter, not the only
+// check.
+function AssignCell({ job, mechanics }: { job: RepairJob; mechanics: Mechanic[] }) {
+  const [isPending, startTransition] = useTransition();
+  const branchMechanics = mechanics.filter((m) => m.branch === job.branch && (!isHeavyRepairJob(job) || m.category === "Heavy Repair"));
+
+  function handleChange(mechanicId: string) {
+    if (!mechanicId) return;
+    startTransition(async () => {
+      const result = await assignMechanicAction(job.id, job.branch, mechanicId);
+      if (result && "error" in result) window.alert(result.error);
+    });
+  }
+
+  return (
+    <select
+      value=""
+      onChange={(e) => handleChange(e.target.value)}
+      disabled={isPending || branchMechanics.length === 0}
+      className="text-xs font-medium bg-indigo-50 border border-indigo-200 text-indigo-700 rounded-lg px-2.5 py-1.5 disabled:opacity-50"
+    >
+      <option value="">{branchMechanics.length === 0 ? "No mechanics available" : "Assign…"}</option>
+      {branchMechanics.map((m) => (
+        <option key={m.id} value={m.id}>
+          {m.shortName} ({m.shortCode})
+        </option>
+      ))}
+    </select>
+  );
+}
+
 function OverdueBadge({ job }: { job: RepairJob }) {
   if (!isOverdue(job)) return null;
   return (
@@ -707,15 +760,19 @@ function RestoreBikeRow({
   job,
   showBranch,
   mechanicLabel,
+  mechanics,
   editable,
   showQc,
+  isManagement,
 }: {
   no: number;
   job: RepairJob;
   showBranch: boolean;
   mechanicLabel: string;
+  mechanics: Mechanic[];
   editable: boolean;
   showQc: boolean;
+  isManagement: boolean;
 }) {
   const [isPending, startTransition] = useTransition();
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -746,17 +803,23 @@ function RestoreBikeRow({
       <td className="px-5 py-3.5 text-neutral-600 whitespace-nowrap">{job.bikeYear || "—"}</td>
       <td className="px-5 py-3.5 text-neutral-600 whitespace-nowrap">{job.condition || "—"}</td>
       <td className="px-5 py-3.5 text-neutral-600 whitespace-nowrap">
-        <span className="inline-flex items-center gap-1.5">
-          {mechanicLabel}
-          {isHeavyRepairJob(job) && (
-            <span className="text-xs font-medium px-2 py-0.5 rounded-full border bg-orange-500/10 text-orange-700 border-orange-500/20">
-              Heavy
-            </span>
-          )}
-        </span>
+        {job.mechanicId ? (
+          <span className="inline-flex items-center gap-1.5">
+            {mechanicLabel}
+            {isHeavyRepairJob(job) && (
+              <span className="text-xs font-medium px-2 py-0.5 rounded-full border bg-orange-500/10 text-orange-700 border-orange-500/20">
+                Heavy
+              </span>
+            )}
+          </span>
+        ) : editable ? (
+          <AssignCell job={job} mechanics={mechanics} />
+        ) : (
+          <span className="text-neutral-400">Unassigned</span>
+        )}
       </td>
       <td className="px-5 py-3.5">
-        <ApprovalCell job={job} branch={job.branch} />
+        <ApprovalCell job={job} canApprove={isManagement} />
       </td>
       <td className="px-5 py-3.5">
         <StockDateCell job={job} branch={job.branch} stage="stockOrder" editable={editable} />
