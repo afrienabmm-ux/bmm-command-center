@@ -499,7 +499,7 @@ export async function addRepairJobAction(input: {
       deal_type: input.dealType,
       started_date: input.startedDate ?? null,
       form_date: input.formDate ?? null,
-      status: "Pending",
+      status: input.jobType === "Walk-in" && input.completedDate ? "Completed" : "Pending",
       pic_name: input.picName ?? "",
       model: input.model ?? "",
       bike_year: input.bikeYear ?? "",
@@ -639,6 +639,13 @@ export async function updateRepairJobAction(
     jobsheet_user_id: input.jobsheetUserId ?? "",
   };
   if (input.quotationDate !== undefined) update.quotation_date = input.quotationDate;
+  // Walk-in jobs have no separate QC stage — setting the End Date from the
+  // edit form (desktop or the phone /scan page) marks the job Completed the
+  // same way the list's click-to-stamp End Date button does, so the PIC
+  // never has to open the dashboard separately just to flip the status.
+  if (input.jobType === "Walk-in") {
+    update.status = input.completedDate ? "Completed" : "Pending";
+  }
 
   const { error } = await supabaseAdmin.from("cc_repair_jobs").update(update).eq("id", id);
   if (error) throw new Error(error.message);
