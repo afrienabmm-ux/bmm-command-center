@@ -22,8 +22,8 @@ export type Mechanic = {
   createdAt: string;
 };
 
-export type ClaimStatus = "Approved" | "In Process" | "Close Ticket" | "Rejected";
-export const CLAIM_STATUSES: ClaimStatus[] = ["Approved", "In Process", "Close Ticket", "Rejected"];
+export type ClaimStatus = "Proceed" | "In Process" | "Close Ticket" | "Rejected";
+export const CLAIM_STATUSES: ClaimStatus[] = ["Proceed", "In Process", "Close Ticket", "Rejected"];
 
 // A claim still needing action — used for the dashboard's "open claims"
 // count, so approved/rejected/closed ones drop out of it.

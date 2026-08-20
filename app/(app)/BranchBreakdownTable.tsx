@@ -38,7 +38,7 @@ export async function getBranchBreakdown(year: number, month: number): Promise<B
         target: summary.targetAmount,
         achieved: summary.achievedAmount,
         openClaims: claims.filter((c) => isOpenClaim(c.status)).length,
-        approvedClaims: claims.filter((c) => c.status === "Approved").length,
+        approvedClaims: claims.filter((c) => c.status === "Proceed").length,
         activeRepairs: repairs.length,
         topMechanic,
         topRestoreBike,

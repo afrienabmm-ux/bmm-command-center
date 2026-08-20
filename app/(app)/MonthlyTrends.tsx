@@ -7,7 +7,7 @@ import RestoreBikeStatus, { type RestoreBikeStatusCounts } from "./RestoreBikeSt
 
 const CLAIM_STATUS_COLORS: Record<ClaimStatusBreakdownRow["status"], { colorClass: string; dot: string }> = {
   "In Process": { colorClass: "fill-amber-500", dot: "bg-amber-500" },
-  Approved: { colorClass: "fill-emerald-500", dot: "bg-emerald-500" },
+  Proceed: { colorClass: "fill-emerald-500", dot: "bg-emerald-500" },
   Rejected: { colorClass: "fill-red-500", dot: "bg-red-500" },
   "Close Ticket": { colorClass: "fill-indigo-500", dot: "bg-indigo-500" },
 };
