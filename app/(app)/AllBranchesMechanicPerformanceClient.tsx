@@ -5,7 +5,7 @@ import { Crown, Wrench, Download, ChevronDown, ChevronUp, Check, X } from "lucid
 import { formatCurrency, toCsv } from "@/lib/format";
 import { BRANCHES, branchLabel, type BranchSelection } from "@/lib/branch";
 import type { MechanicPerformanceRowWithBranch } from "@/lib/reports-actions";
-import { MECHANIC_KPI_REVENUE, MECHANIC_KPI_RESTORE_BIKE_COUNT } from "@/lib/types";
+import { MECHANIC_KPI_REVENUE, MECHANIC_KPI_RESTORE_BIKE_COUNT, MECHANIC_KPI_DAILY_TARGET, MECHANIC_KPI_WORKING_DAYS } from "@/lib/types";
 
 const COLLAPSED_COUNT = 5;
 
@@ -38,6 +38,7 @@ function KpiCell({ revenue, count }: { revenue: number; count: number }) {
         {countMet ? <Check size={11} /> : <X size={11} />}
         {count} / {MECHANIC_KPI_RESTORE_BIKE_COUNT} bikes
       </span>
+      <span className="text-[10px] text-neutral-400">≈ {formatCurrency(MECHANIC_KPI_DAILY_TARGET)}/day min.</span>
     </div>
   );
 }
@@ -196,7 +197,9 @@ export default function AllBranchesMechanicPerformanceClient({ rows }: { rows: M
         <div>
           <p className="text-sm font-semibold text-neutral-900">Individual Mechanic Performance</p>
           <p className="text-xs text-neutral-500 mt-0.5">
-            {view === "packages" ? "Total packages sold per mechanic this month" : "Total revenue per mechanic this month"}
+            {view === "packages"
+              ? "Total packages sold per mechanic this month"
+              : `Total revenue per mechanic this month · KPI is ${formatCurrency(MECHANIC_KPI_REVENUE)} Restore Bike revenue over ${MECHANIC_KPI_WORKING_DAYS} working days (${formatCurrency(MECHANIC_KPI_DAILY_TARGET)}/day minimum)`}
           </p>
         </div>
         <div className="flex items-center gap-2">

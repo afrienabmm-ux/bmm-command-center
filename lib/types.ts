@@ -183,6 +183,10 @@ export const DEAL_TYPES = ["Trade In", "Tarik"] as const;
 // least 2 Restore Bike jobs completed.
 export const MECHANIC_KPI_REVENUE = 10000;
 export const MECHANIC_KPI_RESTORE_BIKE_COUNT = 2;
+// The RM10,000 monthly target spread over a 25-day working month — RM400/day
+// minimum, used as a pace reference rather than a separate pass/fail KPI.
+export const MECHANIC_KPI_WORKING_DAYS = 25;
+export const MECHANIC_KPI_DAILY_TARGET = Math.round(MECHANIC_KPI_REVENUE / MECHANIC_KPI_WORKING_DAYS);
 
 export type GenbluRegistration = {
   id: string;
