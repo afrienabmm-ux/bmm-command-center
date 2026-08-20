@@ -1,7 +1,7 @@
 "use client";
 
 import { Fragment, useEffect, useMemo, useState } from "react";
-import { Crown, Wrench, Download, ChevronDown, ChevronUp, Check, X } from "lucide-react";
+import { Crown, Wrench, Smartphone, Download, ChevronDown, ChevronUp, Check, X } from "lucide-react";
 import { formatCurrency, toCsv } from "@/lib/format";
 import { BRANCHES, branchLabel, type BranchSelection } from "@/lib/branch";
 import type { MechanicPerformanceRowWithBranch } from "@/lib/reports-actions";
@@ -89,6 +89,11 @@ function RevenueRow({
       <td className="px-5 py-3.5 text-neutral-600 whitespace-nowrap">
         {r.packageSetsSold} sets · {formatCurrency(r.packageRevenue)}
       </td>
+      <td className="px-5 py-3.5 text-neutral-600 whitespace-nowrap">
+        <span className="inline-flex items-center gap-1">
+          <Smartphone size={12} className="text-sky-500" /> {r.genbluCount} new
+        </span>
+      </td>
       <td className="px-5 py-3.5 text-neutral-900 font-semibold whitespace-nowrap">{formatCurrency(r.totalRevenue)}</td>
       <td className="px-5 py-3.5">
         <KpiCell revenue={r.restoreBikeRevenue} count={r.restoreBikeCount} />
@@ -164,6 +169,7 @@ export default function AllBranchesMechanicPerformanceClient({ rows }: { rows: M
         "Jobsheet Revenue (RM)",
         "Package Sets",
         "Package Revenue (RM)",
+        "New GenBlu Users",
         "Total Revenue (RM)",
         "Revenue KPI Met (RM10k)",
         "Bike Count KPI Met (2 bikes)",
@@ -177,6 +183,7 @@ export default function AllBranchesMechanicPerformanceClient({ rows }: { rows: M
         r.walkInRevenue.toFixed(2),
         r.packageSetsSold,
         r.packageRevenue.toFixed(2),
+        r.genbluCount,
         r.totalRevenue.toFixed(2),
         r.restoreBikeRevenue >= MECHANIC_KPI_REVENUE ? "Yes" : "No",
         r.restoreBikeCount >= MECHANIC_KPI_RESTORE_BIKE_COUNT ? "Yes" : "No",
@@ -288,6 +295,7 @@ export default function AllBranchesMechanicPerformanceClient({ rows }: { rows: M
                   <th className="font-medium px-5 py-3 whitespace-nowrap">Restore Bike</th>
                   <th className="font-medium px-5 py-3 whitespace-nowrap">Jobsheet</th>
                   <th className="font-medium px-5 py-3 whitespace-nowrap">Packages</th>
+                  <th className="font-medium px-5 py-3 whitespace-nowrap">GenBlu</th>
                   <th className="font-medium px-5 py-3 whitespace-nowrap">Total Revenue</th>
                   <th className="font-medium px-5 py-3 whitespace-nowrap">KPI (RM10k / 2 bikes)</th>
                 </tr>
@@ -300,7 +308,7 @@ export default function AllBranchesMechanicPerformanceClient({ rows }: { rows: M
                           <td className="px-5 py-2.5 text-emerald-800 font-semibold text-xs uppercase tracking-wide whitespace-nowrap">
                             {branchLabel(g.branch)} — Branch Total
                           </td>
-                          <td colSpan={3} />
+                          <td colSpan={4} />
                           <td className="px-5 py-2.5 text-emerald-800 font-semibold text-sm whitespace-nowrap">
                             {formatCurrency(g.rows.reduce((sum, r) => sum + r.totalRevenue, 0))}
                           </td>
@@ -326,7 +334,7 @@ export default function AllBranchesMechanicPerformanceClient({ rows }: { rows: M
                     ))}
                 {filtered.length === 0 && (
                   <tr>
-                    <td colSpan={6} className="px-5 py-10 text-center text-neutral-500 text-sm">
+                    <td colSpan={7} className="px-5 py-10 text-center text-neutral-500 text-sm">
                       No mechanics {branchFilter === "all" ? "yet" : `at ${branchLabel(branchFilter)} yet`}.
                     </td>
                   </tr>

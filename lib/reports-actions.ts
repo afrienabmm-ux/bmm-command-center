@@ -198,6 +198,54 @@ export async function getMechanicPackageAchievements(
   return cachedMechanicPackageAchievements(branch, year, month);
 }
 
+export type MechanicGenbluAchievement = {
+  mechanicId: string;
+  fullName: string;
+  shortCode: string;
+  genbluCount: number;
+};
+
+// GenBlu registrations credit whoever was logged in and did the job (their
+// name, not a mechanic_id — see genblu-actions.ts), so the only way to
+// attribute a registration to a mechanic is matching salesperson_name
+// against the mechanic's own full_name. Not filtered by branch, same
+// reasoning as the repair-job/package-sale queries above: a mechanic could
+// register a customer while covering another branch, and the count should
+// still follow the mechanic.
+const cachedMechanicGenbluAchievements = cache(
+  async (branch: Branch, year: number, month: number): Promise<MechanicGenbluAchievement[]> => {
+    const { from, to } = monthRange(year, month);
+
+    const [{ data: mechanics, error: mErr }, { data: registrations, error: gErr }] = await Promise.all([
+      supabaseAdmin.from("cc_mechanics").select("id, full_name, short_code").eq("branch", branch),
+      supabaseAdmin
+        .from("cc_genblu_registrations")
+        .select("salesperson_name, created_at")
+        .gte("created_at", `${from}T00:00:00`)
+        .lte("created_at", `${to}T23:59:59`),
+    ]);
+    if (mErr) throw new Error(mErr.message);
+    if (gErr) throw new Error(gErr.message);
+
+    const normalize = (s: string) => s.trim().toLowerCase();
+    return (mechanics ?? []).map((m) => ({
+      mechanicId: m.id,
+      fullName: m.full_name,
+      shortCode: m.short_code,
+      genbluCount: (registrations ?? []).filter((r) => normalize(r.salesperson_name ?? "") === normalize(m.full_name)).length,
+    }));
+  }
+);
+
+export async function getMechanicGenbluAchievements(
+  branch: Branch,
+  year: number,
+  month: number
+): Promise<MechanicGenbluAchievement[]> {
+  await requireApproved();
+  return cachedMechanicGenbluAchievements(branch, year, month);
+}
+
 export type TopMechanic = {
   fullName: string;
   shortCode: string;
@@ -258,25 +306,30 @@ export type MechanicPerformanceRow = {
   walkInCount: number;
   packageRevenue: number;
   packageSetsSold: number;
+  genbluCount: number;
   totalRevenue: number;
 };
 
-// Full leaderboard for a branch: every mechanic's Restore Bike and
-// package-sale numbers side by side, sorted by who earned the most.
+// Full leaderboard for a branch: every mechanic's Restore Bike,
+// package-sale, and GenBlu numbers side by side, sorted by who earned the
+// most.
 export async function getBranchPerformance(
   branch: Branch,
   year: number,
   month: number
 ): Promise<MechanicPerformanceRow[]> {
-  const [repairAchievements, packageAchievements] = await Promise.all([
+  const [repairAchievements, packageAchievements, genbluAchievements] = await Promise.all([
     getMechanicAchievements(branch, year, month),
     getMechanicPackageAchievements(branch, year, month),
+    getMechanicGenbluAchievements(branch, year, month),
   ]);
 
   const packageByMechanic = new Map(packageAchievements.map((p) => [p.mechanicId, p]));
+  const genbluByMechanic = new Map(genbluAchievements.map((g) => [g.mechanicId, g]));
 
   const rows = repairAchievements.map((a) => {
     const pkg = packageByMechanic.get(a.mechanicId);
+    const genblu = genbluByMechanic.get(a.mechanicId);
     return {
       mechanicId: a.mechanicId,
       fullName: a.fullName,
@@ -287,6 +340,7 @@ export async function getBranchPerformance(
       walkInCount: a.walkInCount,
       packageRevenue: pkg?.revenue ?? 0,
       packageSetsSold: pkg?.setsSold ?? 0,
+      genbluCount: genblu?.genbluCount ?? 0,
       totalRevenue: a.totalRevenue + (pkg?.revenue ?? 0),
     };
   });
