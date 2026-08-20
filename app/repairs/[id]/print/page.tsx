@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { requirePage } from "@/lib/current-user";
-import { getRepairJobById } from "@/lib/repairs-actions";
+import { getRepairJobById, getRestoreBikeImageUrls } from "@/lib/repairs-actions";
 import { formatDate } from "@/lib/format";
 import PrintButton from "./PrintButton";
 
@@ -13,6 +13,7 @@ export default async function PrintRepairJobPage({ params }: { params: Promise<{
   if (!job) notFound();
 
   const itemsTotal = job.items.reduce((sum, it) => sum + it.quantity * it.price, 0);
+  const photoUrls = await getRestoreBikeImageUrls(job.imagePaths);
 
   return (
     <div className="min-h-screen bg-neutral-100 print:bg-white">
@@ -117,6 +118,23 @@ export default async function PrintRepairJobPage({ params }: { params: Promise<{
             </p>
           </div>
         </div>
+
+        {photoUrls.length > 0 && (
+          <div className="mt-6">
+            <p className="text-xs font-semibold mb-2">BIKE PHOTOS</p>
+            <div className="flex flex-wrap gap-2">
+              {photoUrls.map((url, i) => (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  key={i}
+                  src={url}
+                  alt={`Bike photo ${i + 1}`}
+                  className="w-32 h-32 object-cover border border-neutral-400 print:break-inside-avoid"
+                />
+              ))}
+            </div>
+          </div>
+        )}
 
         <div className="grid grid-cols-2 gap-4 mt-10 text-xs">
           <div>
