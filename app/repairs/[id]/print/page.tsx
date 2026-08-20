@@ -129,7 +129,7 @@ export default async function PrintRepairJobPage({ params }: { params: Promise<{
                   key={i}
                   src={url}
                   alt={`Bike photo ${i + 1}`}
-                  className="w-32 h-32 object-cover border border-neutral-400 print:break-inside-avoid"
+                  className="w-[134px] h-[134px] object-cover border border-neutral-400 print:break-inside-avoid"
                 />
               ))}
             </div>
