@@ -529,7 +529,7 @@ export default function RepairJobForm({
             <p className="text-xs text-neutral-500 mt-1.5">Calculated automatically from the parts/items list above.</p>
           </div>
           <div>
-            <label className="block text-xs font-medium text-neutral-600 mb-1.5">Trade In / Tarik</label>
+            <label className="block text-xs font-medium text-neutral-600 mb-1.5">Trade In / Tarik / Jual</label>
             <div className="flex items-center gap-2">
               {DEAL_TYPES.map((t) => (
                 <button

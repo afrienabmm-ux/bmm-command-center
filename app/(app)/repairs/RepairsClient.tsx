@@ -8,13 +8,11 @@ import {
   updateRepairApprovalAction,
   setRestoreBikeWorkflowDateAction,
   setQcResultAction,
-  assignMechanicAction,
   deleteRepairJobAction,
   quickAddRestoreBikeArrivalAction,
 } from "@/lib/repairs-actions";
 import {
   APPROVAL_STATUSES,
-  isHeavyRepairJob,
   type RepairStatus,
   type ApprovalStatus,
   type QcResult,
@@ -72,7 +70,7 @@ function MainListingButton({ branch }: { branch: Branch }) {
       disabled={isPending}
       className="flex items-center gap-1.5 bg-indigo-500 hover:bg-indigo-400 disabled:opacity-50 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
     >
-      <Plus size={15} /> {isPending ? "Adding…" : "Main Listing"}
+      <Plus size={15} /> {isPending ? "Adding…" : "Add Bike"}
     </button>
   );
 }
@@ -257,7 +255,7 @@ export default function RepairsClient({
               href="/repairs/new"
               className="flex items-center gap-1.5 bg-indigo-500 hover:bg-indigo-400 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
             >
-              <Plus size={15} /> Main Listing
+              <Plus size={15} /> Add Bike
             </Link>
           )}
         </div>
@@ -268,22 +266,21 @@ export default function RepairsClient({
           <table className="w-full text-sm">
             <thead>
               <tr className="text-left text-xs text-neutral-500 border-b border-neutral-200">
+                <th className="font-medium px-5 py-3 whitespace-nowrap">Date</th>
                 <th className="font-medium px-5 py-3 whitespace-nowrap">No.</th>
-                <th className="font-medium px-5 py-3 whitespace-nowrap">PIC</th>
-                <th className="font-medium px-5 py-3 whitespace-nowrap">N. Plate</th>
-                <th className="font-medium px-5 py-3 whitespace-nowrap">Arrived</th>
-                <th className="font-medium px-5 py-3 whitespace-nowrap">Quotation</th>
+                <th className="font-medium px-5 py-3 whitespace-nowrap">Thumbprint</th>
+                <th className="font-medium px-5 py-3 whitespace-nowrap">Plate</th>
                 <th className="font-medium px-5 py-3 whitespace-nowrap">Model</th>
                 <th className="font-medium px-5 py-3 whitespace-nowrap">Tahun</th>
+                <th className="font-medium px-5 py-3 whitespace-nowrap">Mileage</th>
                 <th className="font-medium px-5 py-3 whitespace-nowrap">Condition</th>
-                <th className="font-medium px-5 py-3 whitespace-nowrap">Mechanic</th>
+                <th className="font-medium px-5 py-3 whitespace-nowrap">Cost Restore</th>
                 <th className="font-medium px-5 py-3 whitespace-nowrap">Approval</th>
-                <th className="font-medium px-5 py-3 whitespace-nowrap">Stock Order</th>
-                <th className="font-medium px-5 py-3 whitespace-nowrap">Stock Arrive</th>
+                <th className="font-medium px-5 py-3 whitespace-nowrap">Part Order</th>
+                <th className="font-medium px-5 py-3 whitespace-nowrap">Part Arrive</th>
                 <th className="font-medium px-5 py-3 whitespace-nowrap">Start Date</th>
                 <th className="font-medium px-5 py-3 whitespace-nowrap">End Date</th>
-                <th className="font-medium px-5 py-3 whitespace-nowrap">Cost Restore</th>
-                <th className="font-medium px-5 py-3 whitespace-nowrap">Trade In / Tarik</th>
+                <th className="font-medium px-5 py-3 whitespace-nowrap">Trade In / Tarik / Jual</th>
                 <th className="font-medium px-5 py-3 whitespace-nowrap">Status</th>
                 {tab === "qc" && <th className="font-medium px-5 py-3 whitespace-nowrap">QC Result</th>}
                 <th className="px-5 py-3" />
@@ -296,8 +293,6 @@ export default function RepairsClient({
                   no={i + 1}
                   job={job}
                   showBranch={showBranchColumn}
-                  mechanicLabel={mechanicLabel(job.mechanicId)}
-                  mechanics={mechanics}
                   editable={tab === "active"}
                   showQc={tab === "qc"}
                   isManagement={isManagement}
@@ -306,7 +301,7 @@ export default function RepairsClient({
               {jobs.length === 0 && (
                 <tr>
                   <td
-                    colSpan={18 + (tab === "qc" ? 1 : 0)}
+                    colSpan={17 + (tab === "qc" ? 1 : 0)}
                     className="px-5 py-10 text-center text-neutral-500 text-sm"
                   >
                     {tab === "active" ? "No active" : tab === "qc" ? "No jobs waiting on QC" : "No completed"} Restore Bike jobs.
@@ -612,30 +607,7 @@ function ArrivedCell({ job }: { job: RepairJob }) {
   return <StageButton label="Arr" date={job.arrivedDate} onClick={() => {}} disabled title={job.arrivedDate ? formatDate(job.arrivedDate) : "Not recorded"} />;
 }
 
-// Just the Quotation tick now — Arrived moved to the form, GM Approved is
-// just the existing Approval dropdown (no separate stamp needed).
-function QuotationCell({ job, editable }: { job: RepairJob; editable: boolean }) {
-  const [isPending, startTransition] = useTransition();
-  return (
-    <StageButton
-      label="Quo"
-      date={job.quotationDate}
-      onClick={() =>
-        startTransition(async () => {
-          await setRestoreBikeWorkflowDateAction(
-            job.id,
-            job.branch,
-            "quotation",
-            job.quotationDate ? null : new Date().toISOString().slice(0, 10)
-          );
-        })
-      }
-      disabled={isPending || !editable}
-    />
-  );
-}
-
-// Stock Order/Arrival click-to-stamp cells — same plain toggle as Quotation,
+// Stock Order/Arrival click-to-stamp cells — same plain toggle as before,
 // no gating of their own, but Start (below) won't unlock until both of
 // these are set.
 function StockDateCell({
@@ -707,41 +679,6 @@ function RepairDateCell({
   }
 
   return <StageButton label={stage === "started" ? "St" : "En"} date={date} onClick={handleClick} disabled={disabled} title={title} />;
-}
-
-// Assign button on a Main Listing job that hasn't been given a mechanic
-// yet — a plain select rather than a modal, same lightweight pattern as
-// the QC result dropdown. Only lists mechanics at the job's own branch;
-// the server (assertMechanicAssignment) is still the real gate on busy/
-// heavy-repair mismatches, so this is a convenience filter, not the only
-// check.
-function AssignCell({ job, mechanics }: { job: RepairJob; mechanics: Mechanic[] }) {
-  const [isPending, startTransition] = useTransition();
-  const branchMechanics = mechanics.filter((m) => m.branch === job.branch && (!isHeavyRepairJob(job) || m.category === "Heavy Repair"));
-
-  function handleChange(mechanicId: string) {
-    if (!mechanicId) return;
-    startTransition(async () => {
-      const result = await assignMechanicAction(job.id, job.branch, mechanicId);
-      if (result && "error" in result) window.alert(result.error);
-    });
-  }
-
-  return (
-    <select
-      value=""
-      onChange={(e) => handleChange(e.target.value)}
-      disabled={isPending || branchMechanics.length === 0}
-      className="text-xs font-medium bg-indigo-50 border border-indigo-200 text-indigo-700 rounded-lg px-2.5 py-1.5 disabled:opacity-50"
-    >
-      <option value="">{branchMechanics.length === 0 ? "No mechanics available" : "Assign…"}</option>
-      {branchMechanics.map((m) => (
-        <option key={m.id} value={m.id}>
-          {m.shortName} ({m.shortCode})
-        </option>
-      ))}
-    </select>
-  );
 }
 
 // So the GM can see what a Restore Bike's cost is actually made up of —
@@ -831,8 +768,6 @@ function RestoreBikeRow({
   no,
   job,
   showBranch,
-  mechanicLabel,
-  mechanics,
   editable,
   showQc,
   isManagement,
@@ -840,8 +775,6 @@ function RestoreBikeRow({
   no: number;
   job: RepairJob;
   showBranch: boolean;
-  mechanicLabel: string;
-  mechanics: Mechanic[];
   editable: boolean;
   showQc: boolean;
   isManagement: boolean;
@@ -862,6 +795,9 @@ function RestoreBikeRow({
 
   return (
     <tr className="border-b border-neutral-100 last:border-0 hover:bg-neutral-50">
+      <td className="px-5 py-3.5">
+        <ArrivedCell job={job} />
+      </td>
       <td className="px-5 py-3.5 text-neutral-500 whitespace-nowrap">{no}</td>
       <td className="px-5 py-3.5 text-neutral-700 whitespace-nowrap">
         <span className="inline-flex items-center gap-1.5">
@@ -874,31 +810,11 @@ function RestoreBikeRow({
         </span>
       </td>
       <td className="px-5 py-3.5 text-neutral-600 whitespace-nowrap">{job.plateNo}</td>
-      <td className="px-5 py-3.5">
-        <ArrivedCell job={job} />
-      </td>
-      <td className="px-5 py-3.5">
-        <QuotationCell job={job} editable={editable} />
-      </td>
       <td className="px-5 py-3.5 text-neutral-600 whitespace-nowrap">{job.model || "—"}</td>
       <td className="px-5 py-3.5 text-neutral-600 whitespace-nowrap">{job.bikeYear || "—"}</td>
+      <td className="px-5 py-3.5 text-neutral-600 whitespace-nowrap">{job.mileageKm || "—"}</td>
       <td className="px-5 py-3.5 text-neutral-600 whitespace-nowrap">{job.condition || "—"}</td>
-      <td className="px-5 py-3.5 text-neutral-600 whitespace-nowrap">
-        {job.mechanicId ? (
-          <span className="inline-flex items-center gap-1.5">
-            {mechanicLabel}
-            {isHeavyRepairJob(job) && (
-              <span className="text-xs font-medium px-2 py-0.5 rounded-full border bg-orange-500/10 text-orange-700 border-orange-500/20">
-                Heavy
-              </span>
-            )}
-          </span>
-        ) : editable ? (
-          <AssignCell job={job} mechanics={mechanics} />
-        ) : (
-          <span className="text-neutral-400">Unassigned</span>
-        )}
-      </td>
+      <td className="px-5 py-3.5 text-neutral-700 whitespace-nowrap">{formatCurrency(job.revenueAmount)}</td>
       <td className="px-5 py-3.5">
         <ApprovalCell job={job} canApprove={isManagement} />
       </td>
@@ -917,7 +833,6 @@ function RestoreBikeRow({
       <td className="px-5 py-3.5">
         <RepairDateCell job={job} stage="completed" editable={editable} />
       </td>
-      <td className="px-5 py-3.5 text-neutral-700 whitespace-nowrap">{formatCurrency(job.revenueAmount)}</td>
       <td className="px-5 py-3.5 text-neutral-600 whitespace-nowrap">{job.dealType || "—"}</td>
       <td className="px-5 py-3.5">
         <StatusCell status={job.status} />

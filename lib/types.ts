@@ -177,7 +177,7 @@ export function isHeavyRepairJob(job: { isBigItem: boolean }): boolean {
   return job.isBigItem;
 }
 
-export const DEAL_TYPES = ["Trade In", "Tarik"] as const;
+export const DEAL_TYPES = ["Trade In", "Tarik", "Jual"] as const;
 
 // Every mechanic's monthly KPI: RM10,000 in Restore Bike revenue and at
 // least 2 Restore Bike jobs completed.
