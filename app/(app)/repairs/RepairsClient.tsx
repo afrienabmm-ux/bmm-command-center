@@ -3,7 +3,7 @@
 import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Plus, Download, Pencil, AlertTriangle, Search, Check, Trash2, Printer } from "lucide-react";
+import { Plus, Download, Pencil, AlertTriangle, Search, Check, Trash2, Printer, Eye, X } from "lucide-react";
 import {
   updateRepairApprovalAction,
   setRestoreBikeWorkflowDateAction,
@@ -269,7 +269,6 @@ export default function RepairsClient({
             <thead>
               <tr className="text-left text-xs text-neutral-500 border-b border-neutral-200">
                 <th className="font-medium px-5 py-3 whitespace-nowrap">No.</th>
-                {showBranchColumn && <th className="font-medium px-5 py-3 whitespace-nowrap">Branch</th>}
                 <th className="font-medium px-5 py-3 whitespace-nowrap">PIC</th>
                 <th className="font-medium px-5 py-3 whitespace-nowrap">N. Plate</th>
                 <th className="font-medium px-5 py-3 whitespace-nowrap">Arrived</th>
@@ -307,7 +306,7 @@ export default function RepairsClient({
               {jobs.length === 0 && (
                 <tr>
                   <td
-                    colSpan={(showBranchColumn ? 19 : 18) + (tab === "qc" ? 1 : 0)}
+                    colSpan={18 + (tab === "qc" ? 1 : 0)}
                     className="px-5 py-10 text-center text-neutral-500 text-sm"
                   >
                     {tab === "active" ? "No active" : tab === "qc" ? "No jobs waiting on QC" : "No completed"} Restore Bike jobs.
@@ -745,6 +744,79 @@ function AssignCell({ job, mechanics }: { job: RepairJob; mechanics: Mechanic[] 
   );
 }
 
+// So the GM can see what a Restore Bike's cost is actually made up of —
+// which items, quantities, and prices — without opening the full edit form.
+function ItemsDetailModal({ job, onClose }: { job: RepairJob; onClose: () => void }) {
+  const itemsTotal = job.items.reduce((sum, item) => sum + item.quantity * item.price, 0);
+  return (
+    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 px-4">
+      <div className="bg-white border border-neutral-200 rounded-xl w-full max-w-lg p-6">
+        <div className="flex items-start justify-between mb-1">
+          <div>
+            <h2 className="text-sm font-semibold text-neutral-900">Restore Bike Costing</h2>
+            <p className="text-xs text-neutral-500 mt-0.5">
+              {job.plateNo} — {job.picName || "—"} {job.model ? `· ${job.model}` : ""}
+            </p>
+          </div>
+          <button onClick={onClose} className="text-neutral-400 hover:text-neutral-700 p-1" aria-label="Close">
+            <X size={16} />
+          </button>
+        </div>
+
+        <div className="mt-4 border border-neutral-200 rounded-lg overflow-hidden">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-left text-xs text-neutral-500 border-b border-neutral-200 bg-neutral-50">
+                <th className="font-medium px-3 py-2">Code</th>
+                <th className="font-medium px-3 py-2">Item</th>
+                <th className="font-medium px-3 py-2 text-right">Qty</th>
+                <th className="font-medium px-3 py-2 text-right">Price</th>
+                <th className="font-medium px-3 py-2 text-right">Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              {job.items.length === 0 && (
+                <tr>
+                  <td colSpan={5} className="px-3 py-6 text-center text-neutral-500 text-sm">
+                    No items listed for this job.
+                  </td>
+                </tr>
+              )}
+              {job.items.map((item) => (
+                <tr key={item.id} className="border-b border-neutral-100 last:border-0">
+                  <td className="px-3 py-2 text-neutral-600 whitespace-nowrap">{item.code || "—"}</td>
+                  <td className="px-3 py-2 text-neutral-800">{item.description || "—"}</td>
+                  <td className="px-3 py-2 text-right text-neutral-600">{item.quantity}</td>
+                  <td className="px-3 py-2 text-right text-neutral-600 whitespace-nowrap">{formatCurrency(item.price)}</td>
+                  <td className="px-3 py-2 text-right text-neutral-800 font-medium whitespace-nowrap">
+                    {formatCurrency(item.quantity * item.price)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        <div className="flex items-center justify-between mt-4 px-1">
+          <span className="text-xs text-neutral-500">
+            {job.items.length > 0 && itemsTotal !== job.revenueAmount ? "Items total vs. recorded cost restore" : "Total Cost Restore"}
+          </span>
+          <span className="text-base font-semibold text-neutral-900">{formatCurrency(job.revenueAmount)}</span>
+        </div>
+        {job.items.length > 0 && itemsTotal !== job.revenueAmount && (
+          <p className="text-xs text-neutral-500 text-right px-1">Items sum to {formatCurrency(itemsTotal)}</p>
+        )}
+
+        <div className="flex items-center justify-end mt-5">
+          <button onClick={onClose} className="text-sm font-medium text-neutral-600 hover:text-neutral-800 px-4 py-2 transition-colors">
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function OverdueBadge({ job }: { job: RepairJob }) {
   if (!isOverdue(job)) return null;
   return (
@@ -777,6 +849,7 @@ function RestoreBikeRow({
   const [isPending, startTransition] = useTransition();
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [detailsOpen, setDetailsOpen] = useState(false);
 
   function handleDelete() {
     setDeleting(true);
@@ -790,8 +863,16 @@ function RestoreBikeRow({
   return (
     <tr className="border-b border-neutral-100 last:border-0 hover:bg-neutral-50">
       <td className="px-5 py-3.5 text-neutral-500 whitespace-nowrap">{no}</td>
-      {showBranch && <td className="px-5 py-3.5 text-neutral-600 whitespace-nowrap">{branchLabel(job.branch)}</td>}
-      <td className="px-5 py-3.5 text-neutral-700 whitespace-nowrap">{job.picName || "—"}</td>
+      <td className="px-5 py-3.5 text-neutral-700 whitespace-nowrap">
+        <span className="inline-flex items-center gap-1.5">
+          {job.picName || "—"}
+          {showBranch && (
+            <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full border bg-neutral-100 text-neutral-500 border-neutral-200">
+              {branchLabel(job.branch)}
+            </span>
+          )}
+        </span>
+      </td>
       <td className="px-5 py-3.5 text-neutral-600 whitespace-nowrap">{job.plateNo}</td>
       <td className="px-5 py-3.5">
         <ArrivedCell job={job} />
@@ -848,6 +929,14 @@ function RestoreBikeRow({
       )}
       <td className="px-5 py-3.5">
         <div className="flex items-center gap-1">
+          <button
+            onClick={() => setDetailsOpen(true)}
+            className="text-neutral-400 hover:text-indigo-600 transition-colors p-1"
+            title="View costing details"
+            aria-label="View costing details"
+          >
+            <Eye size={14} />
+          </button>
           <Link
             href={`/repairs/${job.id}/edit`}
             className="text-neutral-400 hover:text-indigo-600 transition-colors p-1 inline-block"
@@ -902,6 +991,8 @@ function RestoreBikeRow({
             </div>
           </div>
         )}
+
+        {detailsOpen && <ItemsDetailModal job={job} onClose={() => setDetailsOpen(false)} />}
       </td>
     </tr>
   );
