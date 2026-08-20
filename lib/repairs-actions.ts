@@ -49,7 +49,7 @@ type Row = {
   service_type: string;
   next_service_date: string;
   jobsheet_user_id: string;
-  image_path: string | null;
+  image_paths: string[] | null;
   arrived_date: string | null;
   quotation_date: string | null;
   qc_result: QcResult | null;
@@ -104,7 +104,7 @@ function toJob(r: Row): RepairJob {
     serviceType: r.service_type,
     nextServiceDate: r.next_service_date,
     jobsheetUserId: r.jobsheet_user_id,
-    imagePath: r.image_path,
+    imagePaths: r.image_paths ?? [],
     arrivedDate: r.arrived_date,
     quotationDate: r.quotation_date,
     qcResult: r.qc_result,
@@ -145,21 +145,6 @@ async function assertMechanicAssignment(
 
   if (isBigItem && mechanic.category !== "Heavy Repair") {
     return { error: "This is a heavy repair job — it can only be assigned to a Heavy Repair mechanic." };
-  }
-
-  // A job sitting in QC no longer needs the mechanic — their part of the
-  // work is done, so they're free for the next job while the PIC QCs this
-  // one.
-  let busyQuery = supabaseAdmin
-    .from("cc_repair_jobs")
-    .select("id", { count: "exact", head: true })
-    .eq("mechanic_id", mechanicId)
-    .not("status", "in", '("Completed","QC")');
-  if (excludeJobId) busyQuery = busyQuery.neq("id", excludeJobId);
-  const { count, error: busyError } = await busyQuery;
-  if (busyError) return { error: busyError.message };
-  if ((count ?? 0) > 0) {
-    return { error: "This mechanic already has an active job assigned — they're free again once it's marked Completed." };
   }
 }
 
@@ -644,8 +629,6 @@ export async function updateRepairJobAction(
     condition: input.condition ?? "",
     location: input.location ?? "",
     arrived_date: input.arrivedDate ?? null,
-    stock_order_date: input.stockOrderDate ?? null,
-    stock_arrive_date: input.stockArriveDate ?? null,
     completed_date: input.completedDate,
     prepared_by: input.preparedBy ?? "",
     is_big_item: input.isBigItem ?? false,
@@ -664,6 +647,12 @@ export async function updateRepairJobAction(
     jobsheet_user_id: input.jobsheetUserId ?? "",
   };
   if (input.quotationDate !== undefined) update.quotation_date = input.quotationDate;
+  // Stock Order/Arrive are click-to-stamp only on the Bikes Listing list now
+  // (setRestoreBikeWorkflowDateAction) — the edit form no longer sends
+  // these, so omitting them here must NOT silently null out a date already
+  // stamped from the list.
+  if (input.stockOrderDate !== undefined) update.stock_order_date = input.stockOrderDate;
+  if (input.stockArriveDate !== undefined) update.stock_arrive_date = input.stockArriveDate;
   // Walk-in jobs have no separate QC stage — setting the End Date from the
   // edit form (desktop or the phone /scan page) marks the job Completed the
   // same way the list's click-to-stamp End Date button does, so the PIC
@@ -846,10 +835,14 @@ export async function deleteRepairJobAction(id: string, branch: Branch): Promise
 
 const RESTORE_BIKE_PHOTO_BUCKET = "restore-bike-photos";
 
-// Restore Bike only — the required photo of the bike, stored the same way
-// as GenBlu screenshots (private bucket, path only in the DB; resolved to
-// a time-limited signed URL whenever it needs to be shown).
-export async function uploadRestoreBikeImageAction(
+const MAX_RESTORE_BIKE_PHOTOS = 5;
+
+// Restore Bike only — up to 5 photos of the bike, stored the same way as
+// GenBlu screenshots (private bucket, paths only in the DB; resolved to
+// time-limited signed URLs whenever they need to be shown). Uploads add to
+// whatever's already on the job rather than replacing it, capped at 5
+// total.
+export async function uploadRestoreBikeImagesAction(
   jobId: string,
   branch: Branch,
   formData: FormData
@@ -857,18 +850,56 @@ export async function uploadRestoreBikeImageAction(
   const user = await requireApproved();
   assertCanEditBranch(user, branch);
 
-  const file = formData.get("image") as File | null;
-  if (!file || file.size === 0) return { error: "No photo was uploaded." };
+  const files = formData.getAll("images").filter((f): f is File => f instanceof File && f.size > 0);
+  if (files.length === 0) return { error: "No photos were uploaded." };
 
-  const ext = file.name.split(".").pop() || "jpg";
-  const path = `${branch}/${jobId}-${Date.now()}.${ext}`;
-  const { error: uploadError } = await supabaseAdmin.storage
-    .from(RESTORE_BIKE_PHOTO_BUCKET)
-    .upload(path, file, { contentType: file.type || "image/jpeg" });
-  if (uploadError) return { error: `Couldn't upload the photo: ${uploadError.message}` };
+  const { data: existing, error: fetchError } = await supabaseAdmin
+    .from("cc_repair_jobs")
+    .select("image_paths")
+    .eq("id", jobId)
+    .single();
+  if (fetchError) return { error: fetchError.message };
 
-  const { error } = await supabaseAdmin.from("cc_repair_jobs").update({ image_path: path }).eq("id", jobId);
+  const existingPaths: string[] = existing.image_paths ?? [];
+  const room = MAX_RESTORE_BIKE_PHOTOS - existingPaths.length;
+  if (room <= 0) return { error: `Already has ${MAX_RESTORE_BIKE_PHOTOS} photos — remove one before adding more.` };
+
+  const toUpload = files.slice(0, room);
+  const newPaths: string[] = [];
+  for (const file of toUpload) {
+    const ext = file.name.split(".").pop() || "jpg";
+    const path = `${branch}/${jobId}-${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+    const { error: uploadError } = await supabaseAdmin.storage
+      .from(RESTORE_BIKE_PHOTO_BUCKET)
+      .upload(path, file, { contentType: file.type || "image/jpeg" });
+    if (uploadError) return { error: `Couldn't upload the photo: ${uploadError.message}` };
+    newPaths.push(path);
+  }
+
+  const { error } = await supabaseAdmin
+    .from("cc_repair_jobs")
+    .update({ image_paths: [...existingPaths, ...newPaths] })
+    .eq("id", jobId);
   if (error) return { error: error.message };
+  revalidatePath("/repairs");
+  revalidatePath("/repairs/walk-in");
+}
+
+export async function removeRestoreBikeImageAction(jobId: string, branch: Branch, path: string): Promise<{ error: string } | void> {
+  const user = await requireApproved();
+  assertCanEditBranch(user, branch);
+
+  const { data: existing, error: fetchError } = await supabaseAdmin
+    .from("cc_repair_jobs")
+    .select("image_paths")
+    .eq("id", jobId)
+    .single();
+  if (fetchError) return { error: fetchError.message };
+
+  const nextPaths = ((existing.image_paths as string[]) ?? []).filter((p) => p !== path);
+  const { error } = await supabaseAdmin.from("cc_repair_jobs").update({ image_paths: nextPaths }).eq("id", jobId);
+  if (error) return { error: error.message };
+  await supabaseAdmin.storage.from(RESTORE_BIKE_PHOTO_BUCKET).remove([path]);
   revalidatePath("/repairs");
   revalidatePath("/repairs/walk-in");
 }
@@ -877,4 +908,9 @@ export async function getRestoreBikeImageUrl(path: string): Promise<string | nul
   const { data, error } = await supabaseAdmin.storage.from(RESTORE_BIKE_PHOTO_BUCKET).createSignedUrl(path, 60 * 60);
   if (error) return null;
   return data.signedUrl;
+}
+
+export async function getRestoreBikeImageUrls(paths: string[]): Promise<string[]> {
+  const urls = await Promise.all(paths.map((p) => getRestoreBikeImageUrl(p)));
+  return urls.filter((u): u is string => u !== null);
 }

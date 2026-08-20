@@ -2,14 +2,12 @@
 
 import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { Plus, Download, Pencil, AlertTriangle, Search, Check, Trash2, Printer, Eye, X } from "lucide-react";
+import { Download, Pencil, AlertTriangle, Search, Check, Trash2, Printer, Eye, X } from "lucide-react";
 import {
   updateRepairApprovalAction,
   setRestoreBikeWorkflowDateAction,
   setQcResultAction,
   deleteRepairJobAction,
-  quickAddRestoreBikeArrivalAction,
 } from "@/lib/repairs-actions";
 import {
   APPROVAL_STATUSES,
@@ -49,32 +47,6 @@ function isQcOverdue(job: RepairJob): boolean {
   return (days ?? 0) > QC_OVERDUE_DAYS;
 }
 
-// This is Main Listing's entry point: stamps today as the arrival date
-// right away and jumps straight into the form to key in the bike's
-// details — no mechanic required here, that happens later via Assign on
-// the Restore Bike list once the job shows up there.
-function MainListingButton({ branch }: { branch: Branch }) {
-  const router = useRouter();
-  const [isPending, startTransition] = useTransition();
-
-  function handleClick() {
-    startTransition(async () => {
-      const { id } = await quickAddRestoreBikeArrivalAction(branch);
-      router.push(`/repairs/${id}/edit`);
-    });
-  }
-
-  return (
-    <button
-      onClick={handleClick}
-      disabled={isPending}
-      className="flex items-center gap-1.5 bg-indigo-500 hover:bg-indigo-400 disabled:opacity-50 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
-    >
-      <Plus size={15} /> {isPending ? "Adding…" : "Add Bike"}
-    </button>
-  );
-}
-
 export default function RepairsClient({
   active,
   qc,
@@ -98,7 +70,6 @@ export default function RepairsClient({
   const overdueQcCount = qc.filter(isQcOverdue).length;
   const allJobs = useMemo(() => [...active, ...qc, ...completed], [active, qc, completed]);
   const showBranchColumn = branchSelection === "all";
-  const quickAddBranch: Branch | null = branchSelection === "all" ? null : branchSelection;
 
   function mechanicLabel(id: string | null) {
     if (!id) return "—";
@@ -247,16 +218,6 @@ export default function RepairsClient({
             >
               <Download size={15} /> Export Filtered…
             </button>
-          )}
-          {quickAddBranch ? (
-            <MainListingButton branch={quickAddBranch} />
-          ) : (
-            <Link
-              href="/repairs/new"
-              className="flex items-center gap-1.5 bg-indigo-500 hover:bg-indigo-400 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
-            >
-              <Plus size={15} /> Add Bike
-            </Link>
           )}
         </div>
       </div>
@@ -485,8 +446,23 @@ function ExportJobModal({
 
 // Status is no longer a manual choice — it just follows the Start/End
 // stamps (see setRestoreBikeWorkflowDateAction), so this is read-only.
-function StatusCell({ status }: { status: RepairStatus }) {
-  return <span className={`text-xs font-medium px-2.5 py-1 rounded-full border ${STATUS_STYLES[status]}`}>{status}</span>;
+function StatusCell({ job }: { job: RepairJob }) {
+  return (
+    <div className="flex flex-col gap-1 items-start">
+      <span className={`text-xs font-medium px-2.5 py-1 rounded-full border ${STATUS_STYLES[job.status]}`}>{job.status}</span>
+      {job.status === "Completed" && job.qcResult && (
+        <span
+          className={`text-[10px] font-medium px-2 py-0.5 rounded-full border ${
+            job.qcResult === "Passed"
+              ? "bg-emerald-500/10 text-emerald-700 border-emerald-500/20"
+              : "bg-red-500/10 text-red-700 border-red-500/20"
+          }`}
+        >
+          QC {job.qcResult}
+        </span>
+      )}
+    </div>
+  );
 }
 
 // Pass sends the job straight to Completed; Fail sends it back to Active
@@ -836,7 +812,7 @@ function RestoreBikeRow({
       </td>
       <td className="px-5 py-3.5 text-neutral-600 whitespace-nowrap">{job.dealType || "—"}</td>
       <td className="px-5 py-3.5">
-        <StatusCell status={job.status} />
+        <StatusCell job={job} />
       </td>
       {showQc && (
         <td className="px-5 py-3.5">

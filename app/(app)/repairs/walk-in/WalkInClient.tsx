@@ -30,15 +30,10 @@ export default function WalkInClient({
   branchSelection: BranchSelection;
 }) {
   const [tab, setTab] = useState<"active" | "completed">("active");
-  const [loadFilter, setLoadFilter] = useState<"All" | "Heavy Repair" | "Normal Repair">("All");
   const [exporting, setExporting] = useState(false);
   const [exportJobModalOpen, setExportJobModalOpen] = useState(false);
   const [exportFilteredModalOpen, setExportFilteredModalOpen] = useState(false);
-  const baseJobs = tab === "active" ? active : completed;
-  const jobs =
-    loadFilter === "All"
-      ? baseJobs
-      : baseJobs.filter((j) => (loadFilter === "Heavy Repair" ? isHeavyRepairJob(j) : !isHeavyRepairJob(j)));
+  const jobs = tab === "active" ? active : completed;
   const allJobs = useMemo(() => [...active, ...completed], [active, completed]);
   const showBranchColumn = branchSelection === "all";
 
@@ -173,23 +168,6 @@ export default function WalkInClient({
           >
             <Plus size={15} /> Add Job
           </Link>
-        </div>
-      </div>
-
-      <div className="flex items-center gap-2 mb-4 flex-wrap">
-        <span className="text-xs font-medium text-neutral-500">Load:</span>
-        <div className="flex gap-1 bg-white border border-neutral-200 rounded-lg p-1">
-          {(["All", "Heavy Repair", "Normal Repair"] as const).map((l) => (
-            <button
-              key={l}
-              onClick={() => setLoadFilter(l)}
-              className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors whitespace-nowrap ${
-                loadFilter === l ? "bg-indigo-500 text-white" : "text-neutral-600 hover:text-neutral-800"
-              }`}
-            >
-              {l === "All" ? "All" : l}
-            </button>
-          ))}
         </div>
       </div>
 

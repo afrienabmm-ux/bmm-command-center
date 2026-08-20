@@ -1,9 +1,15 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Trash2 } from "lucide-react";
-import { addRepairJobAction, updateRepairJobAction, uploadRestoreBikeImageAction, getRestoreBikeImageUrl } from "@/lib/repairs-actions";
+import { Plus, Trash2, X } from "lucide-react";
+import {
+  addRepairJobAction,
+  updateRepairJobAction,
+  uploadRestoreBikeImagesAction,
+  removeRestoreBikeImageAction,
+  getRestoreBikeImageUrl,
+} from "@/lib/repairs-actions";
 import { DEAL_TYPES, RESTORE_BIKE_CONDITIONS, type RestoreBikeCondition, type RepairJob } from "@/lib/types";
 import type { Mechanic, Package, CatalogProduct } from "@/lib/types";
 import { BRANCHES, branchLabel, type Branch, type BranchSelection } from "@/lib/branch";
@@ -12,8 +18,7 @@ import CatalogItemPicker from "@/components/CatalogItemPicker";
 
 type ItemInput = { code: string; description: string; quantity: string; price: string };
 
-const PIC_BY_BRANCH: Record<Branch, string> = { kapar: "TAUFIQ", puncak_alam: "SK", setia_alam: "PENG" };
-const PIC_NAMES = Object.values(PIC_BY_BRANCH);
+const MAX_PHOTOS = 5;
 
 function emptyItem(): ItemInput {
   return { code: "", description: "", quantity: "1", price: "" };
@@ -157,7 +162,6 @@ export default function RepairJobForm({
   branchSelection,
   locked,
   mechanics,
-  allActiveJobs,
   packages,
   catalogProducts,
 }: {
@@ -176,15 +180,17 @@ export default function RepairJobForm({
   // (gated on GM approval).
   const [formDate, setFormDate] = useState(job?.formDate ?? new Date().toISOString().slice(0, 10));
   const [plateNo, setPlateNo] = useState(job?.plateNo ?? "");
-  const [locationBranch, setLocationBranch] = useState<BranchSelection>(job?.branch ?? branchSelection);
-  const [mechanicId, setMechanicId] = useState(job?.mechanicId ?? "");
+  // A bike physically arrives at one branch — no "All Branches" option
+  // here (that's only meaningful once a mechanic is picked, and
+  // assignment now happens from the Arrival Listing tab instead).
+  const [locationBranch, setLocationBranch] = useState<Branch>(
+    job?.branch ?? (branchSelection !== "all" ? branchSelection : BRANCHES[0].value)
+  );
   const [revenueAmount, setRevenueAmount] = useState(job ? String(job.revenueAmount) : "");
   const [dealType, setDealType] = useState<(typeof DEAL_TYPES)[number]>(
     (job?.dealType as (typeof DEAL_TYPES)[number]) || "Trade In"
   );
-  const [picName, setPicName] = useState(
-    job?.picName ?? (locationBranch !== "all" ? PIC_BY_BRANCH[locationBranch] : "")
-  );
+  const [picName, setPicName] = useState(job?.picName ?? "");
   const [model, setModel] = useState(job?.model ?? "");
   const [bikeYear, setBikeYear] = useState(job?.bikeYear ?? "");
   const [condition, setCondition] = useState<RestoreBikeCondition>(
@@ -192,64 +198,60 @@ export default function RepairJobForm({
   );
   const [mileageKm, setMileageKm] = useState(job?.mileageKm ?? "");
   const [arrivedDate, setArrivedDate] = useState(job?.arrivedDate ?? "");
-  const [stockOrderDate, setStockOrderDate] = useState(job?.stockOrderDate ?? "");
-  const [stockArriveDate, setStockArriveDate] = useState(job?.stockArriveDate ?? "");
   const [isBigItem, setIsBigItem] = useState(job?.isBigItem ?? false);
   const [items, setItems] = useState<ItemInput[]>(job ? itemsFromJob(job) : []);
-  const [imageFile, setImageFile] = useState<File | null>(null);
-  const [existingImageUrl, setExistingImageUrl] = useState<string | null>(null);
+  const [newPhotoFiles, setNewPhotoFiles] = useState<File[]>([]);
+  const [existingPhotos, setExistingPhotos] = useState<{ path: string; url: string }[]>([]);
   const [imageError, setImageError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const plateNoRef = useRef<HTMLInputElement>(null);
-  const mechanicRef = useRef<HTMLSelectElement>(null);
   const imageRef = useRef<HTMLDivElement>(null);
+  const photoInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (!job?.imagePath) return;
-    getRestoreBikeImageUrl(job.imagePath).then(setExistingImageUrl);
-  }, [job?.imagePath]);
+    if (!job?.imagePaths || job.imagePaths.length === 0) return;
+    Promise.all(job.imagePaths.map(async (path) => ({ path, url: await getRestoreBikeImageUrl(path) }))).then((results) => {
+      setExistingPhotos(results.filter((r): r is { path: string; url: string } => r.url !== null));
+    });
+  }, [job?.imagePaths]);
 
-  const isHeavyJob = isBigItem;
-
-  // A mechanic already carrying another active (non-Completed) job can't be
-  // handed a second one until it's marked Completed.
-  const busyMechanicIds = useMemo(
-    () => new Set(allActiveJobs.filter((j) => j.id !== job?.id && j.mechanicId).map((j) => j.mechanicId as string)),
-    [allActiveJobs, job]
-  );
-
-  const branchMechanics = locationBranch === "all" ? mechanics : mechanics.filter((m) => m.branch === locationBranch);
-  const eligibleMechanics = branchMechanics.filter((m) => {
-    if (m.id === mechanicId) return true;
-    if (busyMechanicIds.has(m.id)) return false;
-    if (isHeavyJob && m.category !== "Heavy Repair") return false;
-    return true;
-  });
-  const selectedMechanic = branchMechanics.find((m) => m.id === mechanicId) ?? null;
-  const effectiveBranch: Branch | null = locationBranch !== "all" ? locationBranch : (selectedMechanic?.branch ?? null);
+  const branchMechanics = mechanics.filter((m) => m.branch === locationBranch);
 
   const itemsTotal = items.reduce((sum, it) => sum + (Number(it.quantity) || 0) * (Number(it.price) || 0), 0);
 
-  // If the job becomes heavy (more items added, or the checkbox is ticked)
-  // and the currently picked mechanic isn't a Heavy Repair mechanic, clear
-  // the pick instead of silently letting an invalid combination be saved.
-  useEffect(() => {
-    if (isHeavyJob && selectedMechanic && selectedMechanic.category !== "Heavy Repair") {
-      setMechanicId("");
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isHeavyJob]);
-
-  function handleLocationChange(next: BranchSelection) {
+  function handleLocationChange(next: Branch) {
     setLocationBranch(next);
-    setMechanicId("");
-    if (next !== "all") setPicName(PIC_BY_BRANCH[next]);
   }
 
-  // Every job needs a mechanic assigned before it can be saved. A photo of
-  // the bike is required too — either a new upload, or (when editing) one
-  // already on file.
-  const hasImage = imageFile !== null || existingImageUrl !== null;
+  const photoSlotsUsed = existingPhotos.length + newPhotoFiles.length;
+  const photoSlotsLeft = MAX_PHOTOS - photoSlotsUsed;
+
+  function handlePhotoSelect(files: FileList | null) {
+    if (!files || files.length === 0) return;
+    const picked = Array.from(files).slice(0, photoSlotsLeft);
+    setNewPhotoFiles((prev) => [...prev, ...picked]);
+    setImageError(null);
+    if (photoInputRef.current) photoInputRef.current.value = "";
+  }
+
+  function removeNewPhoto(index: number) {
+    setNewPhotoFiles((prev) => prev.filter((_, i) => i !== index));
+  }
+
+  function removeExistingPhoto(path: string) {
+    if (!job) return;
+    startTransition(async () => {
+      const result = await removeRestoreBikeImageAction(job.id, job.branch, path);
+      if (result && "error" in result) {
+        window.alert(result.error);
+        return;
+      }
+      setExistingPhotos((prev) => prev.filter((p) => p.path !== path));
+    });
+  }
+
+  // At least one photo (existing or newly picked) is required before saving.
+  const hasPhoto = photoSlotsUsed > 0;
 
   // Jumps to and highlights whichever required field is still empty,
   // instead of leaving the PIC staring at a disabled button with no idea
@@ -265,12 +267,11 @@ export default function RepairJobForm({
       scrollToField(plateNoRef.current);
       return;
     }
-    if (!hasImage) {
+    if (!hasPhoto) {
       setImageError("A photo of the bike is required.");
       scrollToField(imageRef.current);
       return;
     }
-    if (!effectiveBranch) return;
     setImageError(null);
     const cleanItems = items
       .filter((it) => it.description.trim() !== "")
@@ -285,7 +286,10 @@ export default function RepairJobForm({
       jobType: "Restore Bike" as const,
       customerName: "",
       plateNo: plateNo.trim(),
-      mechanicId: mechanicId || null,
+      // Assignment now happens from the Arrival Listing tab — this form
+      // never touches mechanic_id, so an already-assigned job keeps its
+      // mechanic across edits.
+      mechanicId: job?.mechanicId ?? null,
       description: "",
       revenueAmount: Number(revenueAmount) || 0,
       dealType,
@@ -296,10 +300,8 @@ export default function RepairJobForm({
       condition: condition.trim(),
       mileageKm: mileageKm.trim(),
       arrivedDate: arrivedDate || null,
-      location: branchLabel(effectiveBranch),
+      location: branchLabel(locationBranch),
       items: cleanItems,
-      stockOrderDate: stockOrderDate || null,
-      stockArriveDate: stockArriveDate || null,
       isBigItem,
       // Filling in and saving this form IS the quotation — no separate
       // click needed. Preserve an already-set date rather than restamping
@@ -316,17 +318,20 @@ export default function RepairJobForm({
           return;
         }
       } else {
-        const result = await addRepairJobAction({ ...payload, branch: effectiveBranch, jobType: "Restore Bike" });
+        const result = await addRepairJobAction({ ...payload, branch: locationBranch, jobType: "Restore Bike" });
         if ("error" in result) {
           window.alert(result.error);
           return;
         }
         jobId = result.id;
       }
-      if (imageFile && jobId) {
+      if (newPhotoFiles.length > 0 && jobId) {
         const imageFormData = new FormData();
-        imageFormData.append("image", imageFile);
-        await uploadRestoreBikeImageAction(jobId, effectiveBranch, imageFormData);
+        newPhotoFiles.forEach((file) => imageFormData.append("images", file));
+        const uploadResult = await uploadRestoreBikeImagesAction(jobId, locationBranch, imageFormData);
+        if (uploadResult && "error" in uploadResult) {
+          window.alert(`Job saved, but the photo upload failed: ${uploadResult.error}`);
+        }
       }
       router.push("/repairs");
     });
@@ -359,22 +364,20 @@ export default function RepairJobForm({
             />
           </div>
           <div>
-            <label className="block text-xs font-medium text-neutral-600 mb-1.5">PIC</label>
-            <select
+            <label className="block text-xs font-medium text-neutral-600 mb-1.5">Thumbprint</label>
+            <input
+              type="text"
+              list="thumbprint-names"
               value={picName}
               onChange={(e) => setPicName(e.target.value)}
+              placeholder="Type a name…"
               className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
-            >
-              <option value="" disabled>
-                Select PIC…
-              </option>
-              {picName && !PIC_NAMES.includes(picName) && <option value={picName}>{picName}</option>}
-              {PIC_NAMES.map((name) => (
-                <option key={name} value={name}>
-                  {name}
-                </option>
+            />
+            <datalist id="thumbprint-names">
+              {branchMechanics.map((m) => (
+                <option key={m.id} value={m.shortName} />
               ))}
-            </select>
+            </datalist>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -422,22 +425,56 @@ export default function RepairJobForm({
             />
           </div>
           <div ref={imageRef} tabIndex={-1}>
-            <label className="block text-xs font-medium text-neutral-600 mb-1.5">Bike Photo *</label>
-            {existingImageUrl && !imageFile && (
-              <img src={existingImageUrl} alt="Bike" className="w-32 h-32 object-cover rounded-lg border border-neutral-200 mb-2" />
+            <label className="block text-xs font-medium text-neutral-600 mb-1.5">Bike Photos * (up to {MAX_PHOTOS})</label>
+            {(existingPhotos.length > 0 || newPhotoFiles.length > 0) && (
+              <div className="flex flex-wrap gap-2 mb-2">
+                {existingPhotos.map((p) => (
+                  <div key={p.path} className="relative">
+                    <img src={p.url} alt="Bike" className="w-24 h-24 object-cover rounded-lg border border-neutral-200" />
+                    <button
+                      type="button"
+                      onClick={() => removeExistingPhoto(p.path)}
+                      disabled={isPending}
+                      className="absolute -top-1.5 -right-1.5 bg-white border border-neutral-300 rounded-full p-0.5 text-neutral-500 hover:text-red-600 disabled:opacity-50"
+                      aria-label="Remove photo"
+                    >
+                      <X size={12} />
+                    </button>
+                  </div>
+                ))}
+                {newPhotoFiles.map((file, i) => (
+                  <div key={i} className="relative">
+                    <img
+                      src={URL.createObjectURL(file)}
+                      alt="New bike photo"
+                      className="w-24 h-24 object-cover rounded-lg border border-indigo-300"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => removeNewPhoto(i)}
+                      className="absolute -top-1.5 -right-1.5 bg-white border border-neutral-300 rounded-full p-0.5 text-neutral-500 hover:text-red-600"
+                      aria-label="Remove photo"
+                    >
+                      <X size={12} />
+                    </button>
+                  </div>
+                ))}
+              </div>
             )}
-            <input
-              type="file"
-              accept="image/*"
-              onChange={(e) => {
-                const file = e.target.files?.[0] ?? null;
-                setImageFile(file);
-                if (file) setImageError(null);
-              }}
-              className="w-full text-sm text-neutral-700 file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:bg-neutral-100 file:text-neutral-800 file:text-xs"
-            />
+            {photoSlotsLeft > 0 && (
+              <input
+                ref={photoInputRef}
+                type="file"
+                accept="image/*"
+                multiple
+                onChange={(e) => handlePhotoSelect(e.target.files)}
+                className="w-full text-sm text-neutral-700 file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:bg-neutral-100 file:text-neutral-800 file:text-xs"
+              />
+            )}
             {imageError && <p className="text-xs text-red-600 mt-1.5">{imageError}</p>}
-            <p className="text-xs text-neutral-500 mt-1.5">A photo of the bike is required before this job can be saved.</p>
+            <p className="text-xs text-neutral-500 mt-1.5">
+              At least one photo is required — {photoSlotsUsed} of {MAX_PHOTOS} used.
+            </p>
           </div>
           <div>
             <label className="block text-xs font-medium text-neutral-600 mb-1.5">Mileage (KM)</label>
@@ -453,7 +490,7 @@ export default function RepairJobForm({
             <select
               value={locationBranch}
               disabled={locked}
-              onChange={(e) => handleLocationChange(e.target.value as BranchSelection)}
+              onChange={(e) => handleLocationChange(e.target.value as Branch)}
               className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50 disabled:opacity-60"
             >
               {BRANCHES.map((b) => (
@@ -461,44 +498,7 @@ export default function RepairJobForm({
                   {b.label}
                 </option>
               ))}
-              {!locked && <option value="all">All Branches</option>}
             </select>
-            {locationBranch === "all" && !selectedMechanic && (
-              <p className="text-xs text-amber-700 mt-1.5">Pick a mechanic below to set which branch this job belongs to.</p>
-            )}
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-neutral-600 mb-1.5">Mechanic</label>
-            <select
-              ref={mechanicRef}
-              value={mechanicId}
-              onChange={(e) => setMechanicId(e.target.value)}
-              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
-            >
-              <option value="">Not assigned yet</option>
-              {eligibleMechanics.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.shortName} ({m.shortCode})
-                  {locationBranch === "all" ? ` — ${branchLabel(m.branch)}` : ""}
-                  {m.category === "Heavy Repair" ? " — Heavy Repair" : ""}
-                </option>
-              ))}
-            </select>
-            {isHeavyJob && (
-              <p className="text-xs text-amber-700 mt-1.5">
-                Marked as a heavy / big item repair — only Heavy Repair mechanics can be assigned.
-              </p>
-            )}
-            {branchMechanics.length > eligibleMechanics.length && (
-              <p className="text-xs text-neutral-500 mt-1.5">
-                {branchMechanics.length - eligibleMechanics.length} mechanic{branchMechanics.length - eligibleMechanics.length === 1 ? "" : "s"} hidden — already on an active job, or not a Heavy Repair mechanic.
-              </p>
-            )}
-            {mechanicId === "" && (
-              <p className="text-xs text-neutral-500 mt-1.5">
-                Fine to leave unassigned — assign a mechanic later from the Restore Bike list.
-              </p>
-            )}
           </div>
 
           <div className="flex items-center gap-2">
@@ -545,26 +545,6 @@ export default function RepairJobForm({
                   {t}
                 </button>
               ))}
-            </div>
-          </div>
-          <div className="flex items-end gap-4">
-            <div>
-              <label className="block text-xs font-medium text-neutral-600 mb-1.5">Stock Order Date</label>
-              <input
-                type="date"
-                value={stockOrderDate}
-                onChange={(e) => setStockOrderDate(e.target.value)}
-                className="w-40 bg-neutral-50 border border-neutral-200 rounded-lg px-2.5 py-2 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-neutral-600 mb-1.5">Stock Arrive Date</label>
-              <input
-                type="date"
-                value={stockArriveDate}
-                onChange={(e) => setStockArriveDate(e.target.value)}
-                className="w-40 bg-neutral-50 border border-neutral-200 rounded-lg px-2.5 py-2 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
-              />
             </div>
           </div>
         </div>

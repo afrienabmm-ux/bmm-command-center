@@ -151,10 +151,10 @@ export type RepairJob = {
   serviceType: string;
   nextServiceDate: string;
   jobsheetUserId: string;
-  // Restore Bike only — a required photo of the bike, stored the same way
-  // as GenBlu screenshots (private bucket, path only; resolved to a signed
-  // URL on read).
-  imagePath: string | null;
+  // Restore Bike only — up to 5 photos of the bike, stored the same way as
+  // GenBlu screenshots (private bucket, paths only; resolved to signed
+  // URLs on read).
+  imagePaths: string[];
   // Restore Bike — Arrived is set on the form; Quotation is a click-to-
   // stamp on the list. GM approval is just the existing approvalStatus
   // field (Approved), not a separate date.

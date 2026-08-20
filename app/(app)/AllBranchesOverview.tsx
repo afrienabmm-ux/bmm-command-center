@@ -27,8 +27,9 @@ import {
 } from "@/lib/dashboard-breakdowns-actions";
 import IdleMechanicsNotice from "./IdleMechanicsNotice";
 import PackageBreakdownCharts from "./PackageBreakdownCharts";
-import RestoreBikeStatus from "./RestoreBikeStatus";
+import RestoreBikeStatus, { type OverdueRestoreBikeDetail } from "./RestoreBikeStatus";
 import ClaimStatusPieCard from "./ClaimStatusPieCard";
+import { getAllMechanics } from "@/lib/mechanics-actions";
 
 // Rolls (year, month) back one month, correctly crossing a year boundary.
 function previousMonth(year: number, month: number): { year: number; month: number } {
@@ -71,6 +72,7 @@ export default async function AllBranchesOverview({
     activeJobs,
     idleMechanics,
     todayActivity,
+    allMechanics,
   ] = await Promise.all([
     getBranchBreakdown(year, month),
     getAllBranchesOverdueRestoreBikeJobs(onlyBranch),
@@ -88,6 +90,7 @@ export default async function AllBranchesOverview({
     onlyBranch ? getActiveRepairJobs(onlyBranch) : getAllBranchesActiveRepairJobs(),
     getMechanicsNotActiveToday(onlyBranch),
     getTodayActivity(onlyBranch),
+    getAllMechanics(),
   ]);
 
   // Combined view sums every branch's row; single-branch view just reads
@@ -110,21 +113,28 @@ export default async function AllBranchesOverview({
   const serviceRevenueToday = revenuePace.branches.reduce((sum, b) => sum + b.revenueToday, 0);
 
   // Same 5-day overdue cutoff as the "running past 5 days" alert below —
-  // amber is the 3-5 day warning zone before a job actually goes red. Jobs
-  // that haven't started yet (no startedDate) aren't running the clock, so
-  // they count as green rather than being left out entirely.
+  // just green/red now, no amber warning zone. Jobs that haven't started
+  // yet (no startedDate) aren't running the clock, so they count as green
+  // rather than being left out entirely.
   const restoreBikeStatusCounts = activeJobs
     .filter((j) => j.jobType === "Restore Bike")
     .reduce(
       (acc, j) => {
         const days = j.startedDate ? Math.floor((Date.now() - new Date(j.startedDate).getTime()) / 86400000) : null;
-        if (days === null || days < 3) acc.green += 1;
-        else if (days <= 5) acc.amber += 1;
+        if (days === null || days <= 5) acc.green += 1;
         else acc.red += 1;
         return acc;
       },
-      { green: 0, amber: 0, red: 0 }
+      { green: 0, red: 0 }
     );
+
+  const mechanicNameById = new Map(allMechanics.map((m) => [m.id, `${m.shortName} (${m.shortCode})`]));
+  const overdueRestoreBikeDetails: OverdueRestoreBikeDetail[] = overdueJobs.map((j) => ({
+    plateNo: j.plateNo,
+    mechanicName: j.mechanicId ? (mechanicNameById.get(j.mechanicId) ?? "Unknown") : "Unassigned",
+    branch: j.branch,
+    daysRunning: j.daysRunning,
+  }));
 
   // Month-over-month change vs the same combined-achieved figure last month.
   // No badge when there's nothing to compare against (e.g. a brand new month).
@@ -323,7 +333,7 @@ export default async function AllBranchesOverview({
           delivery={deliveryClaimStatusBreakdown}
           subtitle={onlyBranch ? "This month" : "All branches, this month"}
         />
-        <RestoreBikeStatus counts={restoreBikeStatusCounts} />
+        <RestoreBikeStatus counts={restoreBikeStatusCounts} overdueDetails={overdueRestoreBikeDetails} />
       </div>
 
       <PackageBreakdownCharts packageBreakdown={packageBreakdown} onlyBranch={onlyBranch} />
