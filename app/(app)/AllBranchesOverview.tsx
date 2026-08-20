@@ -252,7 +252,7 @@ export default async function AllBranchesOverview({
               <p className="text-xs text-red-600 mt-1">
                 {overdueQcJobs
                   .slice(0, 6)
-                  .map((j) => `${j.plateNo} — ${j.picName || "no PIC"} (${j.daysWaiting}d)`)
+                  .map((j) => `${j.plateNo} — ${j.model || "no model"} (${j.daysWaiting}d)`)
                   .join(", ")}
                 {overdueQcJobs.length > 6 ? `, +${overdueQcJobs.length - 6} more` : ""}
               </p>
@@ -278,7 +278,7 @@ export default async function AllBranchesOverview({
               <p className="text-xs text-amber-600 mt-1">
                 {qcReminderJobs
                   .slice(0, 6)
-                  .map((j) => `${j.plateNo} — ${j.picName || "no PIC"} (due ${formatDate(j.dueDate)})`)
+                  .map((j) => `${j.plateNo} — ${j.model || "no model"} (due ${formatDate(j.dueDate)})`)
                   .join(", ")}
                 {qcReminderJobs.length > 6 ? `, +${qcReminderJobs.length - 6} more` : ""}
               </p>
