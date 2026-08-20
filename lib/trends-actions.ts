@@ -45,32 +45,45 @@ export type MonthlyTrendPoint = {
   repairJobsByBranch: Record<Branch, number>;
 };
 
-// One combined-across-branches point per month, computed with a handful of
-// range queries rather than one query per branch per month — a dashboard
-// trend chart doesn't need branch granularity, just the company-wide shape.
-export async function getMonthlyTrends(endYear: number, endMonth: number, monthsBack = 6): Promise<MonthlyTrendPoint[]> {
+// One point per month, combined across all branches by default — a
+// dashboard trend chart doesn't normally need branch granularity, just the
+// company-wide shape. Passing onlyBranch scopes every figure (including
+// repairJobsByBranch, which then only has that one branch's own count) down
+// to a single branch instead, for the single-branch dashboard view.
+export async function getMonthlyTrends(
+  endYear: number,
+  endMonth: number,
+  monthsBack = 6,
+  onlyBranch?: Branch
+): Promise<MonthlyTrendPoint[]> {
   await requireApproved();
   const months = lastNMonths(endYear, endMonth, monthsBack);
   const from = monthRange(months[0].year, months[0].month).from;
   const to = monthRange(months[months.length - 1].year, months[months.length - 1].month).to;
+  const branchFilter = onlyBranch ? [onlyBranch] : BRANCHES.map((b) => b.value);
 
   const [{ data: targets }, { data: jobs, error: jobsErr }, { data: claims, error: claimsErr }, { data: sales, error: salesErr }] =
     await Promise.all([
-      supabaseAdmin
-        .from("cc_monthly_targets")
-        .select("year, month, target_amount")
-        .in(
-          "branch",
-          BRANCHES.map((b) => b.value)
-        ),
+      supabaseAdmin.from("cc_monthly_targets").select("year, month, target_amount").in("branch", branchFilter),
       supabaseAdmin
         .from("cc_repair_jobs")
         .select("branch, revenue_amount, completed_date")
         .eq("status", "Completed")
+        .in("branch", branchFilter)
         .gte("completed_date", from)
         .lte("completed_date", to),
-      supabaseAdmin.from("cc_warranty_claims").select("submitted_date").gte("submitted_date", from).lte("submitted_date", to),
-      supabaseAdmin.from("cc_package_sales").select("sale_date, cc_packages(price)").gte("sale_date", from).lte("sale_date", to),
+      supabaseAdmin
+        .from("cc_warranty_claims")
+        .select("submitted_date")
+        .in("branch", branchFilter)
+        .gte("submitted_date", from)
+        .lte("submitted_date", to),
+      supabaseAdmin
+        .from("cc_package_sales")
+        .select("sale_date, cc_packages(price)")
+        .in("branch", branchFilter)
+        .gte("sale_date", from)
+        .lte("sale_date", to),
     ]);
   if (jobsErr) throw new Error(jobsErr.message);
   if (claimsErr) throw new Error(claimsErr.message);

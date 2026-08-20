@@ -1,7 +1,7 @@
 import Link from "next/link";
-import { AlertTriangle, ShieldCheck, ClipboardList, Layers, ArrowUp, ArrowDown } from "lucide-react";
+import { AlertTriangle, ShieldCheck, ClipboardList, Wrench, Wallet, Layers, ArrowUp, ArrowDown } from "lucide-react";
 import { formatCurrency, monthLabel } from "@/lib/format";
-import type { Branch } from "@/lib/branch";
+import { branchLabel, type Branch, type BranchSelection } from "@/lib/branch";
 import StatCard from "@/components/StatCard";
 import CombinedTargetEditor from "./CombinedTargetEditor";
 import BranchBreakdownTable, { getBranchBreakdown, getAllBranchesAchievedTotal } from "./BranchBreakdownTable";
@@ -10,12 +10,19 @@ import {
   getAllBranchesOverdueRestoreBikeJobs,
   getAllBranchesOverdueQcJobs,
   getAllBranchesActiveRepairJobs,
+  getActiveRepairJobs,
   getAllBranchesPendingApprovalJobs,
 } from "@/lib/repairs-actions";
+import { getBranchMonthSummary } from "@/lib/reports-actions";
 import { getMonthlyTrends } from "@/lib/trends-actions";
 import { getRevenuePace } from "@/lib/revenue-pace-actions";
 import RevenuePace from "./RevenuePace";
-import { getWarrantyClaimStatusBreakdown, getPackageSalesBreakdown, getMechanicsNotActiveToday } from "@/lib/dashboard-breakdowns-actions";
+import {
+  getWarrantyClaimStatusBreakdown,
+  getPackageSalesBreakdown,
+  getMechanicsNotActiveToday,
+  getTodayActivity,
+} from "@/lib/dashboard-breakdowns-actions";
 import IdleMechanicsNotice from "./IdleMechanicsNotice";
 
 // Rolls (year, month) back one month, correctly crossing a year boundary.
@@ -27,12 +34,19 @@ export default async function AllBranchesOverview({
   year,
   month,
   isManagement,
+  branchSelection,
 }: {
   year: number;
   month: number;
   isManagement: boolean;
+  branchSelection: BranchSelection;
 }) {
   const prev = previousMonth(year, month);
+  // "all" shows the company-wide combined view (unchanged); picking a
+  // specific branch in the switcher scopes every section on this page down
+  // to just that branch instead.
+  const onlyBranch = branchSelection === "all" ? undefined : branchSelection;
+
   // Fetched together (rather than each as its own async Server Component
   // further down the tree) so they run as one wave of parallel queries
   // instead of three sequential waterfalls — this was the main source of
@@ -49,31 +63,42 @@ export default async function AllBranchesOverview({
     packageBreakdown,
     activeJobs,
     idleMechanics,
+    todayActivity,
   ] = await Promise.all([
     getBranchBreakdown(year, month),
-    getAllBranchesOverdueRestoreBikeJobs(),
-    getAllBranchesOverdueQcJobs(),
-    isManagement ? getAllBranchesPendingApprovalJobs() : Promise.resolve([]),
-    getAllBranchesAchievedTotal(prev.year, prev.month),
-    getMonthlyTrends(year, month, 6),
-    getRevenuePace(year, month),
-    getWarrantyClaimStatusBreakdown(year, month),
+    getAllBranchesOverdueRestoreBikeJobs(onlyBranch),
+    getAllBranchesOverdueQcJobs(onlyBranch),
+    isManagement ? getAllBranchesPendingApprovalJobs(onlyBranch) : Promise.resolve([]),
+    onlyBranch
+      ? getBranchMonthSummary(onlyBranch, prev.year, prev.month).then((s) => s.achievedAmount)
+      : getAllBranchesAchievedTotal(prev.year, prev.month),
+    getMonthlyTrends(year, month, 6, onlyBranch),
+    getRevenuePace(year, month, onlyBranch),
+    getWarrantyClaimStatusBreakdown(year, month, onlyBranch),
     getPackageSalesBreakdown(year, month),
-    getAllBranchesActiveRepairJobs(),
-    getMechanicsNotActiveToday(),
+    onlyBranch ? getActiveRepairJobs(onlyBranch) : getAllBranchesActiveRepairJobs(),
+    getMechanicsNotActiveToday(onlyBranch),
+    getTodayActivity(onlyBranch),
   ]);
 
-  const totals = rows.reduce(
-    (acc, b) => ({
-      target: acc.target + b.target,
-      achieved: acc.achieved + b.achieved,
-      approvedClaims: acc.approvedClaims + b.approvedClaims,
-    }),
-    { target: 0, achieved: 0, approvedClaims: 0 }
-  );
+  // Combined view sums every branch's row; single-branch view just reads
+  // that one branch's own row instead of summing.
+  const totals = onlyBranch
+    ? (() => {
+        const row = rows.find((r) => r.branch === onlyBranch);
+        return { target: row?.target ?? 0, achieved: row?.achieved ?? 0, approvedClaims: row?.approvedClaims ?? 0 };
+      })()
+    : rows.reduce(
+        (acc, b) => ({
+          target: acc.target + b.target,
+          achieved: acc.achieved + b.achieved,
+          approvedClaims: acc.approvedClaims + b.approvedClaims,
+        }),
+        { target: 0, achieved: 0, approvedClaims: 0 }
+      );
   const pct = totals.target > 0 ? Math.min(100, Math.round((totals.achieved / totals.target) * 100)) : 0;
 
-  const totalJobsheetCount = activeJobs.filter((j) => j.jobType === "Walk-in").length;
+  const serviceRevenueToday = revenuePace.branches.reduce((sum, b) => sum + b.revenueToday, 0);
 
   // Same 5-day overdue cutoff as the "running past 5 days" alert below —
   // amber is the 3-5 day warning zone before a job actually goes red. Jobs
@@ -103,7 +128,10 @@ export default async function AllBranchesOverview({
           <div>
             <div className="flex items-center gap-2 text-xs text-neutral-600 mb-1">
               <Layers size={13} className="text-indigo-600" />
-              <span>All Branches — {monthLabel(month, year)} Target (combined)</span>
+              <span>
+                {onlyBranch ? branchLabel(onlyBranch) : "All Branches"} — {monthLabel(month, year)} Target
+                {onlyBranch ? "" : " (combined)"}
+              </span>
             </div>
             <p className="text-3xl font-semibold text-neutral-900">{formatCurrency(totals.target)}</p>
             <div className="flex items-center gap-2 mt-1">
@@ -162,13 +190,17 @@ export default async function AllBranchesOverview({
 
       <IdleMechanicsNotice mechanics={idleMechanics} />
 
-      <RevenuePace data={revenuePace} />
+      <RevenuePace
+        data={revenuePace}
+        title={onlyBranch ? `Revenue Run-Rate — ${branchLabel(onlyBranch)}` : "Revenue Run-Rate — all branches"}
+      />
 
       <MonthlyTrends
         points={trendPoints}
         claimStatusBreakdown={claimStatusBreakdown}
         packageBreakdown={packageBreakdown}
         restoreBikeStatusCounts={restoreBikeStatusCounts}
+        onlyBranch={onlyBranch}
       />
 
       {overdueJobs.length > 0 && (
@@ -223,12 +255,31 @@ export default async function AllBranchesOverview({
         </Link>
       )}
 
-      <div className="grid grid-cols-2 gap-4 max-w-xl">
-        <StatCard icon={ShieldCheck} label="Approved Claims" value={totals.approvedClaims} color="text-emerald-700 bg-emerald-500/10" href="/warranty-claims" />
-        <StatCard icon={ClipboardList} label="Total Jobsheet" value={totalJobsheetCount} color="text-purple-700 bg-purple-500/10" href="/repairs/walk-in" />
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 max-w-3xl">
+        <StatCard
+          icon={ClipboardList}
+          label="Jobsheet Today"
+          value={todayActivity.jobsheetCount}
+          color="text-purple-700 bg-purple-500/10"
+          href="/repairs/walk-in"
+        />
+        <StatCard
+          icon={Wallet}
+          label="Service Revenue Today"
+          value={formatCurrency(serviceRevenueToday)}
+          color="text-emerald-700 bg-emerald-500/10"
+          href="/repairs/walk-in"
+        />
+        <StatCard
+          icon={Wrench}
+          label="Restore Bike Today"
+          value={todayActivity.restoreBikeCount}
+          color="text-sky-700 bg-sky-500/10"
+          href="/repairs"
+        />
       </div>
 
-      <BranchBreakdownTable rows={rows} />
+      {!onlyBranch && <BranchBreakdownTable rows={rows} />}
     </div>
   );
 }

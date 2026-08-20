@@ -10,7 +10,7 @@ export default function StatCard({
 }: {
   icon: LucideIcon;
   label: string;
-  value: number;
+  value: number | string;
   color: string;
   href: string;
 }) {

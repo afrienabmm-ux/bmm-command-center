@@ -13,17 +13,20 @@ function monthRange(year: number, month: number): { from: string; to: string } {
 
 export type ClaimStatusBreakdownRow = { status: ClaimStatus; count: number };
 
-// All branches combined, scoped to the same month as the rest of the
-// dashboard — every status is included even at zero so the legend never
-// silently drops a category the moment nothing's in it this month.
-export async function getWarrantyClaimStatusBreakdown(year: number, month: number): Promise<ClaimStatusBreakdownRow[]> {
+// All branches combined by default (or just onlyBranch, for the
+// single-branch dashboard view), scoped to the same month as the rest of
+// the dashboard — every status is included even at zero so the legend
+// never silently drops a category the moment nothing's in it this month.
+export async function getWarrantyClaimStatusBreakdown(
+  year: number,
+  month: number,
+  onlyBranch?: Branch
+): Promise<ClaimStatusBreakdownRow[]> {
   await requireApproved();
   const { from, to } = monthRange(year, month);
-  const { data, error } = await supabaseAdmin
-    .from("cc_warranty_claims")
-    .select("status")
-    .gte("submitted_date", from)
-    .lte("submitted_date", to);
+  let query = supabaseAdmin.from("cc_warranty_claims").select("status").gte("submitted_date", from).lte("submitted_date", to);
+  if (onlyBranch) query = query.eq("branch", onlyBranch);
+  const { data, error } = await query;
   if (error) throw new Error(error.message);
 
   const counts = new Map<ClaimStatus, number>(CLAIM_STATUSES.map((s) => [s, 0]));
@@ -69,6 +72,33 @@ export async function getPackageSalesBreakdown(year: number, month: number): Pro
   );
 }
 
+export type TodayActivity = { jobsheetCount: number; restoreBikeCount: number };
+
+// How many jobsheets and Restore Bike jobs were added today — a rolling
+// daily snapshot, not a month total, so it's naturally different every
+// morning rather than accumulating. "Added" = created_at is today, which
+// stays true regardless of whatever happens to the job's status
+// afterward.
+export async function getTodayActivity(onlyBranch?: Branch): Promise<TodayActivity> {
+  await requireApproved();
+  const startOfDay = new Date();
+  startOfDay.setHours(0, 0, 0, 0);
+
+  let query = supabaseAdmin.from("cc_repair_jobs").select("job_type").gte("created_at", startOfDay.toISOString());
+  if (onlyBranch) query = query.eq("branch", onlyBranch);
+  const { data, error } = await query;
+  if (error) throw new Error(error.message);
+
+  return (data ?? []).reduce(
+    (acc, row) => {
+      if (row.job_type === "Walk-in") acc.jobsheetCount += 1;
+      else if (row.job_type === "Restore Bike") acc.restoreBikeCount += 1;
+      return acc;
+    },
+    { jobsheetCount: 0, restoreBikeCount: 0 }
+  );
+}
+
 export type IdleMechanic = { id: string; fullName: string; shortCode: string; branch: Branch };
 
 // Active-status mechanics who haven't started or finished a single job
@@ -76,12 +106,15 @@ export type IdleMechanic = { id: string; fullName: string; shortCode: string; br
 // with, not just who's marked Active on paper. "Today" is a job with
 // started_date or completed_date equal to today, so a mechanic who wraps
 // up a job counts as active even once it's no longer in the active list.
-export async function getMechanicsNotActiveToday(): Promise<IdleMechanic[]> {
+export async function getMechanicsNotActiveToday(onlyBranch?: Branch): Promise<IdleMechanic[]> {
   await requireApproved();
   const today = new Date().toISOString().slice(0, 10);
 
+  let mechanicsQuery = supabaseAdmin.from("cc_mechanics").select("id, full_name, short_code, branch").eq("status", "Active");
+  if (onlyBranch) mechanicsQuery = mechanicsQuery.eq("branch", onlyBranch);
+
   const [{ data: mechanics, error: mErr }, { data: jobs, error: jErr }] = await Promise.all([
-    supabaseAdmin.from("cc_mechanics").select("id, full_name, short_code, branch").eq("status", "Active"),
+    mechanicsQuery,
     supabaseAdmin
       .from("cc_repair_jobs")
       .select("mechanic_id")

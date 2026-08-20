@@ -60,7 +60,11 @@ type SaleWithPrice = { branch: Branch; sale_date: string | null; cc_packages: { 
 // job revenue + Services Combo sales revenue), just broken down by day
 // instead of summed for the whole month — that's what lets this show a
 // day-by-day pace instead of only a single end-of-month total.
-export async function getRevenuePace(year: number, month: number): Promise<RevenuePace> {
+// onlyBranch scopes everything (the chart's dailyPoints included) down to
+// one branch instead of the company-wide combined view — same shape
+// either way, so the RevenuePace component doesn't need to know which
+// mode it's in.
+export async function getRevenuePace(year: number, month: number, onlyBranch?: Branch): Promise<RevenuePace> {
   await requireApproved();
   const { from, to, totalDays } = monthRange(year, month);
 
@@ -96,7 +100,9 @@ export async function getRevenuePace(year: number, month: number): Promise<Reven
 
   const targetByBranch = new Map<Branch, number>();
   for (const t of targets ?? []) targetByBranch.set(t.branch as Branch, Number(t.target_amount));
-  const combinedTarget = BRANCHES.reduce((sum, b) => sum + (targetByBranch.get(b.value) ?? 0), 0);
+  const combinedTarget = onlyBranch
+    ? (targetByBranch.get(onlyBranch) ?? 0)
+    : BRANCHES.reduce((sum, b) => sum + (targetByBranch.get(b.value) ?? 0), 0);
 
   const totalWorkingDays = countWorkingDays(year, month, 1, totalDays);
   const workingDaysElapsed = countWorkingDays(year, month, 1, today);
@@ -139,9 +145,10 @@ export async function getRevenuePace(year: number, month: number): Promise<Reven
     return { dailyPoints, achieved, expectedByToday, revenueToday };
   }
 
-  const combined = paceFor(null, combinedTarget);
+  const combined = paceFor(onlyBranch ?? null, combinedTarget);
+  const branchesToCompute = onlyBranch ? BRANCHES.filter((b) => b.value === onlyBranch) : BRANCHES;
 
-  const branchPaces: BranchRevenuePace[] = BRANCHES.map(({ value: branch }) => {
+  const branchPaces: BranchRevenuePace[] = branchesToCompute.map(({ value: branch }) => {
     const target = targetByBranch.get(branch) ?? 0;
     const { achieved, expectedByToday, revenueToday } = paceFor(branch, target);
     const behindAmount = Math.max(0, expectedByToday - achieved);

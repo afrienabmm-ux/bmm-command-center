@@ -32,14 +32,12 @@ const mainLinks: NavLink[] = [
   { href: "/repairs/walk-in", label: "Jobsheet", icon: ClipboardList, page: "walk-in", color: "text-purple-500" },
   { href: "/sales-performance", label: "Sales Performance", icon: TrendingUp, page: "sales-performance", color: "text-sky-500" },
   { href: "/repairs", label: "Restore Bike", icon: Wrench, page: "repairs", color: "text-sky-500" },
+  { href: "/packages", label: "Services Combo", icon: Layers, page: "packages", color: "text-teal-500" },
   { href: "/genblu", label: "GenBlu Tracker", icon: Smartphone, page: "genblu", color: "text-pink-500" },
   { href: "/warranty-claims", label: "Claims", icon: ShieldCheck, page: "warranty-claims", color: "text-amber-500" },
 ];
 
-const trailingLinks: NavLink[] = [
-  { href: "/mechanics", label: "Mechanics", icon: MechanicIcon, page: "mechanics", color: "text-emerald-500" },
-  { href: "/packages", label: "Services Combo", icon: Layers, page: "packages", color: "text-teal-500" },
-];
+const trailingLinks: NavLink[] = [{ href: "/mechanics", label: "Mechanics", icon: MechanicIcon, page: "mechanics", color: "text-emerald-500" }];
 
 const TEAM_LINK_COLOR = "text-rose-500";
 
@@ -67,8 +65,8 @@ export default function Sidebar({
   const visible = (list: NavLink[]) => list.filter((l) => l.page === null || pages.includes(l.page));
   const navLinks: NavLink[] = [
     ...visible(mainLinks),
-    ...(canSeeTeam ? [{ href: "/team", label: "Manage Team", icon: UserCog, page: null, color: TEAM_LINK_COLOR }] : []),
     ...visible(trailingLinks),
+    ...(canSeeTeam ? [{ href: "/team", label: "Manage Team", icon: UserCog, page: null, color: TEAM_LINK_COLOR }] : []),
   ];
 
   return (

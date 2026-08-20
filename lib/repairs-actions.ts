@@ -264,9 +264,11 @@ export async function getOverdueRestoreBikeJobs(branch: Branch): Promise<RepairJ
 
 export type OverdueRestoreBikeJob = RepairJob & { daysRunning: number };
 
-// Same overdue check, merged across all 3 branches for the Dashboard alert.
-export async function getAllBranchesOverdueRestoreBikeJobs(): Promise<OverdueRestoreBikeJob[]> {
-  const perBranch = await Promise.all(BRANCHES.map(({ value }) => getOverdueRestoreBikeJobs(value)));
+// Same overdue check, merged across all 3 branches by default (or just
+// onlyBranch, for the single-branch dashboard view).
+export async function getAllBranchesOverdueRestoreBikeJobs(onlyBranch?: Branch): Promise<OverdueRestoreBikeJob[]> {
+  const branches = onlyBranch ? [onlyBranch] : BRANCHES.map((b) => b.value);
+  const perBranch = await Promise.all(branches.map((value) => getOverdueRestoreBikeJobs(value)));
   const today = new Date();
   return perBranch
     .flat()
@@ -280,9 +282,9 @@ export async function getAllBranchesOverdueRestoreBikeJobs(): Promise<OverdueRes
 // Restore Bike jobs sitting at Pending approval — the GM's own to-do
 // list. Any active job counts, whether or not a mechanic's been assigned
 // yet, since approval is what unblocks the Start button either way.
-export async function getAllBranchesPendingApprovalJobs(): Promise<RepairJob[]> {
+export async function getAllBranchesPendingApprovalJobs(onlyBranch?: Branch): Promise<RepairJob[]> {
   await requireApproved();
-  const active = await getAllBranchesActiveRepairJobs();
+  const active = onlyBranch ? await getActiveRepairJobs(onlyBranch) : await getAllBranchesActiveRepairJobs();
   return active.filter((j) => j.jobType === "Restore Bike" && j.approvalStatus === "Pending");
 }
 
@@ -302,9 +304,11 @@ export async function getOverdueQcJobs(branch: Branch): Promise<RepairJob[]> {
 
 export type OverdueQcJob = RepairJob & { daysWaiting: number };
 
-// Same overdue check, merged across all 3 branches for the Dashboard alert.
-export async function getAllBranchesOverdueQcJobs(): Promise<OverdueQcJob[]> {
-  const perBranch = await Promise.all(BRANCHES.map((b) => getOverdueQcJobs(b.value)));
+// Same overdue check, merged across all 3 branches by default (or just
+// onlyBranch, for the single-branch dashboard view).
+export async function getAllBranchesOverdueQcJobs(onlyBranch?: Branch): Promise<OverdueQcJob[]> {
+  const branches = onlyBranch ? [onlyBranch] : BRANCHES.map((b) => b.value);
+  const perBranch = await Promise.all(branches.map((value) => getOverdueQcJobs(value)));
   const today = new Date();
   return perBranch
     .flat()

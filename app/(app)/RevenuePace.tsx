@@ -14,7 +14,7 @@ const PAD_X = 24;
 // "are we ahead or behind" read as the branch cards below, just as a curve
 // instead of a single number. The Actual line stops at today; the Pace
 // line keeps going to month-end so you can see where it's headed.
-function RevenueRunRateChart({ data }: { data: RevenuePaceData }) {
+function RevenueRunRateChart({ data, title }: { data: RevenuePaceData; title: string }) {
   const [containerRef, containerWidth] = useContainerWidth(640);
   const { dailyPoints, today, totalDays } = data;
   // The marker sits on "today" until you move the mouse over the chart —
@@ -55,7 +55,7 @@ function RevenueRunRateChart({ data }: { data: RevenuePaceData }) {
   return (
     <div className="bg-white border border-neutral-200 rounded-xl p-5">
       <div className="flex flex-col items-center mb-4 text-center">
-        <p className="text-sm font-semibold text-neutral-900">Revenue Run-Rate — all branches</p>
+        <p className="text-sm font-semibold text-neutral-900">{title}</p>
         <p className="text-xs text-neutral-500 mt-0.5">
           Actual revenue vs the pace needed to hit {formatCurrency(data.combinedTarget)}.
         </p>
@@ -189,10 +189,10 @@ function BranchRevenueCard({ pace, revenueToday }: { pace: BranchRevenuePace; re
   );
 }
 
-export default function RevenuePace({ data }: { data: RevenuePaceData }) {
+export default function RevenuePace({ data, title = "Revenue Run-Rate — all branches" }: { data: RevenuePaceData; title?: string }) {
   return (
     <div className="space-y-4">
-      <RevenueRunRateChart data={data} />
+      <RevenueRunRateChart data={data} title={title} />
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {data.branches.map((b) => (
           <BranchRevenueCard key={b.branch} pace={b} revenueToday={b.revenueToday} />

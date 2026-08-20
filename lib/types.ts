@@ -57,6 +57,30 @@ export type WarrantyClaim = {
   reason: string;
 };
 
+// Mirrors "DELIVERY CLAIM FOR YAMAHA/NON-YAMAHA BMM (DAMAGE)" — a separate
+// sheet from Warranty Claim, tracking damage found on a bike before it's
+// delivered to the customer rather than a fault reported after sale.
+export type DeliveryClaim = {
+  id: string;
+  branch: Branch;
+  ticketId: string;
+  pic: string;
+  model: string;
+  chassisNo: string;
+  engineNo: string;
+  problem: string;
+  status: ClaimStatus;
+  stockStatus: StockStatus;
+  plateNo: string;
+  // Free text on the sheet, not a clean date (e.g. "29/7 EMBLEM") — which
+  // part arrived and when, in one note.
+  dateParts: string;
+  delivery: string;
+  reason: string;
+  submittedDate: string;
+  createdAt: string;
+};
+
 export type JobType = "Restore Bike" | "Walk-in";
 export const JOB_TYPES: JobType[] = ["Restore Bike", "Walk-in"];
 // "QC" sits between a mechanic finishing the repair (End Date stamped) and
