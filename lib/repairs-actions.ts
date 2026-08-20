@@ -493,11 +493,20 @@ export async function addRepairJobAction(input: {
   );
   if (assignmentCheck && "error" in assignmentCheck) return assignmentCheck;
 
-  const { count } = await supabaseAdmin
-    .from("cc_repair_jobs")
-    .select("*", { count: "exact", head: true })
-    .eq("branch", input.branch);
-  const jobNo = `RJ-${JOB_NO_BRANCH_CODE[input.branch]}-${String((count ?? 0) + 1).padStart(4, "0")}`;
+  // Walk-in jobs carry their own job number from the paper jobsheet
+  // (scanned or typed into "Job No. (jobsheet)") — use that as the job's
+  // job_no directly instead of an auto-generated one, so the number shown
+  // everywhere in the app matches the physical job card. Restore Bike has
+  // no such source, so it always gets the auto-generated RJ-{code}-#### one.
+  const scannedJobNo = input.jobType === "Walk-in" ? input.jobsheetNo?.trim() : undefined;
+  let jobNo = scannedJobNo;
+  if (!jobNo) {
+    const { count } = await supabaseAdmin
+      .from("cc_repair_jobs")
+      .select("*", { count: "exact", head: true })
+      .eq("branch", input.branch);
+    jobNo = `RJ-${JOB_NO_BRANCH_CODE[input.branch]}-${String((count ?? 0) + 1).padStart(4, "0")}`;
+  }
   const revenueAmount = items.length > 0 ? itemsTotal(items) : input.revenueAmount;
 
   const { data, error } = await supabaseAdmin
@@ -651,6 +660,11 @@ export async function updateRepairJobAction(
     next_service_date: input.nextServiceDate ?? "",
     jobsheet_user_id: input.jobsheetUserId ?? "",
   };
+  // Keep the displayed job number in sync if the PIC edits/re-scans the
+  // jobsheet's own Job No. field after the job was created.
+  if (input.jobType === "Walk-in" && input.jobsheetNo?.trim()) {
+    update.job_no = input.jobsheetNo.trim();
+  }
   if (input.quotationDate !== undefined) update.quotation_date = input.quotationDate;
   // Stock Order/Arrive are click-to-stamp only on the Bikes Listing list now
   // (setRestoreBikeWorkflowDateAction) — the edit form no longer sends

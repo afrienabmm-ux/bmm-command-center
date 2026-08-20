@@ -1,7 +1,7 @@
 "use client";
 
 import { Fragment, useEffect, useMemo, useState } from "react";
-import { Crown, Wrench, Smartphone, Download, ChevronDown, ChevronUp, Check, X } from "lucide-react";
+import { Crown, Wrench, Smartphone, Download, ChevronDown, ChevronUp, Check, X, ArrowUp, ArrowDown, Minus } from "lucide-react";
 import { formatCurrency, toCsv } from "@/lib/format";
 import { BRANCHES, branchLabel, type BranchSelection } from "@/lib/branch";
 import type { MechanicPerformanceRowWithBranch } from "@/lib/reports-actions";
@@ -75,16 +75,44 @@ function DailyPaceCell({ r, daysElapsed }: { r: MechanicPerformanceRowWithBranch
   );
 }
 
+// This month's total revenue vs the same mechanic's total last month — a
+// flat green/red/neutral badge, same read as the Dashboard's target-banner
+// trend badge. No badge when there's nothing to compare against (e.g. the
+// mechanic wasn't around last month).
+function TrendBadge({ current, previous }: { current: number; previous: number | undefined }) {
+  if (!previous || previous <= 0) return null;
+  const pct = Math.round(((current - previous) / previous) * 100);
+  if (pct === 0) {
+    return (
+      <span className="inline-flex items-center gap-0.5 text-xs font-medium px-1.5 py-0.5 rounded-full bg-neutral-100 text-neutral-500">
+        <Minus size={10} /> Same as last month
+      </span>
+    );
+  }
+  return (
+    <span
+      className={`inline-flex items-center gap-0.5 text-xs font-medium px-1.5 py-0.5 rounded-full ${
+        pct > 0 ? "bg-emerald-500/10 text-emerald-700" : "bg-red-500/10 text-red-700"
+      }`}
+    >
+      {pct > 0 ? <ArrowUp size={10} /> : <ArrowDown size={10} />}
+      {Math.abs(pct)}% vs last month
+    </span>
+  );
+}
+
 function RevenueRow({
   r,
   isTop,
   isTopRestoreBike,
   daysElapsed,
+  prevRevenue,
 }: {
   r: MechanicPerformanceRowWithBranch;
   isTop: boolean;
   isTopRestoreBike: boolean;
   daysElapsed: number;
+  prevRevenue: number | undefined;
 }) {
   return (
     <tr className="border-b border-neutral-100 last:border-0 hover:bg-neutral-50">
@@ -113,7 +141,12 @@ function RevenueRow({
           <Smartphone size={12} className="text-sky-500" /> {r.genbluCount} new
         </span>
       </td>
-      <td className="px-5 py-3.5 text-neutral-900 font-semibold whitespace-nowrap">{formatCurrency(r.totalRevenue)}</td>
+      <td className="px-5 py-3.5 whitespace-nowrap">
+        <div className="flex flex-col gap-1 items-start">
+          <span className="text-neutral-900 font-semibold">{formatCurrency(r.totalRevenue)}</span>
+          <TrendBadge current={r.totalRevenue} previous={prevRevenue} />
+        </div>
+      </td>
       <td className="px-5 py-3.5">
         <DailyPaceCell r={r} daysElapsed={daysElapsed} />
       </td>
@@ -131,11 +164,13 @@ export default function AllBranchesMechanicPerformanceClient({
   branchSelection,
   locked,
   daysElapsed,
+  prevRevenueByMechanicId,
 }: {
   rows: MechanicPerformanceRowWithBranch[];
   branchSelection?: BranchSelection;
   locked?: boolean;
   daysElapsed: number;
+  prevRevenueByMechanicId: Record<string, number>;
 }) {
   const [branchFilter, setBranchFilter] = useState<BranchSelection>(branchSelection ?? "all");
   const [view, setView] = useState<View>("revenue");
@@ -356,6 +391,7 @@ export default function AllBranchesMechanicPerformanceClient({
                             isTop={r.mechanicId === topOverallId}
                             isTopRestoreBike={r.mechanicId === topRestoreBikeId}
                             daysElapsed={daysElapsed}
+                            prevRevenue={prevRevenueByMechanicId[r.mechanicId]}
                           />
                         ))}
                       </Fragment>
@@ -367,6 +403,7 @@ export default function AllBranchesMechanicPerformanceClient({
                         isTop={r.mechanicId === topOverallId}
                         isTopRestoreBike={r.mechanicId === topRestoreBikeId}
                         daysElapsed={daysElapsed}
+                        prevRevenue={prevRevenueByMechanicId[r.mechanicId]}
                       />
                     ))}
                 {filtered.length === 0 && (

@@ -31,14 +31,26 @@ export default async function SalesPerformancePage({
   const isCurrentMonth = year === now.getFullYear() && month === now.getMonth() + 1;
   const daysElapsed = isCurrentMonth ? now.getDate() : daysInMonth;
 
-  const [rows, packageBreakdown] = await Promise.all([
+  // Rolls (year, month) back one month, correctly crossing a year boundary
+  // — same previous-month comparison the Dashboard's target banner uses.
+  const prevYear = month === 1 ? year - 1 : year;
+  const prevMonth = month === 1 ? 12 : month - 1;
+
+  const [rows, prevRows, packageBreakdown] = await Promise.all([
     onlyBranch
       ? getBranchPerformance(onlyBranch, year, month).then(
           (r): MechanicPerformanceRowWithBranch[] => r.map((row) => ({ ...row, branch: onlyBranch }))
         )
       : getAllBranchesPerformance(year, month),
+    onlyBranch ? getBranchPerformance(onlyBranch, prevYear, prevMonth) : getAllBranchesPerformance(prevYear, prevMonth),
     getPackageSalesBreakdown(year, month),
   ]);
+
+  // A plain object, not a Map — Map instances can't cross the Server/Client
+  // Component boundary as props.
+  const prevRevenueByMechanicId: Record<string, number> = Object.fromEntries(
+    prevRows.map((r) => [r.mechanicId, r.totalRevenue])
+  );
 
   return (
     <div className="flex flex-col h-full">
@@ -48,7 +60,13 @@ export default async function SalesPerformancePage({
         action={<MonthPicker year={year} month={month} basePath="/sales-performance" />}
       />
       <div className="p-8 space-y-8">
-        <AllBranchesMechanicPerformanceTable rows={rows} branchSelection={branchSelection} locked={locked} daysElapsed={daysElapsed} />
+        <AllBranchesMechanicPerformanceTable
+          rows={rows}
+          branchSelection={branchSelection}
+          locked={locked}
+          daysElapsed={daysElapsed}
+          prevRevenueByMechanicId={prevRevenueByMechanicId}
+        />
         <PackageBreakdownCharts packageBreakdown={packageBreakdown} onlyBranch={onlyBranch} />
       </div>
     </div>
