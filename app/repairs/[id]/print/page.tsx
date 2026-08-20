@@ -2,16 +2,17 @@ import { notFound } from "next/navigation";
 import { requirePage } from "@/lib/current-user";
 import { getRepairJobById, getRestoreBikeImageUrls } from "@/lib/repairs-actions";
 import { formatDate } from "@/lib/format";
+import type { Branch } from "@/lib/branch";
 import PrintButton from "./PrintButton";
 
 export const dynamic = "force-dynamic";
 
 // Fixed per Jason — the PIC who prepares/signs this form at each branch.
-const PREPARE_BY_NAMES: { label: string; name: string }[] = [
-  { label: "KAPAR (HQ)", name: "TAUFIQ" },
-  { label: "PUNCAK ALAM", name: "SK" },
-  { label: "SETIA ALAM", name: "PENG" },
-];
+const PREPARE_BY_NAME: Record<Branch, string> = {
+  kapar: "TAUFIQ",
+  puncak_alam: "SK",
+  setia_alam: "PENG",
+};
 
 export default async function PrintRepairJobPage({ params }: { params: Promise<{ id: string }> }) {
   await requirePage("repairs");
@@ -147,35 +148,9 @@ export default async function PrintRepairJobPage({ params }: { params: Promise<{
           </div>
         )}
 
-        <div className="mt-6 text-xs">
-          <table className="border-collapse">
-            <thead>
-              <tr>
-                <th colSpan={3} className="border border-neutral-400 px-2 py-1 bg-neutral-100 text-left">
-                  PREPARE BY
-                </th>
-              </tr>
-              <tr>
-                <th className="border border-neutral-400 px-2 py-1 text-left w-28">Branch</th>
-                <th className="border border-neutral-400 px-2 py-1 text-left w-28">Name</th>
-                <th className="border border-neutral-400 px-2 py-1 text-left w-40">Signature</th>
-              </tr>
-            </thead>
-            <tbody>
-              {PREPARE_BY_NAMES.map((p) => (
-                <tr key={p.label}>
-                  <td className="border border-neutral-400 px-2 py-1">{p.label}</td>
-                  <td className="border border-neutral-400 px-2 py-1">{p.name}</td>
-                  <td className="border border-neutral-400 px-2 py-5" />
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        <div className="grid grid-cols-2 gap-4 mt-6 text-xs">
+        <div className="grid grid-cols-2 gap-4 mt-10 text-xs">
           <div>
-            <p className="font-semibold">PREPARE BY : {job.preparedBy || ""}</p>
+            <p className="font-semibold">PREPARE BY : {job.preparedBy || PREPARE_BY_NAME[job.branch]}</p>
           </div>
           <div>
             <p className="font-semibold mb-8">APPROVE/NOT APPROVE : {job.approvalStatus}</p>
