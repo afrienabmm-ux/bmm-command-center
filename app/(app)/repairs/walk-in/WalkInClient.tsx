@@ -33,7 +33,13 @@ export default function WalkInClient({
   const [exporting, setExporting] = useState(false);
   const [exportJobModalOpen, setExportJobModalOpen] = useState(false);
   const [exportFilteredModalOpen, setExportFilteredModalOpen] = useState(false);
+  const [query, setQuery] = useState("");
   const jobs = tab === "active" ? active : completed;
+  const visible = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return jobs;
+    return jobs.filter((j) => (j.customerName ?? "").toLowerCase().includes(q) || j.plateNo.toLowerCase().includes(q));
+  }, [jobs, query]);
   const allJobs = useMemo(() => [...active, ...completed], [active, completed]);
   const showBranchColumn = branchSelection === "all";
 
@@ -139,7 +145,17 @@ export default function WalkInClient({
             Completed ({completed.length})
           </button>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-wrap">
+          <div className="relative">
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
+            <input
+              type="text"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search customer or plate no…"
+              className="bg-white border border-neutral-200 rounded-lg pl-8 pr-3 py-2 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50 w-64"
+            />
+          </div>
           <button
             onClick={handleExport}
             disabled={exporting}
@@ -191,7 +207,7 @@ export default function WalkInClient({
               </tr>
             </thead>
             <tbody>
-              {jobs.map((job) => (
+              {visible.map((job) => (
                 <WalkInRow
                   key={job.id}
                   job={job}
@@ -200,10 +216,12 @@ export default function WalkInClient({
                   editable={tab === "active"}
                 />
               ))}
-              {jobs.length === 0 && (
+              {visible.length === 0 && (
                 <tr>
                   <td colSpan={showBranchColumn ? 12 : 11} className="px-5 py-10 text-center text-neutral-500 text-sm">
-                    {tab === "active" ? "No active" : "No completed"} Jobsheet jobs.
+                    {jobs.length === 0
+                      ? `${tab === "active" ? "No active" : "No completed"} Jobsheet jobs.`
+                      : "No jobs match your search."}
                   </td>
                 </tr>
               )}
