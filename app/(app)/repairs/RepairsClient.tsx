@@ -535,22 +535,23 @@ function ApprovalCell({ job, canApprove }: { job: RepairJob; canApprove: boolean
     );
   }
 
-  function handleClick() {
-    const currentIndex = APPROVAL_STATUSES.indexOf(job.approvalStatus);
-    const next = APPROVAL_STATUSES[(currentIndex + 1) % APPROVAL_STATUSES.length];
-    startTransition(() => updateRepairApprovalAction(job.id, next));
+  function handleChange(value: string) {
+    startTransition(() => updateRepairApprovalAction(job.id, value as ApprovalStatus));
   }
 
   return (
-    <button
-      type="button"
-      onClick={handleClick}
+    <select
+      value={job.approvalStatus}
+      onChange={(e) => handleChange(e.target.value)}
       disabled={isPending}
-      title="Click to cycle: Pending -> Approved -> Not Approved"
-      className={`text-xs font-medium px-2.5 py-1.5 rounded-full border transition-colors disabled:opacity-50 ${APPROVAL_STYLES[job.approvalStatus]}`}
+      className={`text-xs font-medium pl-2.5 pr-6 py-1.5 rounded-full border transition-colors disabled:opacity-50 cursor-pointer ${APPROVAL_STYLES[job.approvalStatus]}`}
     >
-      {job.approvalStatus}
-    </button>
+      {APPROVAL_STATUSES.map((s) => (
+        <option key={s} value={s}>
+          {s}
+        </option>
+      ))}
+    </select>
   );
 }
 

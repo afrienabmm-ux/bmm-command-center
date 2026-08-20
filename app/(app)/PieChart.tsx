@@ -80,32 +80,40 @@ function PieChart({ slices, size = 148 }: { slices: PieSlice[]; size?: number })
   );
 }
 
-export function PieChartCard({ heading, subtitle, slices }: { heading: string; subtitle: string; slices: PieSlice[] }) {
+// The pie + legend, without a heading or card wrapper — reused as-is by
+// PieChartCard below, and by cards that need a custom header (e.g. a type
+// toggle) instead of a plain heading/subtitle pair.
+export function PieChartBody({ slices }: { slices: PieSlice[] }) {
   const total = slices.reduce((sum, s) => sum + s.value, 0);
+  if (total === 0) {
+    return <p className="text-sm text-neutral-500 text-center py-8">No data yet this month.</p>;
+  }
+  return (
+    <div className="flex items-center gap-6 flex-wrap">
+      <PieChart slices={slices} />
+      <div className="flex flex-col gap-2 min-w-[140px]">
+        {slices.map((s) => (
+          <div key={s.label} className="flex items-center justify-between gap-3 text-xs">
+            <span className="flex items-center gap-1.5 text-neutral-600">
+              <span className={`w-2.5 h-2.5 rounded-full inline-block ${s.dot}`} />
+              {s.label}
+            </span>
+            <span className="font-medium text-neutral-900">
+              {s.value} <span className="text-neutral-400 font-normal">({Math.round((s.value / total) * 100)}%)</span>
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+export function PieChartCard({ heading, subtitle, slices }: { heading: string; subtitle: string; slices: PieSlice[] }) {
   return (
     <div className="bg-white border border-neutral-200 rounded-xl p-5">
       <p className="text-sm font-semibold text-neutral-900">{heading}</p>
       <p className="text-xs text-neutral-500 mt-0.5 mb-4">{subtitle}</p>
-      {total === 0 ? (
-        <p className="text-sm text-neutral-500 text-center py-8">No data yet this month.</p>
-      ) : (
-        <div className="flex items-center gap-6 flex-wrap">
-          <PieChart slices={slices} />
-          <div className="flex flex-col gap-2 min-w-[140px]">
-            {slices.map((s) => (
-              <div key={s.label} className="flex items-center justify-between gap-3 text-xs">
-                <span className="flex items-center gap-1.5 text-neutral-600">
-                  <span className={`w-2.5 h-2.5 rounded-full inline-block ${s.dot}`} />
-                  {s.label}
-                </span>
-                <span className="font-medium text-neutral-900">
-                  {s.value} <span className="text-neutral-400 font-normal">({Math.round((s.value / total) * 100)}%)</span>
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+      <PieChartBody slices={slices} />
     </div>
   );
 }

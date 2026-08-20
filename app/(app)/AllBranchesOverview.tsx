@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { AlertTriangle, Clock, ShieldCheck, ClipboardList, Wrench, Wallet, Layers, ArrowUp, ArrowDown } from "lucide-react";
+import { AlertTriangle, Clock, ShieldCheck, ClipboardList, Wrench, Wallet, Layers, PackageCheck, ArrowUp, ArrowDown } from "lucide-react";
 import { formatCurrency, formatDate, monthLabel } from "@/lib/format";
 import { branchLabel, type Branch, type BranchSelection } from "@/lib/branch";
 import StatCard from "@/components/StatCard";
@@ -20,22 +20,15 @@ import { getRevenuePace } from "@/lib/revenue-pace-actions";
 import RevenuePace from "./RevenuePace";
 import {
   getWarrantyClaimStatusBreakdown,
+  getDeliveryClaimStatusBreakdown,
   getPackageSalesBreakdown,
   getMechanicsNotActiveToday,
   getTodayActivity,
 } from "@/lib/dashboard-breakdowns-actions";
 import IdleMechanicsNotice from "./IdleMechanicsNotice";
 import PackageBreakdownCharts from "./PackageBreakdownCharts";
-import { PieChartCard, type PieSlice } from "./PieChart";
 import RestoreBikeStatus from "./RestoreBikeStatus";
-import type { ClaimStatusBreakdownRow } from "@/lib/dashboard-breakdowns-actions";
-
-const CLAIM_STATUS_COLORS: Record<ClaimStatusBreakdownRow["status"], { colorClass: string; dot: string }> = {
-  "In Process": { colorClass: "fill-amber-500", dot: "bg-amber-500" },
-  Proceed: { colorClass: "fill-emerald-500", dot: "bg-emerald-500" },
-  Rejected: { colorClass: "fill-red-500", dot: "bg-red-500" },
-  "Close Ticket": { colorClass: "fill-indigo-500", dot: "bg-indigo-500" },
-};
+import ClaimStatusPieCard from "./ClaimStatusPieCard";
 
 // Rolls (year, month) back one month, correctly crossing a year boundary.
 function previousMonth(year: number, month: number): { year: number; month: number } {
@@ -73,6 +66,7 @@ export default async function AllBranchesOverview({
     trendPoints,
     revenuePace,
     claimStatusBreakdown,
+    deliveryClaimStatusBreakdown,
     packageBreakdown,
     activeJobs,
     idleMechanics,
@@ -89,6 +83,7 @@ export default async function AllBranchesOverview({
     getMonthlyTrends(year, month, 6, onlyBranch),
     getRevenuePace(year, month, onlyBranch),
     getWarrantyClaimStatusBreakdown(year, month, onlyBranch),
+    getDeliveryClaimStatusBreakdown(year, month, onlyBranch),
     getPackageSalesBreakdown(year, month),
     onlyBranch ? getActiveRepairJobs(onlyBranch) : getAllBranchesActiveRepairJobs(),
     getMechanicsNotActiveToday(onlyBranch),
@@ -135,40 +130,9 @@ export default async function AllBranchesOverview({
   // No badge when there's nothing to compare against (e.g. a brand new month).
   const trendPct = prevAchieved > 0 ? Math.round(((totals.achieved - prevAchieved) / prevAchieved) * 100) : null;
 
-  const claimSlices: PieSlice[] = claimStatusBreakdown.map((row) => ({
-    label: row.status,
-    value: row.count,
-    ...CLAIM_STATUS_COLORS[row.status],
-  }));
-
   return (
     <div className="space-y-8">
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 max-w-3xl">
-        <StatCard
-          icon={ClipboardList}
-          label="Jobsheet Today"
-          value={todayActivity.jobsheetCount}
-          color="text-purple-700 bg-purple-500/10"
-          href="/repairs/walk-in"
-        />
-        <StatCard
-          icon={Wallet}
-          label="Service Revenue Today"
-          value={formatCurrency(serviceRevenueToday)}
-          color="text-emerald-700 bg-emerald-500/10"
-          href="/repairs/walk-in"
-        />
-        <StatCard
-          icon={Wrench}
-          label="Restore Bike Today"
-          value={todayActivity.restoreBikeCount}
-          color="text-sky-700 bg-sky-500/10"
-          href="/repairs"
-        />
-      </div>
-
-      <PackageBreakdownCharts packageBreakdown={packageBreakdown} onlyBranch={onlyBranch} />
-
+      {/* Headline number first: this month's target vs achieved. */}
       <div className="bg-gradient-to-br from-indigo-50 to-white border border-indigo-200 rounded-xl p-6">
         <div className="flex items-start justify-between flex-wrap gap-4">
           <div>
@@ -207,6 +171,7 @@ export default async function AllBranchesOverview({
         </div>
       </div>
 
+      {/* Alerts — anything that needs action or a heads-up, most urgent first. */}
       {isManagement && pendingApprovalJobs.length > 0 && (
         <Link
           href="/repairs"
@@ -234,24 +199,6 @@ export default async function AllBranchesOverview({
         </Link>
       )}
 
-      <IdleMechanicsNotice mechanics={idleMechanics} />
-
-      <RevenuePace
-        data={revenuePace}
-        title={onlyBranch ? `Revenue Run-Rate — ${branchLabel(onlyBranch)}` : "Revenue Run-Rate — all branches"}
-      />
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <PieChartCard
-          heading="Warranty Claims by Status"
-          subtitle={onlyBranch ? "This month" : "All branches, this month"}
-          slices={claimSlices}
-        />
-        <RestoreBikeStatus counts={restoreBikeStatusCounts} />
-      </div>
-
-      <MonthlyTrends points={trendPoints} />
-
       {overdueJobs.length > 0 && (
         <Link
           href="/repairs"
@@ -272,6 +219,32 @@ export default async function AllBranchesOverview({
                   .map((j) => `${j.plateNo} (${j.daysRunning}d)`)
                   .join(", ")}
                 {overdueJobs.length > 6 ? `, +${overdueJobs.length - 6} more` : ""}
+              </p>
+            </div>
+          </div>
+        </Link>
+      )}
+
+      {overdueQcJobs.length > 0 && (
+        <Link
+          href="/repairs"
+          className="block bg-red-50 border border-red-200 rounded-xl p-5 hover:border-red-300 transition-colors"
+        >
+          <div className="flex items-start gap-3">
+            <div className="w-9 h-9 rounded-lg bg-red-500/10 flex items-center justify-center shrink-0">
+              <AlertTriangle size={17} className="text-red-600" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-red-700">
+                {overdueQcJobs.length} job{overdueQcJobs.length === 1 ? "" : "s"} waiting on QC past 3 days — check
+                with the branch PIC
+              </p>
+              <p className="text-xs text-red-600 mt-1">
+                {overdueQcJobs
+                  .slice(0, 6)
+                  .map((j) => `${j.plateNo} — ${j.picName || "no PIC"} (${j.daysWaiting}d)`)
+                  .join(", ")}
+                {overdueQcJobs.length > 6 ? `, +${overdueQcJobs.length - 6} more` : ""}
               </p>
             </div>
           </div>
@@ -304,31 +277,58 @@ export default async function AllBranchesOverview({
         </Link>
       )}
 
-      {overdueQcJobs.length > 0 && (
-        <Link
+      <IdleMechanicsNotice mechanics={idleMechanics} />
+
+      {/* Today, at a glance. */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 max-w-4xl">
+        <StatCard
+          icon={ClipboardList}
+          label="Jobsheet Today"
+          value={todayActivity.jobsheetCount}
+          color="text-purple-700 bg-purple-500/10"
+          href="/repairs/walk-in"
+        />
+        <StatCard
+          icon={Wallet}
+          label="Service Revenue Today"
+          value={formatCurrency(serviceRevenueToday)}
+          color="text-emerald-700 bg-emerald-500/10"
+          href="/repairs/walk-in"
+        />
+        <StatCard
+          icon={PackageCheck}
+          label="Services Combo Today"
+          value={todayActivity.packagesSoldCount}
+          color="text-teal-700 bg-teal-500/10"
+          href="/packages"
+        />
+        <StatCard
+          icon={Wrench}
+          label="Restore Bike Today"
+          value={todayActivity.restoreBikeCount}
+          color="text-sky-700 bg-sky-500/10"
           href="/repairs"
-          className="block bg-red-50 border border-red-200 rounded-xl p-5 hover:border-red-300 transition-colors"
-        >
-          <div className="flex items-start gap-3">
-            <div className="w-9 h-9 rounded-lg bg-red-500/10 flex items-center justify-center shrink-0">
-              <AlertTriangle size={17} className="text-red-600" />
-            </div>
-            <div className="min-w-0">
-              <p className="text-sm font-semibold text-red-700">
-                {overdueQcJobs.length} job{overdueQcJobs.length === 1 ? "" : "s"} waiting on QC past 3 days — check
-                with the branch PIC
-              </p>
-              <p className="text-xs text-red-600 mt-1">
-                {overdueQcJobs
-                  .slice(0, 6)
-                  .map((j) => `${j.plateNo} — ${j.picName || "no PIC"} (${j.daysWaiting}d)`)
-                  .join(", ")}
-                {overdueQcJobs.length > 6 ? `, +${overdueQcJobs.length - 6} more` : ""}
-              </p>
-            </div>
-          </div>
-        </Link>
-      )}
+        />
+      </div>
+
+      <RevenuePace
+        data={revenuePace}
+        title={onlyBranch ? `Revenue Run-Rate — ${branchLabel(onlyBranch)}` : "Revenue Run-Rate — all branches"}
+      />
+
+      {/* Current status, at a glance — claims, restore bike workflow, combo sales. */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <ClaimStatusPieCard
+          warranty={claimStatusBreakdown}
+          delivery={deliveryClaimStatusBreakdown}
+          subtitle={onlyBranch ? "This month" : "All branches, this month"}
+        />
+        <RestoreBikeStatus counts={restoreBikeStatusCounts} />
+      </div>
+
+      <PackageBreakdownCharts packageBreakdown={packageBreakdown} onlyBranch={onlyBranch} />
+
+      <MonthlyTrends points={trendPoints} />
 
       {!onlyBranch && <BranchBreakdownTable rows={rows} />}
     </div>

@@ -55,10 +55,10 @@ export default function DeliveryClaimsClient({
     setExporting(true);
     try {
       const list = statusFilter === "All" ? claims : claims.filter((c) => c.status === statusFilter);
-      const headers = ["Ticket ID", "Tarikh", "PIC", "Model", "Chassis No.", "No Engine", "Problem", "Status", "Jual/Belum", "No Plate", "Date Parts", "Delivery", "Reason"];
+      const headers = ["Tarikh", "Ticket ID", "PIC", "Model", "Chassis No.", "No Engine", "Problem", "Status", "Jual/Belum", "No Plate", "Date Parts", "Delivery", "Reason"];
       const rows = list.map((c) => [
-        c.ticketId,
         formatDate(c.submittedDate),
+        c.ticketId,
         c.pic,
         c.model,
         c.chassisNo,
@@ -134,9 +134,9 @@ export default function DeliveryClaimsClient({
           <table className="w-full text-sm">
             <thead>
               <tr className="text-left text-xs text-neutral-500 border-b border-neutral-200">
+                <th className="font-medium px-5 py-3 whitespace-nowrap">Tarikh</th>
                 <th className="font-medium px-5 py-3 whitespace-nowrap">Ticket ID</th>
                 {showBranchColumn && <th className="font-medium px-5 py-3 whitespace-nowrap">Branch</th>}
-                <th className="font-medium px-5 py-3 whitespace-nowrap">Tarikh</th>
                 <th className="font-medium px-5 py-3 whitespace-nowrap">PIC</th>
                 <th className="font-medium px-5 py-3 whitespace-nowrap">Model</th>
                 <th className="font-medium px-5 py-3 whitespace-nowrap">Chassis No.</th>
@@ -191,9 +191,9 @@ function ClaimRow({ claim, showBranch, knownPics }: { claim: DeliveryClaim; show
 
   return (
     <tr className="border-b border-neutral-100 last:border-0 hover:bg-neutral-50">
+      <td className="px-5 py-3.5 text-neutral-500 whitespace-nowrap">{formatDate(claim.submittedDate)}</td>
       <td className="px-5 py-3.5 text-neutral-900 font-semibold whitespace-nowrap">{claim.ticketId}</td>
       {showBranch && <td className="px-5 py-3.5 text-neutral-600 whitespace-nowrap">{branchLabel(claim.branch)}</td>}
-      <td className="px-5 py-3.5 text-neutral-500 whitespace-nowrap">{formatDate(claim.submittedDate)}</td>
       <td className="px-5 py-3.5 text-neutral-700 whitespace-nowrap">{claim.pic || "—"}</td>
       <td className="px-5 py-3.5 text-neutral-600 whitespace-nowrap">{claim.model || "—"}</td>
       <td className="px-5 py-3.5 text-neutral-600 whitespace-nowrap">{claim.chassisNo || "—"}</td>

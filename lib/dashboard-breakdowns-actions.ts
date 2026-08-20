@@ -13,18 +13,19 @@ function monthRange(year: number, month: number): { from: string; to: string } {
 
 export type ClaimStatusBreakdownRow = { status: ClaimStatus; count: number };
 
-// All branches combined by default (or just onlyBranch, for the
+// Shared by both claim tables (identical status/submitted_date/branch
+// columns) — all branches combined by default (or just onlyBranch, for the
 // single-branch dashboard view), scoped to the same month as the rest of
-// the dashboard — every status is included even at zero so the legend
-// never silently drops a category the moment nothing's in it this month.
-export async function getWarrantyClaimStatusBreakdown(
+// the dashboard. Every status is included even at zero so the legend never
+// silently drops a category the moment nothing's in it this month.
+async function claimStatusBreakdown(
+  table: "cc_warranty_claims" | "cc_delivery_claims",
   year: number,
   month: number,
   onlyBranch?: Branch
 ): Promise<ClaimStatusBreakdownRow[]> {
-  await requireApproved();
   const { from, to } = monthRange(year, month);
-  let query = supabaseAdmin.from("cc_warranty_claims").select("status").gte("submitted_date", from).lte("submitted_date", to);
+  let query = supabaseAdmin.from(table).select("status").gte("submitted_date", from).lte("submitted_date", to);
   if (onlyBranch) query = query.eq("branch", onlyBranch);
   const { data, error } = await query;
   if (error) throw new Error(error.message);
@@ -35,6 +36,24 @@ export async function getWarrantyClaimStatusBreakdown(
     counts.set(status, (counts.get(status) ?? 0) + 1);
   }
   return CLAIM_STATUSES.map((status) => ({ status, count: counts.get(status) ?? 0 }));
+}
+
+export async function getWarrantyClaimStatusBreakdown(
+  year: number,
+  month: number,
+  onlyBranch?: Branch
+): Promise<ClaimStatusBreakdownRow[]> {
+  await requireApproved();
+  return claimStatusBreakdown("cc_warranty_claims", year, month, onlyBranch);
+}
+
+export async function getDeliveryClaimStatusBreakdown(
+  year: number,
+  month: number,
+  onlyBranch?: Branch
+): Promise<ClaimStatusBreakdownRow[]> {
+  await requireApproved();
+  return claimStatusBreakdown("cc_delivery_claims", year, month, onlyBranch);
 }
 
 export type PackageBreakdownRow = { name: string; count: number };
@@ -72,24 +91,30 @@ export async function getPackageSalesBreakdown(year: number, month: number): Pro
   );
 }
 
-export type TodayActivity = { jobsheetCount: number; restoreBikeCount: number };
+export type TodayActivity = { jobsheetCount: number; restoreBikeCount: number; packagesSoldCount: number };
 
-// How many jobsheets and Restore Bike jobs were added today — a rolling
-// daily snapshot, not a month total, so it's naturally different every
-// morning rather than accumulating. "Added" = created_at is today, which
-// stays true regardless of whatever happens to the job's status
-// afterward.
+// How many jobsheets, Restore Bike jobs, and Services Combo sales were
+// added today — a rolling daily snapshot, not a month total, so it's
+// naturally different every morning rather than accumulating. "Added" =
+// created_at (or sale_date, for packages) is today, which stays true
+// regardless of whatever happens to the job's status afterward.
 export async function getTodayActivity(onlyBranch?: Branch): Promise<TodayActivity> {
   await requireApproved();
   const startOfDay = new Date();
   startOfDay.setHours(0, 0, 0, 0);
+  const todayStr = startOfDay.toISOString().slice(0, 10);
 
-  let query = supabaseAdmin.from("cc_repair_jobs").select("job_type").gte("created_at", startOfDay.toISOString());
-  if (onlyBranch) query = query.eq("branch", onlyBranch);
-  const { data, error } = await query;
+  let jobsQuery = supabaseAdmin.from("cc_repair_jobs").select("job_type").gte("created_at", startOfDay.toISOString());
+  if (onlyBranch) jobsQuery = jobsQuery.eq("branch", onlyBranch);
+
+  let packagesQuery = supabaseAdmin.from("cc_package_sales").select("id", { count: "exact", head: true }).eq("sale_date", todayStr);
+  if (onlyBranch) packagesQuery = packagesQuery.eq("branch", onlyBranch);
+
+  const [{ data, error }, { count: packagesSoldCount, error: pkgError }] = await Promise.all([jobsQuery, packagesQuery]);
   if (error) throw new Error(error.message);
+  if (pkgError) throw new Error(pkgError.message);
 
-  return (data ?? []).reduce(
+  const jobCounts = (data ?? []).reduce(
     (acc, row) => {
       if (row.job_type === "Walk-in") acc.jobsheetCount += 1;
       else if (row.job_type === "Restore Bike") acc.restoreBikeCount += 1;
@@ -97,6 +122,8 @@ export async function getTodayActivity(onlyBranch?: Branch): Promise<TodayActivi
     },
     { jobsheetCount: 0, restoreBikeCount: 0 }
   );
+
+  return { ...jobCounts, packagesSoldCount: packagesSoldCount ?? 0 };
 }
 
 export type IdleMechanic = { id: string; fullName: string; shortCode: string; branch: Branch };
