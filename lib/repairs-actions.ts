@@ -10,6 +10,11 @@ import { BRANCHES, type Branch } from "./branch";
 
 type ItemRow = { id: string; code: string; description: string; quantity: number; price: number };
 
+// Short branch code used in generated job numbers (RJ-HQ-0001, etc.) —
+// Kapar is HQ rather than KAPAR since it's the head office, distinct from
+// the branch value itself.
+const JOB_NO_BRANCH_CODE: Record<Branch, string> = { kapar: "HQ", puncak_alam: "PA", setia_alam: "ST" };
+
 type Row = {
   id: string;
   branch: Branch;
@@ -407,7 +412,7 @@ export async function quickAddRestoreBikeArrivalAction(branch: Branch): Promise<
     .from("cc_repair_jobs")
     .select("*", { count: "exact", head: true })
     .eq("branch", branch);
-  const jobNo = `RJ-${branch.toUpperCase()}-${String((count ?? 0) + 1).padStart(4, "0")}`;
+  const jobNo = `RJ-${JOB_NO_BRANCH_CODE[branch]}-${String((count ?? 0) + 1).padStart(4, "0")}`;
 
   const { data, error } = await supabaseAdmin
     .from("cc_repair_jobs")
@@ -492,7 +497,7 @@ export async function addRepairJobAction(input: {
     .from("cc_repair_jobs")
     .select("*", { count: "exact", head: true })
     .eq("branch", input.branch);
-  const jobNo = `RJ-${input.branch.toUpperCase()}-${String((count ?? 0) + 1).padStart(4, "0")}`;
+  const jobNo = `RJ-${JOB_NO_BRANCH_CODE[input.branch]}-${String((count ?? 0) + 1).padStart(4, "0")}`;
   const revenueAmount = items.length > 0 ? itemsTotal(items) : input.revenueAmount;
 
   const { data, error } = await supabaseAdmin
