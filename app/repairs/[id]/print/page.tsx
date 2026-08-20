@@ -6,6 +6,13 @@ import PrintButton from "./PrintButton";
 
 export const dynamic = "force-dynamic";
 
+// Fixed per Jason — the PIC who prepares/signs this form at each branch.
+const PREPARE_BY_NAMES: { label: string; name: string }[] = [
+  { label: "KAPAR (HQ)", name: "TAUFIQ" },
+  { label: "PUNCAK ALAM", name: "SK" },
+  { label: "SETIA ALAM", name: "PENG" },
+];
+
 export default async function PrintRepairJobPage({ params }: { params: Promise<{ id: string }> }) {
   await requirePage("repairs");
   const { id } = await params;
@@ -14,6 +21,12 @@ export default async function PrintRepairJobPage({ params }: { params: Promise<{
 
   const itemsTotal = job.items.reduce((sum, it) => sum + it.quantity * it.price, 0);
   const photoUrls = await getRestoreBikeImageUrls(job.imagePaths);
+  // 3 photos per row (wrapping to a second row for the 4th/5th) rather than
+  // squeezing all 5 onto one row — prints on A4 with plenty of vertical
+  // room, so bigger tiles matter more than a single-row layout.
+  const photoGap = 8;
+  const photoColumns = Math.min(photoUrls.length, 3) || 1;
+  const photoSize = Math.min(240, Math.floor((704 - (photoColumns - 1) * photoGap) / photoColumns));
 
   return (
     <div className="min-h-screen bg-neutral-100 print:bg-white">
@@ -111,10 +124,7 @@ export default async function PrintRepairJobPage({ params }: { params: Promise<{
             </table>
 
             <p>
-              <span className="font-semibold">PIC :</span> {job.picName || ""}
-            </p>
-            <p>
-              <span className="font-semibold">REMARK :</span> {job.description || ""}
+              <span className="font-semibold">Thumbprint :</span> {job.picName || ""}
             </p>
           </div>
         </div>
@@ -129,14 +139,41 @@ export default async function PrintRepairJobPage({ params }: { params: Promise<{
                   key={i}
                   src={url}
                   alt={`Bike photo ${i + 1}`}
-                  className="w-[134px] h-[134px] object-cover border border-neutral-400 print:break-inside-avoid"
+                  style={{ width: photoSize, height: photoSize }}
+                  className="object-cover border border-neutral-400 print:break-inside-avoid"
                 />
               ))}
             </div>
           </div>
         )}
 
-        <div className="grid grid-cols-2 gap-4 mt-10 text-xs">
+        <div className="mt-6 text-xs">
+          <table className="border-collapse">
+            <thead>
+              <tr>
+                <th colSpan={3} className="border border-neutral-400 px-2 py-1 bg-neutral-100 text-left">
+                  PREPARE BY
+                </th>
+              </tr>
+              <tr>
+                <th className="border border-neutral-400 px-2 py-1 text-left w-28">Branch</th>
+                <th className="border border-neutral-400 px-2 py-1 text-left w-28">Name</th>
+                <th className="border border-neutral-400 px-2 py-1 text-left w-40">Signature</th>
+              </tr>
+            </thead>
+            <tbody>
+              {PREPARE_BY_NAMES.map((p) => (
+                <tr key={p.label}>
+                  <td className="border border-neutral-400 px-2 py-1">{p.label}</td>
+                  <td className="border border-neutral-400 px-2 py-1">{p.name}</td>
+                  <td className="border border-neutral-400 px-2 py-5" />
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4 mt-6 text-xs">
           <div>
             <p className="font-semibold">PREPARE BY : {job.preparedBy || ""}</p>
           </div>

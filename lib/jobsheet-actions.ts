@@ -4,7 +4,7 @@
 // Next's RSC flight-protocol nesting limit on large strings; a normal HTTP
 // route has no such limit.
 import { requireApproved } from "./current-user";
-import { extractTextFromImage, extractTextFromPdf } from "./vision";
+import { scanJobsheetImage, extractTextFromPdf } from "./vision";
 import type { Branch } from "./branch";
 
 export type ScannedJobsheetItem = { code: string; description: string; quantity: number; price: number };
@@ -31,6 +31,10 @@ export type ScannedJobsheet = {
   jobsheetUserId: string;
   items: ScannedJobsheetItem[];
   rawText: string;
+  // Best-effort check for a customer signature in the jobsheet photo —
+  // true/false when the "Signature" label was found and checked, null
+  // when it couldn't be located at all (different layout, bad photo).
+  signatureDetected: boolean | null;
 };
 
 function toIsoDate(raw: string): string | null {
@@ -257,6 +261,7 @@ function parseJobsheetText(text: string): ScannedJobsheet {
     jobsheetUserId,
     items,
     rawText: text,
+    signatureDetected: null,
   };
 }
 
@@ -266,12 +271,18 @@ export async function scanJobsheet(
 ): Promise<{ data: ScannedJobsheet } | { error: string }> {
   await requireApproved();
   try {
-    const text =
-      mimeType === "application/pdf" ? await extractTextFromPdf(base64File) : await extractTextFromImage(base64File);
+    if (mimeType === "application/pdf") {
+      const text = await extractTextFromPdf(base64File);
+      if (!text.trim()) {
+        return { error: "Couldn't read any text from that file — try a clearer, well-lit photo." };
+      }
+      return { data: parseJobsheetText(text) };
+    }
+    const { text, signatureDetected } = await scanJobsheetImage(base64File);
     if (!text.trim()) {
       return { error: "Couldn't read any text from that file — try a clearer, well-lit photo." };
     }
-    return { data: parseJobsheetText(text) };
+    return { data: { ...parseJobsheetText(text), signatureDetected } };
   } catch (err) {
     const message = err instanceof Error ? err.message : "";
     if (/deadline/i.test(message)) {

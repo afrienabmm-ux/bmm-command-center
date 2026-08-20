@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Trash2, ScanLine, Upload } from "lucide-react";
+import { Plus, Trash2, ScanLine, Upload, CheckCircle2, AlertTriangle } from "lucide-react";
 import { addRepairJobAction, updateRepairJobAction } from "@/lib/repairs-actions";
 import { checkGenbluRegisteredAction, ensureGenbluRegistrationAction } from "@/lib/genblu-actions";
 import { addPackageSaleAction } from "@/lib/packages-actions";
@@ -197,10 +197,16 @@ export default function WalkInJobForm({
   const [scanError, setScanError] = useState<string | null>(null);
   const [scanNotice, setScanNotice] = useState<string | null>(null);
   const [scanRawText, setScanRawText] = useState<string | null>(null);
+  // Best-effort result from the last scan — null until a scan has run (or
+  // when the "Signature" label couldn't be found at all). Existing jobs
+  // start confirmed since there's nothing new to check unless re-scanned.
+  const [signatureDetected, setSignatureDetected] = useState<boolean | null>(null);
+  const [signatureConfirmed, setSignatureConfirmed] = useState(isEdit);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const customerNameRef = useRef<HTMLInputElement>(null);
   const plateNoRef = useRef<HTMLInputElement>(null);
   const mechanicRef = useRef<HTMLSelectElement>(null);
+  const signatureRef = useRef<HTMLDivElement>(null);
 
   // Phone photos can easily be 8-15MB — shrink to a max dimension before
   // sending, which keeps text plenty legible for OCR while cutting the
@@ -253,6 +259,8 @@ export default function WalkInJobForm({
       }
       const scanned = result.data;
       setScanRawText(scanned.rawText);
+      setSignatureDetected(scanned.signatureDetected);
+      setSignatureConfirmed(scanned.signatureDetected === true);
       const filled: string[] = [];
       if (scanned.customerCode) {
         setCustomerCode(scanned.customerCode);
@@ -440,6 +448,10 @@ export default function WalkInJobForm({
       scrollToField(mechanicRef.current);
       return;
     }
+    if (!signatureConfirmed) {
+      scrollToField(signatureRef.current);
+      return;
+    }
     if (!effectiveBranch) return;
     if (hasGenblu && !genbluAlreadyRegistered && !genbluScreenshot) {
       window.alert("Upload the customer's GenBlu screenshot before saving, or switch \"Customer has GenBlu?\" to No.");
@@ -608,6 +620,34 @@ export default function WalkInJobForm({
                   <summary className="text-xs text-indigo-700 cursor-pointer">What Google read from the photo (for troubleshooting)</summary>
                   <pre className="mt-2 bg-white border border-neutral-200 rounded-lg p-3 text-xs text-neutral-700 whitespace-pre-wrap max-h-64 overflow-y-auto">{scanRawText}</pre>
                 </details>
+              )}
+              {scanRawText && (
+                <div ref={signatureRef} tabIndex={-1} className="mt-3 bg-white border border-neutral-200 rounded-lg p-3">
+                  {signatureDetected === true && (
+                    <p className="text-xs text-emerald-700 flex items-center gap-1.5">
+                      <CheckCircle2 size={14} /> Customer signature detected on the jobsheet.
+                    </p>
+                  )}
+                  {signatureDetected === false && (
+                    <p className="text-xs text-amber-700 flex items-center gap-1.5">
+                      <AlertTriangle size={14} /> No customer signature detected — double-check the photo before confirming.
+                    </p>
+                  )}
+                  {signatureDetected === null && (
+                    <p className="text-xs text-neutral-500">
+                      Couldn&apos;t check the photo for a signature — please confirm it by hand.
+                    </p>
+                  )}
+                  <label className="flex items-center gap-2 mt-2">
+                    <input
+                      type="checkbox"
+                      checked={signatureConfirmed}
+                      onChange={(e) => setSignatureConfirmed(e.target.checked)}
+                      className="accent-indigo-500"
+                    />
+                    <span className="text-xs font-medium text-neutral-700">Customer has signed the jobsheet *</span>
+                  </label>
+                </div>
               )}
             </div>
           </div>

@@ -115,12 +115,14 @@ type OcrSpaceResponse = {
   }[];
 };
 
+type OcrResult = { text: string; words: PositionedWord[] };
+
 // Primary OCR engine — a hosted API with a genuinely free tier (no card
 // on file, unlike Google Cloud Vision) that's noticeably more accurate
 // than the local Tesseract fallback on real phone photos. Returns null
 // (rather than throwing) for any reason it can't be used, so the caller
 // falls back to Tesseract instead of failing the whole scan.
-async function extractViaOcrSpace(buffer: Buffer): Promise<string | null> {
+async function extractViaOcrSpace(buffer: Buffer): Promise<OcrResult | null> {
   const apiKey = process.env.OCR_SPACE_API_KEY;
   if (!apiKey) return null;
 
@@ -153,7 +155,7 @@ async function extractViaOcrSpace(buffer: Buffer): Promise<string | null> {
         words.push({ text, x: word.Left ?? 0, yCenter: top + height / 2, height });
       }
     }
-    return reconstructRowsFromWords(words, result.ParsedText ?? "");
+    return { text: reconstructRowsFromWords(words, result.ParsedText ?? ""), words };
   } catch {
     return null;
   } finally {
@@ -161,10 +163,23 @@ async function extractViaOcrSpace(buffer: Buffer): Promise<string | null> {
   }
 }
 
-// Sends a photo (base64, no data: prefix) for OCR — OCR.space first, with
-// the local Tesseract engine as a fallback if that's unavailable or
-// fails for any reason (missing/exhausted API key, network issue, etc.),
-// so scanning still works even if the hosted service has a bad moment.
+// Shared by extractTextFromImage and scanJobsheetImage — runs OCR.space
+// first, with the local Tesseract engine as a fallback if that's
+// unavailable or fails for any reason (missing/exhausted API key, network
+// issue, etc.), and returns both the reconstructed text and each word's
+// position (needed to locate the signature box on a jobsheet).
+async function runOcr(buffer: Buffer): Promise<OcrResult> {
+  const hosted = await extractViaOcrSpace(buffer);
+  if (hosted !== null && hosted.text.trim() !== "") return hosted;
+
+  const worker = await getWorker();
+  const { data } = await worker.recognize(buffer, {}, { blocks: true, text: true });
+  const words = collectWordsFromTesseractBlocks(data.blocks);
+  return { text: reconstructRowsFromWords(words, data.text ?? ""), words };
+}
+
+// Sends a photo (base64, no data: prefix) for OCR — see runOcr for engine
+// selection.
 export async function extractTextFromImage(base64Image: string): Promise<string> {
   const rawBuffer = Buffer.from(base64Image, "base64");
   let buffer: Buffer;
@@ -175,13 +190,67 @@ export async function extractTextFromImage(base64Image: string): Promise<string>
     // original photo rather than blocking the scan entirely.
     buffer = rawBuffer;
   }
+  const { text } = await runOcr(buffer);
+  return text;
+}
 
-  const hosted = await extractViaOcrSpace(buffer);
-  if (hosted !== null && hosted.trim() !== "") return hosted;
+// How much brighter/darker a signature box's pixels vary compared to a
+// blank one — blank paper (even with a printed line) is close to uniform,
+// so its standard deviation is low; a pen signature's mix of white
+// background and dark strokes pushes it well above this. Picked from one
+// round of synthetic test images (blank ~15, signed ~36), not real
+// jobsheets — expect to retune once this has run against real photos.
+const SIGNATURE_STDEV_THRESHOLD = 22;
 
-  const worker = await getWorker();
-  const { data } = await worker.recognize(buffer, {}, { blocks: true, text: true });
-  return reconstructRowsFromWords(collectWordsFromTesseractBlocks(data.blocks), data.text ?? "");
+// Best-effort check for a customer signature on a scanned jobsheet: finds
+// the "Signature" label via OCR word positions, crops the box just above
+// it (signatures are drawn on the blank line above the label, per the BMM
+// job card layout), and looks for enough pixel variation there to suggest
+// pen strokes rather than blank paper. Returns null when the label itself
+// can't be found (different layout, bad crop, OCR miss) — the caller
+// should ask the PIC to confirm by hand in that case rather than treating
+// it as "not signed".
+async function detectSignature(buffer: Buffer, words: PositionedWord[], imageWidth: number, imageHeight: number): Promise<boolean | null> {
+  const label = words.find((w) => /signature/i.test(w.text));
+  if (!label) return null;
+
+  // A box above-and-around the label word: tall enough for a signature,
+  // wide enough to cover writing that drifts left of where the label
+  // starts, clamped to the image so a label near an edge doesn't overflow.
+  const boxWidth = Math.min(imageWidth, label.height * 14);
+  const boxHeight = Math.min(label.yCenter, label.height * 6);
+  const left = Math.max(0, Math.min(label.x - boxWidth * 0.3, imageWidth - boxWidth));
+  const top = Math.max(0, label.yCenter - label.height / 2 - boxHeight);
+  if (boxWidth < 10 || boxHeight < 10) return null;
+
+  try {
+    const stats = await sharp(buffer)
+      .extract({ left: Math.round(left), top: Math.round(top), width: Math.round(boxWidth), height: Math.round(boxHeight) })
+      .stats();
+    const stdev = stats.channels[0]?.stdev ?? 0;
+    return stdev > SIGNATURE_STDEV_THRESHOLD;
+  } catch {
+    return null;
+  }
+}
+
+export type JobsheetScanResult = { text: string; signatureDetected: boolean | null };
+
+// Same OCR pipeline as extractTextFromImage, plus a best-effort signature
+// check — kept separate so GenBlu screenshot scanning (which has no
+// signature box) doesn't pay for the extra image work.
+export async function scanJobsheetImage(base64Image: string): Promise<JobsheetScanResult> {
+  const rawBuffer = Buffer.from(base64Image, "base64");
+  let buffer: Buffer;
+  try {
+    buffer = await preprocessForOcr(rawBuffer);
+  } catch {
+    buffer = rawBuffer;
+  }
+  const [{ text, words }, metadata] = await Promise.all([runOcr(buffer), sharp(buffer).metadata()]);
+  const signatureDetected =
+    metadata.width && metadata.height ? await detectSignature(buffer, words, metadata.width, metadata.height) : null;
+  return { text, signatureDetected };
 }
 
 // PDFs aren't supported by the free local OCR path (no card-free way to
