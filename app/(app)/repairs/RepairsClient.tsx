@@ -287,7 +287,7 @@ export default function RepairsClient({
                 <th className="font-medium px-5 py-3 whitespace-nowrap">Part Arrive</th>
                 <th className="font-medium px-5 py-3 whitespace-nowrap">Start Date</th>
                 <th className="font-medium px-5 py-3 whitespace-nowrap">End Date</th>
-                <th className="font-medium px-5 py-3 whitespace-nowrap">Trade In / Tarik / Jual</th>
+                <th className="font-medium px-5 py-3 whitespace-nowrap text-center">Trade In / Tarik / Jual</th>
                 <th className="font-medium px-5 py-3 whitespace-nowrap">Status</th>
                 {tab === "qc" && <th className="font-medium px-5 py-3 whitespace-nowrap">QC Result</th>}
                 <th className="px-5 py-3" />
@@ -946,7 +946,7 @@ function RestoreBikeRow({
       <td className="px-5 py-3.5">
         <RepairDateCell job={job} stage="completed" editable={editable} />
       </td>
-      <td className="px-5 py-3.5 text-neutral-600 whitespace-nowrap">{job.dealType || "—"}</td>
+      <td className="px-5 py-3.5 text-neutral-600 whitespace-nowrap text-center">{job.dealType || "—"}</td>
       <td className="px-5 py-3.5">
         <StatusCell job={job} />
       </td>

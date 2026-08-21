@@ -22,6 +22,56 @@ import {
 import { BRANCHES, branchLabel, type Branch, type BranchSelection } from "@/lib/branch";
 import { formatDate, toCsv } from "@/lib/format";
 
+// Native <datalist> renders as a disconnected floating box on iOS Safari
+// instead of anchoring under the input, so PIC suggestions use a plain
+// controlled dropdown instead.
+function PicAutocompleteField({
+  value,
+  onChange,
+  suggestions,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  suggestions: string[];
+}) {
+  const [open, setOpen] = useState(false);
+  const matches = suggestions.filter((p) => p.toLowerCase().includes(value.trim().toLowerCase()));
+
+  return (
+    <div className="relative">
+      <label className="block text-xs font-medium text-neutral-600 mb-1.5">Person in Charge</label>
+      <input
+        type="text"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        onFocus={() => setOpen(true)}
+        onBlur={() => setTimeout(() => setOpen(false), 150)}
+        placeholder="e.g. SK"
+        autoComplete="off"
+        className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+      />
+      {open && matches.length > 0 && (
+        <div className="absolute z-20 mt-1 w-full bg-white border border-neutral-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+          {matches.map((p) => (
+            <button
+              key={p}
+              type="button"
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => {
+                onChange(p);
+                setOpen(false);
+              }}
+              className="w-full text-left px-3.5 py-2 text-sm text-neutral-800 hover:bg-neutral-50 transition-colors"
+            >
+              {p}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 const STATUS_STYLES: Record<ClaimStatus, string> = {
   "In Process": "bg-amber-500/10 text-amber-700 border-amber-500/20",
   Proceed: "bg-emerald-500/10 text-emerald-700 border-emerald-500/20",
@@ -553,22 +603,7 @@ function NotesModal({
         <p className="text-xs text-neutral-500 mb-5">
           Ticket {claim.ticketId} · {claim.plateNo}
         </p>
-        <div>
-          <label className="block text-xs font-medium text-neutral-600 mb-1.5">Person in Charge</label>
-          <input
-            type="text"
-            list="known-pics"
-            value={pic}
-            onChange={(e) => setPic(e.target.value)}
-            placeholder="e.g. SK"
-            className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
-          />
-          <datalist id="known-pics">
-            {knownPics.map((p) => (
-              <option key={p} value={p} />
-            ))}
-          </datalist>
-        </div>
+        <PicAutocompleteField value={pic} onChange={setPic} suggestions={knownPics} />
         <div className="flex items-center justify-end gap-3 mt-6">
           <button
             onClick={onClose}
@@ -676,22 +711,7 @@ function AddClaimModal({
               className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
             />
           </div>
-          <div>
-            <label className="block text-xs font-medium text-neutral-600 mb-1.5">Person in Charge</label>
-            <input
-              type="text"
-              list="known-pics-add"
-              value={pic}
-              onChange={(e) => setPic(e.target.value)}
-              placeholder="e.g. SK"
-              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
-            />
-            <datalist id="known-pics-add">
-              {knownPics.map((p) => (
-                <option key={p} value={p} />
-              ))}
-            </datalist>
-          </div>
+          <PicAutocompleteField value={pic} onChange={setPic} suggestions={knownPics} />
           <div>
             <label className="block text-xs font-medium text-neutral-600 mb-1.5">Customer Name *</label>
             <input

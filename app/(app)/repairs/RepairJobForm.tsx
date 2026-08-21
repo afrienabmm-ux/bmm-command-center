@@ -191,6 +191,7 @@ export default function RepairJobForm({
     (job?.dealType as (typeof DEAL_TYPES)[number]) || "Trade In"
   );
   const [picName, setPicName] = useState(job?.picName ?? "");
+  const [picSuggestionsOpen, setPicSuggestionsOpen] = useState(false);
   const [preparedBy, setPreparedBy] = useState(job?.preparedBy ?? "");
   const [model, setModel] = useState(job?.model ?? "");
   const [bikeYear, setBikeYear] = useState(job?.bikeYear ?? "");
@@ -396,22 +397,44 @@ export default function RepairJobForm({
               className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
             />
           </div>
-          <div>
+          <div className="relative">
             <label className="block text-xs font-medium text-neutral-600 mb-1.5">Thumbprint *</label>
             <input
               ref={picNameRef}
               type="text"
-              list="thumbprint-names"
               value={picName}
               onChange={(e) => setPicName(e.target.value)}
+              onFocus={() => setPicSuggestionsOpen(true)}
+              onBlur={() => setTimeout(() => setPicSuggestionsOpen(false), 150)}
               placeholder="Type a name…"
+              autoComplete="off"
               className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
             />
-            <datalist id="thumbprint-names">
-              {branchMechanics.map((m) => (
-                <option key={m.id} value={m.shortName} />
-              ))}
-            </datalist>
+            {picSuggestionsOpen &&
+              (() => {
+                const matches = branchMechanics.filter((m) =>
+                  m.shortName.toLowerCase().includes(picName.trim().toLowerCase())
+                );
+                if (matches.length === 0) return null;
+                return (
+                  <div className="absolute z-20 mt-1 w-full bg-white border border-neutral-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                    {matches.map((m) => (
+                      <button
+                        key={m.id}
+                        type="button"
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={() => {
+                          setPicName(m.shortName);
+                          setPicSuggestionsOpen(false);
+                        }}
+                        className="w-full text-left px-3.5 py-2 text-sm text-neutral-800 hover:bg-neutral-50 transition-colors"
+                      >
+                        {m.shortName}
+                      </button>
+                    ))}
+                  </div>
+                );
+              })()}
           </div>
           <div>
             <label className="block text-xs font-medium text-neutral-600 mb-1.5">Prepare By</label>
