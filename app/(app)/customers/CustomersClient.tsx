@@ -5,9 +5,8 @@ import { Plus, Search, Pencil, Trash2, CreditCard, X, Link2, Check } from "lucid
 import { addCustomerCardAction, updateCustomerCardAction, deleteCustomerCardAction } from "@/lib/customers-actions";
 import { BRANCHES, branchLabel, type Branch, type BranchSelection } from "@/lib/branch";
 import { formatDate, formatCurrency } from "@/lib/format";
+import { tierForVisits } from "@/lib/membership";
 import type { CustomerSummary, CustomerCard } from "@/lib/types";
-
-const TIER_SUGGESTIONS = ["Bronze", "Silver", "Gold", "Platinum"];
 
 export default function CustomersClient({
   customers,
@@ -25,6 +24,7 @@ export default function CustomersClient({
   const [deleting, setDeleting] = useState<CustomerCard | null>(null);
   const [isPending, startTransition] = useTransition();
   const [linkCopied, setLinkCopied] = useState(false);
+  const [revealedKey, setRevealedKey] = useState<string | null>(null);
   const showAllBranches = branchSelection === "all";
 
   function handleCopyLink() {
@@ -100,8 +100,11 @@ export default function CustomersClient({
             </tr>
           </thead>
           <tbody>
-            {visible.map((c) => (
-              <tr key={`${c.branch}-${c.name.toLowerCase()}`} className="border-t border-neutral-100">
+            {visible.map((c) => {
+              const rowKey = `${c.branch}-${c.name.toLowerCase()}`;
+              const revealed = revealedKey === rowKey;
+              return (
+              <tr key={rowKey} className="border-t border-neutral-100">
                 <td className="px-4 py-3 font-medium text-neutral-800">{c.name}</td>
                 {showAllBranches && <td className="px-4 py-3 text-neutral-600">{branchLabel(c.branch)}</td>}
                 <td className="px-4 py-3 text-neutral-600">{c.plates.join(", ") || "—"}</td>
@@ -114,10 +117,15 @@ export default function CustomersClient({
                 </td>
                 <td className="px-4 py-3">
                   {c.card ? (
-                    <span className="inline-flex items-center gap-1 text-xs font-medium text-fuchsia-700 bg-fuchsia-500/10 border border-fuchsia-500/20 rounded-full px-2 py-0.5">
-                      <CreditCard size={11} /> {c.card.tier || "Member"}
-                      {c.card.expiryDate ? ` · exp ${formatDate(c.card.expiryDate)}` : ""}
-                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setRevealedKey(revealed ? null : rowKey)}
+                      title="Click to show the card code"
+                      className="inline-flex items-center gap-1 text-xs font-medium text-fuchsia-700 bg-fuchsia-500/10 border border-fuchsia-500/20 rounded-full px-2 py-0.5 hover:bg-fuchsia-500/20 transition-colors"
+                    >
+                      <CreditCard size={11} /> {revealed ? c.card.cardNumber || "No code" : c.card.tier || "Member"}
+                      {!revealed && c.card.expiryDate ? ` · exp ${formatDate(c.card.expiryDate)}` : ""}
+                    </button>
                   ) : (
                     <span className="text-xs text-neutral-400">No card</span>
                   )}
@@ -146,7 +154,8 @@ export default function CustomersClient({
                   </div>
                 </td>
               </tr>
-            ))}
+              );
+            })}
             {visible.length === 0 && (
               <tr>
                 <td colSpan={showAllBranches ? 9 : 8} className="px-4 py-10 text-center text-neutral-500">
@@ -213,7 +222,8 @@ function CardModal({
   const [customerName, setCustomerName] = useState(customer?.name ?? "");
   const [customerPhone, setCustomerPhone] = useState(existing?.customerPhone ?? "");
   const [cardNumber, setCardNumber] = useState(existing?.cardNumber ?? "");
-  const [tier, setTier] = useState(existing?.tier ?? "");
+  // Tier is automatic, based on visit count — not something staff pick.
+  const tier = tierForVisits(customer?.jobCount ?? 0);
   const [issuedDate, setIssuedDate] = useState(existing?.issuedDate ?? new Date().toISOString().slice(0, 10));
   const [expiryDate, setExpiryDate] = useState(existing?.expiryDate ?? "");
   const [notes, setNotes] = useState(existing?.notes ?? "");
@@ -306,28 +316,10 @@ function CardModal({
             </div>
             <div>
               <label className="block text-xs font-medium text-neutral-600 mb-1.5">Tier</label>
-              <input
-                type="text"
-                value={tier}
-                onChange={(e) => setTier(e.target.value)}
-                className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
-              />
-              <div className="flex items-center gap-1.5 mt-1.5">
-                {TIER_SUGGESTIONS.map((t) => (
-                  <button
-                    key={t}
-                    type="button"
-                    onClick={() => setTier(t)}
-                    className={`text-xs px-2 py-1 rounded-full border transition-colors ${
-                      tier === t
-                        ? "bg-indigo-500 border-indigo-500 text-white"
-                        : "bg-white border-neutral-200 text-neutral-600 hover:border-indigo-300"
-                    }`}
-                  >
-                    {t}
-                  </button>
-                ))}
+              <div className="w-full bg-neutral-100 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-600">
+                {tier}
               </div>
+              <p className="text-[11px] text-neutral-400 mt-1">Automatic, based on visit count.</p>
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3">

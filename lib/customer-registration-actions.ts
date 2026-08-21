@@ -3,6 +3,20 @@
 import { revalidatePath } from "next/cache";
 import { supabaseAdmin } from "./supabase-server";
 import type { Branch } from "./branch";
+import { tierForVisits } from "./membership";
+
+// Visits (and therefore tier) are counted from Walk-in job history matched
+// by name, the same way the staff Memberships page and GenBlu points work.
+async function countVisits(customerName: string): Promise<number> {
+  const normalized = customerName.trim().toLowerCase();
+  if (!normalized) return 0;
+  const { data: jobs, error } = await supabaseAdmin
+    .from("cc_repair_jobs")
+    .select("customer_name")
+    .eq("job_type", "Walk-in");
+  if (error) throw new Error(error.message);
+  return (jobs ?? []).filter((j) => (j.customer_name ?? "").trim().toLowerCase() === normalized).length;
+}
 
 // Public — called from /join, which has no staff login. Every other
 // customers-actions.ts function requires an approved staff session; this
@@ -28,14 +42,18 @@ export async function registerCustomerCardAction(input: {
   // card instead of creating a duplicate.
   const { data: existing, error: fetchError } = await supabaseAdmin
     .from("cc_customer_cards")
-    .select("card_number, tier")
+    .select("card_number, customer_name")
     .eq("customer_phone", customerPhone)
     .limit(1);
   if (fetchError) return { error: fetchError.message };
-  if (existing && existing.length > 0) return { cardNumber: existing[0].card_number, tier: existing[0].tier };
+  if (existing && existing.length > 0) {
+    const visits = await countVisits(existing[0].customer_name);
+    return { cardNumber: existing[0].card_number, tier: tierForVisits(visits) };
+  }
 
   const cardNumber = generateCardNumber(input.branch);
-  const tier = "Bronze";
+  const visits = await countVisits(customerName);
+  const tier = tierForVisits(visits);
   const { error } = await supabaseAdmin.from("cc_customer_cards").insert({
     branch: input.branch,
     customer_name: customerName,
@@ -69,7 +87,7 @@ export async function lookupMembershipAction(customerPhone: string): Promise<{ e
 
   const { data: cards, error: cardError } = await supabaseAdmin
     .from("cc_customer_cards")
-    .select("customer_name, card_number, tier, issued_date, expiry_date")
+    .select("customer_name, card_number, issued_date, expiry_date")
     .eq("customer_phone", phone)
     .limit(1);
   if (cardError) return { error: cardError.message };
@@ -97,7 +115,7 @@ export async function lookupMembershipAction(customerPhone: string): Promise<{ e
   return {
     customerName: card.customer_name,
     cardNumber: card.card_number,
-    tier: card.tier,
+    tier: tierForVisits(visitCount),
     issuedDate: card.issued_date,
     expiryDate: card.expiry_date,
     totalSpend,

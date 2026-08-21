@@ -6,6 +6,7 @@ import { requireApproved, assertCanEditBranch } from "./current-user";
 import { BRANCHES, type Branch } from "./branch";
 import type { CustomerCard, CustomerSummary } from "./types";
 import { getPackageSales, type PackageSaleWithNames } from "./packages-actions";
+import { tierForVisits } from "./membership";
 
 function normalizeName(name: string): string {
   return name.trim().toLowerCase();
@@ -118,16 +119,21 @@ function buildSummaries(
   const cardByKey = new Map(cards.map((c) => [normalizeName(c.customerName), c]));
 
   return Array.from(byKey.entries())
-    .map(([key, entry]) => ({
-      name: entry.name,
-      branch,
-      totalSpend: entry.totalSpend,
-      jobCount: entry.jobCount,
-      plates: Array.from(entry.plates),
-      lastVisit: entry.lastVisit,
-      packagesBought: Array.from(entry.packagesBought.entries()).map(([name, count]) => ({ name, count })),
-      card: cardByKey.get(key) ?? null,
-    }))
+    .map(([key, entry]) => {
+      const card = cardByKey.get(key) ?? null;
+      return {
+        name: entry.name,
+        branch,
+        totalSpend: entry.totalSpend,
+        jobCount: entry.jobCount,
+        plates: Array.from(entry.plates),
+        lastVisit: entry.lastVisit,
+        packagesBought: Array.from(entry.packagesBought.entries()).map(([name, count]) => ({ name, count })),
+        // Tier is automatic (based on visit count), not whatever was last
+        // stored — so it always reflects the customer's current standing.
+        card: card ? { ...card, tier: tierForVisits(entry.jobCount) } : null,
+      };
+    })
     .sort((a, b) => b.totalSpend - a.totalSpend);
 }
 
