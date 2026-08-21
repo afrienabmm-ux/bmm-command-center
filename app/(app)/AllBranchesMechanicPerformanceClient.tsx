@@ -1,47 +1,13 @@
 "use client";
 
 import { Fragment, useEffect, useMemo, useState } from "react";
-import { Crown, Wrench, Smartphone, Download, ChevronDown, ChevronUp, Check, X, ArrowUp, ArrowDown, Minus } from "lucide-react";
+import { Crown, Wrench, Smartphone, Download, ChevronDown, ChevronUp, ArrowUp, ArrowDown, Minus } from "lucide-react";
 import { formatCurrency, toCsv } from "@/lib/format";
 import { BRANCHES, branchLabel, type BranchSelection } from "@/lib/branch";
 import type { MechanicPerformanceRowWithBranch } from "@/lib/reports-actions";
 import { MECHANIC_KPI_REVENUE, MECHANIC_KPI_RESTORE_BIKE_COUNT, MECHANIC_KPI_DAILY_TARGET, MECHANIC_KPI_WORKING_DAYS } from "@/lib/types";
 
 const COLLAPSED_COUNT = 5;
-
-// Every mechanic's monthly KPI: RM10,000 Restore Bike revenue and at least
-// 2 Restore Bike jobs completed. Shown as two small pass/fail pills rather
-// than folded into the revenue number, since either can fail independently
-// (e.g. two cheap jobs hits the count but not the revenue).
-function KpiCell({ revenue, count }: { revenue: number; count: number }) {
-  const revenueMet = revenue >= MECHANIC_KPI_REVENUE;
-  const countMet = count >= MECHANIC_KPI_RESTORE_BIKE_COUNT;
-  return (
-    <div className="flex flex-col gap-1">
-      <span
-        className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full border w-fit ${
-          revenueMet
-            ? "bg-emerald-500/10 text-emerald-700 border-emerald-500/20"
-            : "bg-neutral-100 text-neutral-600 border-neutral-300"
-        }`}
-      >
-        {revenueMet ? <Check size={11} /> : <X size={11} />}
-        {formatCurrency(revenue)} / {formatCurrency(MECHANIC_KPI_REVENUE)}
-      </span>
-      <span
-        className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full border w-fit ${
-          countMet
-            ? "bg-emerald-500/10 text-emerald-700 border-emerald-500/20"
-            : "bg-neutral-100 text-neutral-600 border-neutral-300"
-        }`}
-      >
-        {countMet ? <Check size={11} /> : <X size={11} />}
-        {count} / {MECHANIC_KPI_RESTORE_BIKE_COUNT} bikes
-      </span>
-      <span className="text-[10px] text-neutral-400">≈ {formatCurrency(MECHANIC_KPI_DAILY_TARGET)}/day min.</span>
-    </div>
-  );
-}
 
 function PackageRow({ r, isTop }: { r: MechanicPerformanceRowWithBranch; isTop: boolean }) {
   return (
@@ -149,9 +115,6 @@ function RevenueRow({
       </td>
       <td className="px-5 py-3.5">
         <DailyPaceCell r={r} daysElapsed={daysElapsed} />
-      </td>
-      <td className="px-5 py-3.5">
-        <KpiCell revenue={r.restoreBikeRevenue} count={r.restoreBikeCount} />
       </td>
     </tr>
   );
@@ -367,7 +330,6 @@ export default function AllBranchesMechanicPerformanceClient({
                   <th className="font-medium px-5 py-3 whitespace-nowrap">GenBlu</th>
                   <th className="font-medium px-5 py-3 whitespace-nowrap">Total Revenue</th>
                   <th className="font-medium px-5 py-3 whitespace-nowrap">Daily Pace</th>
-                  <th className="font-medium px-5 py-3 whitespace-nowrap">KPI (RM10k / 2 bikes)</th>
                 </tr>
               </thead>
               <tbody>
@@ -382,7 +344,7 @@ export default function AllBranchesMechanicPerformanceClient({
                           <td className="px-5 py-2.5 text-emerald-800 font-semibold text-sm whitespace-nowrap">
                             {formatCurrency(g.rows.reduce((sum, r) => sum + r.totalRevenue, 0))}
                           </td>
-                          <td colSpan={2} />
+                          <td />
                         </tr>
                         {g.rows.map((r) => (
                           <RevenueRow
@@ -408,7 +370,7 @@ export default function AllBranchesMechanicPerformanceClient({
                     ))}
                 {filtered.length === 0 && (
                   <tr>
-                    <td colSpan={8} className="px-5 py-10 text-center text-neutral-500 text-sm">
+                    <td colSpan={7} className="px-5 py-10 text-center text-neutral-500 text-sm">
                       No mechanics {branchFilter === "all" ? "yet" : `at ${branchLabel(branchFilter)} yet`}.
                     </td>
                   </tr>
