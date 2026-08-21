@@ -17,6 +17,7 @@ type Row = {
   customer_name: string;
   customer_plate_no: string;
   screenshot_path: string | null;
+  points_accrued: number | null;
   created_at: string;
 };
 
@@ -29,6 +30,7 @@ function toReg(r: Row): GenbluRegistration {
     customerName: r.customer_name,
     customerPlateNo: r.customer_plate_no,
     screenshotPath: r.screenshot_path,
+    pointsAccrued: r.points_accrued,
     createdAt: r.created_at,
   };
 }
@@ -54,16 +56,32 @@ function condensedName(name: string): string {
   return name.toLowerCase().replace(/[^a-z0-9]/g, "");
 }
 
+// Pulls the number after "Points Accrued" out of the screenshot's OCR text
+// — that's the real, current balance from the GenBlu app itself, as opposed
+// to the points estimate this dashboard computes from job spending. Only
+// the label "points" is required (not the full word "accrued") since OCR
+// misreads it inconsistently.
+function extractPointsAccrued(text: string): number | null {
+  const match = text.match(/points[^\d]{0,20}(\d[\d,]{0,6})/i);
+  if (!match) return null;
+  const num = Number(match[1].replace(/,/g, ""));
+  return Number.isNaN(num) ? null : num;
+}
+
 // The GenBlu app screenshot should show the same customer's name — read it
-// with the same OCR used for jobsheet scans and check it appears somewhere
-// on the screenshot before accepting the upload.
-async function screenshotMatchesName(screenshot: File, customerName: string): Promise<boolean> {
-  const condensed = condensedName(customerName);
-  if (!condensed) return true;
+// with the same OCR used for jobsheet scans, check it appears somewhere on
+// the screenshot, and pull out the real points balance while we're at it
+// (one OCR pass covers both checks).
+async function analyzeGenbluScreenshot(
+  screenshot: File,
+  customerName: string
+): Promise<{ nameMatches: boolean; pointsAccrued: number | null }> {
   const buffer = Buffer.from(await screenshot.arrayBuffer());
   const base64 = buffer.toString("base64");
   const text = await extractTextFromImage(base64);
-  return condensedName(text).includes(condensed);
+  const condensed = condensedName(customerName);
+  const nameMatches = !condensed || condensedName(text).includes(condensed);
+  return { nameMatches, pointsAccrued: extractPointsAccrued(text) };
 }
 
 export async function getGenbluRegistrations(branch: Branch): Promise<GenbluRegistration[]> {
@@ -127,7 +145,14 @@ export async function addGenbluRegistrationAction(formData: FormData): Promise<{
   }
 
   let screenshotPath: string | null = null;
+  let pointsAccrued: number | null = null;
   if (screenshot && screenshot.size > 0) {
+    try {
+      pointsAccrued = (await analyzeGenbluScreenshot(screenshot, customerName)).pointsAccrued;
+    } catch {
+      // Points extraction is a bonus, not a requirement — don't block the
+      // registration if OCR hiccups.
+    }
     const ext = screenshot.name.split(".").pop() || "jpg";
     const path = `${branch}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
     const { error: uploadError } = await supabaseAdmin.storage.from(BUCKET).upload(path, screenshot, {
@@ -144,6 +169,7 @@ export async function addGenbluRegistrationAction(formData: FormData): Promise<{
     customer_name: customerName,
     customer_plate_no: customerPlateNo,
     screenshot_path: screenshotPath,
+    points_accrued: pointsAccrued,
   });
   if (error) return { error: error.message };
   revalidatePath("/genblu");
@@ -172,7 +198,7 @@ export async function updateGenbluRegistrationAction(
     return { error: "Fill in the salesperson name and plate number." };
   }
 
-  const update: Record<string, string> = {
+  const update: Record<string, string | number | null> = {
     salesperson_name: salespersonName,
     salesperson_code: input.salespersonCode.trim().toUpperCase(),
     customer_name: input.customerName.trim(),
@@ -180,6 +206,11 @@ export async function updateGenbluRegistrationAction(
   };
 
   if (input.screenshot && input.screenshot.size > 0) {
+    try {
+      update.points_accrued = (await analyzeGenbluScreenshot(input.screenshot, input.customerName)).pointsAccrued;
+    } catch {
+      // Points extraction is a bonus, not a requirement — don't block the save.
+    }
     const ext = input.screenshot.name.split(".").pop() || "jpg";
     const path = `${branch}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
     const { error: uploadError } = await supabaseAdmin.storage.from(BUCKET).upload(path, input.screenshot, {
@@ -247,11 +278,14 @@ export async function ensureGenbluRegistrationAction(input: {
   if (match) return { created: false };
 
   let screenshotPath: string | null = null;
+  let pointsAccrued: number | null = null;
   const screenshot = input.screenshot;
   if (screenshot && screenshot.size > 0) {
     let nameMatches = true;
     try {
-      nameMatches = await screenshotMatchesName(screenshot, customerName);
+      const analysis = await analyzeGenbluScreenshot(screenshot, customerName);
+      nameMatches = analysis.nameMatches;
+      pointsAccrued = analysis.pointsAccrued;
     } catch {
       // If the OCR check itself fails (e.g. Vision hiccup), don't block
       // the registration over it — just skip the verification.
@@ -279,6 +313,7 @@ export async function ensureGenbluRegistrationAction(input: {
     customer_name: customerName,
     customer_plate_no: input.customerPlateNo.trim(),
     screenshot_path: screenshotPath,
+    points_accrued: pointsAccrued,
   });
   if (error) return { error: error.message };
   revalidatePath("/genblu");
@@ -305,8 +340,11 @@ export async function attachGenbluScreenshotAction(input: {
   if (input.screenshot.size === 0) return { error: "Pick a screenshot to upload." };
 
   let nameMatches = true;
+  let pointsAccrued: number | null = null;
   try {
-    nameMatches = await screenshotMatchesName(input.screenshot, customerName);
+    const analysis = await analyzeGenbluScreenshot(input.screenshot, customerName);
+    nameMatches = analysis.nameMatches;
+    pointsAccrued = analysis.pointsAccrued;
   } catch {
     nameMatches = true;
   }
@@ -333,7 +371,7 @@ export async function attachGenbluScreenshotAction(input: {
   if (match) {
     const { error } = await supabaseAdmin
       .from("cc_genblu_registrations")
-      .update({ screenshot_path: path })
+      .update({ screenshot_path: path, points_accrued: pointsAccrued })
       .eq("id", match.id);
     if (error) return { error: error.message };
   } else {
@@ -344,6 +382,7 @@ export async function attachGenbluScreenshotAction(input: {
       customer_name: customerName,
       customer_plate_no: input.customerPlateNo.trim(),
       screenshot_path: path,
+      points_accrued: pointsAccrued,
     });
     if (error) return { error: error.message };
   }

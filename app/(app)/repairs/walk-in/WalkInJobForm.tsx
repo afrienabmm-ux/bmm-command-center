@@ -281,6 +281,10 @@ export default function WalkInJobForm({
         setCustomerName(scanned.customerName);
         filled.push("customer name");
       }
+      if (scanned.customerPhone) {
+        setCustomerPhone(scanned.customerPhone);
+        filled.push("phone number");
+      }
       if (scanned.plateNo) {
         setPlateNo(scanned.plateNo);
         filled.push("plate no.");

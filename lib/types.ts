@@ -206,6 +206,10 @@ export type GenbluRegistration = {
   customerName: string;
   customerPlateNo: string;
   screenshotPath: string | null;
+  // Read straight off the screenshot's "Points Accrued" field via OCR when
+  // the screenshot is uploaded — null if extraction failed or no
+  // screenshot-derived value is on file yet (falls back to the estimate).
+  pointsAccrued: number | null;
   createdAt: string;
 };
 

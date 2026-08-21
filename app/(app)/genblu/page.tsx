@@ -27,7 +27,10 @@ export default async function GenbluPage() {
     registrations.map(async (r) => ({
       ...r,
       screenshotUrl: r.screenshotPath ? await getScreenshotUrl(r.screenshotPath) : null,
-      points: pointsByName[r.customerName.trim().toLowerCase()] ?? 0,
+      // The real GenBlu balance read off the screenshot wins when we have
+      // it — it's the actual number, not our own RM-spent estimate.
+      points: r.pointsAccrued ?? pointsByName[r.customerName.trim().toLowerCase()] ?? 0,
+      pointsAreActual: r.pointsAccrued !== null,
     }))
   );
 

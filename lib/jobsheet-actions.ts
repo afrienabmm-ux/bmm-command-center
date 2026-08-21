@@ -12,6 +12,7 @@ export type ScannedJobsheetItem = { code: string; description: string; quantity:
 export type ScannedJobsheet = {
   customerCode: string;
   customerName: string;
+  customerPhone: string;
   plateNo: string;
   model: string;
   colour: string;
@@ -40,6 +41,15 @@ export type ScannedJobsheet = {
   // photo instead of guessed at.
   signatureDebug: string;
 };
+
+// The Sales No. field on this jobsheet actually has the customer's phone
+// number printed right after the sales/invoice number, space-separated
+// (e.g. "IVP001568 01139026813") — pull it out into its own field without
+// touching salesNo itself, which stays exactly as scanned.
+function extractPhoneNumber(raw: string): string {
+  const m = raw.match(/\b01\d{8,9}\b/);
+  return m ? m[0] : "";
+}
 
 function toIsoDate(raw: string): string | null {
   // OCR often reads the dashes/slashes in a date with stray spaces around
@@ -233,6 +243,7 @@ function parseJobsheetText(text: string): ScannedJobsheet {
 
   const jobsheetNo = f.jobsheetNo ?? "";
   const salesNo = f.salesNo ?? "";
+  const customerPhone = extractPhoneNumber(salesNo);
   const salesDate = f.salesDate ? (toIsoDate(f.salesDate) ?? "") : "";
   const warrantyCardNo = f.warrantyCardNo ?? "";
   const mileageKm = f.mileageKm ?? "";
@@ -273,6 +284,7 @@ function parseJobsheetText(text: string): ScannedJobsheet {
   return {
     customerCode,
     customerName,
+    customerPhone,
     plateNo,
     model,
     colour,

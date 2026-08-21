@@ -18,6 +18,7 @@ type RegWithUrl = {
   screenshotUrl: string | null;
   createdAt: string;
   points: number;
+  pointsAreActual: boolean;
 };
 
 export default function GenbluClient({
@@ -150,11 +151,22 @@ export default function GenbluClient({
                 <p className="text-xs text-neutral-400 mt-1">
                   {formatDate(r.createdAt)} · {branchLabel(r.branch)}
                 </p>
-                {r.points > 0 && (
-                  <span className="inline-flex items-center gap-1 text-xs font-medium text-amber-700 bg-amber-500/10 border border-amber-500/20 rounded-full px-2 py-0.5 mt-2">
-                    <Award size={11} /> {r.points.toLocaleString()} points ({formatCurrency(r.points)})
-                  </span>
-                )}
+                {r.points > 0 &&
+                  (r.pointsAreActual ? (
+                    <span
+                      className="inline-flex items-center gap-1 text-xs font-medium text-amber-700 bg-amber-500/10 border border-amber-500/20 rounded-full px-2 py-0.5 mt-2"
+                      title="Read straight off the customer's GenBlu app screenshot"
+                    >
+                      <Award size={11} /> {r.points.toLocaleString()} GenBlu points
+                    </span>
+                  ) : (
+                    <span
+                      className="inline-flex items-center gap-1 text-xs font-medium text-neutral-600 bg-neutral-100 border border-neutral-200 rounded-full px-2 py-0.5 mt-2"
+                      title="No screenshot balance on file yet — estimated from job spending"
+                    >
+                      <Award size={11} /> ~{r.points.toLocaleString()} points est. ({formatCurrency(r.points)})
+                    </span>
+                  ))}
               </div>
               <div className="flex items-center gap-1 shrink-0">
                 <button
