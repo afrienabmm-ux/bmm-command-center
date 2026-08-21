@@ -110,7 +110,7 @@ function StampProgress({ visitCount }: { visitCount: number }) {
           </div>
         ))}
       </div>
-      <p className="text-[11px] text-neutral-400 mt-3">
+      <p className="text-[11px] text-neutral-400 mt-3 text-center">
         {ready
           ? "🎉 You've earned a FREE service — redeem it at the counter!"
           : `Complete ${size} services and get 1 FREE service.`}
