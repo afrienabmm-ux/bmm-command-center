@@ -39,7 +39,10 @@ export default function CustomersClient({
     const q = query.trim().toLowerCase();
     if (!q) return customers;
     return customers.filter(
-      (c) => c.name.toLowerCase().includes(q) || c.plates.some((p) => p.toLowerCase().includes(q))
+      (c) =>
+        c.name.toLowerCase().includes(q) ||
+        c.plates.some((p) => p.toLowerCase().includes(q)) ||
+        (c.card?.customerPhone ?? "").toLowerCase().includes(q)
     );
   }, [customers, query]);
 
@@ -60,7 +63,7 @@ export default function CustomersClient({
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search customer name or plate…"
+            placeholder="Search name, plate, or phone…"
             className="bg-white border border-neutral-200 rounded-lg pl-8 pr-3 py-2 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50 w-64"
           />
         </div>
@@ -89,7 +92,7 @@ export default function CustomersClient({
           <thead>
             <tr className="bg-neutral-50 text-left text-xs font-medium text-neutral-500 uppercase tracking-wide">
               <th className="px-4 py-3">Customer</th>
-              {showAllBranches && <th className="px-4 py-3">Branch</th>}
+              <th className="px-4 py-3">Phone</th>
               <th className="px-4 py-3">Plates</th>
               <th className="px-4 py-3">Visits</th>
               <th className="px-4 py-3">Total Spend</th>
@@ -105,8 +108,15 @@ export default function CustomersClient({
               const revealed = revealedKey === rowKey;
               return (
               <tr key={rowKey} className="border-t border-neutral-100">
-                <td className="px-4 py-3 font-medium text-neutral-800">{c.name}</td>
-                {showAllBranches && <td className="px-4 py-3 text-neutral-600">{branchLabel(c.branch)}</td>}
+                <td className="px-4 py-3 font-medium text-neutral-800">
+                  {c.name}
+                  {showAllBranches && (
+                    <span className="ml-2 text-[10px] font-medium text-neutral-500 bg-neutral-100 rounded-full px-1.5 py-0.5 align-middle">
+                      {branchLabel(c.branch)}
+                    </span>
+                  )}
+                </td>
+                <td className="px-4 py-3 text-neutral-600">{c.card?.customerPhone || "—"}</td>
                 <td className="px-4 py-3 text-neutral-600">{c.plates.join(", ") || "—"}</td>
                 <td className="px-4 py-3 text-neutral-600">{c.jobCount}</td>
                 <td className="px-4 py-3 text-neutral-800 font-medium">{formatCurrency(c.totalSpend)}</td>
@@ -158,7 +168,7 @@ export default function CustomersClient({
             })}
             {visible.length === 0 && (
               <tr>
-                <td colSpan={showAllBranches ? 9 : 8} className="px-4 py-10 text-center text-neutral-500">
+                <td colSpan={9} className="px-4 py-10 text-center text-neutral-500">
                   {customers.length === 0 ? "No customers yet." : "No customers match your search."}
                 </td>
               </tr>
