@@ -520,7 +520,7 @@ function PromoModal({
                   onChange={(e) => handlePosterChange(e.target.files?.[0] ?? null)}
                   className="w-full text-sm text-neutral-700 file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:bg-neutral-100 file:text-neutral-800 file:text-xs"
                 />
-                <p className="text-[11px] text-neutral-400 mt-1">Shown at the top of the email.</p>
+                <p className="text-[11px] text-neutral-400 mt-1">Shown below your message in the email.</p>
               </div>
             </div>
 

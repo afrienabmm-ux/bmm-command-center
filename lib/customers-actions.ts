@@ -293,11 +293,10 @@ export async function sendPromotionAction(
   }
 
   const html =
-    posterHtml +
     message
       .split("\n")
       .map((line) => `<p>${line}</p>`)
-      .join("");
+      .join("") + posterHtml;
 
   let sentCount = 0;
   let failedCount = 0;
