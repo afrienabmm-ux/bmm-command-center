@@ -286,7 +286,7 @@ export async function scanJobsheet(
   } catch (err) {
     const message = err instanceof Error ? err.message : "";
     if (/deadline/i.test(message)) {
-      return { error: "Google's scanning service timed out — please try uploading the jobsheet again." };
+      return { error: "The scanning service timed out — please try uploading the jobsheet again." };
     }
     return { error: message || "Something went wrong reading the jobsheet." };
   }

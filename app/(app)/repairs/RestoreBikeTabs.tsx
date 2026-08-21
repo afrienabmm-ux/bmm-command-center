@@ -2,8 +2,10 @@
 
 import { useState } from "react";
 
-// Arrival Listing and Bikes Listing are two different tables sharing this
+// Stock Listing and Assign Listing are two different tables sharing this
 // page — same tab-switched pattern as Claims' Warranty/Delivery split.
+// (Internal state/prop names below still say "arrival"/"bikes" — only the
+// on-screen labels changed.)
 export default function RestoreBikeTabs({
   arrivalCount,
   bikesCount,
@@ -26,7 +28,7 @@ export default function RestoreBikeTabs({
             tab === "arrival" ? "bg-white text-indigo-700 shadow-sm" : "text-neutral-600"
           }`}
         >
-          Arrival Listing ({arrivalCount})
+          Stock Listing ({arrivalCount})
         </button>
         <button
           onClick={() => setTab("bikes")}
@@ -34,7 +36,7 @@ export default function RestoreBikeTabs({
             tab === "bikes" ? "bg-white text-indigo-700 shadow-sm" : "text-neutral-600"
           }`}
         >
-          Bikes Listing ({bikesCount})
+          Assign Listing ({bikesCount})
         </button>
       </div>
       <div className={tab === "arrival" ? "" : "hidden"}>{arrival}</div>

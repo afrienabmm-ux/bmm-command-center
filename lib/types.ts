@@ -162,9 +162,11 @@ export type RepairJob = {
   quotationDate: string | null;
   // Restore Bike only — set once the branch PIC passes or fails QC.
   // Passing moves the job to Completed; failing sends it back to In
-  // Progress (and clears both fields) for the mechanic to redo.
+  // Progress for the mechanic to redo, but keeps the "Failed" result and
+  // reason visible (rather than clearing them) so it's clear why.
   qcResult: QcResult | null;
   qcDate: string | null;
+  qcFailReason: string | null;
 };
 
 export const RESTORE_BIKE_CONDITIONS = ["L", "H"] as const;

@@ -59,6 +59,7 @@ type Row = {
   quotation_date: string | null;
   qc_result: QcResult | null;
   qc_date: string | null;
+  qc_fail_reason: string | null;
   cc_repair_job_items: ItemRow[] | null;
 };
 
@@ -114,6 +115,7 @@ function toJob(r: Row): RepairJob {
     quotationDate: r.quotation_date,
     qcResult: r.qc_result,
     qcDate: r.qc_date,
+    qcFailReason: r.qc_fail_reason,
   };
 }
 
@@ -276,6 +278,15 @@ export async function getAllBranchesPendingApprovalJobs(onlyBranch?: Branch): Pr
   await requireApproved();
   const active = onlyBranch ? await getActiveRepairJobs(onlyBranch) : await getAllBranchesActiveRepairJobs();
   return active.filter((j) => j.jobType === "Restore Bike" && j.approvalStatus === "Pending");
+}
+
+// The flip side of the list above — jobs the GM just approved but the
+// branch PIC hasn't started yet. Surfaced as a dashboard notice so the PIC
+// finds out without having to keep checking the Restore Bike list.
+export async function getAllBranchesApprovedReadyToStartJobs(onlyBranch?: Branch): Promise<RepairJob[]> {
+  await requireApproved();
+  const active = onlyBranch ? await getActiveRepairJobs(onlyBranch) : await getAllBranchesActiveRepairJobs();
+  return active.filter((j) => j.jobType === "Restore Bike" && j.approvalStatus === "Approved" && !j.startedDate);
 }
 
 // QC jobs that have been waiting more than 3 days since the repair
@@ -808,18 +819,28 @@ export async function assignMechanicAction(id: string, branch: Branch, mechanicI
 
 // The branch PIC's QC call on a Restore Bike job sitting in the QC tab.
 // Passing moves it to Completed for good; failing sends it back to the
-// mechanic — clears the End Date and QC result so the job reappears in
-// Active exactly like it hadn't been finished yet, ready to be re-ended
-// once the rework is done.
-export async function setQcResultAction(id: string, branch: Branch, result: QcResult): Promise<{ error: string } | void> {
+// mechanic to redo (clears the End Date so it reappears in Active) but
+// keeps the "Failed" result and the PIC's reason visible on the job,
+// instead of silently wiping them — a reason is required for Fail so
+// there's always a record of why.
+export async function setQcResultAction(
+  id: string,
+  branch: Branch,
+  result: QcResult,
+  failReason?: string
+): Promise<{ error: string } | void> {
   const user = await requireApproved();
   assertCanEditBranch(user, branch);
+
+  if (result === "Failed" && !failReason?.trim()) {
+    return { error: "A reason is required when failing QC." };
+  }
 
   const today = new Date().toISOString().slice(0, 10);
   const update =
     result === "Passed"
-      ? { status: "Completed", qc_result: "Passed", qc_date: today }
-      : { status: "In Progress", completed_date: null, qc_result: null, qc_date: null };
+      ? { status: "Completed", qc_result: "Passed", qc_date: today, qc_fail_reason: null }
+      : { status: "In Progress", completed_date: null, qc_result: "Failed", qc_date: today, qc_fail_reason: failReason!.trim() };
 
   const { error } = await supabaseAdmin.from("cc_repair_jobs").update(update).eq("id", id);
   if (error) return { error: error.message };

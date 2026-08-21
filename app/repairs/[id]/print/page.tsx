@@ -111,6 +111,7 @@ export default async function PrintRepairJobPage({ params }: { params: Promise<{
                   <td className="border border-neutral-400 px-2 py-1 align-top" colSpan={2}>
                     QC : {job.qcResult ?? "—"}
                     {job.qcDate ? ` (${formatDate(job.qcDate)})` : ""}
+                    {job.qcResult === "Failed" && job.qcFailReason ? ` — ${job.qcFailReason}` : ""}
                   </td>
                 </tr>
               </tbody>

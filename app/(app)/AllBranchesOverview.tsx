@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { AlertTriangle, Clock, ShieldCheck, ClipboardList, Wrench, Wallet, Layers, PackageCheck, ArrowUp, ArrowDown } from "lucide-react";
+import { AlertTriangle, Clock, ShieldCheck, CheckCircle2, ClipboardList, Wrench, Wallet, Layers, PackageCheck, ArrowUp, ArrowDown } from "lucide-react";
 import { formatCurrency, formatDate, monthLabel } from "@/lib/format";
 import { branchLabel, type Branch, type BranchSelection } from "@/lib/branch";
 import StatCard from "@/components/StatCard";
@@ -13,6 +13,7 @@ import {
   getAllBranchesActiveRepairJobs,
   getActiveRepairJobs,
   getAllBranchesPendingApprovalJobs,
+  getAllBranchesApprovedReadyToStartJobs,
 } from "@/lib/repairs-actions";
 import { getBranchMonthSummary } from "@/lib/reports-actions";
 import { getMonthlyTrends } from "@/lib/trends-actions";
@@ -63,6 +64,7 @@ export default async function AllBranchesOverview({
     overdueQcJobs,
     qcReminderJobs,
     pendingApprovalJobs,
+    approvedReadyToStartJobs,
     prevAchieved,
     trendPoints,
     revenuePace,
@@ -79,6 +81,7 @@ export default async function AllBranchesOverview({
     getAllBranchesOverdueQcJobs(onlyBranch),
     getAllBranchesQcReminderJobs(onlyBranch),
     isManagement ? getAllBranchesPendingApprovalJobs(onlyBranch) : Promise.resolve([]),
+    getAllBranchesApprovedReadyToStartJobs(onlyBranch),
     onlyBranch
       ? getBranchMonthSummary(onlyBranch, prev.year, prev.month).then((s) => s.achievedAmount)
       : getAllBranchesAchievedTotal(prev.year, prev.month),
@@ -203,6 +206,32 @@ export default async function AllBranchesOverview({
                   .join(", ")}
                 {pendingApprovalJobs.length > 6 ? `, +${pendingApprovalJobs.length - 6} more` : ""} — the PIC can't
                 start repair until you approve.
+              </p>
+            </div>
+          </div>
+        </Link>
+      )}
+
+      {approvedReadyToStartJobs.length > 0 && (
+        <Link
+          href="/repairs"
+          className="block bg-emerald-50 border border-emerald-200 rounded-xl p-5 hover:border-emerald-300 transition-colors"
+        >
+          <div className="flex items-start gap-3">
+            <div className="w-9 h-9 rounded-lg bg-emerald-500/10 flex items-center justify-center shrink-0">
+              <CheckCircle2 size={17} className="text-emerald-600" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-emerald-700">
+                {approvedReadyToStartJobs.length} Restore Bike job{approvedReadyToStartJobs.length === 1 ? "" : "s"} approved
+                by GM — ready to start
+              </p>
+              <p className="text-xs text-emerald-600 mt-1">
+                {approvedReadyToStartJobs
+                  .slice(0, 6)
+                  .map((j) => j.plateNo)
+                  .join(", ")}
+                {approvedReadyToStartJobs.length > 6 ? `, +${approvedReadyToStartJobs.length - 6} more` : ""}
               </p>
             </div>
           </div>

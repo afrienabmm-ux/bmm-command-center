@@ -450,8 +450,9 @@ function StatusCell({ job }: { job: RepairJob }) {
   return (
     <div className="flex flex-col gap-1 items-start">
       <span className={`text-xs font-medium px-2.5 py-1 rounded-full border ${STATUS_STYLES[job.status]}`}>{job.status}</span>
-      {job.status === "Completed" && job.qcResult && (
+      {job.qcResult && (
         <span
+          title={job.qcResult === "Failed" ? job.qcFailReason ?? undefined : undefined}
           className={`text-[10px] font-medium px-2 py-0.5 rounded-full border ${
             job.qcResult === "Passed"
               ? "bg-emerald-500/10 text-emerald-700 border-emerald-500/20"
@@ -461,6 +462,9 @@ function StatusCell({ job }: { job: RepairJob }) {
           QC {job.qcResult}
         </span>
       )}
+      {job.qcResult === "Failed" && job.qcFailReason && (
+        <span className="text-[10px] text-red-600 max-w-[160px]">{job.qcFailReason}</span>
+      )}
     </div>
   );
 }
@@ -469,28 +473,92 @@ function StatusCell({ job }: { job: RepairJob }) {
 // (clearing the End Date) so the mechanic can redo it — the server handles
 // both transitions in setQcResultAction. Picking the current placeholder
 // option again is a no-op since there's nothing to select back to.
+// Failing QC requires a reason — a small modal collects it before the
+// action fires, rather than silently sending the job back to the
+// mechanic with no record of what was wrong.
+function QcFailReasonModal({ job, onClose }: { job: RepairJob; onClose: () => void }) {
+  const [reason, setReason] = useState("");
+  const [isPending, startTransition] = useTransition();
+
+  function handleConfirm() {
+    if (reason.trim() === "") return;
+    startTransition(async () => {
+      const result = await setQcResultAction(job.id, job.branch, "Failed", reason);
+      if (result && "error" in result) {
+        window.alert(result.error);
+        return;
+      }
+      onClose();
+    });
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 px-4">
+      <div className="bg-white border border-neutral-200 rounded-xl w-full max-w-sm p-6 text-left">
+        <h2 className="text-sm font-semibold text-neutral-900 mb-2">Why did this fail QC?</h2>
+        <p className="text-sm text-neutral-600 mb-3">
+          {job.plateNo} — {job.model || "—"}
+        </p>
+        <textarea
+          autoFocus
+          value={reason}
+          onChange={(e) => setReason(e.target.value)}
+          rows={3}
+          placeholder="e.g. Brake still loose, redo engine mount"
+          className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50 resize-none"
+        />
+        <div className="flex items-center justify-end gap-3 mt-4">
+          <button
+            onClick={onClose}
+            className="text-sm font-medium text-neutral-600 hover:text-neutral-800 px-4 py-2 transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleConfirm}
+            disabled={isPending || reason.trim() === ""}
+            className="bg-red-600 hover:bg-red-500 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+          >
+            {isPending ? "Saving…" : "Fail QC"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function QcResultCell({ job }: { job: RepairJob }) {
   const [isPending, startTransition] = useTransition();
+  const [failModalOpen, setFailModalOpen] = useState(false);
+
   function handleChange(value: string) {
-    if (value !== "Passed" && value !== "Failed") return;
+    if (value === "Failed") {
+      setFailModalOpen(true);
+      return;
+    }
+    if (value !== "Passed") return;
     startTransition(async () => {
-      const result = await setQcResultAction(job.id, job.branch, value as QcResult);
+      const result = await setQcResultAction(job.id, job.branch, "Passed");
       if (result && "error" in result) window.alert(result.error);
     });
   }
+
   return (
-    <select
-      value=""
-      onChange={(e) => handleChange(e.target.value)}
-      disabled={isPending}
-      className="text-xs font-medium bg-white border border-neutral-200 rounded-lg px-2.5 py-1.5 disabled:opacity-50"
-    >
-      <option value="" disabled>
-        Pass or fail?
-      </option>
-      <option value="Passed">Pass</option>
-      <option value="Failed">Fail</option>
-    </select>
+    <>
+      <select
+        value=""
+        onChange={(e) => handleChange(e.target.value)}
+        disabled={isPending}
+        className="text-xs font-medium bg-white border border-neutral-200 rounded-lg px-2.5 py-1.5 disabled:opacity-50"
+      >
+        <option value="" disabled>
+          Pass or fail?
+        </option>
+        <option value="Passed">Pass</option>
+        <option value="Failed">Fail</option>
+      </select>
+      {failModalOpen && <QcFailReasonModal job={job} onClose={() => setFailModalOpen(false)} />}
+    </>
   );
 }
 
