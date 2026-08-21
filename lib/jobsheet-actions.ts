@@ -107,6 +107,12 @@ const FIELD_LABELS: { key: string; words: string[]; excludeIfPrecededBy?: string
   { key: "mileageKm", words: ["mileage", "km"], excludeIfPrecededBy: "next" },
   { key: "serviceType", words: ["service", "type"] },
   { key: "nextServiceDate", words: ["next", "service", "date"] },
+  // Fallback for the line above — "Next" gets misread unpredictably ("ext",
+  // "Let", dropped entirely) since it's the first word run together with
+  // whatever's above it on the form. "Service Date" alone doesn't collide
+  // with anything else on the jobsheet (Sales Date and Service Type are
+  // both spelled differently), so it's safe to trigger on its own.
+  { key: "nextServiceDate", words: ["service", "date"] },
   // These three aren't fields the form needs (their values are never read
   // below) — they're here purely as boundary markers. The jobsheet's
   // two columns get merged onto the same reconstructed row (e.g. "Sales
