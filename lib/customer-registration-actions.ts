@@ -48,3 +48,59 @@ export async function registerCustomerCardAction(input: {
   revalidatePath("/customers");
   return { cardNumber, tier };
 }
+
+export type MembershipLookup = {
+  customerName: string;
+  cardNumber: string;
+  tier: string;
+  issuedDate: string;
+  expiryDate: string | null;
+  totalSpend: number;
+  visitCount: number;
+};
+
+// Public — a returning customer checks their own card by phone number. The
+// spend/visit total is aggregated from Walk-in jobs by name the same way
+// GenBlu points and the staff Memberships page already do; only the
+// looked-up customer's own numbers ever come back.
+export async function lookupMembershipAction(customerPhone: string): Promise<{ error: string } | MembershipLookup> {
+  const phone = customerPhone.trim();
+  if (!phone) return { error: "Enter the phone number you signed up with." };
+
+  const { data: cards, error: cardError } = await supabaseAdmin
+    .from("cc_customer_cards")
+    .select("customer_name, card_number, tier, issued_date, expiry_date")
+    .eq("customer_phone", phone)
+    .limit(1);
+  if (cardError) return { error: cardError.message };
+  if (!cards || cards.length === 0) {
+    return { error: "No membership card found for that phone number. Sign up above to get one." };
+  }
+  const card = cards[0];
+
+  const { data: jobs, error: jobsError } = await supabaseAdmin
+    .from("cc_repair_jobs")
+    .select("customer_name, revenue_amount")
+    .eq("job_type", "Walk-in");
+  if (jobsError) return { error: jobsError.message };
+
+  const normalized = card.customer_name.trim().toLowerCase();
+  let totalSpend = 0;
+  let visitCount = 0;
+  for (const job of jobs ?? []) {
+    if ((job.customer_name ?? "").trim().toLowerCase() === normalized) {
+      totalSpend += Number(job.revenue_amount);
+      visitCount += 1;
+    }
+  }
+
+  return {
+    customerName: card.customer_name,
+    cardNumber: card.card_number,
+    tier: card.tier,
+    issuedDate: card.issued_date,
+    expiryDate: card.expiry_date,
+    totalSpend,
+    visitCount,
+  };
+}
