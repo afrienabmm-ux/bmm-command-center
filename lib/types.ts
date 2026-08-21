@@ -233,6 +233,9 @@ export type CustomerCard = {
   branch: Branch;
   customerName: string;
   customerPhone: string;
+  // Only set for cards created through the public /join sign-up (email
+  // OTP verified there); staff-added cards leave this blank.
+  customerEmail: string;
   cardNumber: string;
   tier: string;
   issuedDate: string;

@@ -1,8 +1,14 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
-import { Search, User, Phone, Building2, Sparkles } from "lucide-react";
-import { registerCustomerCardAction, lookupMembershipAction, type MembershipLookup } from "@/lib/customer-registration-actions";
+import { Search, User, Phone, Mail, Building2, Sparkles, KeyRound } from "lucide-react";
+import {
+  registerCustomerCardAction,
+  sendRegistrationOtpAction,
+  verifyRegistrationOtpAction,
+  lookupMembershipAction,
+  type MembershipLookup,
+} from "@/lib/customer-registration-actions";
 import { BRANCHES, type Branch } from "@/lib/branch";
 import { formatCurrency, formatDate } from "@/lib/format";
 
@@ -119,9 +125,12 @@ export default function JoinForm() {
 }
 
 function JoinTab({ restored, onClear }: { restored: StoredJoin | null; onClear: () => void }) {
+  const [step, setStep] = useState<"form" | "otp">("form");
   const [branch, setBranch] = useState<Branch>("kapar");
   const [name, setName] = useState(restored?.name ?? "");
   const [phone, setPhone] = useState("");
+  const [email, setEmail] = useState("");
+  const [code, setCode] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<{ cardNumber: string; tier: string } | null>(
     restored ? { cardNumber: restored.cardNumber, tier: restored.tier } : null
@@ -135,10 +144,27 @@ function JoinTab({ restored, onClear }: { restored: StoredJoin | null; onClear: 
     }
   }, [restored]);
 
-  function handleSubmit() {
+  function handleSendCode() {
     setError(null);
     startTransition(async () => {
-      const res = await registerCustomerCardAction({ branch, customerName: name, customerPhone: phone });
+      const res = await sendRegistrationOtpAction(email);
+      if ("error" in res) {
+        setError(res.error);
+        return;
+      }
+      setStep("otp");
+    });
+  }
+
+  function handleVerifyAndRegister() {
+    setError(null);
+    startTransition(async () => {
+      const verifyRes = await verifyRegistrationOtpAction(email, code);
+      if ("error" in verifyRes) {
+        setError(verifyRes.error);
+        return;
+      }
+      const res = await registerCustomerCardAction({ branch, customerName: name, customerPhone: phone, customerEmail: email });
       if ("error" in res) {
         setError(res.error);
         return;
@@ -162,11 +188,47 @@ function JoinTab({ restored, onClear }: { restored: StoredJoin | null; onClear: 
             onClear();
             setResult(null);
             setName("");
+            setStep("form");
           }}
           className="text-xs font-medium text-neutral-500 hover:text-neutral-700 mt-4 w-full text-center"
         >
           Not you? Start over
         </button>
+      </div>
+    );
+  }
+
+  if (step === "otp") {
+    return (
+      <div className="space-y-3.5">
+        <p className="text-xs text-neutral-500">
+          We sent a 6-digit code to <span className="font-medium text-neutral-800">{email}</span>. Enter it below.
+        </p>
+        <div className="relative">
+          <KeyRound size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-400" />
+          <input
+            type="text"
+            inputMode="numeric"
+            value={code}
+            onChange={(e) => setCode(e.target.value)}
+            placeholder="6-digit code"
+            className={inputClass}
+          />
+        </div>
+
+        {error && <p className="text-sm text-red-700">{error}</p>}
+
+        <button onClick={handleVerifyAndRegister} disabled={isPending || !code.trim()} className={primaryButtonClass}>
+          {isPending ? "Verifying…" : "Verify & Get Card"}
+        </button>
+        <div className="flex items-center justify-between text-xs text-neutral-500">
+          <button type="button" onClick={() => setStep("form")} className="hover:text-neutral-700">
+            Change details
+          </button>
+          <button type="button" onClick={handleSendCode} disabled={isPending} className="hover:text-neutral-700">
+            Resend code
+          </button>
+        </div>
       </div>
     );
   }
@@ -207,11 +269,25 @@ function JoinTab({ restored, onClear }: { restored: StoredJoin | null; onClear: 
           className={inputClass}
         />
       </div>
+      <div className="relative">
+        <Mail size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-400" />
+        <input
+          type="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          placeholder="Email address"
+          className={inputClass}
+        />
+      </div>
 
       {error && <p className="text-sm text-red-700">{error}</p>}
 
-      <button onClick={handleSubmit} disabled={isPending || !name.trim() || !phone.trim()} className={primaryButtonClass}>
-        {isPending ? "Joining…" : "Get My Card"}
+      <button
+        onClick={handleSendCode}
+        disabled={isPending || !name.trim() || !phone.trim() || !email.trim()}
+        className={primaryButtonClass}
+      >
+        {isPending ? "Sending…" : "Send Verification Code"}
       </button>
     </div>
   );

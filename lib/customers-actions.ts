@@ -17,6 +17,7 @@ type CardRow = {
   branch: Branch;
   customer_name: string;
   customer_phone: string;
+  customer_email: string;
   card_number: string;
   tier: string;
   issued_date: string;
@@ -31,6 +32,7 @@ function toCard(r: CardRow): CustomerCard {
     branch: r.branch,
     customerName: r.customer_name,
     customerPhone: r.customer_phone,
+    customerEmail: r.customer_email,
     cardNumber: r.card_number,
     tier: r.tier,
     issuedDate: r.issued_date,

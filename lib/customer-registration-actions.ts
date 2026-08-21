@@ -28,15 +28,102 @@ function generateCardNumber(branch: Branch): string {
   return `MC-${BRANCH_PREFIX[branch]}-${rand}`;
 }
 
+const OTP_TTL_MINUTES = 10;
+
+function generateOtpCode(): string {
+  return String(Math.floor(100000 + Math.random() * 900000));
+}
+
+function normalizeEmail(email: string): string {
+  return email.trim().toLowerCase();
+}
+
+// Sends a 6-digit code to the given email via Resend and stores it for
+// verifyRegistrationOtpAction to check. Free to run (unlike SMS OTP, which
+// costs money per message) — that's why registration verifies email
+// instead of phone.
+export async function sendRegistrationOtpAction(email: string): Promise<{ error: string } | { sent: true }> {
+  const trimmed = normalizeEmail(email);
+  if (!trimmed || !trimmed.includes("@")) return { error: "Enter a valid email address." };
+
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) return { error: "Email verification isn't set up yet — please contact BMM staff." };
+
+  const code = generateOtpCode();
+  const expiresAt = new Date(Date.now() + OTP_TTL_MINUTES * 60 * 1000).toISOString();
+
+  const { error } = await supabaseAdmin.from("cc_email_otps").insert({
+    email: trimmed,
+    code,
+    expires_at: expiresAt,
+  });
+  if (error) return { error: error.message };
+
+  const res = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      from: "BMM Membership <onboarding@resend.dev>",
+      to: trimmed,
+      subject: "Your BMM Membership verification code",
+      html: `<p>Your verification code is <strong style="font-size:20px;letter-spacing:2px;">${code}</strong></p><p>It expires in ${OTP_TTL_MINUTES} minutes.</p>`,
+    }),
+  });
+  if (!res.ok) {
+    return { error: "Couldn't send the verification email. Please check the address and try again." };
+  }
+  return { sent: true };
+}
+
+export async function verifyRegistrationOtpAction(email: string, code: string): Promise<{ error: string } | { verified: true }> {
+  const trimmed = normalizeEmail(email);
+  const enteredCode = code.trim();
+  if (!enteredCode) return { error: "Enter the code from your email." };
+
+  const { data, error } = await supabaseAdmin
+    .from("cc_email_otps")
+    .select("id, code, expires_at")
+    .eq("email", trimmed)
+    .order("created_at", { ascending: false })
+    .limit(1);
+  if (error) return { error: error.message };
+  if (!data || data.length === 0) return { error: "No code was sent to this email. Request a new one." };
+
+  const row = data[0];
+  if (new Date(row.expires_at) < new Date()) return { error: "This code has expired. Request a new one." };
+  if (row.code !== enteredCode) return { error: "Incorrect code — please try again." };
+
+  const { error: updateError } = await supabaseAdmin.from("cc_email_otps").update({ verified: true }).eq("id", row.id);
+  if (updateError) return { error: updateError.message };
+  return { verified: true };
+}
+
+async function hasVerifiedOtp(email: string): Promise<boolean> {
+  const { data } = await supabaseAdmin
+    .from("cc_email_otps")
+    .select("id")
+    .eq("email", normalizeEmail(email))
+    .eq("verified", true)
+    .gte("expires_at", new Date().toISOString())
+    .limit(1);
+  return !!data && data.length > 0;
+}
+
 export async function registerCustomerCardAction(input: {
   branch: Branch;
   customerName: string;
   customerPhone: string;
+  customerEmail: string;
 }): Promise<{ error: string } | { cardNumber: string; tier: string }> {
   const customerName = input.customerName.trim();
   const customerPhone = input.customerPhone.trim();
+  const customerEmail = normalizeEmail(input.customerEmail);
   if (!customerName) return { error: "Please enter your name." };
   if (!customerPhone) return { error: "Please enter your phone number." };
+  if (!customerEmail) return { error: "Please verify your email first." };
+
+  const verified = await hasVerifiedOtp(customerEmail);
+  if (!verified) return { error: "Please verify your email first." };
 
   // Signing up again with the same phone number hands back the existing
   // card instead of creating a duplicate.
@@ -58,6 +145,7 @@ export async function registerCustomerCardAction(input: {
     branch: input.branch,
     customer_name: customerName,
     customer_phone: customerPhone,
+    customer_email: customerEmail,
     card_number: cardNumber,
     tier,
     issued_date: new Date().toISOString().slice(0, 10),
