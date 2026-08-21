@@ -197,6 +197,7 @@ export default function WalkInJobForm({
   const [isScanning, setIsScanning] = useState(false);
   const [scanError, setScanError] = useState<string | null>(null);
   const [scanNotice, setScanNotice] = useState<string | null>(null);
+  const [scanMissing, setScanMissing] = useState<string[] | null>(null);
   const [scanRawText, setScanRawText] = useState<string | null>(null);
   // Best-effort result from the last scan — null until a scan has run (or
   // when the "Signature" label couldn't be found at all). Existing jobs
@@ -246,6 +247,7 @@ export default function WalkInJobForm({
     setIsScanning(true);
     setScanError(null);
     setScanNotice(null);
+    setScanMissing(null);
     try {
       const isPdf = file.type === "application/pdf";
       const uploadBlob = isPdf ? file : await downscaleImage(file);
@@ -360,6 +362,17 @@ export default function WalkInJobForm({
           ? `Filled in from the jobsheet: ${filled.join(", ")}. Please check everything before saving.`
           : "Couldn't confidently read the jobsheet fields — please fill them in by hand."
       );
+
+      // The fields that matter most for identifying the job — if any of
+      // these didn't come through, the photo probably wasn't clear enough
+      // rather than the jobsheet genuinely being blank there.
+      const missing: string[] = [];
+      if (!scanned.customerName) missing.push("Customer Name");
+      if (!scanned.plateNo) missing.push("Plate No.");
+      if (!scanned.model) missing.push("Model");
+      if (!scanned.jobsheetNo) missing.push("Job No.");
+      if (scanned.items.length === 0) missing.push("Items");
+      setScanMissing(missing.length > 0 ? missing : null);
     } catch (err) {
       setScanError(err instanceof Error ? err.message : "Something went wrong scanning the jobsheet.");
     } finally {
@@ -619,6 +632,22 @@ export default function WalkInJobForm({
               </button>
               {scanError && <p className="text-xs text-red-700 mt-2">{scanError}</p>}
               {scanNotice && <p className="text-xs text-emerald-700 mt-2">{scanNotice}</p>}
+              {scanMissing && (
+                <div className="mt-2 bg-amber-50 border border-amber-200 rounded-lg p-3">
+                  <p className="text-xs text-amber-800 font-medium">
+                    Couldn&apos;t read: {scanMissing.join(", ")}. For an accurate reading, retake the photo — flat
+                    surface, good lighting, and the whole jobsheet in frame.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={isScanning}
+                    className="flex items-center gap-1.5 bg-amber-600 hover:bg-amber-500 disabled:opacity-50 text-white text-xs font-medium px-3 py-1.5 rounded-lg transition-colors mt-2"
+                  >
+                    <Upload size={13} /> Retake Photo
+                  </button>
+                </div>
+              )}
               {scanRawText && (
                 <details className="mt-2">
                   <summary className="text-xs text-indigo-700 cursor-pointer">What Google read from the photo (for troubleshooting)</summary>
