@@ -217,7 +217,11 @@ export default async function AllBranchesOverview({
 
       {approvedReadyToStartJobs.length > 0 && (
         <Link
-          href="/repairs"
+          href={
+            approvedReadyToStartJobs.length === 1
+              ? `/repairs?tab=bikes&highlight=${approvedReadyToStartJobs[0].id}`
+              : "/repairs?tab=bikes"
+          }
           className="block bg-emerald-50 border border-emerald-200 rounded-xl p-5 hover:border-emerald-300 transition-colors"
         >
           <div className="flex items-start gap-3">

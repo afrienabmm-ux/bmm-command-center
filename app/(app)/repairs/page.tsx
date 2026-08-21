@@ -16,8 +16,13 @@ import RestoreBikeTabs from "./RestoreBikeTabs";
 
 export const dynamic = "force-dynamic";
 
-export default async function RepairsPage() {
+export default async function RepairsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ tab?: string; highlight?: string }>;
+}) {
   await requirePage("repairs");
+  const { tab: tabParam, highlight } = await searchParams;
   const { user, branch } = await requirePageContext();
   const branchSelection = await getActiveBranchSelection(user);
   const showAllBranches = branchSelection === "all";
@@ -47,6 +52,7 @@ export default async function RepairsPage() {
         <RestoreBikeTabs
           arrivalCount={arrival.length}
           bikesCount={active.length + qc.length + completed.length}
+          initialTab={tabParam === "bikes" ? "bikes" : tabParam === "arrival" ? "arrival" : undefined}
           arrival={
             <ArrivalListingClient jobs={arrival} mechanics={mechanics} branchSelection={branchSelection} allActiveJobs={allActive} />
           }
@@ -58,6 +64,7 @@ export default async function RepairsPage() {
               mechanics={mechanics}
               branchSelection={branchSelection}
               isManagement={user.role === "Management"}
+              highlightId={highlight}
             />
           }
         />

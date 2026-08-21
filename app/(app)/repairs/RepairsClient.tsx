@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { Download, Pencil, AlertTriangle, Search, Check, Trash2, Printer, Eye, X } from "lucide-react";
 import {
@@ -54,6 +54,7 @@ export default function RepairsClient({
   mechanics,
   branchSelection,
   isManagement,
+  highlightId,
 }: {
   active: RepairJob[];
   qc: RepairJob[];
@@ -61,8 +62,19 @@ export default function RepairsClient({
   mechanics: Mechanic[];
   branchSelection: BranchSelection;
   isManagement: boolean;
+  highlightId?: string;
 }) {
   const [tab, setTab] = useState<"active" | "qc" | "completed">("active");
+
+  // Deep-linked from a dashboard alert (e.g. "ready to start") — jump to
+  // whichever sub-tab the highlighted job is actually in, since it isn't
+  // always "active".
+  useEffect(() => {
+    if (!highlightId) return;
+    if (active.some((j) => j.id === highlightId)) setTab("active");
+    else if (qc.some((j) => j.id === highlightId)) setTab("qc");
+    else if (completed.some((j) => j.id === highlightId)) setTab("completed");
+  }, [highlightId, active, qc, completed]);
   const [exportJobModalOpen, setExportJobModalOpen] = useState(false);
   const [exportRestoreModalOpen, setExportRestoreModalOpen] = useState(false);
   const jobs = tab === "active" ? active : tab === "qc" ? qc : completed;
@@ -257,6 +269,7 @@ export default function RepairsClient({
                   editable={tab === "active"}
                   showQc={tab === "qc"}
                   isManagement={isManagement}
+                  highlight={job.id === highlightId}
                 />
               ))}
               {jobs.length === 0 && (
@@ -816,6 +829,7 @@ function RestoreBikeRow({
   editable,
   showQc,
   isManagement,
+  highlight,
 }: {
   no: number;
   job: RepairJob;
@@ -823,11 +837,24 @@ function RestoreBikeRow({
   editable: boolean;
   showQc: boolean;
   isManagement: boolean;
+  highlight?: boolean;
 }) {
   const [isPending, startTransition] = useTransition();
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(false);
+  const rowRef = useRef<HTMLTableRowElement>(null);
+
+  // Deep-linked from a dashboard alert — scroll straight to this job and
+  // flash it so it's obvious which row triggered the notice.
+  const [flashed, setFlashed] = useState(false);
+  useEffect(() => {
+    if (!highlight) return;
+    rowRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    setFlashed(true);
+    const timeout = setTimeout(() => setFlashed(false), 2500);
+    return () => clearTimeout(timeout);
+  }, [highlight]);
 
   function handleDelete() {
     setDeleting(true);
@@ -839,7 +866,12 @@ function RestoreBikeRow({
   }
 
   return (
-    <tr className="border-b border-neutral-100 last:border-0 hover:bg-neutral-50">
+    <tr
+      ref={rowRef}
+      className={`border-b border-neutral-100 last:border-0 hover:bg-neutral-50 transition-colors ${
+        flashed ? "bg-emerald-50" : ""
+      }`}
+    >
       <td className="px-5 py-3.5">
         <ArrivedCell job={job} />
       </td>

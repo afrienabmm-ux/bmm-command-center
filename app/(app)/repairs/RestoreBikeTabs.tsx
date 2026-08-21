@@ -11,13 +11,15 @@ export default function RestoreBikeTabs({
   bikesCount,
   arrival,
   bikes,
+  initialTab,
 }: {
   arrivalCount: number;
   bikesCount: number;
   arrival: React.ReactNode;
   bikes: React.ReactNode;
+  initialTab?: "arrival" | "bikes";
 }) {
-  const [tab, setTab] = useState<"arrival" | "bikes">("arrival");
+  const [tab, setTab] = useState<"arrival" | "bikes">(initialTab ?? "arrival");
 
   return (
     <div>
