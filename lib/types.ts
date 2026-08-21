@@ -224,6 +224,38 @@ export type CatalogProduct = {
   code: string;
 };
 
+// The loyalty/membership card concept — separate from the Services Combo
+// packages themselves. Replaces the paper stamp card; tier is free text
+// (e.g. "Silver"/"Gold"/"Platinum") rather than a fixed enum since the
+// tier structure isn't decided yet.
+export type CustomerCard = {
+  id: string;
+  branch: Branch;
+  customerName: string;
+  customerPhone: string;
+  cardNumber: string;
+  tier: string;
+  issuedDate: string;
+  expiryDate: string | null;
+  notes: string;
+  createdAt: string;
+};
+
+// One row per customer, aggregated from their Walk-in job history (spend,
+// visit count, plates used) plus their Services Combo purchases and, if
+// they have one, their loyalty card — computed on the fly rather than
+// stored, same approach as GenBlu points.
+export type CustomerSummary = {
+  name: string;
+  branch: Branch;
+  totalSpend: number;
+  jobCount: number;
+  plates: string[];
+  lastVisit: string;
+  packagesBought: { name: string; count: number }[];
+  card: CustomerCard | null;
+};
+
 export type LabourCharge = {
   id: string;
   description: string;

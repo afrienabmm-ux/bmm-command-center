@@ -549,6 +549,8 @@ export default function WalkInJobForm({
             mechanicId: mechanicId || null,
             receiptId: comboReceiptId.trim(),
             saleDate: startedDate,
+            customerName: customerName.trim(),
+            customerPlateNo: plateNo.trim(),
           });
         } catch {
           // Non-fatal — the job is already saved either way.

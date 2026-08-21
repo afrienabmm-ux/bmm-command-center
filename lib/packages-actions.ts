@@ -50,6 +50,8 @@ type SaleRow = {
   mechanic_id: string | null;
   receipt_id: string;
   sale_date: string;
+  customer_name: string;
+  customer_plate_no: string;
   cc_packages: { name: string } | null;
   cc_mechanics: { short_code: string; short_name: string } | null;
 };
@@ -63,6 +65,8 @@ export type PackageSaleWithNames = {
   mechanicCode: string;
   receiptId: string;
   saleDate: string;
+  customerName: string;
+  customerPlateNo: string;
 };
 
 function toSale(r: SaleRow): PackageSaleWithNames {
@@ -75,6 +79,8 @@ function toSale(r: SaleRow): PackageSaleWithNames {
     mechanicCode: r.cc_mechanics?.short_code ?? "—",
     receiptId: r.receipt_id,
     saleDate: r.sale_date,
+    customerName: r.customer_name,
+    customerPlateNo: r.customer_plate_no,
   };
 }
 
@@ -124,6 +130,8 @@ export async function addPackageSaleAction(input: {
   mechanicId: string | null;
   receiptId: string;
   saleDate: string;
+  customerName?: string;
+  customerPlateNo?: string;
 }): Promise<void> {
   const user = await requireApproved();
   assertCanEditBranch(user, input.branch);
@@ -133,9 +141,12 @@ export async function addPackageSaleAction(input: {
     mechanic_id: input.mechanicId,
     receipt_id: input.receiptId,
     sale_date: input.saleDate,
+    customer_name: input.customerName?.trim() ?? "",
+    customer_plate_no: input.customerPlateNo?.trim() ?? "",
   });
   if (error) throw new Error(error.message);
   revalidatePath("/packages");
+  revalidatePath("/customers");
 }
 
 export async function deletePackageSaleAction(id: string, branch: Branch): Promise<void> {
