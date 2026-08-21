@@ -341,18 +341,21 @@ export default function WalkInJobForm({
         setStartedDate(scanned.startedDate);
         filled.push("started date");
       }
-      if (scanned.branch && !locked) {
+      // Prefer inferring the branch from the mechanic code match itself —
+      // a short code is a far more reliable OCR read than the branch name
+      // printed in the header (e.g. "KAPAR" misread as "KAPAIT"), and
+      // every mechanic belongs to exactly one branch anyway. Falls back to
+      // the header-detected branch only when no mechanic code matched.
+      const mechanicCandidates = locked ? mechanics.filter((m) => m.branch === locationBranch) : mechanics;
+      const matchedMechanic = scanned.mechanicCode
+        ? mechanicCandidates.find((m) => m.shortCode.toLowerCase() === scanned.mechanicCode.toLowerCase())
+        : undefined;
+      if (matchedMechanic) {
+        if (!locked) setLocationBranch(matchedMechanic.branch);
+        setMechanicId(matchedMechanic.id);
+        filled.push("mechanic");
+      } else if (scanned.branch && !locked) {
         setLocationBranch(scanned.branch);
-      }
-      const targetBranch = scanned.branch ?? (locationBranch !== "all" ? locationBranch : null);
-      if (scanned.mechanicCode && targetBranch) {
-        const matched = mechanics.find(
-          (m) => m.branch === targetBranch && m.shortCode.toLowerCase() === scanned.mechanicCode.toLowerCase()
-        );
-        if (matched) {
-          setMechanicId(matched.id);
-          filled.push("mechanic");
-        }
       }
       if (scanned.items.length > 0) {
         setItems(
@@ -718,7 +721,7 @@ export default function WalkInJobForm({
       <div className="bg-white border border-neutral-200 rounded-xl p-6">
         <div className="space-y-4">
           <div>
-            <label className="block text-xs font-medium text-neutral-600 mb-1.5">Started Date</label>
+            <label className="block text-xs font-medium text-neutral-600 mb-1.5">Job Date</label>
             <input
               type="date"
               value={startedDate}

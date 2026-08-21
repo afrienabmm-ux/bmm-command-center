@@ -84,7 +84,7 @@ export default async function PrintWalkInJobPage({ params }: { params: Promise<{
             <span className="font-semibold">Mechanic :</span> {mechanic ? `${mechanic.shortName} (${mechanic.shortCode})` : "—"}
           </p>
           <p>
-            <span className="font-semibold">Start Date :</span> {job.startedDate ? formatDate(job.startedDate) : "—"}
+            <span className="font-semibold">Job Date :</span> {job.startedDate ? formatDate(job.startedDate) : "—"}
           </p>
           <p>
             <span className="font-semibold">End Date :</span> {job.completedDate ? formatDate(job.completedDate) : "—"}

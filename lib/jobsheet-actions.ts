@@ -42,7 +42,10 @@ export type ScannedJobsheet = {
 };
 
 function toIsoDate(raw: string): string | null {
-  const m = raw.match(/(\d{1,2})[-/](\d{1,2})[-/](\d{2,4})/);
+  // OCR often reads the dashes/slashes in a date with stray spaces around
+  // them ("19 - 08 - 2026" instead of "19-08-2026") — the \s* here tolerates
+  // that instead of silently failing to match at all.
+  const m = raw.match(/(\d{1,2})\s*[-/]\s*(\d{1,2})\s*[-/]\s*(\d{2,4})/);
   if (!m) return null;
   const [, d, mo, y] = m;
   const year = y.length === 2 ? `20${y}` : y;
@@ -230,16 +233,21 @@ function parseJobsheetText(text: string): ScannedJobsheet {
 
   let branch: Branch | null = null;
   const upper = text.toUpperCase();
+  // "KAPA" (not the full "KAPAR") — OCR has read it as "KAPAIT" on a real
+  // scan, and nothing else on a bike jobsheet plausibly starts with those
+  // 4 letters, so the shorter prefix is safe and more tolerant of misreads.
   if (upper.includes("SETIA ALAM")) branch = "setia_alam";
   else if (upper.includes("PUNCAK ALAM")) branch = "puncak_alam";
-  else if (upper.includes("KAPAR")) branch = "kapar";
+  else if (upper.includes("KAPA")) branch = "kapar";
 
   // Item rows look like: "1  9OO00000023  OIL ROCK OIL SYNTHESIS ...  1.00  UNIT  96.00  96.00"
   // (No., Code, Description, Qty, UOM, Unit Price, Amount, ...). Lines that
   // don't follow that shape (discount lines, blank rows) are skipped rather
   // than guessed at.
   const items: ScannedJobsheetItem[] = [];
-  const itemLinePattern = /^\d+\s+(\S+)\s+(.+?)\s+(\d+(?:\.\d+)?)\s+\S+\s+(\d+(?:\.\d{2}))\s+\d+(?:\.\d{2})/;
+  // [.,] instead of a plain "." on the decimal parts — OCR sometimes reads
+  // the decimal point as a comma (observed: "1.00" -> "1,00").
+  const itemLinePattern = /^\d+\s+(\S+)\s+(.+?)\s+(\d+(?:[.,]\d+)?)\s+\S+\s+(\d+(?:[.,]\d{2}))\s+\d+(?:[.,]\d{2})/;
   for (const line of text.split("\n")) {
     const m = line.match(itemLinePattern);
     if (!m) continue;
@@ -247,8 +255,8 @@ function parseJobsheetText(text: string): ScannedJobsheet {
     items.push({
       code: code.trim(),
       description: description.trim(),
-      quantity: Number(qty) || 1,
-      price: Number(unitPrice) || 0,
+      quantity: Number(qty.replace(",", ".")) || 1,
+      price: Number(unitPrice.replace(",", ".")) || 0,
     });
   }
 

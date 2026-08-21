@@ -85,7 +85,7 @@ export default function WalkInClient({
     ]);
   }
 
-  const HEADERS = ["Job No", "Customer", "Plate No", "Model", "Mechanic", "Cost Total (RM)", "Started Date", "Completed Date", "Days Taken", "Status"];
+  const HEADERS = ["Job No", "Customer", "Plate No", "Model", "Mechanic", "Cost Total (RM)", "Job Date", "Completed Date", "Days Taken", "Status"];
 
   function handleExport() {
     setExporting(true);
@@ -226,7 +226,7 @@ export default function WalkInClient({
                 <th className="font-medium px-5 py-3 whitespace-nowrap">Model</th>
                 <th className="font-medium px-5 py-3 whitespace-nowrap">Mechanic</th>
                 <th className="font-medium px-5 py-3 whitespace-nowrap">Cost Total</th>
-                <th className="font-medium px-5 py-3 whitespace-nowrap">Start Date</th>
+                <th className="font-medium px-5 py-3 whitespace-nowrap">Job Date</th>
                 <th className="font-medium px-5 py-3 whitespace-nowrap">End Date</th>
                 <th className="font-medium px-5 py-3 whitespace-nowrap">Days</th>
                 <th className="font-medium px-5 py-3 whitespace-nowrap">Next Service</th>
