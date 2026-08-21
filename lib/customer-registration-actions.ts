@@ -38,14 +38,11 @@ function normalizeEmail(email: string): string {
   return email.trim().toLowerCase();
 }
 
-// Sends a 6-digit code to the given email via Resend and stores it for
-// verifyRegistrationOtpAction to check. Free to run (unlike SMS OTP, which
-// costs money per message) — that's why registration verifies email
-// instead of phone.
-export async function sendRegistrationOtpAction(email: string): Promise<{ error: string } | { sent: true }> {
-  const trimmed = normalizeEmail(email);
-  if (!trimmed || !trimmed.includes("@")) return { error: "Enter a valid email address." };
-
+// Shared by both registration and the "check my card" lookup — sends a
+// 6-digit code to the given email via Resend and stores it for
+// verifyOtpCode to check. Free to run (unlike SMS OTP, which costs money
+// per message) — that's why both flows verify email instead of phone.
+async function sendOtpCode(email: string): Promise<{ error: string } | { sent: true }> {
   const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) return { error: "Email verification isn't set up yet — please contact BMM staff." };
 
@@ -53,7 +50,7 @@ export async function sendRegistrationOtpAction(email: string): Promise<{ error:
   const expiresAt = new Date(Date.now() + OTP_TTL_MINUTES * 60 * 1000).toISOString();
 
   const { error } = await supabaseAdmin.from("cc_email_otps").insert({
-    email: trimmed,
+    email,
     code,
     expires_at: expiresAt,
   });
@@ -64,7 +61,7 @@ export async function sendRegistrationOtpAction(email: string): Promise<{ error:
     headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
     body: JSON.stringify({
       from: "BMM Membership <onboarding@resend.dev>",
-      to: trimmed,
+      to: email,
       subject: "Your BMM Membership verification code",
       html: `<p>Your verification code is <strong style="font-size:20px;letter-spacing:2px;">${code}</strong></p><p>It expires in ${OTP_TTL_MINUTES} minutes.</p>`,
     }),
@@ -75,15 +72,30 @@ export async function sendRegistrationOtpAction(email: string): Promise<{ error:
   return { sent: true };
 }
 
-export async function verifyRegistrationOtpAction(email: string, code: string): Promise<{ error: string } | { verified: true }> {
+// Masks an email for display before it's verified — e.g. "jo***@gmail.com"
+// — so the lookup screen can show which address the code went to without
+// revealing the full address to whoever typed in the phone number.
+function maskEmail(email: string): string {
+  const [local, domain] = email.split("@");
+  if (!domain) return email;
+  const visible = local.slice(0, Math.min(2, local.length));
+  return `${visible}${"*".repeat(Math.max(local.length - visible.length, 3))}@${domain}`;
+}
+
+export async function sendRegistrationOtpAction(email: string): Promise<{ error: string } | { sent: true }> {
   const trimmed = normalizeEmail(email);
+  if (!trimmed || !trimmed.includes("@")) return { error: "Enter a valid email address." };
+  return sendOtpCode(trimmed);
+}
+
+async function verifyOtpCode(email: string, code: string): Promise<{ error: string } | { verified: true }> {
   const enteredCode = code.trim();
   if (!enteredCode) return { error: "Enter the code from your email." };
 
   const { data, error } = await supabaseAdmin
     .from("cc_email_otps")
     .select("id, code, expires_at")
-    .eq("email", trimmed)
+    .eq("email", email)
     .order("created_at", { ascending: false })
     .limit(1);
   if (error) return { error: error.message };
@@ -96,6 +108,10 @@ export async function verifyRegistrationOtpAction(email: string, code: string): 
   const { error: updateError } = await supabaseAdmin.from("cc_email_otps").update({ verified: true }).eq("id", row.id);
   if (updateError) return { error: updateError.message };
   return { verified: true };
+}
+
+export async function verifyRegistrationOtpAction(email: string, code: string): Promise<{ error: string } | { verified: true }> {
+  return verifyOtpCode(normalizeEmail(email), code);
 }
 
 async function hasVerifiedOtp(email: string): Promise<boolean> {
@@ -165,30 +181,17 @@ export type MembershipLookup = {
   visitCount: number;
 };
 
-// Public — a returning customer checks their own card by phone number. The
-// spend/visit total is aggregated from Walk-in jobs by name the same way
-// GenBlu points and the staff Memberships page already do; only the
-// looked-up customer's own numbers ever come back.
-export async function lookupMembershipAction(customerPhone: string): Promise<{ error: string } | MembershipLookup> {
-  const phone = customerPhone.trim();
-  if (!phone) return { error: "Enter the phone number you signed up with." };
-
-  const { data: cards, error: cardError } = await supabaseAdmin
-    .from("cc_customer_cards")
-    .select("customer_name, card_number, issued_date, expiry_date")
-    .eq("customer_phone", phone)
-    .limit(1);
-  if (cardError) return { error: cardError.message };
-  if (!cards || cards.length === 0) {
-    return { error: "No membership card found for that phone number. Sign up above to get one." };
-  }
-  const card = cards[0];
-
+async function buildLookupResult(card: {
+  customer_name: string;
+  card_number: string;
+  issued_date: string;
+  expiry_date: string | null;
+}): Promise<MembershipLookup> {
   const { data: jobs, error: jobsError } = await supabaseAdmin
     .from("cc_repair_jobs")
     .select("customer_name, revenue_amount")
     .eq("job_type", "Walk-in");
-  if (jobsError) return { error: jobsError.message };
+  if (jobsError) throw new Error(jobsError.message);
 
   const normalized = card.customer_name.trim().toLowerCase();
   let totalSpend = 0;
@@ -209,4 +212,52 @@ export async function lookupMembershipAction(customerPhone: string): Promise<{ e
     totalSpend,
     visitCount,
   };
+}
+
+async function findCardByPhone(phone: string) {
+  const { data, error } = await supabaseAdmin
+    .from("cc_customer_cards")
+    .select("customer_name, customer_email, card_number, issued_date, expiry_date")
+    .eq("customer_phone", phone)
+    .limit(1);
+  if (error) throw new Error(error.message);
+  return data && data.length > 0 ? data[0] : null;
+}
+
+// Step 1 of "check my card": find the card by phone and, if it has a
+// verified email on file, send a code there instead of showing anything
+// yet — so typing in someone else's phone number can't show their card.
+// Cards with no email on file (added by staff, or from before this
+// feature existed) fall back to showing the lookup straight away.
+export async function requestLookupOtpAction(
+  customerPhone: string
+): Promise<{ error: string } | { needsOtp: true; emailHint: string } | { needsOtp: false; result: MembershipLookup }> {
+  const phone = customerPhone.trim();
+  if (!phone) return { error: "Enter the phone number you signed up with." };
+
+  const card = await findCardByPhone(phone);
+  if (!card) return { error: "No membership card found for that phone number. Sign up above to get one." };
+
+  if (!card.customer_email) {
+    const result = await buildLookupResult(card);
+    return { needsOtp: false, result };
+  }
+
+  const sendResult = await sendOtpCode(card.customer_email);
+  if ("error" in sendResult) return sendResult;
+  return { needsOtp: true, emailHint: maskEmail(card.customer_email) };
+}
+
+// Step 2 — verifies the code against the card's own email, then returns
+// the full lookup.
+export async function verifyLookupOtpAction(customerPhone: string, code: string): Promise<{ error: string } | MembershipLookup> {
+  const phone = customerPhone.trim();
+  const card = await findCardByPhone(phone);
+  if (!card) return { error: "No membership card found for that phone number." };
+  if (!card.customer_email) return { error: "This card has no email on file to verify." };
+
+  const verifyResult = await verifyOtpCode(card.customer_email, code);
+  if ("error" in verifyResult) return verifyResult;
+
+  return buildLookupResult(card);
 }

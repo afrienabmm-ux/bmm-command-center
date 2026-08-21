@@ -17,7 +17,7 @@ export default function JoinPage() {
             className="w-16 h-16 rounded-full object-cover mb-3 ring-4 ring-white/30 shadow-lg"
           />
           <p className="text-2xl font-bold text-white tracking-tight">Membership Club</p>
-          <p className="text-xs text-white/70 text-center mt-1">Berjaya Mega Motors — After-Sales</p>
+          <p className="text-xs text-white/70 text-center mt-1">BERJAYA MEGA MOTORS</p>
         </div>
 
         <div className="bg-white/95 backdrop-blur rounded-3xl p-6 shadow-2xl">

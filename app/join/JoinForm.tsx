@@ -6,7 +6,8 @@ import {
   registerCustomerCardAction,
   sendRegistrationOtpAction,
   verifyRegistrationOtpAction,
-  lookupMembershipAction,
+  requestLookupOtpAction,
+  verifyLookupOtpAction,
   type MembershipLookup,
 } from "@/lib/customer-registration-actions";
 import { BRANCHES, type Branch } from "@/lib/branch";
@@ -294,7 +295,10 @@ function JoinTab({ restored, onClear }: { restored: StoredJoin | null; onClear: 
 }
 
 function LookupTab({ restored, onClear }: { restored: StoredLookup | null; onClear: () => void }) {
+  const [step, setStep] = useState<"phone" | "otp">("phone");
   const [phone, setPhone] = useState("");
+  const [code, setCode] = useState("");
+  const [emailHint, setEmailHint] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<MembershipLookup | null>(restored?.result ?? null);
   const [isPending, startTransition] = useTransition();
@@ -303,13 +307,32 @@ function LookupTab({ restored, onClear }: { restored: StoredLookup | null; onCle
     if (restored) setResult(restored.result);
   }, [restored]);
 
-  function handleSubmit() {
+  function handleRequestCode() {
     setError(null);
     startTransition(async () => {
-      const res = await lookupMembershipAction(phone);
+      const res = await requestLookupOtpAction(phone);
       if ("error" in res) {
         setError(res.error);
-        setResult(null);
+        return;
+      }
+      if (!res.needsOtp) {
+        // No email on file for this card (older/staff-added card) — show
+        // the lookup straight away, same as before this feature existed.
+        setResult(res.result);
+        writeSession(LOOKUP_STORAGE_KEY, { result: res.result });
+        return;
+      }
+      setEmailHint(res.emailHint);
+      setStep("otp");
+    });
+  }
+
+  function handleVerifyCode() {
+    setError(null);
+    startTransition(async () => {
+      const res = await verifyLookupOtpAction(phone, code);
+      if ("error" in res) {
+        setError(res.error);
         return;
       }
       setResult(res);
@@ -322,6 +345,8 @@ function LookupTab({ restored, onClear }: { restored: StoredLookup | null; onCle
     onClear();
     setResult(null);
     setPhone("");
+    setCode("");
+    setStep("phone");
   }
 
   if (result) {
@@ -352,6 +377,42 @@ function LookupTab({ restored, onClear }: { restored: StoredLookup | null; onCle
     );
   }
 
+  if (step === "otp") {
+    return (
+      <div className="space-y-3.5">
+        <p className="text-xs text-neutral-500">
+          For your privacy, we sent a 6-digit code to <span className="font-medium text-neutral-800">{emailHint}</span> — the
+          email on file for this card.
+        </p>
+        <div className="relative">
+          <KeyRound size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-400" />
+          <input
+            type="text"
+            inputMode="numeric"
+            value={code}
+            onChange={(e) => setCode(e.target.value)}
+            placeholder="6-digit code"
+            className={inputClass}
+          />
+        </div>
+
+        {error && <p className="text-sm text-red-700">{error}</p>}
+
+        <button onClick={handleVerifyCode} disabled={isPending || !code.trim()} className={primaryButtonClass}>
+          {isPending ? "Verifying…" : "Verify & Show Card"}
+        </button>
+        <div className="flex items-center justify-between text-xs text-neutral-500">
+          <button type="button" onClick={() => setStep("phone")} className="hover:text-neutral-700">
+            Change number
+          </button>
+          <button type="button" onClick={handleRequestCode} disabled={isPending} className="hover:text-neutral-700">
+            Resend code
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-3.5">
       <div className="relative">
@@ -367,7 +428,7 @@ function LookupTab({ restored, onClear }: { restored: StoredLookup | null; onCle
 
       {error && <p className="text-sm text-red-700">{error}</p>}
 
-      <button onClick={handleSubmit} disabled={isPending || !phone.trim()} className={primaryButtonClass}>
+      <button onClick={handleRequestCode} disabled={isPending || !phone.trim()} className={primaryButtonClass}>
         <Search size={14} /> {isPending ? "Looking up…" : "Find My Card"}
       </button>
     </div>
