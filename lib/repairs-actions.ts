@@ -20,6 +20,7 @@ type Row = {
   branch: Branch;
   job_no: string;
   customer_name: string;
+  customer_phone: string;
   plate_no: string;
   job_type: JobType;
   mechanic_id: string | null;
@@ -69,6 +70,7 @@ function toJob(r: Row): RepairJob {
     branch: r.branch,
     jobNo: r.job_no,
     customerName: r.customer_name,
+    customerPhone: r.customer_phone,
     plateNo: r.plate_no,
     jobType: r.job_type,
     mechanicId: r.mechanic_id,
@@ -499,6 +501,7 @@ export async function quickAddRestoreBikeArrivalAction(branch: Branch): Promise<
 export async function addRepairJobAction(input: {
   branch: Branch;
   customerName: string;
+  customerPhone?: string;
   plateNo: string;
   jobType: JobType;
   mechanicId: string | null;
@@ -574,6 +577,7 @@ export async function addRepairJobAction(input: {
       branch: input.branch,
       job_no: jobNo,
       customer_name: input.customerName,
+      customer_phone: input.customerPhone ?? "",
       plate_no: input.plateNo,
       job_type: input.jobType,
       mechanic_id: input.mechanicId,
@@ -631,6 +635,7 @@ export async function updateRepairJobAction(
     // see assertMechanicAssignment.
     jobType: JobType;
     customerName: string;
+    customerPhone?: string;
     plateNo: string;
     mechanicId: string | null;
     description: string;
@@ -689,6 +694,7 @@ export async function updateRepairJobAction(
 
   const update: Record<string, unknown> = {
     customer_name: input.customerName,
+    customer_phone: input.customerPhone ?? "",
     plate_no: input.plateNo,
     mechanic_id: input.mechanicId,
     description: input.description,

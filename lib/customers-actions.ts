@@ -13,6 +13,10 @@ function normalizeName(name: string): string {
   return name.trim().toLowerCase();
 }
 
+function normalizePhone(phone: string): string {
+  return phone.replace(/\D/g, "");
+}
+
 type CardRow = {
   id: string;
   branch: Branch;
@@ -56,6 +60,7 @@ async function getCustomerCards(branch: Branch): Promise<CustomerCard[]> {
 
 type JobRow = {
   customer_name: string;
+  customer_phone: string;
   plate_no: string;
   revenue_amount: number;
   completed_date: string | null;
@@ -64,8 +69,9 @@ type JobRow = {
 };
 
 // Customers aren't stored — they're aggregated from Walk-in job spending
-// and Services Combo purchases by normalized name, the same way GenBlu
-// points already work, then merged with a loyalty card if one exists.
+// and Services Combo purchases, matched to a loyalty card (if one exists)
+// by phone first and name second, since names can be spelled differently
+// visit to visit but phone numbers don't change.
 function buildSummaries(
   branch: Branch,
   jobs: JobRow[],
@@ -84,19 +90,37 @@ function buildSummaries(
     }
   >();
 
-  function entryFor(rawName: string) {
-    const key = normalizeName(rawName);
-    if (!key) return null;
+  const cardByPhone = new Map(cards.filter((c) => c.customerPhone).map((c) => [normalizePhone(c.customerPhone), c]));
+  const cardByName = new Map(cards.map((c) => [normalizeName(c.customerName), c]));
+
+  function resolveCard(rawName: string, rawPhone?: string): CustomerCard | null {
+    const phone = rawPhone ? normalizePhone(rawPhone) : "";
+    if (phone && cardByPhone.has(phone)) return cardByPhone.get(phone)!;
+    const name = normalizeName(rawName);
+    return name ? cardByName.get(name) ?? null : null;
+  }
+
+  function entryFor(rawName: string, rawPhone?: string) {
+    const card = resolveCard(rawName, rawPhone);
+    const key = card ? `card:${card.id}` : `name:${normalizeName(rawName)}`;
+    if (key === "name:") return null;
     let entry = byKey.get(key);
     if (!entry) {
-      entry = { name: rawName.trim(), totalSpend: 0, jobCount: 0, plates: new Set(), lastVisit: "", packagesBought: new Map() };
+      entry = {
+        name: card ? card.customerName : rawName.trim(),
+        totalSpend: 0,
+        jobCount: 0,
+        plates: new Set(),
+        lastVisit: "",
+        packagesBought: new Map(),
+      };
       byKey.set(key, entry);
     }
     return entry;
   }
 
   for (const job of jobs) {
-    const entry = entryFor(job.customer_name ?? "");
+    const entry = entryFor(job.customer_name ?? "", job.customer_phone);
     if (!entry) continue;
     entry.totalSpend += Number(job.revenue_amount);
     entry.jobCount += 1;
@@ -116,14 +140,14 @@ function buildSummaries(
   // Make sure a customer who only has a loyalty card so far (no spend on
   // file yet) still shows up in the list.
   for (const card of cards) {
-    entryFor(card.customerName);
+    entryFor(card.customerName, card.customerPhone);
   }
 
-  const cardByKey = new Map(cards.map((c) => [normalizeName(c.customerName), c]));
+  const cardById = new Map(cards.map((c) => [c.id, c]));
 
   return Array.from(byKey.entries())
     .map(([key, entry]) => {
-      const card = cardByKey.get(key) ?? null;
+      const card = key.startsWith("card:") ? cardById.get(key.slice(5)) ?? null : null;
       return {
         name: entry.name,
         branch,
@@ -145,7 +169,7 @@ export async function getCustomers(branch: Branch): Promise<CustomerSummary[]> {
   const [{ data: jobs, error: jobsError }, sales, cards] = await Promise.all([
     supabaseAdmin
       .from("cc_repair_jobs")
-      .select("customer_name, plate_no, revenue_amount, completed_date, started_date, created_at")
+      .select("customer_name, customer_phone, plate_no, revenue_amount, completed_date, started_date, created_at")
       .eq("branch", branch)
       .eq("job_type", "Walk-in"),
     getPackageSales(branch),

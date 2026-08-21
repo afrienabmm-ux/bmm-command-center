@@ -6,17 +6,27 @@ import type { Branch } from "./branch";
 import { tierForVisits } from "./membership";
 import { sendEmail } from "./email";
 
+function normalizePhone(phone: string): string {
+  return phone.replace(/\D/g, "");
+}
+
 // Visits (and therefore tier) are counted from Walk-in job history matched
-// by name, the same way the staff Memberships page and GenBlu points work.
-async function countVisits(customerName: string): Promise<number> {
-  const normalized = customerName.trim().toLowerCase();
-  if (!normalized) return 0;
+// by phone first, name second — same approach as the staff Memberships
+// page. Phone survives name typos/spelling variants between visits.
+async function countVisits(customerName: string, customerPhone?: string): Promise<number> {
+  const normalizedName = customerName.trim().toLowerCase();
+  const normalizedPhone = customerPhone ? normalizePhone(customerPhone) : "";
+  if (!normalizedName && !normalizedPhone) return 0;
   const { data: jobs, error } = await supabaseAdmin
     .from("cc_repair_jobs")
-    .select("customer_name")
+    .select("customer_name, customer_phone")
     .eq("job_type", "Walk-in");
   if (error) throw new Error(error.message);
-  return (jobs ?? []).filter((j) => (j.customer_name ?? "").trim().toLowerCase() === normalized).length;
+  return (jobs ?? []).filter((j) => {
+    const jobPhone = normalizePhone(j.customer_phone ?? "");
+    if (normalizedPhone && jobPhone && jobPhone === normalizedPhone) return true;
+    return (j.customer_name ?? "").trim().toLowerCase() === normalizedName;
+  }).length;
 }
 
 // Public — called from /join, which has no staff login. Every other
@@ -141,12 +151,12 @@ export async function registerCustomerCardAction(input: {
     .limit(1);
   if (fetchError) return { error: fetchError.message };
   if (existing && existing.length > 0) {
-    const visits = await countVisits(existing[0].customer_name);
+    const visits = await countVisits(existing[0].customer_name, customerPhone);
     return { cardNumber: existing[0].card_number, tier: tierForVisits(visits), visitCount: visits };
   }
 
   const cardNumber = generateCardNumber(input.branch);
-  const visits = await countVisits(customerName);
+  const visits = await countVisits(customerName, customerPhone);
   const tier = tierForVisits(visits);
   const { error } = await supabaseAdmin.from("cc_customer_cards").insert({
     branch: input.branch,
@@ -174,21 +184,27 @@ export type MembershipLookup = {
 
 async function buildLookupResult(card: {
   customer_name: string;
+  customer_phone: string;
   card_number: string;
   issued_date: string;
   expiry_date: string | null;
 }): Promise<MembershipLookup> {
   const { data: jobs, error: jobsError } = await supabaseAdmin
     .from("cc_repair_jobs")
-    .select("customer_name, revenue_amount")
+    .select("customer_name, customer_phone, revenue_amount")
     .eq("job_type", "Walk-in");
   if (jobsError) throw new Error(jobsError.message);
 
-  const normalized = card.customer_name.trim().toLowerCase();
+  const normalizedName = card.customer_name.trim().toLowerCase();
+  const normalizedPhone = normalizePhone(card.customer_phone);
   let totalSpend = 0;
   let visitCount = 0;
   for (const job of jobs ?? []) {
-    if ((job.customer_name ?? "").trim().toLowerCase() === normalized) {
+    const jobPhone = normalizePhone(job.customer_phone ?? "");
+    const matches =
+      (normalizedPhone && jobPhone && jobPhone === normalizedPhone) ||
+      (job.customer_name ?? "").trim().toLowerCase() === normalizedName;
+    if (matches) {
       totalSpend += Number(job.revenue_amount);
       visitCount += 1;
     }
@@ -208,7 +224,7 @@ async function buildLookupResult(card: {
 async function findCardByPhone(phone: string) {
   const { data, error } = await supabaseAdmin
     .from("cc_customer_cards")
-    .select("customer_name, customer_email, card_number, issued_date, expiry_date")
+    .select("customer_name, customer_phone, customer_email, card_number, issued_date, expiry_date")
     .eq("customer_phone", phone)
     .limit(1);
   if (error) throw new Error(error.message);

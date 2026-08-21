@@ -163,6 +163,7 @@ export default function WalkInJobForm({
   const [startedDate, setStartedDate] = useState(job?.startedDate ?? new Date().toISOString().slice(0, 10));
   const [customerCode, setCustomerCode] = useState(job?.customerCode ?? "");
   const [customerName, setCustomerName] = useState(job?.customerName ?? "");
+  const [customerPhone, setCustomerPhone] = useState(job?.customerPhone ?? "");
   const [plateNo, setPlateNo] = useState(job?.plateNo ?? "");
   const [colour, setColour] = useState(job?.colour ?? "");
   const [engineNo, setEngineNo] = useState(job?.engineNo ?? "");
@@ -474,6 +475,7 @@ export default function WalkInJobForm({
       jobType: "Walk-in" as const,
       customerCode: customerCode.trim(),
       customerName: customerName.trim(),
+      customerPhone: customerPhone.trim(),
       plateNo: plateNo.trim(),
       mechanicId: mechanicId || null,
       description: description.trim(),
@@ -684,6 +686,17 @@ export default function WalkInJobForm({
               onChange={(e) => setCustomerName(e.target.value)}
               className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
             />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-neutral-600 mb-1.5">Phone Number</label>
+            <input
+              type="tel"
+              value={customerPhone}
+              onChange={(e) => setCustomerPhone(e.target.value)}
+              placeholder="e.g. 012-3456789"
+              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+            />
+            <p className="text-[11px] text-neutral-400 mt-1">Matches this visit to their membership card, even if the name is spelled differently.</p>
           </div>
           <div>
             <label className="block text-xs font-medium text-neutral-600 mb-1.5">Plate No. *</label>

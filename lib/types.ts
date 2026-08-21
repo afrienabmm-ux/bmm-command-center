@@ -106,6 +106,9 @@ export type RepairJob = {
   branch: Branch;
   jobNo: string;
   customerName: string;
+  // Walk-in only — lets membership visit-matching use phone as well as
+  // name, since names can be typo'd/spelled differently between visits.
+  customerPhone: string;
   plateNo: string;
   jobType: JobType;
   mechanicId: string | null;
