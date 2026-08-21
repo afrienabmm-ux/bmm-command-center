@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
-import { Plus, Pencil, Printer, Trash2, Search } from "lucide-react";
+import { Plus, Pencil, Printer, Trash2, Search, ArrowUpDown } from "lucide-react";
 import { assignMechanicAction, deleteRepairJobAction, quickAddRestoreBikeArrivalAction } from "@/lib/repairs-actions";
 import { isHeavyRepairJob, type RepairJob } from "@/lib/types";
 import type { Mechanic } from "@/lib/types";
@@ -204,25 +204,40 @@ export default function ArrivalListingClient({
   const showBranchColumn = branchSelection === "all";
   const quickAddBranch: Branch | null = branchSelection === "all" ? null : branchSelection;
   const [query, setQuery] = useState("");
+  const [sortDir, setSortDir] = useState<"desc" | "asc">("desc");
 
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return jobs;
-    return jobs.filter((j) => j.plateNo.toLowerCase().includes(q) || (j.picName ?? "").toLowerCase().includes(q));
-  }, [jobs, query]);
+    const filtered = q
+      ? jobs.filter((j) => j.plateNo.toLowerCase().includes(q) || (j.picName ?? "").toLowerCase().includes(q))
+      : jobs;
+    return [...filtered].sort((a, b) => {
+      const dateOf = (j: RepairJob) => j.arrivedDate || j.createdAt || "";
+      return sortDir === "desc" ? dateOf(b).localeCompare(dateOf(a)) : dateOf(a).localeCompare(dateOf(b));
+    });
+  }, [jobs, query, sortDir]);
 
   return (
     <div>
       <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
-        <div className="relative">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
-          <input
-            type="text"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search name or plate no…"
-            className="bg-white border border-neutral-200 rounded-lg pl-8 pr-3 py-2 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50 w-64"
-          />
+        <div className="flex items-center gap-3">
+          <div className="relative">
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
+            <input
+              type="text"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search name or plate no…"
+              className="bg-white border border-neutral-200 rounded-lg pl-8 pr-3 py-2 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50 w-64"
+            />
+          </div>
+          <button
+            onClick={() => setSortDir((d) => (d === "desc" ? "asc" : "desc"))}
+            className="flex items-center gap-1.5 bg-white border border-neutral-200 hover:border-indigo-300 text-neutral-700 text-sm font-medium px-3 py-2 rounded-lg transition-colors whitespace-nowrap"
+            title="Sort by arrived date"
+          >
+            <ArrowUpDown size={14} /> {sortDir === "desc" ? "Newest" : "Oldest"}
+          </button>
         </div>
         {quickAddBranch ? (
           <AddBikeButton branch={quickAddBranch} />

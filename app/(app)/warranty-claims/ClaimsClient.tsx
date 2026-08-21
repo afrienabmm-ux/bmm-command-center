@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
-import { Plus, Search, Download, Trash2, Pencil, Printer, Check, X } from "lucide-react";
+import { Plus, Search, Download, Trash2, Pencil, Printer, Check, X, ArrowUpDown } from "lucide-react";
 import {
   addWarrantyClaimAction,
   updateClaimStatusAction,
@@ -47,12 +47,13 @@ export default function ClaimsClient({
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<ClaimStatus | "All">("All");
   const [bikeMakeFilter, setBikeMakeFilter] = useState<BikeMake | "All">("All");
+  const [sortDir, setSortDir] = useState<"desc" | "asc">("desc");
   const [exporting, setExporting] = useState(false);
   const showBranchColumn = branchSelection === "all";
 
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return claims.filter((c) => {
+    const filtered = claims.filter((c) => {
       if (statusFilter !== "All" && c.status !== statusFilter) return false;
       if (bikeMakeFilter !== "All" && c.bikeMake !== bikeMakeFilter) return false;
       if (!q) return true;
@@ -60,7 +61,10 @@ export default function ClaimsClient({
         (f ?? "").toLowerCase().includes(q)
       );
     });
-  }, [claims, query, statusFilter, bikeMakeFilter]);
+    return [...filtered].sort((a, b) =>
+      sortDir === "desc" ? b.submittedDate.localeCompare(a.submittedDate) : a.submittedDate.localeCompare(b.submittedDate)
+    );
+  }, [claims, query, statusFilter, bikeMakeFilter, sortDir]);
 
   // Every PIC name already used, so the add form can offer them instead of
   // relying on everyone spelling it the same way.
@@ -142,6 +146,13 @@ export default function ClaimsClient({
           />
         </div>
         <div className="flex items-center gap-3">
+          <button
+            onClick={() => setSortDir((d) => (d === "desc" ? "asc" : "desc"))}
+            className="flex items-center gap-1.5 bg-white border border-neutral-200 hover:border-indigo-300 text-neutral-700 text-sm font-medium px-3 py-2 rounded-lg transition-colors whitespace-nowrap"
+            title="Sort by submitted date"
+          >
+            <ArrowUpDown size={14} /> {sortDir === "desc" ? "Newest" : "Oldest"}
+          </button>
           <select
             value={bikeMakeFilter}
             onChange={(e) => setBikeMakeFilter(e.target.value as BikeMake | "All")}

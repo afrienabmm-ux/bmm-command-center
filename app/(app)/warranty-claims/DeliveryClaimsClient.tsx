@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
-import { Plus, Search, Download, Trash2, Pencil, Check, X } from "lucide-react";
+import { Plus, Search, Download, Trash2, Pencil, Check, X, ArrowUpDown } from "lucide-react";
 import {
   addDeliveryClaimAction,
   updateDeliveryClaimStatusAction,
@@ -37,17 +37,21 @@ export default function DeliveryClaimsClient({
   const [modalOpen, setModalOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<ClaimStatus | "All">("All");
+  const [sortDir, setSortDir] = useState<"desc" | "asc">("desc");
   const [exporting, setExporting] = useState(false);
   const showBranchColumn = branchSelection === "all";
 
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return claims.filter((c) => {
+    const filtered = claims.filter((c) => {
       if (statusFilter !== "All" && c.status !== statusFilter) return false;
       if (!q) return true;
       return [c.plateNo, c.ticketId, c.status, c.pic, c.model, c.chassisNo].some((f) => (f ?? "").toLowerCase().includes(q));
     });
-  }, [claims, query, statusFilter]);
+    return [...filtered].sort((a, b) =>
+      sortDir === "desc" ? b.submittedDate.localeCompare(a.submittedDate) : a.submittedDate.localeCompare(b.submittedDate)
+    );
+  }, [claims, query, statusFilter, sortDir]);
 
   const knownPics = useMemo(() => Array.from(new Set(claims.map((c) => c.pic).filter(Boolean))).sort(), [claims]);
 
@@ -101,6 +105,13 @@ export default function DeliveryClaimsClient({
           />
         </div>
         <div className="flex items-center gap-3">
+          <button
+            onClick={() => setSortDir((d) => (d === "desc" ? "asc" : "desc"))}
+            className="flex items-center gap-1.5 bg-white border border-neutral-200 hover:border-indigo-300 text-neutral-700 text-sm font-medium px-3 py-2 rounded-lg transition-colors whitespace-nowrap"
+            title="Sort by submitted date"
+          >
+            <ArrowUpDown size={14} /> {sortDir === "desc" ? "Newest" : "Oldest"}
+          </button>
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value as ClaimStatus | "All")}
