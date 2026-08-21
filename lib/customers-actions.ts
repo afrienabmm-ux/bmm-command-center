@@ -232,23 +232,23 @@ export async function deleteCustomerCardAction(id: string, branch: Branch): Prom
 }
 
 // Management-only — emails every member in view (deduped by address) with
-// the given subject/message. Only members who registered through /join
-// (and so have a verified email on file) can be reached this way; free to
-// run since it goes through the same Gmail account as OTP codes.
-export async function sendPromotionAction(input: {
-  branchSelection: BranchSelection;
-  subject: string;
-  message: string;
-}): Promise<{ error: string } | { sentCount: number; failedCount: number }> {
+// the given subject/message and, optionally, a poster image. Only members
+// who registered through /join (and so have a verified email on file) can
+// be reached this way; free to run since it goes through the same Gmail
+// account as OTP codes.
+export async function sendPromotionAction(
+  formData: FormData
+): Promise<{ error: string } | { sentCount: number; failedCount: number }> {
   await requireManagement();
 
-  const subject = input.subject.trim();
-  const message = input.message.trim();
+  const branchSelection = String(formData.get("branchSelection") || "all") as BranchSelection;
+  const subject = String(formData.get("subject") || "").trim();
+  const message = String(formData.get("message") || "").trim();
   if (!subject) return { error: "Enter a subject." };
   if (!message) return { error: "Enter a message." };
 
   const customers =
-    input.branchSelection === "all" ? await getAllBranchesCustomers() : await getCustomers(input.branchSelection);
+    branchSelection === "all" ? await getAllBranchesCustomers() : await getCustomers(branchSelection);
 
   const emails = Array.from(
     new Set(
@@ -259,15 +259,26 @@ export async function sendPromotionAction(input: {
   );
   if (emails.length === 0) return { error: "No members with an email on file in this view." };
 
-  const html = message
-    .split("\n")
-    .map((line) => `<p>${line}</p>`)
-    .join("");
+  const poster = formData.get("poster");
+  let attachments: { filename: string; content: Buffer; cid: string }[] | undefined;
+  let posterHtml = "";
+  if (poster instanceof File && poster.size > 0) {
+    const buffer = Buffer.from(await poster.arrayBuffer());
+    attachments = [{ filename: poster.name || "poster.jpg", content: buffer, cid: "promo-poster" }];
+    posterHtml = `<p><img src="cid:promo-poster" alt="Promotion poster" style="max-width:100%;border-radius:8px;" /></p>`;
+  }
+
+  const html =
+    posterHtml +
+    message
+      .split("\n")
+      .map((line) => `<p>${line}</p>`)
+      .join("");
 
   let sentCount = 0;
   let failedCount = 0;
   for (const email of emails) {
-    const result = await sendEmail({ to: email, subject, html });
+    const result = await sendEmail({ to: email, subject, html, attachments });
     if ("error" in result) failedCount += 1;
     else sentCount += 1;
   }

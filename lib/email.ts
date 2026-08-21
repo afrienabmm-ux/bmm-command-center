@@ -14,7 +14,15 @@ function getTransporter() {
   return cachedTransporter;
 }
 
-export async function sendEmail(input: { to: string; subject: string; html: string }): Promise<{ error: string } | { sent: true }> {
+export async function sendEmail(input: {
+  to: string;
+  subject: string;
+  html: string;
+  // Inline images — referenced in `html` as <img src="cid:THIS_CID">
+  // instead of an external URL, so they display without depending on any
+  // link staying valid after the email is sent.
+  attachments?: { filename: string; content: Buffer; cid: string }[];
+}): Promise<{ error: string } | { sent: true }> {
   const transporter = getTransporter();
   if (!transporter) return { error: "Email sending isn't set up yet." };
   try {
@@ -23,6 +31,7 @@ export async function sendEmail(input: { to: string; subject: string; html: stri
       to: input.to,
       subject: input.subject,
       html: input.html,
+      attachments: input.attachments,
     });
   } catch {
     return { error: "Couldn't send the email." };

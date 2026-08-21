@@ -419,14 +419,26 @@ function PromoModal({
 }) {
   const [subject, setSubject] = useState("");
   const [message, setMessage] = useState("");
+  const [poster, setPoster] = useState<File | null>(null);
+  const [posterPreview, setPosterPreview] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<{ sentCount: number; failedCount: number } | null>(null);
   const [isPending, startTransition] = useTransition();
 
+  function handlePosterChange(file: File | null) {
+    setPoster(file);
+    setPosterPreview(file ? URL.createObjectURL(file) : null);
+  }
+
   function handleSend() {
     setError(null);
     startTransition(async () => {
-      const res = await sendPromotionAction({ branchSelection, subject, message });
+      const formData = new FormData();
+      formData.set("branchSelection", branchSelection);
+      formData.set("subject", subject);
+      formData.set("message", message);
+      if (poster) formData.set("poster", poster);
+      const res = await sendPromotionAction(formData);
       if ("error" in res) {
         setError(res.error);
         return;
@@ -485,6 +497,30 @@ function PromoModal({
                   placeholder="Write your promotion here…"
                   className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
                 />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-neutral-600 mb-1.5">Poster (optional)</label>
+                {posterPreview && (
+                  <div className="relative mb-2 w-full">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={posterPreview} alt="Poster preview" className="w-full max-h-48 object-contain rounded-lg border border-neutral-200" />
+                    <button
+                      type="button"
+                      onClick={() => handlePosterChange(null)}
+                      className="absolute top-1.5 right-1.5 bg-black/60 hover:bg-black/80 text-white rounded-full p-1 transition-colors"
+                      aria-label="Remove poster"
+                    >
+                      <X size={12} />
+                    </button>
+                  </div>
+                )}
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => handlePosterChange(e.target.files?.[0] ?? null)}
+                  className="w-full text-sm text-neutral-700 file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:bg-neutral-100 file:text-neutral-800 file:text-xs"
+                />
+                <p className="text-[11px] text-neutral-400 mt-1">Shown at the top of the email.</p>
               </div>
             </div>
 
