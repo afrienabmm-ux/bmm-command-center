@@ -60,7 +60,7 @@ function JoinTab() {
         <div className="w-14 h-14 rounded-full bg-indigo-500/10 flex items-center justify-center mx-auto mb-4">
           <CreditCard size={24} className="text-indigo-600" />
         </div>
-        <p className="text-sm text-neutral-600 mb-1">You&apos;re in, {name.trim().split(" ")[0]}!</p>
+        <p className="text-sm text-neutral-600 mb-1">Hi {name.trim()}! You&apos;re in.</p>
         <p className="text-lg font-semibold text-neutral-900 tracking-wide mb-1">{result.cardNumber}</p>
         <p className="text-xs text-neutral-500">{result.tier} tier · Show this screen at the counter</p>
       </div>
@@ -141,7 +141,7 @@ function LookupTab() {
         <div className="w-14 h-14 rounded-full bg-indigo-500/10 flex items-center justify-center mx-auto mb-4">
           <CreditCard size={24} className="text-indigo-600" />
         </div>
-        <p className="text-sm text-neutral-600 mb-1">Hi {result.customerName.trim().split(" ")[0]}!</p>
+        <p className="text-sm text-neutral-600 mb-1">Hi {result.customerName.trim()}!</p>
         <p className="text-lg font-semibold text-neutral-900 tracking-wide mb-1">{result.cardNumber}</p>
         <p className="text-xs text-neutral-500 mb-4">
           {result.tier} tier · Member since {formatDate(result.issuedDate)}
