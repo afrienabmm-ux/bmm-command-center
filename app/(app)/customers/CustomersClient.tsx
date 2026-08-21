@@ -303,6 +303,11 @@ function CardModal({
               placeholder="e.g. 012-3456789"
               className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
             />
+            {existing && (
+              <p className="text-[11px] text-neutral-400 mt-1.5">
+                Changed their number? Update it here — they&apos;ll use the new one to check their card on /join.
+              </p>
+            )}
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
