@@ -92,7 +92,7 @@ function StampProgress({ visitCount }: { visitCount: number }) {
     <div className="bg-white border border-neutral-200 rounded-xl p-4 mt-4">
       <div className="flex items-center justify-between mb-3">
         <p className="text-[11px] font-semibold text-neutral-700 uppercase tracking-wide">Progress to Your Free Service</p>
-        <p className="text-xs font-bold text-fuchsia-600">
+        <p className="text-xs font-bold text-red-600">
           {stamps}/{size}
         </p>
       </div>
@@ -102,7 +102,7 @@ function StampProgress({ visitCount }: { visitCount: number }) {
             key={i}
             className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 ${
               i < stamps
-                ? "bg-gradient-to-br from-indigo-500 to-fuchsia-500 text-white shadow-sm"
+                ? "bg-gradient-to-br from-red-500 to-rose-600 text-white shadow-sm"
                 : "bg-neutral-100 text-neutral-300 border border-neutral-200"
             }`}
           >
@@ -120,10 +120,10 @@ function StampProgress({ visitCount }: { visitCount: number }) {
 }
 
 const inputClass =
-  "w-full bg-neutral-50 border border-neutral-200 rounded-xl pl-10 pr-3.5 py-3 text-sm text-neutral-800 focus:outline-none focus:border-fuchsia-400 focus:ring-2 focus:ring-fuchsia-100 transition-colors";
+  "w-full bg-neutral-50 border border-neutral-200 rounded-xl pl-10 pr-3.5 py-3 text-sm text-neutral-800 focus:outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100 transition-colors";
 
 const primaryButtonClass =
-  "w-full flex items-center justify-center gap-1.5 bg-gradient-to-r from-indigo-600 to-fuchsia-600 hover:from-indigo-500 hover:to-fuchsia-500 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-semibold px-4 py-3 rounded-xl transition-all shadow-lg shadow-fuchsia-500/20 active:scale-[0.98]";
+  "w-full flex items-center justify-center gap-1.5 bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-semibold px-4 py-3 rounded-xl transition-all shadow-lg shadow-red-500/20 active:scale-[0.98]";
 
 export default function JoinForm() {
   const [mode, setMode] = useState<"join" | "lookup">("join");
@@ -151,7 +151,7 @@ export default function JoinForm() {
         <button
           onClick={() => setMode("join")}
           className={`flex-1 text-xs font-semibold py-2 rounded-full transition-all ${
-            mode === "join" ? "bg-gradient-to-r from-indigo-600 to-fuchsia-600 text-white shadow-sm" : "text-neutral-500"
+            mode === "join" ? "bg-gradient-to-r from-red-600 to-rose-600 text-white shadow-sm" : "text-neutral-500"
           }`}
         >
           New Member
@@ -159,7 +159,7 @@ export default function JoinForm() {
         <button
           onClick={() => setMode("lookup")}
           className={`flex-1 text-xs font-semibold py-2 rounded-full transition-all ${
-            mode === "lookup" ? "bg-gradient-to-r from-indigo-600 to-fuchsia-600 text-white shadow-sm" : "text-neutral-500"
+            mode === "lookup" ? "bg-gradient-to-r from-red-600 to-rose-600 text-white shadow-sm" : "text-neutral-500"
           }`}
         >
           Check My Card
@@ -415,11 +415,11 @@ function LookupTab({ restored, onClear }: { restored: StoredLookup | null; onCle
           <p className="text-[11px] text-neutral-400 text-center mt-2">Expires {formatDate(result.expiryDate)}</p>
         )}
         <div className="grid grid-cols-2 gap-3 mt-4">
-          <div className="bg-gradient-to-br from-indigo-50 to-fuchsia-50 border border-indigo-100 rounded-xl py-3 text-center">
+          <div className="bg-gradient-to-br from-red-50 to-rose-50 border border-red-100 rounded-xl py-3 text-center">
             <p className="text-lg font-bold text-neutral-900">{result.visitCount}</p>
             <p className="text-[11px] text-neutral-500">Visits</p>
           </div>
-          <div className="bg-gradient-to-br from-indigo-50 to-fuchsia-50 border border-indigo-100 rounded-xl py-3 text-center">
+          <div className="bg-gradient-to-br from-red-50 to-rose-50 border border-red-100 rounded-xl py-3 text-center">
             <p className="text-lg font-bold text-neutral-900">{formatCurrency(result.totalSpend)}</p>
             <p className="text-[11px] text-neutral-500">Total Spend</p>
           </div>

@@ -4,10 +4,10 @@ export const dynamic = "force-dynamic";
 
 export default function JoinPage() {
   return (
-    <div className="min-h-screen w-full relative overflow-hidden bg-gradient-to-br from-indigo-600 via-purple-600 to-fuchsia-600 flex items-center justify-center px-4 py-10">
-      <div className="absolute -top-24 -left-20 w-72 h-72 bg-fuchsia-400/30 rounded-full blur-3xl" />
-      <div className="absolute -bottom-28 -right-20 w-80 h-80 bg-indigo-400/30 rounded-full blur-3xl" />
-      <div className="absolute top-1/3 -right-10 w-48 h-48 bg-amber-300/20 rounded-full blur-3xl" />
+    <div className="min-h-screen w-full relative overflow-hidden bg-gradient-to-br from-red-500 via-rose-500 to-red-600 flex items-center justify-center px-4 py-10">
+      <div className="absolute -top-24 -left-20 w-72 h-72 bg-red-300/30 rounded-full blur-3xl" />
+      <div className="absolute -bottom-28 -right-20 w-80 h-80 bg-rose-300/30 rounded-full blur-3xl" />
+      <div className="absolute top-1/3 -right-10 w-48 h-48 bg-amber-200/20 rounded-full blur-3xl" />
 
       <div className="w-full max-w-sm relative z-10">
         <div className="flex flex-col items-center mb-6">
