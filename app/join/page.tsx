@@ -23,7 +23,7 @@ export default function JoinPage() {
         <div className="bg-white/95 backdrop-blur rounded-3xl p-6 shadow-2xl">
           <h1 className="text-lg font-bold text-neutral-900 mb-1.5">Join the club 🏍️</h1>
           <p className="text-xs text-neutral-500 mb-5">
-            Get your digital membership card — no app needed. Just your name and phone number.
+            Get your digital membership card — no app needed. Just your name, phone number, and email.
           </p>
           <JoinForm />
         </div>
