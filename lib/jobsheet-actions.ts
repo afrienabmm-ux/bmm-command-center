@@ -70,8 +70,13 @@ function toIsoDate(raw: string): string | null {
 // clean prefix — trading a little precision for actually filling the
 // field, since the PIC is expected to check every scanned value before
 // saving anyway.
-const FIELD_LABELS: { key: string; words: string[]; excludeIfPrecededBy?: string }[] = [
-  { key: "customerCode", words: ["customer", "code"] },
+const FIELD_LABELS: { key: string; words: string[]; excludeIfPrecededBy?: string; firstLetterWords?: number[] }[] = [
+  // "Code" gets misread badly and unpredictably ("Coop", "Cade", "Ccde" —
+  // edit distance too far for the normal fuzzy match), but "Customer Name"
+  // is the only other "Customer ___" label and it doesn't start with "c",
+  // so once "Customer" itself matches, just checking the next word starts
+  // with "c" is enough to tell these two labels apart safely.
+  { key: "customerCode", words: ["customer", "code"], firstLetterWords: [1] },
   { key: "customerName", words: ["customer", "name"] },
   { key: "salesNo", words: ["sales", "no"] },
   { key: "salesDate", words: ["sales", "date"] },
@@ -168,7 +173,12 @@ function findLabelMatches(tokens: PositionedToken[]): { key: string; start: numb
     for (let i = 0; i + wordCount <= tokens.length; i++) {
       let matchesAllWords = true;
       for (let w = 0; w < wordCount; w++) {
-        if (!wordMatchesLoosely(tokens[i + w].text, label.words[w])) {
+        const observed = tokens[i + w].text;
+        const canonical = label.words[w];
+        const wordMatches = label.firstLetterWords?.includes(w)
+          ? observed.length > 0 && observed[0] === canonical[0]
+          : wordMatchesLoosely(observed, canonical);
+        if (!wordMatches) {
           matchesAllWords = false;
           break;
         }

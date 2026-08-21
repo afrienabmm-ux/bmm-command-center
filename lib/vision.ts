@@ -67,8 +67,12 @@ function reconstructRowsFromWords(words: PositionedWord[], fallbackText: string)
   const sorted = [...words].sort((a, b) => a.yCenter - b.yCenter);
   const rows: { yCenter: number; count: number; words: PositionedWord[] }[] = [];
   for (const word of sorted) {
-    const tolerance = word.height * 0.6;
-    const row = rows.find((r) => Math.abs(r.yCenter - word.yCenter) < tolerance);
+    // Use the smaller of this word's height and the row's own word height as the
+    // reference for tolerance, not just this word's height alone — a single
+    // oversized/noisy bounding box (common on tightly-packed label rows like
+    // "Page" / "User ID") would otherwise get an inflated merge radius and pull
+    // in the next physical row's text.
+    const row = rows.find((r) => Math.abs(r.yCenter - word.yCenter) < Math.min(word.height, r.words[0].height) * 0.6);
     if (row) {
       row.yCenter = (row.yCenter * row.count + word.yCenter) / (row.count + 1);
       row.count += 1;
