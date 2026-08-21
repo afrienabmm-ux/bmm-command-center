@@ -54,7 +54,17 @@ function writeSession(key: string, data: object) {
   }
 }
 
-function TierCard({ tier, cardNumber, name }: { tier: string; cardNumber: string; name: string }) {
+function TierCard({
+  tier,
+  cardNumber,
+  name,
+  memberSince,
+}: {
+  tier: string;
+  cardNumber: string;
+  name: string;
+  memberSince?: string;
+}) {
   const gradient = TIER_GRADIENTS[tier] ?? TIER_GRADIENTS.Bronze;
   return (
     <div className={`relative w-full aspect-[1.6/1] rounded-2xl bg-gradient-to-br ${gradient} p-5 text-white shadow-xl overflow-hidden`}>
@@ -66,7 +76,10 @@ function TierCard({ tier, cardNumber, name }: { tier: string; cardNumber: string
       </div>
       <p className="text-[10px] uppercase tracking-widest opacity-70 mt-7">{tier} Member</p>
       <p className="text-xl font-bold tracking-widest mt-1">{cardNumber}</p>
-      <p className="text-xs mt-4 opacity-90 truncate uppercase tracking-wide">{name}</p>
+      <div className="flex items-end justify-between mt-4 relative z-10">
+        <p className="text-xs opacity-90 truncate uppercase tracking-wide">{name}</p>
+        {memberSince && <p className="text-[10px] opacity-70 shrink-0 ml-2">Since {memberSince}</p>}
+      </div>
     </div>
   );
 }
@@ -390,12 +403,15 @@ function LookupTab({ restored, onClear }: { restored: StoredLookup | null; onCle
         <p className="text-sm text-neutral-600 text-center mb-4">
           Hi <span className="font-semibold text-neutral-900">{result.customerName.trim()}</span>!
         </p>
-        <TierCard tier={result.tier} cardNumber={result.cardNumber} name={result.customerName} />
-        <StampProgress visitCount={result.visitCount} />
-        <p className="text-xs text-neutral-400 text-center mt-3">
-          Member since {formatDate(result.issuedDate)}
-          {result.expiryDate ? ` · Expires ${formatDate(result.expiryDate)}` : ""}
-        </p>
+        <TierCard
+          tier={result.tier}
+          cardNumber={result.cardNumber}
+          name={result.customerName}
+          memberSince={formatDate(result.issuedDate)}
+        />
+        {result.expiryDate && (
+          <p className="text-[11px] text-neutral-400 text-center mt-2">Expires {formatDate(result.expiryDate)}</p>
+        )}
         <div className="grid grid-cols-2 gap-3 mt-4">
           <div className="bg-gradient-to-br from-indigo-50 to-fuchsia-50 border border-indigo-100 rounded-xl py-3">
             <p className="text-lg font-bold text-neutral-900">{result.visitCount}</p>
@@ -406,6 +422,7 @@ function LookupTab({ restored, onClear }: { restored: StoredLookup | null; onCle
             <p className="text-[11px] text-neutral-500">Total Spend</p>
           </div>
         </div>
+        <StampProgress visitCount={result.visitCount} />
         <button onClick={handleReset} className="text-xs font-medium text-neutral-500 hover:text-neutral-700 mt-4 w-full text-center">
           Check another number
         </button>
