@@ -203,35 +203,51 @@ export async function extractTextFromImage(base64Image: string): Promise<string>
 const SIGNATURE_STDEV_THRESHOLD = 22;
 
 // Best-effort check for a customer signature on a scanned jobsheet: finds
-// the "Signature" label via OCR word positions, crops the box just above
-// it (signatures are drawn on the blank line above the label, per the BMM
-// job card layout), and looks for enough pixel variation there to suggest
-// pen strokes rather than blank paper. Returns null when the label itself
-// can't be found (different layout, bad crop, OCR miss) — the caller
-// should ask the PIC to confirm by hand in that case rather than treating
-// it as "not signed".
+// the "Signature" label via OCR word positions, then looks for actual
+// pen-stroke pixel variation near it — not just whether the printed label
+// itself was read (that's always there, signed or not). Checks a box both
+// above and below the label, since where the blank signature line sits
+// relative to the label varies by jobsheet template, and goes with
+// whichever side shows more variation. Returns null when the label itself
+// can't be found, or neither region could be checked (different layout,
+// bad crop, OCR miss) — the caller should ask the PIC to confirm by hand
+// in that case rather than treating it as "not signed".
 async function detectSignature(buffer: Buffer, words: PositionedWord[], imageWidth: number, imageHeight: number): Promise<boolean | null> {
   const label = words.find((w) => /signature/i.test(w.text));
   if (!label) return null;
 
-  // A box above-and-around the label word: tall enough for a signature,
-  // wide enough to cover writing that drifts left of where the label
-  // starts, clamped to the image so a label near an edge doesn't overflow.
+  // Wide enough to cover writing that drifts either side of where the
+  // label starts, clamped to the image so a label near an edge doesn't
+  // overflow.
   const boxWidth = Math.min(imageWidth, label.height * 14);
-  const boxHeight = Math.min(label.yCenter, label.height * 6);
   const left = Math.max(0, Math.min(label.x - boxWidth * 0.3, imageWidth - boxWidth));
-  const top = Math.max(0, label.yCenter - label.height / 2 - boxHeight);
-  if (boxWidth < 10 || boxHeight < 10) return null;
+  if (boxWidth < 10) return null;
 
-  try {
-    const stats = await sharp(buffer)
-      .extract({ left: Math.round(left), top: Math.round(top), width: Math.round(boxWidth), height: Math.round(boxHeight) })
-      .stats();
-    const stdev = stats.channels[0]?.stdev ?? 0;
-    return stdev > SIGNATURE_STDEV_THRESHOLD;
-  } catch {
-    return null;
+  const regionHeight = Math.max(label.height * 4, 30);
+  const candidates = [
+    { top: label.yCenter - label.height / 2 - regionHeight, height: regionHeight }, // above the label
+    { top: label.yCenter + label.height / 2, height: regionHeight }, // below the label
+  ];
+
+  let maxStdev = 0;
+  let checkedAny = false;
+  for (const region of candidates) {
+    const top = Math.max(0, Math.min(region.top, imageHeight - 1));
+    const height = Math.min(region.height, imageHeight - top);
+    if (height < 10) continue;
+    try {
+      const stats = await sharp(buffer)
+        .extract({ left: Math.round(left), top: Math.round(top), width: Math.round(boxWidth), height: Math.round(height) })
+        .stats();
+      maxStdev = Math.max(maxStdev, stats.channels[0]?.stdev ?? 0);
+      checkedAny = true;
+    } catch {
+      // This region's crop fell outside the image — the other one might
+      // still be checkable.
+    }
   }
+  if (!checkedAny) return null;
+  return maxStdev > SIGNATURE_STDEV_THRESHOLD;
 }
 
 export type JobsheetScanResult = { text: string; signatureDetected: boolean | null };
