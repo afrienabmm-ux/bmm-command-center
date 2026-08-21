@@ -61,6 +61,7 @@ type Row = {
   qc_result: QcResult | null;
   qc_date: string | null;
   qc_fail_reason: string | null;
+  signature_status: string;
   cc_repair_job_items: ItemRow[] | null;
 };
 
@@ -118,6 +119,7 @@ function toJob(r: Row): RepairJob {
     qcResult: r.qc_result,
     qcDate: r.qc_date,
     qcFailReason: r.qc_fail_reason,
+    signatureStatus: r.signature_status,
   };
 }
 
@@ -543,6 +545,7 @@ export async function addRepairJobAction(input: {
   // Restore Bike only — filling in and saving the form counts as the
   // quotation being done, no separate click needed.
   quotationDate?: string | null;
+  signatureStatus?: string;
 }): Promise<{ error: string } | { id: string }> {
   const user = await requireApproved();
   assertCanEditBranch(user, input.branch);
@@ -612,6 +615,7 @@ export async function addRepairJobAction(input: {
       next_service_date: input.nextServiceDate ?? "",
       jobsheet_user_id: input.jobsheetUserId ?? "",
       quotation_date: input.quotationDate ?? null,
+      signature_status: input.signatureStatus ?? "",
     })
     .select("id")
     .single();
@@ -673,6 +677,7 @@ export async function updateRepairJobAction(
     // Restore Bike only — omitted for Walk-in so its updates never touch
     // this column.
     quotationDate?: string | null;
+    signatureStatus?: string;
   }
 ): Promise<{ error: string } | void> {
   const user = await requireApproved();
@@ -731,6 +736,7 @@ export async function updateRepairJobAction(
     update.job_no = input.jobsheetNo.trim();
   }
   if (input.quotationDate !== undefined) update.quotation_date = input.quotationDate;
+  if (input.signatureStatus !== undefined) update.signature_status = input.signatureStatus;
   // Stock Order/Arrive are click-to-stamp only on the Bikes Listing list now
   // (setRestoreBikeWorkflowDateAction) — the edit form no longer sends
   // these, so omitting them here must NOT silently null out a date already

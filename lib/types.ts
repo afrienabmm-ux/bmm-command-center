@@ -170,6 +170,11 @@ export type RepairJob = {
   qcResult: QcResult | null;
   qcDate: string | null;
   qcFailReason: string | null;
+  // Walk-in only — what the jobsheet scan actually found for the customer
+  // signature, separate from the staff confirmation checkbox: "detected",
+  // "not_detected" (scan ran, found nothing, but staff confirmed anyway),
+  // "unchecked" (scan couldn't tell), or "" (no scan — manual entry).
+  signatureStatus: string;
 };
 
 export const RESTORE_BIKE_CONDITIONS = ["L", "H"] as const;

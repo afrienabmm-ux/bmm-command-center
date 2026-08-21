@@ -431,8 +431,32 @@ function ExportJobModal({
 
 // Status is no longer a manual choice here — it just follows the End Date
 // stamp (see EndDateCell), so this is read-only.
-function StatusCell({ status }: { status: RepairStatus }) {
-  return <span className={`text-xs font-medium px-2.5 py-1 rounded-full border ${STATUS_STYLES[status]}`}>{status}</span>;
+// Flags when a job was saved despite the scan not finding a signature —
+// staff can still tick "Customer has signed" by hand, but this makes that
+// override visible on the job afterward instead of forgotten once the
+// form closes.
+function StatusCell({ status, signatureStatus }: { status: RepairStatus; signatureStatus: string }) {
+  return (
+    <div className="flex flex-col gap-1 items-start">
+      <span className={`text-xs font-medium px-2.5 py-1 rounded-full border ${STATUS_STYLES[status]}`}>{status}</span>
+      {signatureStatus === "not_detected" && (
+        <span
+          title="Scan found no signature, but staff confirmed it was signed anyway"
+          className="text-[10px] font-medium px-2 py-0.5 rounded-full border bg-red-500/10 text-red-700 border-red-500/20"
+        >
+          No sign detected
+        </span>
+      )}
+      {signatureStatus === "unchecked" && (
+        <span
+          title="Scan couldn't check for a signature — staff confirmed by hand"
+          className="text-[10px] font-medium px-2 py-0.5 rounded-full border bg-neutral-100 text-neutral-500 border-neutral-200"
+        >
+          Sign unchecked
+        </span>
+      )}
+    </div>
+  );
 }
 
 // Same shape as Restore Bike's date-format helper — "17/8" is compact
@@ -560,7 +584,7 @@ function WalkInRow({
         {job.nextServiceDate ? formatDate(job.nextServiceDate) : "—"}
       </td>
       <td className="px-5 py-3.5">
-        <StatusCell status={job.status} />
+        <StatusCell status={job.status} signatureStatus={job.signatureStatus} />
       </td>
       <td className="px-5 py-3.5">
         <div className="flex items-center gap-1">

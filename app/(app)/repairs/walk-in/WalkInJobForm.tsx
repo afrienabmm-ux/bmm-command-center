@@ -489,8 +489,20 @@ export default function WalkInJobForm({
         price: Number(it.price) || 0,
       }));
 
+    // Only set when a scan actually ran this session — otherwise omitted
+    // so editing a job without rescanning doesn't wipe out whatever status
+    // was recorded the first time it was scanned.
+    const signatureStatus: string | undefined = scanRawText
+      ? signatureDetected === true
+        ? "detected"
+        : signatureDetected === false
+          ? "not_detected"
+          : "unchecked"
+      : undefined;
+
     const payload = {
       jobType: "Walk-in" as const,
+      ...(signatureStatus !== undefined ? { signatureStatus } : {}),
       customerCode: customerCode.trim(),
       customerName: customerName.trim(),
       customerPhone: customerPhone.trim(),
