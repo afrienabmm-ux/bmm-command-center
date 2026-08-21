@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
-import { Search, User, Phone, Mail, Building2, Sparkles, KeyRound } from "lucide-react";
+import { Search, User, Phone, Mail, Building2, Sparkles, KeyRound, Wrench } from "lucide-react";
 import {
   registerCustomerCardAction,
   sendRegistrationOtpAction,
@@ -100,18 +100,20 @@ function StampProgress({ visitCount }: { visitCount: number }) {
         {Array.from({ length: size }).map((_, i) => (
           <div
             key={i}
-            className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 ${
-              i < stamps ? "bg-gradient-to-br from-indigo-500 to-fuchsia-500 text-white" : "bg-neutral-100 text-neutral-300 border border-neutral-200"
+            className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 ${
+              i < stamps
+                ? "bg-gradient-to-br from-indigo-500 to-fuchsia-500 text-white shadow-sm"
+                : "bg-neutral-100 text-neutral-300 border border-neutral-200"
             }`}
           >
-            {i < stamps ? "✓" : ""}
+            <Wrench size={13} />
           </div>
         ))}
       </div>
       <p className="text-[11px] text-neutral-400 mt-3">
         {ready
           ? "🎉 You've earned a FREE service — redeem it at the counter!"
-          : `Complete ${size} visits and get 1 FREE service.`}
+          : `Complete ${size} services and get 1 FREE service.`}
       </p>
     </div>
   );
