@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
-import { Plus, Search, Download, Trash2 } from "lucide-react";
+import { Plus, Search, Download, Trash2, ArrowUpDown } from "lucide-react";
 import { addPackageAction, deletePackageAction, deletePackageSaleAction, type PackageSaleWithNames } from "@/lib/packages-actions";
 import { exportPackageSalesCsv, exportAllBranchesPackageSalesCsv } from "@/lib/export-actions";
 import { formatDate } from "@/lib/format";
@@ -28,15 +28,18 @@ export default function PackagesClient({
 }) {
   const [addPackageOpen, setAddPackageOpen] = useState(false);
   const [query, setQuery] = useState("");
+  const [sortDir, setSortDir] = useState<"desc" | "asc">("desc");
   const [exporting, setExporting] = useState(false);
 
   const visibleSales = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return sales;
-    return sales.filter((s) =>
-      [s.receiptId, s.packageName, s.mechanicCode].some((f) => f.toLowerCase().includes(q))
+    const filtered = q
+      ? sales.filter((s) => [s.receiptId, s.packageName, s.mechanicCode].some((f) => f.toLowerCase().includes(q)))
+      : sales;
+    return [...filtered].sort((a, b) =>
+      sortDir === "desc" ? b.saleDate.localeCompare(a.saleDate) : a.saleDate.localeCompare(b.saleDate)
     );
-  }, [sales, query]);
+  }, [sales, query, sortDir]);
 
   async function handleExport() {
     setExporting(true);
@@ -91,6 +94,13 @@ export default function PackagesClient({
                 className="bg-neutral-50 border border-neutral-200 rounded-lg pl-8 pr-3 py-2 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50 w-56"
               />
             </div>
+            <button
+              onClick={() => setSortDir((d) => (d === "desc" ? "asc" : "desc"))}
+              className="flex items-center gap-1.5 bg-neutral-50 border border-neutral-200 hover:border-indigo-300 text-neutral-700 text-xs font-medium px-3 py-2.5 rounded-lg transition-colors whitespace-nowrap"
+              title="Sort by sale date"
+            >
+              <ArrowUpDown size={13} /> {sortDir === "desc" ? "Newest" : "Oldest"}
+            </button>
             <button
               onClick={handleExport}
               disabled={exporting}

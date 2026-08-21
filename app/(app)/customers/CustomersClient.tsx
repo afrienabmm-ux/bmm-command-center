@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
-import { Plus, Search, Pencil, Trash2, CreditCard, X, Link2, Check, Mail } from "lucide-react";
+import { Plus, Search, Pencil, Trash2, CreditCard, X, Link2, Check, Mail, ArrowUpDown } from "lucide-react";
 import { addCustomerCardAction, updateCustomerCardAction, deleteCustomerCardAction, sendPromotionAction } from "@/lib/customers-actions";
 import { BRANCHES, branchLabel, type Branch, type BranchSelection } from "@/lib/branch";
 import { formatDate, formatCurrency } from "@/lib/format";
@@ -26,6 +26,8 @@ export default function CustomersClient({
   const [linkCopied, setLinkCopied] = useState(false);
   const [revealedKey, setRevealedKey] = useState<string | null>(null);
   const [promoModalOpen, setPromoModalOpen] = useState(false);
+  const [sortBy, setSortBy] = useState<"spend" | "visit">("spend");
+  const [sortDir, setSortDir] = useState<"desc" | "asc">("desc");
   const showAllBranches = branchSelection === "all";
   const emailableCount = customers.filter((c) => c.card?.customerEmail).length;
 
@@ -39,14 +41,19 @@ export default function CustomersClient({
 
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return customers;
-    return customers.filter(
-      (c) =>
-        c.name.toLowerCase().includes(q) ||
-        c.plates.some((p) => p.toLowerCase().includes(q)) ||
-        (c.card?.customerPhone ?? "").toLowerCase().includes(q)
-    );
-  }, [customers, query]);
+    const filtered = q
+      ? customers.filter(
+          (c) =>
+            c.name.toLowerCase().includes(q) ||
+            c.plates.some((p) => p.toLowerCase().includes(q)) ||
+            (c.card?.customerPhone ?? "").toLowerCase().includes(q)
+        )
+      : customers;
+    return [...filtered].sort((a, b) => {
+      const cmp = sortBy === "spend" ? a.totalSpend - b.totalSpend : a.lastVisit.localeCompare(b.lastVisit);
+      return sortDir === "desc" ? -cmp : cmp;
+    });
+  }, [customers, query, sortBy, sortDir]);
 
   function handleDelete() {
     if (!deleting) return;
@@ -59,15 +66,32 @@ export default function CustomersClient({
   return (
     <div>
       <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
-        <div className="relative">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
-          <input
-            type="text"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search name, plate, or phone…"
-            className="bg-white border border-neutral-200 rounded-lg pl-8 pr-3 py-2 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50 w-64"
-          />
+        <div className="flex items-center gap-2">
+          <div className="relative">
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
+            <input
+              type="text"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search name, plate, or phone…"
+              className="bg-white border border-neutral-200 rounded-lg pl-8 pr-3 py-2 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50 w-64"
+            />
+          </div>
+          <select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value as "spend" | "visit")}
+            className="bg-white border border-neutral-200 rounded-lg px-3 py-2 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+          >
+            <option value="spend">Sort: Total Spend</option>
+            <option value="visit">Sort: Last Visit</option>
+          </select>
+          <button
+            onClick={() => setSortDir((d) => (d === "desc" ? "asc" : "desc"))}
+            className="flex items-center gap-1.5 bg-white border border-neutral-200 hover:border-indigo-300 text-neutral-700 text-sm font-medium px-3 py-2 rounded-lg transition-colors whitespace-nowrap"
+            title="Toggle sort direction"
+          >
+            <ArrowUpDown size={14} /> {sortDir === "desc" ? "Highest" : "Lowest"}
+          </button>
         </div>
         <div className="flex items-center gap-3">
           <button

@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
-import { Plus, Download, Pencil, Search, Trash2, Check, Printer } from "lucide-react";
+import { Plus, Download, Pencil, Search, Trash2, Check, Printer, ArrowUpDown } from "lucide-react";
 import { setWalkInEndDateAction, deleteRepairJobAction } from "@/lib/repairs-actions";
 import { isHeavyRepairJob, type RepairStatus, type RepairJob } from "@/lib/types";
 import type { Mechanic } from "@/lib/types";
@@ -34,12 +34,18 @@ export default function WalkInClient({
   const [exportJobModalOpen, setExportJobModalOpen] = useState(false);
   const [exportFilteredModalOpen, setExportFilteredModalOpen] = useState(false);
   const [query, setQuery] = useState("");
+  const [sortDir, setSortDir] = useState<"desc" | "asc">("desc");
   const jobs = tab === "active" ? active : completed;
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return jobs;
-    return jobs.filter((j) => (j.customerName ?? "").toLowerCase().includes(q) || j.plateNo.toLowerCase().includes(q));
-  }, [jobs, query]);
+    const filtered = q
+      ? jobs.filter((j) => (j.customerName ?? "").toLowerCase().includes(q) || j.plateNo.toLowerCase().includes(q))
+      : jobs;
+    return [...filtered].sort((a, b) => {
+      const dateOf = (j: RepairJob) => j.completedDate || j.startedDate || j.createdAt || "";
+      return sortDir === "desc" ? dateOf(b).localeCompare(dateOf(a)) : dateOf(a).localeCompare(dateOf(b));
+    });
+  }, [jobs, query, sortDir]);
   const allJobs = useMemo(() => [...active, ...completed], [active, completed]);
   const showBranchColumn = branchSelection === "all";
 
@@ -156,6 +162,13 @@ export default function WalkInClient({
               className="bg-white border border-neutral-200 rounded-lg pl-8 pr-3 py-2 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50 w-64"
             />
           </div>
+          <button
+            onClick={() => setSortDir((d) => (d === "desc" ? "asc" : "desc"))}
+            className="flex items-center gap-1.5 bg-white border border-neutral-200 hover:border-indigo-300 text-neutral-700 text-sm font-medium px-3 py-2 rounded-lg transition-colors whitespace-nowrap"
+            title="Sort by date"
+          >
+            <ArrowUpDown size={14} /> {sortDir === "desc" ? "Newest" : "Oldest"}
+          </button>
           <button
             onClick={handleExport}
             disabled={exporting}
