@@ -197,21 +197,54 @@ export async function extractTextFromImage(base64Image: string): Promise<string>
 // How much brighter/darker a signature box's pixels vary compared to a
 // blank one — blank paper (even with a printed line) is close to uniform,
 // so its standard deviation is low; a pen signature's mix of white
-// background and dark strokes pushes it well above this. Picked from one
-// round of synthetic test images (blank ~15, signed ~36), not real
-// jobsheets — expect to retune once this has run against real photos.
-const SIGNATURE_STDEV_THRESHOLD = 22;
+// A raw pixel-variance check (the previous approach) can't tell a pen
+// stroke from a shadow — a hand/arm holding the phone casting a shadow
+// across the signature box produces just as much variance as ink does.
+// The fix: compare each region against a heavily blurred copy of itself.
+// Blurring erases fine detail (pen strokes) but barely touches a shadow,
+// since a shadow is already a smooth gradient over a much larger area —
+// so the *difference* between the original and the blurred version
+// isolates fine texture and mostly cancels out lighting/shadow.
+const INK_RESIDUAL_THRESHOLD = 4;
+const BLUR_SIGMA = 5;
+
+function meanAbsDiff(a: Buffer, b: Buffer): number {
+  const n = Math.min(a.length, b.length);
+  if (n === 0) return 0;
+  let sum = 0;
+  for (let i = 0; i < n; i++) sum += Math.abs(a[i] - b[i]);
+  return sum / n;
+}
+
+// Score for one region: how much fine (pen-stroke-scale) detail it has,
+// with smooth lighting/shadow gradients subtracted out. Returns null if
+// this particular region couldn't be cropped/read at all.
+async function inkResidualScore(buffer: Buffer, left: number, top: number, width: number, height: number): Promise<number | null> {
+  try {
+    const region = sharp(buffer)
+      .extract({ left: Math.round(left), top: Math.round(top), width: Math.round(width), height: Math.round(height) })
+      .greyscale();
+    const [{ data: sharpBytes }, { data: blurredBytes }] = await Promise.all([
+      region.clone().raw().toBuffer({ resolveWithObject: true }),
+      region.clone().blur(BLUR_SIGMA).raw().toBuffer({ resolveWithObject: true }),
+    ]);
+    return meanAbsDiff(sharpBytes, blurredBytes);
+  } catch {
+    return null;
+  }
+}
 
 // Best-effort check for a customer signature on a scanned jobsheet: finds
 // the "Signature" label via OCR word positions, then looks for actual
-// pen-stroke pixel variation near it — not just whether the printed label
-// itself was read (that's always there, signed or not). Checks a box both
-// above and below the label, since where the blank signature line sits
-// relative to the label varies by jobsheet template, and goes with
-// whichever side shows more variation. Returns null when the label itself
-// can't be found, or neither region could be checked (different layout,
-// bad crop, OCR miss) — the caller should ask the PIC to confirm by hand
-// in that case rather than treating it as "not signed".
+// pen-stroke texture near it — not just whether the printed label itself
+// was read (that's always there, signed or not), and not fooled by a
+// shadow across the page either. Checks a box both above and below the
+// label, since where the blank signature line sits relative to the label
+// varies by jobsheet template, and goes with whichever side scores
+// higher. Returns null when the label itself can't be found, or neither
+// region could be checked (different layout, bad crop, OCR miss) — the
+// caller should ask the PIC to confirm by hand in that case rather than
+// treating it as "not signed".
 async function detectSignature(buffer: Buffer, words: PositionedWord[], imageWidth: number, imageHeight: number): Promise<boolean | null> {
   const label = words.find((w) => /signature/i.test(w.text));
   if (!label) return null;
@@ -229,25 +262,19 @@ async function detectSignature(buffer: Buffer, words: PositionedWord[], imageWid
     { top: label.yCenter + label.height / 2, height: regionHeight }, // below the label
   ];
 
-  let maxStdev = 0;
+  let maxScore = 0;
   let checkedAny = false;
   for (const region of candidates) {
     const top = Math.max(0, Math.min(region.top, imageHeight - 1));
     const height = Math.min(region.height, imageHeight - top);
     if (height < 10) continue;
-    try {
-      const stats = await sharp(buffer)
-        .extract({ left: Math.round(left), top: Math.round(top), width: Math.round(boxWidth), height: Math.round(height) })
-        .stats();
-      maxStdev = Math.max(maxStdev, stats.channels[0]?.stdev ?? 0);
-      checkedAny = true;
-    } catch {
-      // This region's crop fell outside the image — the other one might
-      // still be checkable.
-    }
+    const score = await inkResidualScore(buffer, left, top, boxWidth, height);
+    if (score === null) continue;
+    maxScore = Math.max(maxScore, score);
+    checkedAny = true;
   }
   if (!checkedAny) return null;
-  return maxStdev > SIGNATURE_STDEV_THRESHOLD;
+  return maxScore > INK_RESIDUAL_THRESHOLD;
 }
 
 export type JobsheetScanResult = { text: string; signatureDetected: boolean | null };
