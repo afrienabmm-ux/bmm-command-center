@@ -626,15 +626,21 @@ export default function WalkInJobForm({
                 </details>
               )}
               {scanRawText && (
-                <div ref={signatureRef} tabIndex={-1} className="mt-3 bg-white border border-neutral-200 rounded-lg p-3">
+                <div
+                  ref={signatureRef}
+                  tabIndex={-1}
+                  className={`mt-3 border rounded-lg p-3 ${
+                    signatureDetected === false ? "bg-red-50 border-red-200" : "bg-white border-neutral-200"
+                  }`}
+                >
                   {signatureDetected === true && (
                     <p className="text-xs text-emerald-700 flex items-center gap-1.5">
                       <CheckCircle2 size={14} /> Customer signature detected on the jobsheet.
                     </p>
                   )}
                   {signatureDetected === false && (
-                    <p className="text-xs text-amber-700 flex items-center gap-1.5">
-                      <AlertTriangle size={14} /> No customer signature detected — double-check the photo before confirming.
+                    <p className="text-xs text-red-700 font-medium flex items-center gap-1.5">
+                      <AlertTriangle size={14} /> No customer sign detected — please ask the customer to sign the jobsheet before saving.
                     </p>
                   )}
                   {signatureDetected === null && (
