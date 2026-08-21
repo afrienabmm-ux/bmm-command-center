@@ -264,6 +264,11 @@ export default function WalkInJobForm({
       setScanRawText(scanned.rawText);
       setSignatureDetected(scanned.signatureDetected);
       setSignatureConfirmed(scanned.signatureDetected === true);
+      if (scanned.signatureDetected !== true) {
+        window.alert(
+          "No customer signature detected on this jobsheet. Please check that the customer has signed it, or take a clearer photo and scan again."
+        );
+      }
       const filled: string[] = [];
       if (scanned.customerCode) {
         setCustomerCode(scanned.customerCode);
