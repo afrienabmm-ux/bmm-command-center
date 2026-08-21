@@ -84,7 +84,7 @@ export default async function AllBranchesOverview({
     getAllBranchesQcReminderJobs(onlyBranch),
     getUpcomingServiceReminders(onlyBranch),
     isManagement ? getAllBranchesPendingApprovalJobs(onlyBranch) : Promise.resolve([]),
-    getAllBranchesApprovedReadyToStartJobs(onlyBranch),
+    isManagement ? Promise.resolve([]) : getAllBranchesApprovedReadyToStartJobs(onlyBranch),
     onlyBranch
       ? getBranchMonthSummary(onlyBranch, prev.year, prev.month).then((s) => s.achievedAmount)
       : getAllBranchesAchievedTotal(prev.year, prev.month),
@@ -215,7 +215,7 @@ export default async function AllBranchesOverview({
         </Link>
       )}
 
-      {approvedReadyToStartJobs.length > 0 && (
+      {!isManagement && approvedReadyToStartJobs.length > 0 && (
         <Link
           href={
             approvedReadyToStartJobs.length === 1
