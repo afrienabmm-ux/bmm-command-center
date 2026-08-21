@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
-import { Plus, Search, Pencil, Trash2, CreditCard, X } from "lucide-react";
+import { Plus, Search, Pencil, Trash2, CreditCard, X, Link2, Check } from "lucide-react";
 import { addCustomerCardAction, updateCustomerCardAction, deleteCustomerCardAction } from "@/lib/customers-actions";
 import { BRANCHES, branchLabel, type Branch, type BranchSelection } from "@/lib/branch";
 import { formatDate, formatCurrency } from "@/lib/format";
@@ -24,7 +24,16 @@ export default function CustomersClient({
   const [cardModalFor, setCardModalFor] = useState<CustomerSummary | "new" | null>(null);
   const [deleting, setDeleting] = useState<CustomerCard | null>(null);
   const [isPending, startTransition] = useTransition();
+  const [linkCopied, setLinkCopied] = useState(false);
   const showAllBranches = branchSelection === "all";
+
+  function handleCopyLink() {
+    const url = `${window.location.origin}/join`;
+    navigator.clipboard.writeText(url).then(() => {
+      setLinkCopied(true);
+      setTimeout(() => setLinkCopied(false), 2000);
+    });
+  }
 
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -55,13 +64,25 @@ export default function CustomersClient({
             className="bg-white border border-neutral-200 rounded-lg pl-8 pr-3 py-2 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50 w-64"
           />
         </div>
-        <button
-          onClick={() => setCardModalFor("new")}
-          className="flex items-center gap-1.5 bg-indigo-500 hover:bg-indigo-400 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors whitespace-nowrap"
-        >
-          <Plus size={15} /> New Membership Card
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={handleCopyLink}
+            className="flex items-center gap-1.5 bg-neutral-100 hover:bg-neutral-200 text-neutral-800 text-sm font-medium px-4 py-2 rounded-lg transition-colors whitespace-nowrap"
+          >
+            {linkCopied ? <Check size={15} className="text-emerald-600" /> : <Link2 size={15} />}
+            {linkCopied ? "Link copied" : "Copy Sign-Up Link"}
+          </button>
+          <button
+            onClick={() => setCardModalFor("new")}
+            className="flex items-center gap-1.5 bg-indigo-500 hover:bg-indigo-400 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors whitespace-nowrap"
+          >
+            <Plus size={15} /> New Membership Card
+          </button>
+        </div>
       </div>
+      <p className="text-xs text-neutral-500 mb-4 -mt-2">
+        Share this link with customers so they can register themselves and get a digital card — no app needed.
+      </p>
 
       <div className="bg-white border border-neutral-200 rounded-xl overflow-hidden">
         <table className="w-full text-sm">
@@ -287,16 +308,26 @@ function CardModal({
               <label className="block text-xs font-medium text-neutral-600 mb-1.5">Tier</label>
               <input
                 type="text"
-                list="tier-suggestions"
                 value={tier}
                 onChange={(e) => setTier(e.target.value)}
                 className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
               />
-              <datalist id="tier-suggestions">
+              <div className="flex items-center gap-1.5 mt-1.5">
                 {TIER_SUGGESTIONS.map((t) => (
-                  <option key={t} value={t} />
+                  <button
+                    key={t}
+                    type="button"
+                    onClick={() => setTier(t)}
+                    className={`text-xs px-2 py-1 rounded-full border transition-colors ${
+                      tier === t
+                        ? "bg-indigo-500 border-indigo-500 text-white"
+                        : "bg-white border-neutral-200 text-neutral-600 hover:border-indigo-300"
+                    }`}
+                  >
+                    {t}
+                  </button>
                 ))}
-              </datalist>
+              </div>
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3">

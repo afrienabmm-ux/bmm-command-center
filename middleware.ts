@@ -2,6 +2,9 @@ import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 
 const PUBLIC_PATHS = ["/login", "/signup"];
+// Customer-facing membership sign-up — no staff login needed, so every
+// path under /join is public regardless of query string.
+const PUBLIC_PREFIXES = ["/join"];
 
 export async function middleware(request: NextRequest) {
   let response = NextResponse.next({ request });
@@ -28,14 +31,22 @@ export async function middleware(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   const { pathname } = request.nextUrl;
-  const isPublic = PUBLIC_PATHS.includes(pathname);
+  const isJoinPage = PUBLIC_PREFIXES.some((p) => pathname.startsWith(p));
+  const isPublic = PUBLIC_PATHS.includes(pathname) || isJoinPage;
 
   if (!user && !isPublic) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
 
-  if (user && isPublic) {
+  // /login and /signup bounce a signed-in user straight to the dashboard,
+  // but /join stays open even when signed in — staff should be able to
+  // open their own sign-up link to demo or test it.
+  if (user && isPublic && !isJoinPage) {
     return NextResponse.redirect(new URL("/", request.url));
+  }
+
+  if (isJoinPage) {
+    return response;
   }
 
   if (user && pathname !== "/pending") {

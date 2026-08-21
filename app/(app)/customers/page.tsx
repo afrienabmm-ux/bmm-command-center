@@ -17,7 +17,7 @@ export default async function CustomersPage() {
   return (
     <div className="flex flex-col h-full">
       <PageHeader
-        title="Customers (CRM)"
+        title="Memberships"
         subtitle={`${showAllBranches ? "All Branches" : branchLabel(branch)} — ${customers.length} customers`}
       />
       <div className="p-8">

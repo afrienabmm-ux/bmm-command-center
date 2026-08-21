@@ -36,7 +36,7 @@ const mainLinks: NavLink[] = [
   { href: "/packages", label: "Services Combo", icon: Layers, page: "packages", color: "text-teal-500" },
   { href: "/genblu", label: "GenBlu Tracker", icon: Smartphone, page: "genblu", color: "text-pink-500" },
   { href: "/warranty-claims", label: "Claims", icon: ShieldCheck, page: "warranty-claims", color: "text-amber-500" },
-  { href: "/customers", label: "Customers (CRM)", icon: Users, page: "customers", color: "text-fuchsia-500" },
+  { href: "/customers", label: "Memberships", icon: Users, page: "customers", color: "text-fuchsia-500" },
 ];
 
 const trailingLinks: NavLink[] = [{ href: "/mechanics", label: "Mechanics", icon: MechanicIcon, page: "mechanics", color: "text-emerald-500" }];
