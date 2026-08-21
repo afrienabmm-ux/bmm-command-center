@@ -7,7 +7,7 @@ import { BRANCHES, branchLabel, type Branch, type BranchSelection } from "@/lib/
 import { formatDate, formatCurrency } from "@/lib/format";
 import type { CustomerSummary, CustomerCard } from "@/lib/types";
 
-const TIER_SUGGESTIONS = ["Silver", "Gold", "Platinum"];
+const TIER_SUGGESTIONS = ["Bronze", "Silver", "Gold", "Platinum"];
 
 export default function CustomersClient({
   customers,

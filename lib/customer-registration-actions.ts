@@ -35,7 +35,7 @@ export async function registerCustomerCardAction(input: {
   if (existing && existing.length > 0) return { cardNumber: existing[0].card_number, tier: existing[0].tier };
 
   const cardNumber = generateCardNumber(input.branch);
-  const tier = "Member";
+  const tier = "Bronze";
   const { error } = await supabaseAdmin.from("cc_customer_cards").insert({
     branch: input.branch,
     customer_name: customerName,
