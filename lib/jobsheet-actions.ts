@@ -35,6 +35,10 @@ export type ScannedJobsheet = {
   // true/false when the "Signature" label was found and checked, null
   // when it couldn't be located at all (different layout, bad photo).
   signatureDetected: boolean | null;
+  // Raw scores/threshold behind signatureDetected — shown in the scan
+  // troubleshooting panel so miscalibration can be diagnosed from a real
+  // photo instead of guessed at.
+  signatureDebug: string;
 };
 
 function toIsoDate(raw: string): string | null {
@@ -262,6 +266,7 @@ function parseJobsheetText(text: string): ScannedJobsheet {
     items,
     rawText: text,
     signatureDetected: null,
+    signatureDebug: "",
   };
 }
 
@@ -278,11 +283,11 @@ export async function scanJobsheet(
       }
       return { data: parseJobsheetText(text) };
     }
-    const { text, signatureDetected } = await scanJobsheetImage(base64File);
+    const { text, signatureDetected, signatureDebug } = await scanJobsheetImage(base64File);
     if (!text.trim()) {
       return { error: "Couldn't read any text from that file — try a clearer, well-lit photo." };
     }
-    return { data: { ...parseJobsheetText(text), signatureDetected } };
+    return { data: { ...parseJobsheetText(text), signatureDetected, signatureDebug } };
   } catch (err) {
     const message = err instanceof Error ? err.message : "";
     if (/deadline/i.test(message)) {

@@ -194,9 +194,6 @@ export async function extractTextFromImage(base64Image: string): Promise<string>
   return text;
 }
 
-// How much brighter/darker a signature box's pixels vary compared to a
-// blank one — blank paper (even with a printed line) is close to uniform,
-// so its standard deviation is low; a pen signature's mix of white
 // A raw pixel-variance check (the previous approach) can't tell a pen
 // stroke from a shadow — a hand/arm holding the phone casting a shadow
 // across the signature box produces just as much variance as ink does.
@@ -234,6 +231,8 @@ async function inkResidualScore(buffer: Buffer, left: number, top: number, width
   }
 }
 
+export type SignatureCheck = { result: boolean | null; debug: string };
+
 // Best-effort check for a customer signature on a scanned jobsheet: finds
 // the "Signature" label via OCR word positions, then looks for actual
 // pen-stroke texture near it — not just whether the printed label itself
@@ -241,43 +240,55 @@ async function inkResidualScore(buffer: Buffer, left: number, top: number, width
 // shadow across the page either. Checks a box both above and below the
 // label, since where the blank signature line sits relative to the label
 // varies by jobsheet template, and goes with whichever side scores
-// higher. Returns null when the label itself can't be found, or neither
-// region could be checked (different layout, bad crop, OCR miss) — the
-// caller should ask the PIC to confirm by hand in that case rather than
-// treating it as "not signed".
-async function detectSignature(buffer: Buffer, words: PositionedWord[], imageWidth: number, imageHeight: number): Promise<boolean | null> {
+// higher. Returns a null result when the label itself can't be found, or
+// neither region could be checked (different layout, bad crop, OCR miss)
+// — the caller should ask the PIC to confirm by hand in that case rather
+// than treating it as "not signed". Also returns the raw scores/threshold
+// as a debug string — this heuristic has been miscalibrated twice
+// already, so surfacing the actual numbers is how it gets fixed for real
+// instead of guessed at a third time.
+async function detectSignature(buffer: Buffer, words: PositionedWord[], imageWidth: number, imageHeight: number): Promise<SignatureCheck> {
   const label = words.find((w) => /signature/i.test(w.text));
-  if (!label) return null;
+  if (!label) return { result: null, debug: "no 'Signature' label found by OCR" };
 
   // Wide enough to cover writing that drifts either side of where the
   // label starts, clamped to the image so a label near an edge doesn't
   // overflow.
   const boxWidth = Math.min(imageWidth, label.height * 14);
   const left = Math.max(0, Math.min(label.x - boxWidth * 0.3, imageWidth - boxWidth));
-  if (boxWidth < 10) return null;
+  if (boxWidth < 10) return { result: null, debug: "label found but box too narrow to check" };
 
   const regionHeight = Math.max(label.height * 4, 30);
-  const candidates = [
-    { top: label.yCenter - label.height / 2 - regionHeight, height: regionHeight }, // above the label
-    { top: label.yCenter + label.height / 2, height: regionHeight }, // below the label
+  const candidates: { name: string; top: number; height: number }[] = [
+    { name: "above", top: label.yCenter - label.height / 2 - regionHeight, height: regionHeight },
+    { name: "below", top: label.yCenter + label.height / 2, height: regionHeight },
   ];
 
   let maxScore = 0;
   let checkedAny = false;
+  const scoreLog: string[] = [];
   for (const region of candidates) {
     const top = Math.max(0, Math.min(region.top, imageHeight - 1));
     const height = Math.min(region.height, imageHeight - top);
-    if (height < 10) continue;
+    if (height < 10) {
+      scoreLog.push(`${region.name}=skipped(offscreen)`);
+      continue;
+    }
     const score = await inkResidualScore(buffer, left, top, boxWidth, height);
-    if (score === null) continue;
+    if (score === null) {
+      scoreLog.push(`${region.name}=skipped(crop failed)`);
+      continue;
+    }
+    scoreLog.push(`${region.name}=${score.toFixed(2)}`);
     maxScore = Math.max(maxScore, score);
     checkedAny = true;
   }
-  if (!checkedAny) return null;
-  return maxScore > INK_RESIDUAL_THRESHOLD;
+  const debug = `label@(${Math.round(label.x)},${Math.round(label.yCenter)}) box=${Math.round(boxWidth)}x${Math.round(regionHeight)} scores: ${scoreLog.join(", ")} threshold=${INK_RESIDUAL_THRESHOLD}`;
+  if (!checkedAny) return { result: null, debug };
+  return { result: maxScore > INK_RESIDUAL_THRESHOLD, debug };
 }
 
-export type JobsheetScanResult = { text: string; signatureDetected: boolean | null };
+export type JobsheetScanResult = { text: string; signatureDetected: boolean | null; signatureDebug: string };
 
 // Same OCR pipeline as extractTextFromImage, plus a best-effort signature
 // check — kept separate so GenBlu screenshot scanning (which has no
@@ -291,9 +302,11 @@ export async function scanJobsheetImage(base64Image: string): Promise<JobsheetSc
     buffer = rawBuffer;
   }
   const [{ text, words }, metadata] = await Promise.all([runOcr(buffer), sharp(buffer).metadata()]);
-  const signatureDetected =
-    metadata.width && metadata.height ? await detectSignature(buffer, words, metadata.width, metadata.height) : null;
-  return { text, signatureDetected };
+  const signatureCheck: SignatureCheck =
+    metadata.width && metadata.height
+      ? await detectSignature(buffer, words, metadata.width, metadata.height)
+      : { result: null, debug: "image had no readable dimensions" };
+  return { text, signatureDetected: signatureCheck.result, signatureDebug: signatureCheck.debug };
 }
 
 // PDFs aren't supported by the free local OCR path (no card-free way to

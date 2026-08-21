@@ -199,6 +199,7 @@ export default function WalkInJobForm({
   const [scanNotice, setScanNotice] = useState<string | null>(null);
   const [scanMissing, setScanMissing] = useState<string[] | null>(null);
   const [scanRawText, setScanRawText] = useState<string | null>(null);
+  const [scanSignatureDebug, setScanSignatureDebug] = useState<string | null>(null);
   // Best-effort result from the last scan — null until a scan has run (or
   // when the "Signature" label couldn't be found at all). Existing jobs
   // start confirmed since there's nothing new to check unless re-scanned.
@@ -248,6 +249,7 @@ export default function WalkInJobForm({
     setScanError(null);
     setScanNotice(null);
     setScanMissing(null);
+    setScanSignatureDebug(null);
     try {
       const isPdf = file.type === "application/pdf";
       const uploadBlob = isPdf ? file : await downscaleImage(file);
@@ -262,6 +264,7 @@ export default function WalkInJobForm({
       }
       const scanned = result.data;
       setScanRawText(scanned.rawText);
+      setScanSignatureDebug(scanned.signatureDebug);
       setSignatureDetected(scanned.signatureDetected);
       setSignatureConfirmed(scanned.signatureDetected === true);
       if (scanned.signatureDetected !== true) {
@@ -668,6 +671,9 @@ export default function WalkInJobForm({
               {scanRawText && (
                 <details className="mt-2">
                   <summary className="text-xs text-indigo-700 cursor-pointer">What Google read from the photo (for troubleshooting)</summary>
+                  {scanSignatureDebug && (
+                    <p className="mt-2 text-[11px] text-neutral-500 font-mono">Signature check: {scanSignatureDebug}</p>
+                  )}
                   <pre className="mt-2 bg-white border border-neutral-200 rounded-lg p-3 text-xs text-neutral-700 whitespace-pre-wrap max-h-64 overflow-y-auto">{scanRawText}</pre>
                 </details>
               )}
