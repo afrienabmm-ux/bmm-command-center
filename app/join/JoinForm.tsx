@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { Search, User, Phone, Building2, Sparkles } from "lucide-react";
 import { registerCustomerCardAction, lookupMembershipAction, type MembershipLookup } from "@/lib/customer-registration-actions";
 import { BRANCHES, type Branch } from "@/lib/branch";
@@ -12,6 +12,39 @@ const TIER_GRADIENTS: Record<string, string> = {
   Gold: "from-yellow-300 via-yellow-500 to-amber-600",
   Platinum: "from-indigo-300 via-violet-500 to-purple-700",
 };
+
+// How long a "check my card" / "just registered" screen survives a page
+// refresh before the customer has to type their phone number again.
+const SESSION_TTL_MS = 3 * 60 * 60 * 1000;
+const JOIN_STORAGE_KEY = "bmm_join_session";
+const LOOKUP_STORAGE_KEY = "bmm_lookup_session";
+
+type StoredJoin = { name: string; cardNumber: string; tier: string; savedAt: number };
+type StoredLookup = { result: MembershipLookup; savedAt: number };
+
+function readSession<T extends { savedAt: number }>(key: string): T | null {
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as T;
+    if (Date.now() - parsed.savedAt > SESSION_TTL_MS) {
+      localStorage.removeItem(key);
+      return null;
+    }
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function writeSession(key: string, data: object) {
+  try {
+    localStorage.setItem(key, JSON.stringify({ ...data, savedAt: Date.now() }));
+  } catch {
+    // Private browsing / storage disabled — the customer just re-enters
+    // their number next time, no need to block on it.
+  }
+}
 
 function TierCard({ tier, cardNumber, name }: { tier: string; cardNumber: string; name: string }) {
   const gradient = TIER_GRADIENTS[tier] ?? TIER_GRADIENTS.Bronze;
@@ -38,6 +71,23 @@ const primaryButtonClass =
 
 export default function JoinForm() {
   const [mode, setMode] = useState<"join" | "lookup">("join");
+  const [restoredJoin, setRestoredJoin] = useState<StoredJoin | null>(null);
+  const [restoredLookup, setRestoredLookup] = useState<StoredLookup | null>(null);
+
+  // On load, whichever session (join or lookup) is still within its
+  // 3-hour window wins and the page opens straight to that result — the
+  // customer only re-types their number once it's actually expired.
+  useEffect(() => {
+    const join = readSession<StoredJoin>(JOIN_STORAGE_KEY);
+    const lookup = readSession<StoredLookup>(LOOKUP_STORAGE_KEY);
+    if (lookup && (!join || lookup.savedAt >= join.savedAt)) {
+      setRestoredLookup(lookup);
+      setMode("lookup");
+    } else if (join) {
+      setRestoredJoin(join);
+      setMode("join");
+    }
+  }, []);
 
   return (
     <div>
@@ -59,18 +109,31 @@ export default function JoinForm() {
           Check My Card
         </button>
       </div>
-      {mode === "join" ? <JoinTab /> : <LookupTab />}
+      {mode === "join" ? (
+        <JoinTab restored={restoredJoin} onClear={() => setRestoredJoin(null)} />
+      ) : (
+        <LookupTab restored={restoredLookup} onClear={() => setRestoredLookup(null)} />
+      )}
     </div>
   );
 }
 
-function JoinTab() {
+function JoinTab({ restored, onClear }: { restored: StoredJoin | null; onClear: () => void }) {
   const [branch, setBranch] = useState<Branch>("kapar");
-  const [name, setName] = useState("");
+  const [name, setName] = useState(restored?.name ?? "");
   const [phone, setPhone] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const [result, setResult] = useState<{ cardNumber: string; tier: string } | null>(null);
+  const [result, setResult] = useState<{ cardNumber: string; tier: string } | null>(
+    restored ? { cardNumber: restored.cardNumber, tier: restored.tier } : null
+  );
   const [isPending, startTransition] = useTransition();
+
+  useEffect(() => {
+    if (restored) {
+      setName(restored.name);
+      setResult({ cardNumber: restored.cardNumber, tier: restored.tier });
+    }
+  }, [restored]);
 
   function handleSubmit() {
     setError(null);
@@ -81,6 +144,7 @@ function JoinTab() {
         return;
       }
       setResult(res);
+      writeSession(JOIN_STORAGE_KEY, { name: name.trim(), cardNumber: res.cardNumber, tier: res.tier });
     });
   }
 
@@ -92,6 +156,17 @@ function JoinTab() {
         </p>
         <TierCard tier={result.tier} cardNumber={result.cardNumber} name={name} />
         <p className="text-xs text-neutral-400 text-center mt-4">Show this screen at the counter</p>
+        <button
+          onClick={() => {
+            localStorage.removeItem(JOIN_STORAGE_KEY);
+            onClear();
+            setResult(null);
+            setName("");
+          }}
+          className="text-xs font-medium text-neutral-500 hover:text-neutral-700 mt-4 w-full text-center"
+        >
+          Not you? Start over
+        </button>
       </div>
     );
   }
@@ -142,11 +217,15 @@ function JoinTab() {
   );
 }
 
-function LookupTab() {
+function LookupTab({ restored, onClear }: { restored: StoredLookup | null; onClear: () => void }) {
   const [phone, setPhone] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const [result, setResult] = useState<MembershipLookup | null>(null);
+  const [result, setResult] = useState<MembershipLookup | null>(restored?.result ?? null);
   const [isPending, startTransition] = useTransition();
+
+  useEffect(() => {
+    if (restored) setResult(restored.result);
+  }, [restored]);
 
   function handleSubmit() {
     setError(null);
@@ -158,7 +237,15 @@ function LookupTab() {
         return;
       }
       setResult(res);
+      writeSession(LOOKUP_STORAGE_KEY, { result: res });
     });
+  }
+
+  function handleReset() {
+    localStorage.removeItem(LOOKUP_STORAGE_KEY);
+    onClear();
+    setResult(null);
+    setPhone("");
   }
 
   if (result) {
@@ -182,10 +269,7 @@ function LookupTab() {
             <p className="text-[11px] text-neutral-500">Total Spend</p>
           </div>
         </div>
-        <button
-          onClick={() => setResult(null)}
-          className="text-xs font-medium text-neutral-500 hover:text-neutral-700 mt-4 w-full text-center"
-        >
+        <button onClick={handleReset} className="text-xs font-medium text-neutral-500 hover:text-neutral-700 mt-4 w-full text-center">
           Check another number
         </button>
       </div>
