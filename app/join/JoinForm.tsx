@@ -12,6 +12,7 @@ import {
 } from "@/lib/customer-registration-actions";
 import { BRANCHES, type Branch } from "@/lib/branch";
 import { formatCurrency, formatDate } from "@/lib/format";
+import { stampsOnCurrentCard, stampCardSize, hasFreeServiceReady } from "@/lib/membership";
 
 const TIER_GRADIENTS: Record<string, string> = {
   Bronze: "from-orange-400 via-amber-600 to-orange-800",
@@ -26,7 +27,7 @@ const SESSION_TTL_MS = 3 * 60 * 60 * 1000;
 const JOIN_STORAGE_KEY = "bmm_join_session";
 const LOOKUP_STORAGE_KEY = "bmm_lookup_session";
 
-type StoredJoin = { name: string; cardNumber: string; tier: string; savedAt: number };
+type StoredJoin = { name: string; cardNumber: string; tier: string; visitCount: number; savedAt: number };
 type StoredLookup = { result: MembershipLookup; savedAt: number };
 
 function readSession<T extends { savedAt: number }>(key: string): T | null {
@@ -66,6 +67,39 @@ function TierCard({ tier, cardNumber, name }: { tier: string; cardNumber: string
       <p className="text-[10px] uppercase tracking-widest opacity-70 mt-7">{tier} Member</p>
       <p className="text-xl font-bold tracking-widest mt-1">{cardNumber}</p>
       <p className="text-xs mt-4 opacity-90 truncate uppercase tracking-wide">{name}</p>
+    </div>
+  );
+}
+
+function StampProgress({ visitCount }: { visitCount: number }) {
+  const stamps = stampsOnCurrentCard(visitCount);
+  const size = stampCardSize();
+  const ready = hasFreeServiceReady(visitCount);
+  return (
+    <div className="bg-white border border-neutral-200 rounded-xl p-4 mt-4">
+      <div className="flex items-center justify-between mb-3">
+        <p className="text-[11px] font-semibold text-neutral-700 uppercase tracking-wide">Progress to Your Free Service</p>
+        <p className="text-xs font-bold text-fuchsia-600">
+          {stamps}/{size}
+        </p>
+      </div>
+      <div className="flex items-center gap-1.5 flex-wrap">
+        {Array.from({ length: size }).map((_, i) => (
+          <div
+            key={i}
+            className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 ${
+              i < stamps ? "bg-gradient-to-br from-indigo-500 to-fuchsia-500 text-white" : "bg-neutral-100 text-neutral-300 border border-neutral-200"
+            }`}
+          >
+            {i < stamps ? "✓" : ""}
+          </div>
+        ))}
+      </div>
+      <p className="text-[11px] text-neutral-400 mt-3">
+        {ready
+          ? "🎉 You've earned a FREE service — redeem it at the counter!"
+          : `Complete ${size} visits and get 1 FREE service.`}
+      </p>
     </div>
   );
 }
@@ -133,15 +167,15 @@ function JoinTab({ restored, onClear }: { restored: StoredJoin | null; onClear: 
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const [result, setResult] = useState<{ cardNumber: string; tier: string } | null>(
-    restored ? { cardNumber: restored.cardNumber, tier: restored.tier } : null
+  const [result, setResult] = useState<{ cardNumber: string; tier: string; visitCount: number } | null>(
+    restored ? { cardNumber: restored.cardNumber, tier: restored.tier, visitCount: restored.visitCount } : null
   );
   const [isPending, startTransition] = useTransition();
 
   useEffect(() => {
     if (restored) {
       setName(restored.name);
-      setResult({ cardNumber: restored.cardNumber, tier: restored.tier });
+      setResult({ cardNumber: restored.cardNumber, tier: restored.tier, visitCount: restored.visitCount });
     }
   }, [restored]);
 
@@ -171,7 +205,7 @@ function JoinTab({ restored, onClear }: { restored: StoredJoin | null; onClear: 
         return;
       }
       setResult(res);
-      writeSession(JOIN_STORAGE_KEY, { name: name.trim(), cardNumber: res.cardNumber, tier: res.tier });
+      writeSession(JOIN_STORAGE_KEY, { name: name.trim(), cardNumber: res.cardNumber, tier: res.tier, visitCount: res.visitCount });
     });
   }
 
@@ -182,6 +216,7 @@ function JoinTab({ restored, onClear }: { restored: StoredJoin | null; onClear: 
           Hi <span className="font-semibold text-neutral-900">{name.trim()}</span>! You&apos;re in.
         </p>
         <TierCard tier={result.tier} cardNumber={result.cardNumber} name={name} />
+        <StampProgress visitCount={result.visitCount} />
         <p className="text-xs text-neutral-400 text-center mt-4">Show this screen at the counter</p>
         <button
           onClick={() => {
@@ -356,6 +391,7 @@ function LookupTab({ restored, onClear }: { restored: StoredLookup | null; onCle
           Hi <span className="font-semibold text-neutral-900">{result.customerName.trim()}</span>!
         </p>
         <TierCard tier={result.tier} cardNumber={result.cardNumber} name={result.customerName} />
+        <StampProgress visitCount={result.visitCount} />
         <p className="text-xs text-neutral-400 text-center mt-3">
           Member since {formatDate(result.issuedDate)}
           {result.expiryDate ? ` · Expires ${formatDate(result.expiryDate)}` : ""}

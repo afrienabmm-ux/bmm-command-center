@@ -121,7 +121,7 @@ export async function registerCustomerCardAction(input: {
   customerName: string;
   customerPhone: string;
   customerEmail: string;
-}): Promise<{ error: string } | { cardNumber: string; tier: string }> {
+}): Promise<{ error: string } | { cardNumber: string; tier: string; visitCount: number }> {
   const customerName = input.customerName.trim();
   const customerPhone = input.customerPhone.trim();
   const customerEmail = normalizeEmail(input.customerEmail);
@@ -142,7 +142,7 @@ export async function registerCustomerCardAction(input: {
   if (fetchError) return { error: fetchError.message };
   if (existing && existing.length > 0) {
     const visits = await countVisits(existing[0].customer_name);
-    return { cardNumber: existing[0].card_number, tier: tierForVisits(visits) };
+    return { cardNumber: existing[0].card_number, tier: tierForVisits(visits), visitCount: visits };
   }
 
   const cardNumber = generateCardNumber(input.branch);
@@ -159,7 +159,7 @@ export async function registerCustomerCardAction(input: {
   });
   if (error) return { error: error.message };
   revalidatePath("/customers");
-  return { cardNumber, tier };
+  return { cardNumber, tier, visitCount: visits };
 }
 
 export type MembershipLookup = {
