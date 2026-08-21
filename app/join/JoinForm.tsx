@@ -413,11 +413,11 @@ function LookupTab({ restored, onClear }: { restored: StoredLookup | null; onCle
           <p className="text-[11px] text-neutral-400 text-center mt-2">Expires {formatDate(result.expiryDate)}</p>
         )}
         <div className="grid grid-cols-2 gap-3 mt-4">
-          <div className="bg-gradient-to-br from-indigo-50 to-fuchsia-50 border border-indigo-100 rounded-xl py-3">
+          <div className="bg-gradient-to-br from-indigo-50 to-fuchsia-50 border border-indigo-100 rounded-xl py-3 text-center">
             <p className="text-lg font-bold text-neutral-900">{result.visitCount}</p>
             <p className="text-[11px] text-neutral-500">Visits</p>
           </div>
-          <div className="bg-gradient-to-br from-indigo-50 to-fuchsia-50 border border-indigo-100 rounded-xl py-3">
+          <div className="bg-gradient-to-br from-indigo-50 to-fuchsia-50 border border-indigo-100 rounded-xl py-3 text-center">
             <p className="text-lg font-bold text-neutral-900">{formatCurrency(result.totalSpend)}</p>
             <p className="text-[11px] text-neutral-500">Total Spend</p>
           </div>
