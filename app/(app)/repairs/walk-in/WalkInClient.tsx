@@ -1,7 +1,8 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Plus, Download, Pencil, Search, Trash2, Check, Printer, ArrowUpDown } from "lucide-react";
 import { setWalkInEndDateAction, deleteRepairJobAction } from "@/lib/repairs-actions";
 import { isHeavyRepairJob, type RepairStatus, type RepairJob } from "@/lib/types";
@@ -23,11 +24,13 @@ export default function WalkInClient({
   completed,
   mechanics,
   branchSelection,
+  highlightId,
 }: {
   active: RepairJob[];
   completed: RepairJob[];
   mechanics: Mechanic[];
   branchSelection: BranchSelection;
+  highlightId?: string;
 }) {
   const [tab, setTab] = useState<"active" | "completed">("active");
   const [exporting, setExporting] = useState(false);
@@ -35,6 +38,17 @@ export default function WalkInClient({
   const [exportFilteredModalOpen, setExportFilteredModalOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [sortDir, setSortDir] = useState<"desc" | "asc">("desc");
+
+  // Deep-linked from a dashboard alert (e.g. "due for their next
+  // service") — jump to whichever tab the job is actually in and clear
+  // any search so it's guaranteed to be visible.
+  useEffect(() => {
+    if (!highlightId) return;
+    if (active.some((j) => j.id === highlightId)) setTab("active");
+    else if (completed.some((j) => j.id === highlightId)) setTab("completed");
+    setQuery("");
+  }, [highlightId, active, completed]);
+
   const jobs = tab === "active" ? active : completed;
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -215,6 +229,7 @@ export default function WalkInClient({
                 <th className="font-medium px-5 py-3 whitespace-nowrap">Start Date</th>
                 <th className="font-medium px-5 py-3 whitespace-nowrap">End Date</th>
                 <th className="font-medium px-5 py-3 whitespace-nowrap">Days</th>
+                <th className="font-medium px-5 py-3 whitespace-nowrap">Next Service</th>
                 <th className="font-medium px-5 py-3 whitespace-nowrap">Status</th>
                 <th className="px-5 py-3" />
               </tr>
@@ -227,11 +242,12 @@ export default function WalkInClient({
                   showBranch={showBranchColumn}
                   mechanicLabel={mechanicLabel(job.mechanicId)}
                   editable={tab === "active"}
+                  highlight={job.id === highlightId}
                 />
               ))}
               {visible.length === 0 && (
                 <tr>
-                  <td colSpan={showBranchColumn ? 12 : 11} className="px-5 py-10 text-center text-neutral-500 text-sm">
+                  <td colSpan={showBranchColumn ? 13 : 12} className="px-5 py-10 text-center text-neutral-500 text-sm">
                     {jobs.length === 0
                       ? `${tab === "active" ? "No active" : "No completed"} Jobsheet jobs.`
                       : "No jobs match your search."}
@@ -468,16 +484,38 @@ function WalkInRow({
   showBranch,
   mechanicLabel,
   editable,
+  highlight,
 }: {
   job: RepairJob;
   showBranch: boolean;
   mechanicLabel: string;
   editable: boolean;
+  highlight?: boolean;
 }) {
+  const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const days = daysBetween(job.startedDate, job.completedDate ?? new Date().toISOString().slice(0, 10));
+  const rowRef = useRef<HTMLTableRowElement>(null);
+
+  // Double-click anywhere on the row (except an actual link/button, which
+  // already has its own action) opens the jobsheet's full details.
+  function handleRowDoubleClick(e: React.MouseEvent<HTMLTableRowElement>) {
+    if ((e.target as HTMLElement).closest("a, button")) return;
+    router.push(`/repairs/walk-in/${job.id}/edit`);
+  }
+
+  // Deep-linked from a dashboard alert — scroll straight to this job and
+  // flash it so it's obvious which row triggered the notice.
+  const [flashed, setFlashed] = useState(false);
+  useEffect(() => {
+    if (!highlight) return;
+    rowRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    setFlashed(true);
+    const timeout = setTimeout(() => setFlashed(false), 2500);
+    return () => clearTimeout(timeout);
+  }, [highlight]);
 
   function handleDelete() {
     setDeleting(true);
@@ -489,7 +527,14 @@ function WalkInRow({
   }
 
   return (
-    <tr className="border-b border-neutral-100 last:border-0 hover:bg-neutral-50">
+    <tr
+      ref={rowRef}
+      onDoubleClick={handleRowDoubleClick}
+      title="Double-click to view job details"
+      className={`border-b border-neutral-100 last:border-0 hover:bg-neutral-50 transition-colors cursor-pointer ${
+        flashed ? "bg-sky-50" : ""
+      }`}
+    >
       <td className="px-5 py-3.5 text-neutral-800 font-medium whitespace-nowrap">{job.jobNo}</td>
       {showBranch && <td className="px-5 py-3.5 text-neutral-600 whitespace-nowrap">{branchLabel(job.branch)}</td>}
       <td className="px-5 py-3.5 text-neutral-700 whitespace-nowrap">{job.customerName || "—"}</td>
@@ -511,6 +556,9 @@ function WalkInRow({
         <EndDateCell job={job} editable={editable} />
       </td>
       <td className="px-5 py-3.5 text-neutral-500 whitespace-nowrap">{days ?? 0}d</td>
+      <td className="px-5 py-3.5 text-neutral-600 whitespace-nowrap">
+        {job.nextServiceDate ? formatDate(job.nextServiceDate) : "—"}
+      </td>
       <td className="px-5 py-3.5">
         <StatusCell status={job.status} />
       </td>

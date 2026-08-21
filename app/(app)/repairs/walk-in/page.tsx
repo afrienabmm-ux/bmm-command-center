@@ -7,8 +7,9 @@ import WalkInClient from "./WalkInClient";
 
 export const dynamic = "force-dynamic";
 
-export default async function WalkInPage() {
+export default async function WalkInPage({ searchParams }: { searchParams: Promise<{ highlight?: string }> }) {
   await requirePage("walk-in");
+  const { highlight } = await searchParams;
   const { user, branch } = await requirePageContext();
   const branchSelection = await getActiveBranchSelection(user);
   const showAllBranches = branchSelection === "all";
@@ -28,7 +29,13 @@ export default async function WalkInPage() {
         subtitle={`${showAllBranches ? "All Branches" : branchLabel(branch)} — ${active.length} active job${active.length === 1 ? "" : "s"}`}
       />
       <div className="p-8">
-        <WalkInClient active={active} completed={completed} mechanics={mechanics} branchSelection={branchSelection} />
+        <WalkInClient
+          active={active}
+          completed={completed}
+          mechanics={mechanics}
+          branchSelection={branchSelection}
+          highlightId={highlight}
+        />
       </div>
     </div>
   );

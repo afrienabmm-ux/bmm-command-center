@@ -325,7 +325,11 @@ export default async function AllBranchesOverview({
 
       {serviceReminders.length > 0 && (
         <Link
-          href="/repairs/walk-in"
+          href={
+            serviceReminders.length === 1
+              ? `/repairs/walk-in?highlight=${serviceReminders[0].id}`
+              : "/repairs/walk-in"
+          }
           className="block bg-sky-50 border border-sky-200 rounded-xl p-5 hover:border-sky-300 transition-colors"
         >
           <div className="flex items-start gap-3">
