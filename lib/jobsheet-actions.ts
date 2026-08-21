@@ -99,6 +99,12 @@ const FIELD_LABELS: { key: string; words: string[]; excludeIfPrecededBy?: string
   // "Dealer / Manufacture".
   { key: "page", words: ["page"] },
   { key: "dealerManufacture", words: ["dealer", "manufacture"] },
+  // Standalone fallback for the boundary above — a real scan misread
+  // "Dealer" as "Dasier" (edit distance too far from "dealer" to match),
+  // which let it through as a boundary and "Manufacture" alone still read
+  // fine. "Manufacture" alone is unusual enough elsewhere on the page that
+  // it's safe as its own trigger.
+  { key: "manufacture", words: ["manufacture"] },
   { key: "complaints", words: ["complaints"] },
 ];
 
@@ -184,9 +190,12 @@ function extractFields(text: string): Record<string, string> {
     const lineEnd = text.indexOf("\n", end);
     const nextLabelStart = matches[i + 1]?.start ?? Infinity;
     const to = Math.min(lineEnd === -1 ? text.length : lineEnd, nextLabelStart, text.length);
+    // The ")" here matters for labels like "Mileage (KM)" — the label
+    // match ends right after "KM", so the value slice starts with the
+    // printed ")" from the label itself unless it's stripped too.
     const value = text
       .slice(end, to)
-      .replace(/^[\s:.=\-]+/, "")
+      .replace(/^[\s:.=\-)\]]+/, "")
       .trim();
     if (value) values[key] = value;
   }
