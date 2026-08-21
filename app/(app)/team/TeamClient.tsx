@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useTransition } from "react";
-import { UserCheck, ShieldOff, RefreshCcw, Trash2, KeyRound, UserPlus } from "lucide-react";
+import { useMemo, useState, useTransition } from "react";
+import { UserCheck, ShieldOff, RefreshCcw, Trash2, KeyRound, UserPlus, Search, ArrowUpDown } from "lucide-react";
 import {
   approveUserAction,
   createUserAction,
@@ -22,6 +22,18 @@ export default function TeamClient({ members, currentUserId }: { members: TeamMe
   const pending = members.filter((m) => m.status === "pending");
   const others = members.filter((m) => m.status !== "pending");
   const [addUserOpen, setAddUserOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const [sortDir, setSortDir] = useState<"desc" | "asc">("desc");
+
+  const visibleOthers = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    const filtered = q
+      ? others.filter((m) => (m.name ?? "").toLowerCase().includes(q) || m.email.toLowerCase().includes(q))
+      : others;
+    return [...filtered].sort((a, b) =>
+      sortDir === "desc" ? b.createdAt.localeCompare(a.createdAt) : a.createdAt.localeCompare(b.createdAt)
+    );
+  }, [others, query, sortDir]);
 
   return (
     <div className="space-y-8 max-w-6xl">
@@ -48,7 +60,28 @@ export default function TeamClient({ members, currentUserId }: { members: TeamMe
       )}
 
       <div>
-        <p className="text-sm font-medium text-neutral-800 mb-3">Team members ({others.length})</p>
+        <div className="flex items-center justify-between flex-wrap gap-3 mb-3">
+          <p className="text-sm font-medium text-neutral-800">Team members ({visibleOthers.length})</p>
+          <div className="flex items-center gap-2">
+            <div className="relative">
+              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
+              <input
+                type="text"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Search name or email…"
+                className="bg-white border border-neutral-200 rounded-lg pl-8 pr-3 py-2 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50 w-56"
+              />
+            </div>
+            <button
+              onClick={() => setSortDir((d) => (d === "desc" ? "asc" : "desc"))}
+              className="flex items-center gap-1.5 bg-white border border-neutral-200 hover:border-indigo-300 text-neutral-700 text-sm font-medium px-3 py-2 rounded-lg transition-colors whitespace-nowrap"
+              title="Sort by date joined"
+            >
+              <ArrowUpDown size={14} /> {sortDir === "desc" ? "Newest" : "Oldest"}
+            </button>
+          </div>
+        </div>
         <div className="bg-white border border-neutral-200 rounded-xl overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
@@ -63,13 +96,13 @@ export default function TeamClient({ members, currentUserId }: { members: TeamMe
                 </tr>
               </thead>
               <tbody>
-                {others.map((m) => (
+                {visibleOthers.map((m) => (
                   <MemberRow key={m.id} member={m} isSelf={m.id === currentUserId} />
                 ))}
-                {others.length === 0 && (
+                {visibleOthers.length === 0 && (
                   <tr>
                     <td colSpan={6} className="px-5 py-8 text-center text-neutral-500 text-sm">
-                      No approved team members yet.
+                      {others.length === 0 ? "No approved team members yet." : "No members match your search."}
                     </td>
                   </tr>
                 )}

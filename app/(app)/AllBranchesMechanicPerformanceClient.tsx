@@ -1,7 +1,7 @@
 "use client";
 
 import { Fragment, useEffect, useMemo, useState } from "react";
-import { Crown, Wrench, Smartphone, Download, ChevronDown, ChevronUp, ArrowUp, ArrowDown, Minus } from "lucide-react";
+import { Crown, Wrench, Smartphone, Download, ChevronDown, ChevronUp, ArrowUp, ArrowDown, Minus, Search } from "lucide-react";
 import { formatCurrency, toCsv } from "@/lib/format";
 import { BRANCHES, branchLabel, type BranchSelection } from "@/lib/branch";
 import type { MechanicPerformanceRowWithBranch } from "@/lib/reports-actions";
@@ -138,9 +138,14 @@ export default function AllBranchesMechanicPerformanceClient({
   const [branchFilter, setBranchFilter] = useState<BranchSelection>(branchSelection ?? "all");
   const [view, setView] = useState<View>("revenue");
   const [showAll, setShowAll] = useState(false);
+  const [query, setQuery] = useState("");
 
   const filtered = useMemo(() => {
-    const base = branchFilter === "all" ? rows : rows.filter((r) => r.branch === branchFilter);
+    const branchScoped = branchFilter === "all" ? rows : rows.filter((r) => r.branch === branchFilter);
+    const q = query.trim().toLowerCase();
+    const base = q
+      ? branchScoped.filter((r) => r.fullName.toLowerCase().includes(q) || r.shortCode.toLowerCase().includes(q))
+      : branchScoped;
     const sorted = [...base];
     if (view === "packages") {
       sorted.sort((a, b) => b.packageSetsSold - a.packageSetsSold);
@@ -148,7 +153,7 @@ export default function AllBranchesMechanicPerformanceClient({
       sorted.sort((a, b) => b.totalRevenue - a.totalRevenue);
     }
     return sorted;
-  }, [rows, branchFilter, view]);
+  }, [rows, branchFilter, view, query]);
 
   // Viewing "All Branches" groups the list under a highlighted per-branch
   // total row instead of one flat ranking — otherwise there's no way to
@@ -167,7 +172,7 @@ export default function AllBranchesMechanicPerformanceClient({
 
   useEffect(() => {
     setShowAll(false);
-  }, [branchFilter, view]);
+  }, [branchFilter, view, query]);
 
   // Grouped view always shows everyone (organized into per-branch
   // sections already keeps it readable); the flat single-branch view
@@ -240,6 +245,16 @@ export default function AllBranchesMechanicPerformanceClient({
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <div className="relative">
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
+            <input
+              type="text"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search mechanic…"
+              className="bg-neutral-50 border border-neutral-200 rounded-lg pl-8 pr-3 py-2 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50 w-40"
+            />
+          </div>
           <div className="flex gap-1 bg-neutral-50 border border-neutral-200 rounded-lg p-1">
             <button
               onClick={() => setView("packages")}

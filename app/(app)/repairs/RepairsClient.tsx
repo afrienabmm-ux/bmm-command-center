@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import Link from "next/link";
-import { Download, Pencil, AlertTriangle, Search, Check, Trash2, Printer, Eye, X } from "lucide-react";
+import { Download, Pencil, AlertTriangle, Search, Check, Trash2, Printer, Eye, X, ArrowUpDown } from "lucide-react";
 import {
   updateRepairApprovalAction,
   setRestoreBikeWorkflowDateAction,
@@ -77,7 +77,24 @@ export default function RepairsClient({
   }, [highlightId, active, qc, completed]);
   const [exportJobModalOpen, setExportJobModalOpen] = useState(false);
   const [exportRestoreModalOpen, setExportRestoreModalOpen] = useState(false);
-  const jobs = tab === "active" ? active : tab === "qc" ? qc : completed;
+  const [query, setQuery] = useState("");
+  const [sortDir, setSortDir] = useState<"desc" | "asc">("desc");
+  const tabJobs = tab === "active" ? active : tab === "qc" ? qc : completed;
+  const jobs = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    const filtered = q
+      ? tabJobs.filter(
+          (j) =>
+            j.plateNo.toLowerCase().includes(q) ||
+            (j.picName ?? "").toLowerCase().includes(q) ||
+            j.jobNo.toLowerCase().includes(q)
+        )
+      : tabJobs;
+    const dateOf = (j: RepairJob) => j.completedDate || j.startedDate || j.formDate || j.createdAt || "";
+    return [...filtered].sort((a, b) =>
+      sortDir === "desc" ? dateOf(b).localeCompare(dateOf(a)) : dateOf(a).localeCompare(dateOf(b))
+    );
+  }, [tabJobs, query, sortDir]);
   const overdueCount = active.filter(isOverdue).length;
   const overdueQcCount = qc.filter(isQcOverdue).length;
   const allJobs = useMemo(() => [...active, ...qc, ...completed], [active, qc, completed]);
@@ -217,6 +234,23 @@ export default function RepairsClient({
           </button>
         </div>
         <div className="flex items-center gap-3">
+          <div className="relative">
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
+            <input
+              type="text"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search job no., plate, or PIC…"
+              className="bg-white border border-neutral-200 rounded-lg pl-8 pr-3 py-2 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50 w-56"
+            />
+          </div>
+          <button
+            onClick={() => setSortDir((d) => (d === "desc" ? "asc" : "desc"))}
+            className="flex items-center gap-1.5 bg-white border border-neutral-200 hover:border-indigo-300 text-neutral-700 text-sm font-medium px-3 py-2 rounded-lg transition-colors whitespace-nowrap"
+            title="Sort by date"
+          >
+            <ArrowUpDown size={14} /> {sortDir === "desc" ? "Newest" : "Oldest"}
+          </button>
           <button
             onClick={() => setExportJobModalOpen(true)}
             className="flex items-center gap-1.5 bg-neutral-100 hover:bg-neutral-200 text-neutral-800 text-sm font-medium px-4 py-2 rounded-lg transition-colors whitespace-nowrap"
@@ -278,7 +312,9 @@ export default function RepairsClient({
                     colSpan={17 + (tab === "qc" ? 1 : 0)}
                     className="px-5 py-10 text-center text-neutral-500 text-sm"
                   >
-                    {tab === "active" ? "No active" : tab === "qc" ? "No jobs waiting on QC" : "No completed"} Restore Bike jobs.
+                    {tabJobs.length === 0
+                      ? `${tab === "active" ? "No active" : tab === "qc" ? "No jobs waiting on QC" : "No completed"} Restore Bike jobs.`
+                      : "No jobs match your search."}
                   </td>
                 </tr>
               )}
