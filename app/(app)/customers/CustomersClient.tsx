@@ -128,8 +128,8 @@ export default function CustomersClient({
               <th className="px-4 py-3">Customer</th>
               <th className="px-4 py-3">Phone</th>
               <th className="px-4 py-3">Plates</th>
-              <th className="px-4 py-3">Visits</th>
-              <th className="px-4 py-3">Total Spend</th>
+              <th className="px-4 py-3 text-center">Visits</th>
+              <th className="px-4 py-3 text-center">Total Spend</th>
               <th className="px-4 py-3">Packages Bought</th>
               <th className="px-4 py-3">Membership Card</th>
               <th className="px-4 py-3">Last Visit</th>
@@ -152,8 +152,8 @@ export default function CustomersClient({
                 </td>
                 <td className="px-4 py-3 text-neutral-600">{c.card?.customerPhone || "—"}</td>
                 <td className="px-4 py-3 text-neutral-600">{c.plates.join(", ") || "—"}</td>
-                <td className="px-4 py-3 text-neutral-600">{c.jobCount}</td>
-                <td className="px-4 py-3 text-neutral-800 font-medium">{formatCurrency(c.totalSpend)}</td>
+                <td className="px-4 py-3 text-neutral-600 text-center">{c.jobCount}</td>
+                <td className="px-4 py-3 text-neutral-800 font-medium text-center">{formatCurrency(c.totalSpend)}</td>
                 <td className="px-4 py-3 text-neutral-600">
                   {c.packagesBought.length > 0
                     ? c.packagesBought.map((p) => `${p.name} ×${p.count}`).join(", ")
