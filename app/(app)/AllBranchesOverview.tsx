@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { AlertTriangle, Clock, ShieldCheck, CheckCircle2, ClipboardList, Wrench, Wallet, Layers, PackageCheck, ArrowUp, ArrowDown } from "lucide-react";
+import { AlertTriangle, Clock, ShieldCheck, CheckCircle2, ClipboardList, Wrench, Wallet, Layers, PackageCheck, ArrowUp, ArrowDown, CalendarClock } from "lucide-react";
 import { formatCurrency, formatDate, monthLabel } from "@/lib/format";
 import { branchLabel, type Branch, type BranchSelection } from "@/lib/branch";
 import StatCard from "@/components/StatCard";
@@ -14,6 +14,7 @@ import {
   getActiveRepairJobs,
   getAllBranchesPendingApprovalJobs,
   getAllBranchesApprovedReadyToStartJobs,
+  getUpcomingServiceReminders,
 } from "@/lib/repairs-actions";
 import { getBranchMonthSummary } from "@/lib/reports-actions";
 import { getMonthlyTrends } from "@/lib/trends-actions";
@@ -63,6 +64,7 @@ export default async function AllBranchesOverview({
     overdueJobs,
     overdueQcJobs,
     qcReminderJobs,
+    serviceReminders,
     pendingApprovalJobs,
     approvedReadyToStartJobs,
     prevAchieved,
@@ -80,6 +82,7 @@ export default async function AllBranchesOverview({
     getAllBranchesOverdueRestoreBikeJobs(onlyBranch),
     getAllBranchesOverdueQcJobs(onlyBranch),
     getAllBranchesQcReminderJobs(onlyBranch),
+    getUpcomingServiceReminders(onlyBranch),
     isManagement ? getAllBranchesPendingApprovalJobs(onlyBranch) : Promise.resolve([]),
     getAllBranchesApprovedReadyToStartJobs(onlyBranch),
     onlyBranch
@@ -310,6 +313,35 @@ export default async function AllBranchesOverview({
                   .map((j) => `${j.plateNo} — ${j.model || "no model"} (due ${formatDate(j.dueDate)})`)
                   .join(", ")}
                 {qcReminderJobs.length > 6 ? `, +${qcReminderJobs.length - 6} more` : ""}
+              </p>
+            </div>
+          </div>
+        </Link>
+      )}
+
+      {serviceReminders.length > 0 && (
+        <Link
+          href="/repairs/walk-in"
+          className="block bg-sky-50 border border-sky-200 rounded-xl p-5 hover:border-sky-300 transition-colors"
+        >
+          <div className="flex items-start gap-3">
+            <div className="w-9 h-9 rounded-lg bg-sky-500/10 flex items-center justify-center shrink-0">
+              <CalendarClock size={17} className="text-sky-600" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-sky-700">
+                {serviceReminders.length} customer{serviceReminders.length === 1 ? "" : "s"} due for their next
+                service — remind them
+              </p>
+              <p className="text-xs text-sky-600 mt-1">
+                {serviceReminders
+                  .slice(0, 6)
+                  .map(
+                    (j) =>
+                      `${j.customerName || j.plateNo} (${j.daysUntil >= 0 ? `due in ${j.daysUntil}d` : `${-j.daysUntil}d overdue`})`
+                  )
+                  .join(", ")}
+                {serviceReminders.length > 6 ? `, +${serviceReminders.length - 6} more` : ""}
               </p>
             </div>
           </div>

@@ -345,6 +345,54 @@ export async function getAllBranchesQcReminderJobs(onlyBranch?: Branch): Promise
     .sort((a, b) => a.dueDate.localeCompare(b.dueDate));
 }
 
+export type ServiceReminder = {
+  id: string;
+  branch: Branch;
+  customerName: string;
+  plateNo: string;
+  model: string;
+  nextServiceDate: string;
+  daysUntil: number;
+};
+
+// Walk-in customers whose next service date (from the jobsheet) is within
+// 7 days — including ones already past due, so the branch still sees them
+// until a new jobsheet is filled in with a fresh date. Not tied to job
+// status, since Walk-in jobs go straight to Completed on creation.
+export async function getUpcomingServiceReminders(onlyBranch?: Branch): Promise<ServiceReminder[]> {
+  await requireApproved();
+  const branches = onlyBranch ? [onlyBranch] : BRANCHES.map((b) => b.value);
+  const { data, error } = await supabaseAdmin
+    .from("cc_repair_jobs")
+    .select("id, branch, customer_name, plate_no, model, next_service_date")
+    .eq("job_type", "Walk-in")
+    .in("branch", branches)
+    .neq("next_service_date", "");
+  if (error) throw new Error(error.message);
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const cutoff = new Date(today);
+  cutoff.setDate(cutoff.getDate() + 7);
+
+  return (data ?? [])
+    .map((r) => {
+      const due = new Date(r.next_service_date as string);
+      const daysUntil = Math.round((due.getTime() - today.getTime()) / 86400000);
+      return {
+        id: r.id as string,
+        branch: r.branch as Branch,
+        customerName: r.customer_name as string,
+        plateNo: r.plate_no as string,
+        model: r.model as string,
+        nextServiceDate: r.next_service_date as string,
+        daysUntil,
+      };
+    })
+    .filter((j) => !Number.isNaN(j.daysUntil) && new Date(j.nextServiceDate) <= cutoff)
+    .sort((a, b) => a.daysUntil - b.daysUntil);
+}
+
 type ItemInput = { code?: string; description: string; quantity: number; price: number };
 
 function itemsTotal(items: ItemInput[]): number {
