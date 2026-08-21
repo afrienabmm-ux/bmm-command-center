@@ -1,10 +1,10 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import nodemailer from "nodemailer";
 import { supabaseAdmin } from "./supabase-server";
 import type { Branch } from "./branch";
 import { tierForVisits } from "./membership";
+import { sendEmail } from "./email";
 
 // Visits (and therefore tier) are counted from Walk-in job history matched
 // by name, the same way the staff Memberships page and GenBlu points work.
@@ -39,27 +39,11 @@ function normalizeEmail(email: string): string {
   return email.trim().toLowerCase();
 }
 
-// Sends through the business's Gmail account (SMTP + an app password) —
-// free, and doesn't need a verified domain the way Resend's sandbox mode
-// does. Reused by both registration and "check my card".
-let cachedTransporter: ReturnType<typeof nodemailer.createTransport> | null = null;
-function getTransporter() {
-  if (cachedTransporter) return cachedTransporter;
-  const user = process.env.GMAIL_USER;
-  const pass = process.env.GMAIL_APP_PASSWORD;
-  if (!user || !pass) return null;
-  cachedTransporter = nodemailer.createTransport({ service: "gmail", auth: { user, pass } });
-  return cachedTransporter;
-}
-
 // Shared by both registration and the "check my card" lookup — sends a
 // 6-digit code to the given email and stores it for verifyOtpCode to
 // check. Free to run (unlike SMS OTP, which costs money per message) —
 // that's why both flows verify email instead of phone.
 async function sendOtpCode(email: string): Promise<{ error: string } | { sent: true }> {
-  const transporter = getTransporter();
-  if (!transporter) return { error: "Email verification isn't set up yet — please contact BMM staff." };
-
   const code = generateOtpCode();
   const expiresAt = new Date(Date.now() + OTP_TTL_MINUTES * 60 * 1000).toISOString();
 
@@ -70,16 +54,12 @@ async function sendOtpCode(email: string): Promise<{ error: string } | { sent: t
   });
   if (error) return { error: error.message };
 
-  try {
-    await transporter.sendMail({
-      from: `BMM Membership <${process.env.GMAIL_USER}>`,
-      to: email,
-      subject: "Your BMM Membership verification code",
-      html: `<p>Your verification code is <strong style="font-size:20px;letter-spacing:2px;">${code}</strong></p><p>It expires in ${OTP_TTL_MINUTES} minutes.</p>`,
-    });
-  } catch {
-    return { error: "Couldn't send the verification email. Please check the address and try again." };
-  }
+  const result = await sendEmail({
+    to: email,
+    subject: "Your BMM Membership verification code",
+    html: `<p>Your verification code is <strong style="font-size:20px;letter-spacing:2px;">${code}</strong></p><p>It expires in ${OTP_TTL_MINUTES} minutes.</p>`,
+  });
+  if ("error" in result) return { error: "Couldn't send the verification email. Please check the address and try again." };
   return { sent: true };
 }
 

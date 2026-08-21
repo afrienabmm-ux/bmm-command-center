@@ -2,11 +2,12 @@
 
 import { revalidatePath } from "next/cache";
 import { supabaseAdmin } from "./supabase-server";
-import { requireApproved, assertCanEditBranch } from "./current-user";
-import { BRANCHES, type Branch } from "./branch";
+import { requireApproved, requireManagement, assertCanEditBranch } from "./current-user";
+import { BRANCHES, type Branch, type BranchSelection } from "./branch";
 import type { CustomerCard, CustomerSummary } from "./types";
 import { getPackageSales, type PackageSaleWithNames } from "./packages-actions";
 import { tierForVisits } from "./membership";
+import { sendEmail } from "./email";
 
 function normalizeName(name: string): string {
   return name.trim().toLowerCase();
@@ -228,4 +229,48 @@ export async function deleteCustomerCardAction(id: string, branch: Branch): Prom
   const { error } = await supabaseAdmin.from("cc_customer_cards").delete().eq("id", id);
   if (error) throw new Error(error.message);
   revalidatePath("/customers");
+}
+
+// Management-only — emails every member in view (deduped by address) with
+// the given subject/message. Only members who registered through /join
+// (and so have a verified email on file) can be reached this way; free to
+// run since it goes through the same Gmail account as OTP codes.
+export async function sendPromotionAction(input: {
+  branchSelection: BranchSelection;
+  subject: string;
+  message: string;
+}): Promise<{ error: string } | { sentCount: number; failedCount: number }> {
+  await requireManagement();
+
+  const subject = input.subject.trim();
+  const message = input.message.trim();
+  if (!subject) return { error: "Enter a subject." };
+  if (!message) return { error: "Enter a message." };
+
+  const customers =
+    input.branchSelection === "all" ? await getAllBranchesCustomers() : await getCustomers(input.branchSelection);
+
+  const emails = Array.from(
+    new Set(
+      customers
+        .map((c) => c.card?.customerEmail?.trim().toLowerCase())
+        .filter((e): e is string => !!e)
+    )
+  );
+  if (emails.length === 0) return { error: "No members with an email on file in this view." };
+
+  const html = message
+    .split("\n")
+    .map((line) => `<p>${line}</p>`)
+    .join("");
+
+  let sentCount = 0;
+  let failedCount = 0;
+  for (const email of emails) {
+    const result = await sendEmail({ to: email, subject, html });
+    if ("error" in result) failedCount += 1;
+    else sentCount += 1;
+  }
+
+  return { sentCount, failedCount };
 }

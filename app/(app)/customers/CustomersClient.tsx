@@ -1,8 +1,8 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
-import { Plus, Search, Pencil, Trash2, CreditCard, X, Link2, Check } from "lucide-react";
-import { addCustomerCardAction, updateCustomerCardAction, deleteCustomerCardAction } from "@/lib/customers-actions";
+import { Plus, Search, Pencil, Trash2, CreditCard, X, Link2, Check, Mail } from "lucide-react";
+import { addCustomerCardAction, updateCustomerCardAction, deleteCustomerCardAction, sendPromotionAction } from "@/lib/customers-actions";
 import { BRANCHES, branchLabel, type Branch, type BranchSelection } from "@/lib/branch";
 import { formatDate, formatCurrency } from "@/lib/format";
 import { tierForVisits } from "@/lib/membership";
@@ -25,7 +25,9 @@ export default function CustomersClient({
   const [isPending, startTransition] = useTransition();
   const [linkCopied, setLinkCopied] = useState(false);
   const [revealedKey, setRevealedKey] = useState<string | null>(null);
+  const [promoModalOpen, setPromoModalOpen] = useState(false);
   const showAllBranches = branchSelection === "all";
+  const emailableCount = customers.filter((c) => c.card?.customerEmail).length;
 
   function handleCopyLink() {
     const url = `${window.location.origin}/join`;
@@ -75,6 +77,14 @@ export default function CustomersClient({
             {linkCopied ? <Check size={15} className="text-emerald-600" /> : <Link2 size={15} />}
             {linkCopied ? "Link copied" : "Copy Sign-Up Link"}
           </button>
+          {!locked && (
+            <button
+              onClick={() => setPromoModalOpen(true)}
+              className="flex items-center gap-1.5 bg-neutral-100 hover:bg-neutral-200 text-neutral-800 text-sm font-medium px-4 py-2 rounded-lg transition-colors whitespace-nowrap"
+            >
+              <Mail size={15} /> Send Promotion
+            </button>
+          )}
           <button
             onClick={() => setCardModalFor("new")}
             className="flex items-center gap-1.5 bg-indigo-500 hover:bg-indigo-400 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors whitespace-nowrap"
@@ -183,6 +193,14 @@ export default function CustomersClient({
           branch={branch}
           locked={locked}
           onClose={() => setCardModalFor(null)}
+        />
+      )}
+
+      {promoModalOpen && (
+        <PromoModal
+          branchSelection={branchSelection}
+          recipientCount={emailableCount}
+          onClose={() => setPromoModalOpen(false)}
         />
       )}
 
@@ -385,6 +403,110 @@ function CardModal({
             {isPending ? "Saving…" : "Save"}
           </button>
         </div>
+      </div>
+    </div>
+  );
+}
+
+function PromoModal({
+  branchSelection,
+  recipientCount,
+  onClose,
+}: {
+  branchSelection: BranchSelection;
+  recipientCount: number;
+  onClose: () => void;
+}) {
+  const [subject, setSubject] = useState("");
+  const [message, setMessage] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [result, setResult] = useState<{ sentCount: number; failedCount: number } | null>(null);
+  const [isPending, startTransition] = useTransition();
+
+  function handleSend() {
+    setError(null);
+    startTransition(async () => {
+      const res = await sendPromotionAction({ branchSelection, subject, message });
+      if ("error" in res) {
+        setError(res.error);
+        return;
+      }
+      setResult(res);
+    });
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 px-4">
+      <div className="bg-white border border-neutral-200 rounded-xl w-full max-w-md p-6">
+        <div className="flex items-center justify-between mb-1">
+          <h2 className="text-sm font-semibold text-neutral-900">Send Promotion</h2>
+          <button onClick={onClose} className="text-neutral-400 hover:text-neutral-700" aria-label="Close">
+            <X size={16} />
+          </button>
+        </div>
+
+        {result ? (
+          <div className="py-4 text-center">
+            <p className="text-sm text-neutral-800 font-medium">
+              Sent to {result.sentCount} member{result.sentCount === 1 ? "" : "s"}
+              {result.failedCount > 0 ? `, ${result.failedCount} failed` : ""}.
+            </p>
+            <button
+              onClick={onClose}
+              className="mt-4 bg-indigo-500 hover:bg-indigo-400 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+            >
+              Done
+            </button>
+          </div>
+        ) : (
+          <>
+            <p className="text-xs text-neutral-500 mb-4">
+              Emails {recipientCount} member{recipientCount === 1 ? "" : "s"} with an email on file
+              {branchSelection === "all" ? " across all branches" : ""} — anyone who signed up through the
+              membership link.
+            </p>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs font-medium text-neutral-600 mb-1.5">Subject</label>
+                <input
+                  type="text"
+                  value={subject}
+                  onChange={(e) => setSubject(e.target.value)}
+                  placeholder="e.g. This weekend only: 20% off oil change"
+                  className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-neutral-600 mb-1.5">Message</label>
+                <textarea
+                  value={message}
+                  onChange={(e) => setMessage(e.target.value)}
+                  rows={5}
+                  placeholder="Write your promotion here…"
+                  className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+                />
+              </div>
+            </div>
+
+            {error && <p className="text-sm text-red-700 mt-3">{error}</p>}
+
+            <div className="flex items-center justify-end gap-3 mt-6">
+              <button
+                onClick={onClose}
+                className="text-sm font-medium text-neutral-600 hover:text-neutral-800 px-4 py-2 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSend}
+                disabled={isPending || !subject.trim() || !message.trim() || recipientCount === 0}
+                className="bg-indigo-500 hover:bg-indigo-400 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+              >
+                {isPending ? "Sending…" : `Send to ${recipientCount}`}
+              </button>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
