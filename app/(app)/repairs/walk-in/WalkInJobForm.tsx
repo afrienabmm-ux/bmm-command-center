@@ -498,22 +498,29 @@ export default function WalkInJobForm({
 
   function handleSave() {
     if (customerName.trim() === "") {
+      showError("Please enter the customer's name.");
       scrollToField(customerNameRef.current);
       return;
     }
     if (plateNo.trim() === "") {
+      showError("Please enter the plate number.");
       scrollToField(plateNoRef.current);
       return;
     }
     if (mechanicId === "") {
+      showError("Please assign a mechanic.");
       scrollToField(mechanicRef.current);
       return;
     }
     if (!signatureConfirmed) {
+      showError("Please confirm the customer has signed the jobsheet before saving.");
       scrollToField(signatureRef.current);
       return;
     }
-    if (!effectiveBranch) return;
+    if (!effectiveBranch) {
+      showError("Please pick a branch, or assign a mechanic to set it automatically.");
+      return;
+    }
     if (hasGenblu && !genbluAlreadyRegistered && !genbluScreenshot) {
       showError("Upload the customer's GenBlu screenshot before saving, or switch \"Customer has GenBlu?\" to No.");
       return;
