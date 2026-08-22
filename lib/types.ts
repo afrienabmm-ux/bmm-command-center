@@ -249,8 +249,6 @@ export type CustomerCard = {
   branch: Branch;
   customerName: string;
   customerPhone: string;
-  // Optional — collected at registration if the customer gives one.
-  customerEmail: string;
   cardNumber: string;
   // The bike the customer registered with — matches the plate/model fields
   // on the physical card.

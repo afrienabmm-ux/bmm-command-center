@@ -1,8 +1,8 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
-import { Plus, Search, Pencil, Trash2, CreditCard, X, Link2, Check, Mail, ArrowUpDown } from "lucide-react";
-import { addCustomerCardAction, updateCustomerCardAction, deleteCustomerCardAction, sendPromotionAction } from "@/lib/customers-actions";
+import { Plus, Search, Pencil, Trash2, CreditCard, X, Link2, Check, ArrowUpDown } from "lucide-react";
+import { addCustomerCardAction, updateCustomerCardAction, deleteCustomerCardAction } from "@/lib/customers-actions";
 import { BRANCHES, branchLabel, type Branch, type BranchSelection } from "@/lib/branch";
 import { formatDate, formatCurrency } from "@/lib/format";
 import { stampsOnCurrentCard, nextReward } from "@/lib/membership";
@@ -25,11 +25,9 @@ export default function CustomersClient({
   const [isPending, startTransition] = useTransition();
   const [linkCopied, setLinkCopied] = useState(false);
   const [revealedKey, setRevealedKey] = useState<string | null>(null);
-  const [promoModalOpen, setPromoModalOpen] = useState(false);
   const [sortBy, setSortBy] = useState<"spend" | "visit">("spend");
   const [sortDir, setSortDir] = useState<"desc" | "asc">("desc");
   const showAllBranches = branchSelection === "all";
-  const emailableCount = customers.filter((c) => c.card?.customerEmail).length;
 
   function handleCopyLink() {
     const url = `${window.location.origin}/join`;
@@ -101,14 +99,6 @@ export default function CustomersClient({
             {linkCopied ? <Check size={15} className="text-emerald-600" /> : <Link2 size={15} />}
             {linkCopied ? "Link copied" : "Copy Sign-Up Link"}
           </button>
-          {!locked && (
-            <button
-              onClick={() => setPromoModalOpen(true)}
-              className="flex items-center gap-1.5 bg-neutral-100 hover:bg-neutral-200 text-neutral-800 text-sm font-medium px-4 py-2 rounded-lg transition-colors whitespace-nowrap"
-            >
-              <Mail size={15} /> Send Promotion
-            </button>
-          )}
           <button
             onClick={() => setCardModalFor("new")}
             className="flex items-center gap-1.5 bg-red-500 hover:bg-red-400 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors whitespace-nowrap"
@@ -225,14 +215,6 @@ export default function CustomersClient({
         />
       )}
 
-      {promoModalOpen && (
-        <PromoModal
-          branchSelection={branchSelection}
-          recipientCount={emailableCount}
-          onClose={() => setPromoModalOpen(false)}
-        />
-      )}
-
       {deleting && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 px-4">
           <div className="bg-white border border-neutral-200 rounded-xl w-full max-w-sm p-6">
@@ -278,7 +260,6 @@ function CardModal({
   const [cardBranch, setCardBranch] = useState<Branch>(customer?.branch ?? branch);
   const [customerName, setCustomerName] = useState(customer?.name ?? "");
   const [customerPhone, setCustomerPhone] = useState(existing?.customerPhone ?? "");
-  const [customerEmail, setCustomerEmail] = useState(existing?.customerEmail ?? "");
   const [cardNumber, setCardNumber] = useState(existing?.cardNumber ?? "");
   const [plateNo, setPlateNo] = useState(existing?.plateNo ?? "");
   const [model, setModel] = useState(existing?.model ?? "");
@@ -295,7 +276,6 @@ function CardModal({
       branch: cardBranch,
       customerName,
       customerPhone,
-      customerEmail: customerEmail.trim(),
       cardNumber,
       plateNo,
       model,
@@ -393,16 +373,6 @@ function CardModal({
             </div>
           </div>
           <div>
-            <label className="block text-xs font-medium text-neutral-600 mb-1.5">Email (optional)</label>
-            <input
-              type="email"
-              value={customerEmail}
-              onChange={(e) => setCustomerEmail(e.target.value)}
-              placeholder="customer@email.com"
-              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
-            />
-          </div>
-          <div>
             <label className="block text-xs font-medium text-neutral-600 mb-1.5">Card No.</label>
             <input
               type="text"
@@ -464,146 +434,6 @@ function CardModal({
             {isPending ? "Saving…" : "Save"}
           </button>
         </div>
-      </div>
-    </div>
-  );
-}
-
-function PromoModal({
-  branchSelection,
-  recipientCount,
-  onClose,
-}: {
-  branchSelection: BranchSelection;
-  recipientCount: number;
-  onClose: () => void;
-}) {
-  const [subject, setSubject] = useState("");
-  const [message, setMessage] = useState("");
-  const [poster, setPoster] = useState<File | null>(null);
-  const [posterPreview, setPosterPreview] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [result, setResult] = useState<{ sentCount: number; failedCount: number } | null>(null);
-  const [isPending, startTransition] = useTransition();
-
-  function handlePosterChange(file: File | null) {
-    setPoster(file);
-    setPosterPreview(file ? URL.createObjectURL(file) : null);
-  }
-
-  function handleSend() {
-    setError(null);
-    startTransition(async () => {
-      const formData = new FormData();
-      formData.set("branchSelection", branchSelection);
-      formData.set("subject", subject);
-      formData.set("message", message);
-      if (poster) formData.set("poster", poster);
-      const res = await sendPromotionAction(formData);
-      if ("error" in res) {
-        setError(res.error);
-        return;
-      }
-      setResult(res);
-    });
-  }
-
-  return (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 px-4">
-      <div className="bg-white border border-neutral-200 rounded-xl w-full max-w-md p-6">
-        <div className="flex items-center justify-between mb-1">
-          <h2 className="text-sm font-semibold text-neutral-900">Send Promotion</h2>
-          <button onClick={onClose} className="text-neutral-400 hover:text-neutral-700" aria-label="Close">
-            <X size={16} />
-          </button>
-        </div>
-
-        {result ? (
-          <div className="py-4 text-center">
-            <p className="text-sm text-neutral-800 font-medium">
-              Sent to {result.sentCount} member{result.sentCount === 1 ? "" : "s"}
-              {result.failedCount > 0 ? `, ${result.failedCount} failed` : ""}.
-            </p>
-            <button
-              onClick={onClose}
-              className="mt-4 bg-red-500 hover:bg-red-400 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
-            >
-              Done
-            </button>
-          </div>
-        ) : (
-          <>
-            <p className="text-xs text-neutral-500 mb-4">
-              Emails {recipientCount} member{recipientCount === 1 ? "" : "s"} with an email on file
-              {branchSelection === "all" ? " across all branches" : ""} — anyone who signed up through the
-              services card link.
-            </p>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-xs font-medium text-neutral-600 mb-1.5">Subject</label>
-                <input
-                  type="text"
-                  value={subject}
-                  onChange={(e) => setSubject(e.target.value)}
-                  placeholder="e.g. This weekend only: 20% off oil change"
-                  className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-neutral-600 mb-1.5">Message</label>
-                <textarea
-                  value={message}
-                  onChange={(e) => setMessage(e.target.value)}
-                  rows={5}
-                  placeholder="Write your promotion here…"
-                  className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-neutral-600 mb-1.5">Poster (optional)</label>
-                {posterPreview && (
-                  <div className="relative mb-2 w-full">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={posterPreview} alt="Poster preview" className="w-full max-h-48 object-contain rounded-lg border border-neutral-200" />
-                    <button
-                      type="button"
-                      onClick={() => handlePosterChange(null)}
-                      className="absolute top-1.5 right-1.5 bg-black/60 hover:bg-black/80 text-white rounded-full p-1 transition-colors"
-                      aria-label="Remove poster"
-                    >
-                      <X size={12} />
-                    </button>
-                  </div>
-                )}
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => handlePosterChange(e.target.files?.[0] ?? null)}
-                  className="w-full text-sm text-neutral-700 file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:bg-neutral-100 file:text-neutral-800 file:text-xs"
-                />
-                <p className="text-[11px] text-neutral-400 mt-1">Shown below your message in the email.</p>
-              </div>
-            </div>
-
-            {error && <p className="text-sm text-red-700 mt-3">{error}</p>}
-
-            <div className="flex items-center justify-end gap-3 mt-6">
-              <button
-                onClick={onClose}
-                className="text-sm font-medium text-neutral-600 hover:text-neutral-800 px-4 py-2 transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleSend}
-                disabled={isPending || !subject.trim() || !message.trim() || recipientCount === 0}
-                className="bg-red-500 hover:bg-red-400 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
-              >
-                {isPending ? "Sending…" : `Send to ${recipientCount}`}
-              </button>
-            </div>
-          </>
-        )}
       </div>
     </div>
   );

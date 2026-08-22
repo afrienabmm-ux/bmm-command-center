@@ -37,28 +37,14 @@ function generateCardNumber(branch: Branch): string {
   return `MC-${BRANCH_PREFIX[branch]}-${rand}`;
 }
 
-function normalizeEmail(email: string): string {
-  return email.trim().toLowerCase();
-}
-
-// Shared by both registration and the "check my card" lookup — a phone or
-// email already used on another card can't be reused for a new one.
-async function findRegistrationDuplicate(phone: string, email: string): Promise<{ error: string } | null> {
-  if (phone) {
-    const { data, error } = await supabaseAdmin.from("cc_customer_cards").select("id").eq("customer_phone", phone).limit(1);
-    if (error) return { error: error.message };
-    if (data && data.length > 0) {
-      return { error: "This phone number is already registered. Use \"Check My Card\" above to view your services card instead." };
-    }
-  }
-  if (email) {
-    const { data, error } = await supabaseAdmin.from("cc_customer_cards").select("id").eq("customer_email", email).limit(1);
-    if (error) return { error: error.message };
-    if (data && data.length > 0) {
-      return {
-        error: "This email is already registered to another services card. Use \"Check My Card\" above with your registered phone number instead.",
-      };
-    }
+// Shared by registration — a phone already used on another card can't be
+// reused for a new one.
+async function findRegistrationDuplicate(phone: string): Promise<{ error: string } | null> {
+  if (!phone) return null;
+  const { data, error } = await supabaseAdmin.from("cc_customer_cards").select("id").eq("customer_phone", phone).limit(1);
+  if (error) return { error: error.message };
+  if (data && data.length > 0) {
+    return { error: "This phone number is already registered. Use \"Check My Card\" above to view your services card instead." };
   }
   return null;
 }
@@ -67,14 +53,12 @@ export async function registerCustomerCardAction(input: {
   branch: Branch;
   customerName: string;
   customerPhone: string;
-  customerEmail: string;
   plateNo: string;
   model: string;
   boughtBikeHere: boolean;
 }): Promise<{ error: string } | { cardNumber: string; visitCount: number }> {
   const customerName = input.customerName.trim();
   const customerPhone = input.customerPhone.trim();
-  const customerEmail = normalizeEmail(input.customerEmail);
   if (!customerName) return { error: "Please enter your name." };
   if (!customerPhone) return { error: "Please enter your phone number." };
   if (!input.plateNo.trim()) return { error: "Please enter your bike's plate number." };
@@ -82,7 +66,7 @@ export async function registerCustomerCardAction(input: {
     return { error: "This services card is only for customers who bought their bike from us." };
   }
 
-  const dupError = await findRegistrationDuplicate(customerPhone, customerEmail);
+  const dupError = await findRegistrationDuplicate(customerPhone);
   if (dupError) return dupError;
 
   const cardNumber = generateCardNumber(input.branch);
@@ -91,7 +75,6 @@ export async function registerCustomerCardAction(input: {
     branch: input.branch,
     customer_name: customerName,
     customer_phone: customerPhone,
-    customer_email: customerEmail,
     card_number: cardNumber,
     plate_no: input.plateNo.trim(),
     model: input.model.trim(),

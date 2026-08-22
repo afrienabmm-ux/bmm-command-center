@@ -2,11 +2,10 @@
 
 import { revalidatePath } from "next/cache";
 import { supabaseAdmin } from "./supabase-server";
-import { requireApproved, requireManagement, assertCanEditBranch } from "./current-user";
-import { BRANCHES, type Branch, type BranchSelection } from "./branch";
+import { requireApproved, assertCanEditBranch } from "./current-user";
+import { BRANCHES, type Branch } from "./branch";
 import type { CustomerCard, CustomerSummary } from "./types";
 import { getPackageSales, type PackageSaleWithNames } from "./packages-actions";
-import { sendEmail } from "./email";
 
 function normalizeName(name: string): string {
   return name.trim().toLowerCase();
@@ -21,7 +20,6 @@ type CardRow = {
   branch: Branch;
   customer_name: string;
   customer_phone: string;
-  customer_email: string;
   card_number: string;
   plate_no: string;
   model: string;
@@ -38,7 +36,6 @@ function toCard(r: CardRow): CustomerCard {
     branch: r.branch,
     customerName: r.customer_name,
     customerPhone: r.customer_phone,
-    customerEmail: r.customer_email,
     cardNumber: r.card_number,
     plateNo: r.plate_no,
     model: r.model,
@@ -191,7 +188,6 @@ export async function addCustomerCardAction(input: {
   branch: Branch;
   customerName: string;
   customerPhone: string;
-  customerEmail: string;
   cardNumber: string;
   plateNo: string;
   model: string;
@@ -211,16 +207,14 @@ export async function addCustomerCardAction(input: {
     return { error: "Only customers who bought their bike from us are eligible for a services card." };
   }
   const customerPhone = input.customerPhone.trim();
-  const customerEmail = input.customerEmail.trim().toLowerCase();
 
-  const dupError = await checkCustomerCardDuplicate(customerPhone, customerEmail);
+  const dupError = await checkCustomerCardDuplicate(customerPhone);
   if (dupError) return dupError;
 
   const { error } = await supabaseAdmin.from("cc_customer_cards").insert({
     branch: input.branch,
     customer_name: customerName,
     customer_phone: customerPhone,
-    customer_email: customerEmail,
     card_number: input.cardNumber.trim(),
     plate_no: input.plateNo.trim(),
     model: input.model.trim(),
@@ -233,29 +227,17 @@ export async function addCustomerCardAction(input: {
   revalidatePath("/customers");
 }
 
-// Same phone/email uniqueness check the public /join sign-up enforces —
-// staff adding or editing a card here shouldn't be able to create a
-// duplicate either. excludeId leaves the card being edited out of its own
-// duplicate check.
-async function checkCustomerCardDuplicate(
-  phone: string,
-  email: string,
-  excludeId?: string
-): Promise<{ error: string } | null> {
-  if (phone) {
-    let query = supabaseAdmin.from("cc_customer_cards").select("id").eq("customer_phone", phone).limit(1);
-    if (excludeId) query = query.neq("id", excludeId);
-    const { data, error } = await query;
-    if (error) return { error: error.message };
-    if (data && data.length > 0) return { error: "This phone number is already registered to another services card." };
-  }
-  if (email) {
-    let query = supabaseAdmin.from("cc_customer_cards").select("id").eq("customer_email", email).limit(1);
-    if (excludeId) query = query.neq("id", excludeId);
-    const { data, error } = await query;
-    if (error) return { error: error.message };
-    if (data && data.length > 0) return { error: "This email is already registered to another services card." };
-  }
+// Same phone uniqueness check the public /join sign-up enforces — staff
+// adding or editing a card here shouldn't be able to create a duplicate
+// either. excludeId leaves the card being edited out of its own duplicate
+// check.
+async function checkCustomerCardDuplicate(phone: string, excludeId?: string): Promise<{ error: string } | null> {
+  if (!phone) return null;
+  let query = supabaseAdmin.from("cc_customer_cards").select("id").eq("customer_phone", phone).limit(1);
+  if (excludeId) query = query.neq("id", excludeId);
+  const { data, error } = await query;
+  if (error) return { error: error.message };
+  if (data && data.length > 0) return { error: "This phone number is already registered to another services card." };
   return null;
 }
 
@@ -265,7 +247,6 @@ export async function updateCustomerCardAction(
   input: {
     customerName: string;
     customerPhone: string;
-    customerEmail: string;
     cardNumber: string;
     plateNo: string;
     model: string;
@@ -286,9 +267,8 @@ export async function updateCustomerCardAction(
     };
   }
   const customerPhone = input.customerPhone.trim();
-  const customerEmail = input.customerEmail.trim().toLowerCase();
 
-  const dupError = await checkCustomerCardDuplicate(customerPhone, customerEmail, id);
+  const dupError = await checkCustomerCardDuplicate(customerPhone, id);
   if (dupError) return dupError;
 
   const { error } = await supabaseAdmin
@@ -296,7 +276,6 @@ export async function updateCustomerCardAction(
     .update({
       customer_name: customerName,
       customer_phone: customerPhone,
-      customer_email: customerEmail,
       card_number: input.cardNumber.trim(),
       plate_no: input.plateNo.trim(),
       model: input.model.trim(),
@@ -316,56 +295,4 @@ export async function deleteCustomerCardAction(id: string, branch: Branch): Prom
   const { error } = await supabaseAdmin.from("cc_customer_cards").delete().eq("id", id);
   if (error) throw new Error(error.message);
   revalidatePath("/customers");
-}
-
-// Management-only — emails every member in view (deduped by address) with
-// the given subject/message and, optionally, a poster image. Only members
-// with an email on file can be reached this way.
-export async function sendPromotionAction(
-  formData: FormData
-): Promise<{ error: string } | { sentCount: number; failedCount: number }> {
-  await requireManagement();
-
-  const branchSelection = String(formData.get("branchSelection") || "all") as BranchSelection;
-  const subject = String(formData.get("subject") || "").trim();
-  const message = String(formData.get("message") || "").trim();
-  if (!subject) return { error: "Enter a subject." };
-  if (!message) return { error: "Enter a message." };
-
-  const customers =
-    branchSelection === "all" ? await getAllBranchesCustomers() : await getCustomers(branchSelection);
-
-  const emails = Array.from(
-    new Set(
-      customers
-        .map((c) => c.card?.customerEmail?.trim().toLowerCase())
-        .filter((e): e is string => !!e)
-    )
-  );
-  if (emails.length === 0) return { error: "No members with an email on file in this view." };
-
-  const poster = formData.get("poster");
-  let attachments: { filename: string; content: Buffer; cid: string }[] | undefined;
-  let posterHtml = "";
-  if (poster instanceof File && poster.size > 0) {
-    const buffer = Buffer.from(await poster.arrayBuffer());
-    attachments = [{ filename: poster.name || "poster.jpg", content: buffer, cid: "promo-poster" }];
-    posterHtml = `<p><img src="cid:promo-poster" alt="Promotion poster" style="max-width:100%;border-radius:8px;" /></p>`;
-  }
-
-  const html =
-    message
-      .split("\n")
-      .map((line) => `<p>${line}</p>`)
-      .join("") + posterHtml;
-
-  let sentCount = 0;
-  let failedCount = 0;
-  for (const email of emails) {
-    const result = await sendEmail({ to: email, subject, html, attachments });
-    if ("error" in result) failedCount += 1;
-    else sentCount += 1;
-  }
-
-  return { sentCount, failedCount };
 }

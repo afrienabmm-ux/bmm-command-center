@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
-import { Search, User, Phone, Mail, Building2, Sparkles, Wrench, Bike } from "lucide-react";
+import { Search, User, Phone, Building2, Sparkles, Wrench, Bike } from "lucide-react";
 import {
   registerCustomerCardAction,
   lookupCustomerCardAction,
@@ -180,7 +180,6 @@ function JoinTab({ restored, onClear }: { restored: StoredJoin | null; onClear: 
   const [branch, setBranch] = useState<Branch>("kapar");
   const [name, setName] = useState(restored?.name ?? "");
   const [phone, setPhone] = useState("");
-  const [email, setEmail] = useState("");
   const [plateNo, setPlateNo] = useState("");
   const [model, setModel] = useState("");
   const [boughtBikeHere, setBoughtBikeHere] = useState(false);
@@ -204,7 +203,6 @@ function JoinTab({ restored, onClear }: { restored: StoredJoin | null; onClear: 
         branch,
         customerName: name,
         customerPhone: phone,
-        customerEmail: email,
         plateNo,
         model,
         boughtBikeHere,
@@ -297,17 +295,6 @@ function JoinTab({ restored, onClear }: { restored: StoredJoin | null; onClear: 
           className="w-full bg-neutral-50 border border-neutral-200 rounded-xl px-3.5 py-3 text-sm text-neutral-800 focus:outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100 transition-colors"
         />
       </div>
-      <div className="relative">
-        <Mail size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-400" />
-        <input
-          type="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          placeholder="Email address (optional)"
-          className={inputClass}
-        />
-      </div>
-
       <label className="flex items-start gap-2.5 bg-red-50 border border-red-100 rounded-xl px-3.5 py-3">
         <input
           type="checkbox"
