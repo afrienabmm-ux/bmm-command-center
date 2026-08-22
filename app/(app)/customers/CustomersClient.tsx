@@ -280,7 +280,6 @@ function CardModal({
   const tier = tierForVisits(customer?.jobCount ?? 0);
   const [issuedDate, setIssuedDate] = useState(existing?.issuedDate ?? new Date().toISOString().slice(0, 10));
   const [expiryDate, setExpiryDate] = useState(existing?.expiryDate ?? "");
-  const [notes, setNotes] = useState(existing?.notes ?? "");
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
@@ -345,7 +344,7 @@ function CardModal({
       tier,
       issuedDate,
       expiryDate: expiryDate || null,
-      notes,
+      notes: existing?.notes ?? "",
     };
     startTransition(async () => {
       const result = existing
@@ -503,15 +502,6 @@ function CardModal({
                 className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
               />
             </div>
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-neutral-600 mb-1.5">Notes</label>
-            <textarea
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              rows={2}
-              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
-            />
           </div>
         </div>
 
