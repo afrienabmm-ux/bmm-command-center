@@ -394,7 +394,8 @@ function LookupTab({ restored, onClear }: { restored: StoredLookup | null; onCle
       <div className="relative">
         <Phone size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-400" />
         <input
-          type="tel"
+          type="text"
+          autoCapitalize="characters"
           value={phone}
           onChange={(e) => setPhone(e.target.value)}
           placeholder="Your phone number"
