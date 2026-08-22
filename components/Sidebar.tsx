@@ -13,8 +13,8 @@ import {
   TrendingUp,
   UserCog,
   LogOut,
-  PanelLeftClose,
-  PanelLeftOpen,
+  ChevronLeft,
+  ChevronRight,
   ClipboardList,
   KeyRound,
   Users,
@@ -98,9 +98,9 @@ export default function Sidebar({
         onClick={onToggle}
         title={collapsed ? "Expand menu" : "Collapse menu"}
         aria-label={collapsed ? "Expand menu" : "Collapse menu"}
-        className="absolute top-1/2 -right-2.5 -translate-y-1/2 z-10 w-4 h-4 flex items-center justify-center rounded-full bg-white border border-neutral-200 text-neutral-300 hover:text-red-600 hover:border-red-300 transition-colors"
+        className="absolute top-1/2 -right-3.5 -translate-y-1/2 z-10 w-7 h-7 flex items-center justify-center rounded-full bg-white border border-neutral-200 text-neutral-500 hover:text-red-600 hover:border-red-300 shadow-md transition-colors"
       >
-        {collapsed ? <PanelLeftOpen size={9} /> : <PanelLeftClose size={9} />}
+        {collapsed ? <ChevronRight size={15} /> : <ChevronLeft size={15} />}
       </button>
 
       <div
