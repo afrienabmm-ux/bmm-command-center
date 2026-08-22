@@ -43,11 +43,11 @@ export default function ServiceReminderBanner({ reminders }: { reminders: Servic
               const link = buildReminderLink(r);
               return (
                 <div key={r.id} className="flex items-center justify-between gap-2 text-xs text-sky-700">
-                  <span className="min-w-0 truncate">
+                  <Link href={`/repairs/walk-in?highlight=${r.id}`} className="min-w-0 truncate hover:underline">
                     {r.customerName || r.plateNo}
                     {" — "}
                     {r.daysUntil >= 0 ? `due in ${r.daysUntil}d` : `${-r.daysUntil}d overdue`}
-                  </span>
+                  </Link>
                   {link ? (
                     <a
                       href={link}
@@ -67,7 +67,10 @@ export default function ServiceReminderBanner({ reminders }: { reminders: Servic
               <p className="text-[11px] text-sky-500">+{reminders.length - 6} more</p>
             )}
           </div>
-          <Link href="/repairs/walk-in" className="inline-block text-xs font-medium text-sky-700 hover:text-sky-800 mt-2 underline">
+          <Link
+            href={reminders.length === 1 ? `/repairs/walk-in?highlight=${reminders[0].id}` : "/repairs/walk-in"}
+            className="inline-block text-xs font-medium text-sky-700 hover:text-sky-800 mt-2 underline"
+          >
             View all in Jobsheet
           </Link>
         </div>
