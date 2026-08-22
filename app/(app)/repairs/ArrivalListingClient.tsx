@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
-import { Plus, Pencil, Printer, Trash2, Search, ArrowUpDown } from "lucide-react";
+import { Plus, Pencil, Printer, Trash2, Search, ArrowUpDown, AlertTriangle } from "lucide-react";
 import { assignMechanicAction, deleteRepairJobAction, quickAddRestoreBikeArrivalAction } from "@/lib/repairs-actions";
 import { isHeavyRepairJob, type RepairJob } from "@/lib/types";
 import type { Mechanic } from "@/lib/types";
@@ -42,7 +42,8 @@ function AddBikeButton({ branch }: { branch: Branch }) {
 // mechanics don't get quietly skipped over.
 function AssignCell({ job, mechanics, allActiveJobs }: { job: RepairJob; mechanics: Mechanic[]; allActiveJobs: RepairJob[] }) {
   const [isPending, startTransition] = useTransition();
-  const { showError, showInfo, toastNode } = useToast();
+  const { showError, toastNode } = useToast();
+  const [idleHeadsUp, setIdleHeadsUp] = useState<string | null>(null);
   const branchMechanics = mechanics.filter((m) => m.branch === job.branch && (!isHeavyRepairJob(job) || m.category === "Heavy Repair"));
 
   function handleChange(mechanicId: string) {
@@ -56,8 +57,8 @@ function AssignCell({ job, mechanics, allActiveJobs }: { job: RepairJob; mechani
       const busyMechanicIds = new Set(allActiveJobs.filter((j) => j.mechanicId).map((j) => j.mechanicId as string));
       const freeMechanics = mechanics.filter((m) => m.branch === job.branch && m.id !== mechanicId && !busyMechanicIds.has(m.id));
       if (freeMechanics.length > 0) {
-        showInfo(
-          `Heads up — ${freeMechanics.map((m) => `${m.shortName} (${m.shortCode})`).join(", ")} still ${
+        setIdleHeadsUp(
+          `${freeMechanics.map((m) => `${m.shortName} (${m.shortCode})`).join(", ")} still ${
             freeMechanics.length === 1 ? "has" : "have"
           } no job today. Make sure they're getting work too so they can chase their daily revenue.`
         );
@@ -81,6 +82,26 @@ function AssignCell({ job, mechanics, allActiveJobs }: { job: RepairJob; mechani
           </option>
         ))}
       </select>
+      {idleHeadsUp && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 px-4">
+          <div className="bg-white border border-neutral-200 rounded-xl w-full max-w-sm p-6 text-left">
+            <div className="w-9 h-9 rounded-lg bg-amber-500/10 flex items-center justify-center mb-3">
+              <AlertTriangle size={17} className="text-amber-600" />
+            </div>
+            <h2 className="text-sm font-semibold text-neutral-900 mb-2">Heads up</h2>
+            <p className="text-sm text-neutral-600">{idleHeadsUp}</p>
+            <div className="flex items-center justify-end mt-5">
+              <button
+                type="button"
+                onClick={() => setIdleHeadsUp(null)}
+                className="bg-indigo-500 hover:bg-indigo-400 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+              >
+                Got it
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }
