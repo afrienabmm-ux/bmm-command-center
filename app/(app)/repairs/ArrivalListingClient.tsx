@@ -131,7 +131,7 @@ function ArrivalRow({
       <td className="px-5 py-3.5 text-neutral-600 whitespace-nowrap">{job.mileageKm || "—"}</td>
       <td className="px-5 py-3.5 text-neutral-600 whitespace-nowrap">{job.condition || "—"}</td>
       <td className="px-5 py-3.5 text-neutral-700 whitespace-nowrap">{formatCurrency(job.revenueAmount)}</td>
-      <td className="px-5 py-3.5">
+      <td className="px-5 py-3.5 text-center">
         <AssignCell job={job} mechanics={mechanics} allActiveJobs={allActiveJobs} />
       </td>
       <td className="px-5 py-3.5">
@@ -271,7 +271,7 @@ export default function ArrivalListingClient({
                 <th className="font-medium px-5 py-3 whitespace-nowrap">Mileage</th>
                 <th className="font-medium px-5 py-3 whitespace-nowrap">Condition</th>
                 <th className="font-medium px-5 py-3 whitespace-nowrap">Cost Restore</th>
-                <th className="font-medium px-5 py-3 whitespace-nowrap">Assign</th>
+                <th className="font-medium px-5 py-3 whitespace-nowrap text-center">Assign</th>
                 <th className="px-5 py-3" />
               </tr>
             </thead>

@@ -438,7 +438,7 @@ function ExportJobModal({
 // form closes.
 function StatusCell({ status, signatureStatus }: { status: RepairStatus; signatureStatus: string }) {
   return (
-    <div className="flex flex-col gap-1 items-start">
+    <div className="flex flex-col gap-1 items-center">
       <span className={`text-xs font-medium px-2.5 py-1 rounded-full border ${STATUS_STYLES[status]}`}>{status}</span>
       {signatureStatus === "not_detected" && (
         <span
@@ -579,14 +579,14 @@ function WalkInRow({
       </td>
       <td className="px-5 py-3.5 text-neutral-700 whitespace-nowrap">{formatCurrency(job.revenueAmount)}</td>
       <td className="px-5 py-3.5 text-neutral-500 whitespace-nowrap">{job.startedDate ? formatDate(job.startedDate) : "—"}</td>
-      <td className="px-5 py-3.5">
+      <td className="px-5 py-3.5 text-center">
         <EndDateCell job={job} editable={editable} />
       </td>
       <td className="px-5 py-3.5 text-neutral-500 whitespace-nowrap">{days ?? 0}d</td>
       <td className="px-5 py-3.5 text-neutral-600 whitespace-nowrap">
         {job.nextServiceDate ? formatDate(job.nextServiceDate) : "—"}
       </td>
-      <td className="px-5 py-3.5">
+      <td className="px-5 py-3.5 text-center">
         <StatusCell status={job.status} signatureStatus={job.signatureStatus} />
       </td>
       <td className="px-5 py-3.5">

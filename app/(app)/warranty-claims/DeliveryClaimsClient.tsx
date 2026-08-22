@@ -208,8 +208,8 @@ export default function DeliveryClaimsClient({
                 <th className="font-medium px-5 py-3 whitespace-nowrap">Chassis No.</th>
                 <th className="font-medium px-5 py-3 whitespace-nowrap">No Engine</th>
                 <th className="font-medium px-5 py-3 whitespace-nowrap">Problem</th>
-                <th className="font-medium px-5 py-3 whitespace-nowrap">Status</th>
-                <th className="font-medium px-5 py-3 whitespace-nowrap">Jual/Belum</th>
+                <th className="font-medium px-5 py-3 whitespace-nowrap text-center">Status</th>
+                <th className="font-medium px-5 py-3 whitespace-nowrap text-center">Jual/Belum</th>
                 <th className="font-medium px-5 py-3 whitespace-nowrap">No Plate</th>
                 <th className="font-medium px-5 py-3 whitespace-nowrap">Date Parts</th>
                 <th className="font-medium px-5 py-3 whitespace-nowrap">Delivery</th>
@@ -265,10 +265,10 @@ function ClaimRow({ claim, showBranch, knownPics }: { claim: DeliveryClaim; show
       <td className="px-5 py-3.5 text-neutral-600 whitespace-nowrap">{claim.chassisNo || "—"}</td>
       <td className="px-5 py-3.5 text-neutral-600 whitespace-nowrap">{claim.engineNo || "—"}</td>
       <td className="px-5 py-3.5 text-neutral-600 max-w-xs truncate">{claim.problem}</td>
-      <td className="px-5 py-3.5">
+      <td className="px-5 py-3.5 text-center">
         <StatusCell claim={claim} />
       </td>
-      <td className="px-5 py-3.5">
+      <td className="px-5 py-3.5 text-center">
         <StockCell claim={claim} />
       </td>
       <td className="px-5 py-3.5 text-neutral-600 whitespace-nowrap">{claim.plateNo || "—"}</td>

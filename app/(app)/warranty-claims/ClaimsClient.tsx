@@ -258,11 +258,11 @@ export default function ClaimsClient({
                 <th className="font-medium px-5 py-3 whitespace-nowrap">Customer</th>
                 <th className="font-medium px-5 py-3 whitespace-nowrap">Plate No.</th>
                 <th className="font-medium px-5 py-3 whitespace-nowrap">Model</th>
-                <th className="font-medium px-5 py-3 whitespace-nowrap">Make</th>
+                <th className="font-medium px-5 py-3 whitespace-nowrap text-center">Make</th>
                 <th className="font-medium px-5 py-3 whitespace-nowrap">Phone</th>
                 <th className="font-medium px-5 py-3 whitespace-nowrap">Issue</th>
-                <th className="font-medium px-5 py-3 whitespace-nowrap">Stock</th>
-                <th className="font-medium px-5 py-3 whitespace-nowrap">Status</th>
+                <th className="font-medium px-5 py-3 whitespace-nowrap text-center">Stock</th>
+                <th className="font-medium px-5 py-3 whitespace-nowrap text-center">Status</th>
                 <th className="font-medium px-5 py-3 whitespace-nowrap">Latest Status</th>
                 <th className="font-medium px-5 py-3 whitespace-nowrap"></th>
               </tr>
@@ -314,7 +314,7 @@ function ClaimRow({ claim, showBranch, knownPics }: { claim: WarrantyClaim; show
       <td className="px-5 py-3.5 text-neutral-700 whitespace-nowrap">{claim.customerName}</td>
       <td className="px-5 py-3.5 text-neutral-600 whitespace-nowrap">{claim.plateNo}</td>
       <td className="px-5 py-3.5 text-neutral-600 whitespace-nowrap">{claim.model || "—"}</td>
-      <td className="px-5 py-3.5 whitespace-nowrap">
+      <td className="px-5 py-3.5 whitespace-nowrap text-center">
         <span
           className={`text-xs font-medium px-2.5 py-1 rounded-full border ${
             claim.bikeMake === "Yamaha"
@@ -327,10 +327,10 @@ function ClaimRow({ claim, showBranch, knownPics }: { claim: WarrantyClaim; show
       </td>
       <td className="px-5 py-3.5 text-neutral-600 whitespace-nowrap">{claim.phone || "—"}</td>
       <td className="px-5 py-3.5 text-neutral-600 max-w-xs truncate">{claim.description}</td>
-      <td className="px-5 py-3.5">
+      <td className="px-5 py-3.5 text-center">
         <StockCell claim={claim} />
       </td>
-      <td className="px-5 py-3.5">
+      <td className="px-5 py-3.5 text-center">
         <StatusCell claim={claim} />
       </td>
       <td className="px-5 py-3.5">

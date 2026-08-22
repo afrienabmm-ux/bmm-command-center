@@ -278,21 +278,21 @@ export default function RepairsClient({
               <tr className="text-left text-xs text-neutral-500 border-b border-neutral-200">
                 <th className="font-medium px-5 py-3 whitespace-nowrap">Date</th>
                 <th className="font-medium px-5 py-3 whitespace-nowrap">No.</th>
-                <th className="font-medium px-5 py-3 whitespace-nowrap">Thumbprint</th>
+                <th className="font-medium px-5 py-3 whitespace-nowrap text-center">Thumbprint</th>
                 <th className="font-medium px-5 py-3 whitespace-nowrap">Plate</th>
                 <th className="font-medium px-5 py-3 whitespace-nowrap">Model</th>
                 <th className="font-medium px-5 py-3 whitespace-nowrap">Tahun</th>
                 <th className="font-medium px-5 py-3 whitespace-nowrap">Mileage</th>
                 <th className="font-medium px-5 py-3 whitespace-nowrap">Condition</th>
                 <th className="font-medium px-5 py-3 whitespace-nowrap">Cost Restore</th>
-                <th className="font-medium px-5 py-3 whitespace-nowrap">Approval</th>
-                <th className="font-medium px-5 py-3 whitespace-nowrap">Part Order</th>
-                <th className="font-medium px-5 py-3 whitespace-nowrap">Part Arrive</th>
-                <th className="font-medium px-5 py-3 whitespace-nowrap">Start Date</th>
-                <th className="font-medium px-5 py-3 whitespace-nowrap">End Date</th>
+                <th className="font-medium px-5 py-3 whitespace-nowrap text-center">Approval</th>
+                <th className="font-medium px-5 py-3 whitespace-nowrap text-center">Part Order</th>
+                <th className="font-medium px-5 py-3 whitespace-nowrap text-center">Part Arrive</th>
+                <th className="font-medium px-5 py-3 whitespace-nowrap text-center">Start Date</th>
+                <th className="font-medium px-5 py-3 whitespace-nowrap text-center">End Date</th>
                 <th className="font-medium px-5 py-3 whitespace-nowrap text-center">Trade In / Tarik / Jual</th>
-                <th className="font-medium px-5 py-3 whitespace-nowrap">Status</th>
-                {tab === "qc" && <th className="font-medium px-5 py-3 whitespace-nowrap">QC Result</th>}
+                <th className="font-medium px-5 py-3 whitespace-nowrap text-center">Status</th>
+                {tab === "qc" && <th className="font-medium px-5 py-3 whitespace-nowrap text-center">QC Result</th>}
                 <th className="px-5 py-3" />
               </tr>
             </thead>
@@ -500,7 +500,7 @@ function ExportJobModal({
 // stamps (see setRestoreBikeWorkflowDateAction), so this is read-only.
 function StatusCell({ job }: { job: RepairJob }) {
   return (
-    <div className="flex flex-col gap-1 items-start">
+    <div className="flex flex-col gap-1 items-center">
       <span className={`text-xs font-medium px-2.5 py-1 rounded-full border ${STATUS_STYLES[job.status]}`}>{job.status}</span>
       {job.qcResult && (
         <span
@@ -921,7 +921,7 @@ function RestoreBikeRow({
         flashed ? "bg-emerald-50" : ""
       }`}
     >
-      <td className="px-5 py-3.5">
+      <td className="px-5 py-3.5 text-center">
         <ArrivedCell job={job} />
       </td>
       <td className="px-5 py-3.5 text-neutral-500 whitespace-nowrap">{no}</td>
@@ -941,30 +941,30 @@ function RestoreBikeRow({
       <td className="px-5 py-3.5 text-neutral-600 whitespace-nowrap">{job.mileageKm || "—"}</td>
       <td className="px-5 py-3.5 text-neutral-600 whitespace-nowrap">{job.condition || "—"}</td>
       <td className="px-5 py-3.5 text-neutral-700 whitespace-nowrap">{formatCurrency(job.revenueAmount)}</td>
-      <td className="px-5 py-3.5">
+      <td className="px-5 py-3.5 text-center">
         <ApprovalCell job={job} canApprove={isManagement} />
       </td>
-      <td className="px-5 py-3.5">
+      <td className="px-5 py-3.5 text-center">
         <StockDateCell job={job} branch={job.branch} stage="stockOrder" editable={editable} />
       </td>
-      <td className="px-5 py-3.5">
+      <td className="px-5 py-3.5 text-center">
         <StockDateCell job={job} branch={job.branch} stage="stockArrive" editable={editable} />
       </td>
-      <td className="px-5 py-3.5">
+      <td className="px-5 py-3.5 text-center">
         <span className="inline-flex items-center gap-1.5">
           <RepairDateCell job={job} stage="started" editable={editable} />
           <OverdueBadge job={job} />
         </span>
       </td>
-      <td className="px-5 py-3.5">
+      <td className="px-5 py-3.5 text-center">
         <RepairDateCell job={job} stage="completed" editable={editable} />
       </td>
       <td className="px-5 py-3.5 text-neutral-600 whitespace-nowrap text-center">{job.dealType || "—"}</td>
-      <td className="px-5 py-3.5">
+      <td className="px-5 py-3.5 text-center">
         <StatusCell job={job} />
       </td>
       {showQc && (
-        <td className="px-5 py-3.5">
+        <td className="px-5 py-3.5 text-center">
           <QcResultCell job={job} />
         </td>
       )}

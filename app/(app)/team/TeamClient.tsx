@@ -89,8 +89,8 @@ export default function TeamClient({ members, currentUserId }: { members: TeamMe
                 <tr className="text-left text-xs text-neutral-500 border-b border-neutral-200">
                   <th className="font-medium px-5 py-3 whitespace-nowrap">Name / Email</th>
                   <th className="font-medium px-5 py-3 whitespace-nowrap">Access Level</th>
-                  <th className="font-medium px-5 py-3 whitespace-nowrap">Branch</th>
-                  <th className="font-medium px-5 py-3 whitespace-nowrap">Status</th>
+                  <th className="font-medium px-5 py-3 whitespace-nowrap text-center">Branch</th>
+                  <th className="font-medium px-5 py-3 whitespace-nowrap text-center">Status</th>
                   <th className="font-medium px-5 py-3 whitespace-nowrap">Joined</th>
                   <th className="px-5 py-3" />
                 </tr>
@@ -225,7 +225,7 @@ function MemberRow({ member, isSelf }: { member: TeamMember; isSelf: boolean }) 
             />
           </div>
         </td>
-        <td className="px-5 py-3.5">
+        <td className="px-5 py-3.5 text-center">
           <select
             value={member.homeBranch}
             disabled={isPending || member.status === "revoked"}
@@ -240,7 +240,7 @@ function MemberRow({ member, isSelf }: { member: TeamMember; isSelf: boolean }) 
             <option value="all">All Branches</option>
           </select>
         </td>
-        <td className="px-5 py-3.5">
+        <td className="px-5 py-3.5 text-center">
           <span
             className={`text-xs font-medium px-2.5 py-1 rounded-full border ${
               member.status === "approved"
