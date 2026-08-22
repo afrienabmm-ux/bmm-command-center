@@ -762,7 +762,7 @@ export default function WalkInJobForm({
                   <pre className="mt-2 bg-white border border-neutral-200 rounded-lg p-3 text-xs text-neutral-700 whitespace-pre-wrap max-h-64 overflow-y-auto">{scanRawText}</pre>
                 </details>
               )}
-              {scanRawText && (
+              {!isEdit && (
                 <div
                   ref={signatureRef}
                   tabIndex={-1}
@@ -780,7 +780,7 @@ export default function WalkInJobForm({
                       <AlertTriangle size={14} /> No customer sign detected — please ask the customer to sign the jobsheet before saving.
                     </p>
                   )}
-                  {signatureDetected === null && (
+                  {signatureDetected === null && scanRawText && (
                     <p className="text-xs text-neutral-500">
                       Couldn&apos;t check the photo for a signature — please confirm it by hand.
                     </p>
