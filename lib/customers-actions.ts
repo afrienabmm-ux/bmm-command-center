@@ -190,6 +190,7 @@ export async function addCustomerCardAction(input: {
   branch: Branch;
   customerName: string;
   customerPhone: string;
+  customerEmail: string;
   cardNumber: string;
   tier: string;
   issuedDate: string;
@@ -204,6 +205,7 @@ export async function addCustomerCardAction(input: {
     branch: input.branch,
     customer_name: customerName,
     customer_phone: input.customerPhone.trim(),
+    customer_email: input.customerEmail.trim().toLowerCase(),
     card_number: input.cardNumber.trim(),
     tier: input.tier.trim(),
     issued_date: input.issuedDate,
@@ -220,6 +222,7 @@ export async function updateCustomerCardAction(
   input: {
     customerName: string;
     customerPhone: string;
+    customerEmail: string;
     cardNumber: string;
     tier: string;
     issuedDate: string;
@@ -236,6 +239,7 @@ export async function updateCustomerCardAction(
     .update({
       customer_name: customerName,
       customer_phone: input.customerPhone.trim(),
+      customer_email: input.customerEmail.trim().toLowerCase(),
       card_number: input.cardNumber.trim(),
       tier: input.tier.trim(),
       issued_date: input.issuedDate,
