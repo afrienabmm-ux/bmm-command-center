@@ -5,6 +5,7 @@
 // route has no such limit.
 import { requireApproved } from "./current-user";
 import { scanJobsheetImage, extractTextFromPdf } from "./vision";
+import { extractItemsWithAi } from "./ai-item-extract";
 import type { Branch } from "./branch";
 
 export type ScannedJobsheetItem = { code: string; description: string; quantity: number; price: number };
@@ -340,13 +341,28 @@ export async function scanJobsheet(
       if (!text.trim()) {
         return { error: "Couldn't read any text from that file — try a clearer, well-lit photo." };
       }
-      return { data: parseJobsheetText(text) };
+      const parsed = parseJobsheetText(text);
+      if (parsed.items.length === 0) {
+        const aiItems = await extractItemsWithAi(text);
+        if (aiItems && aiItems.length > 0) parsed.items = aiItems;
+      }
+      return { data: parsed };
     }
     const { text, signatureDetected, signatureDebug } = await scanJobsheetImage(base64File);
     if (!text.trim()) {
       return { error: "Couldn't read any text from that file — try a clearer, well-lit photo." };
     }
-    return { data: { ...parseJobsheetText(text), signatureDetected, signatureDebug } };
+    const parsed = parseJobsheetText(text);
+    // The regex-based parser above skips rows it can't safely match rather
+    // than guess — if that leaves zero items despite the raw text almost
+    // certainly containing an items table, this is a best-effort second
+    // pass that lets an LLM use context to recover what the regex couldn't.
+    // No-ops (parsed.items stays empty) if ANTHROPIC_API_KEY isn't set.
+    if (parsed.items.length === 0) {
+      const aiItems = await extractItemsWithAi(text);
+      if (aiItems && aiItems.length > 0) parsed.items = aiItems;
+    }
+    return { data: { ...parsed, signatureDetected, signatureDebug } };
   } catch (err) {
     const message = err instanceof Error ? err.message : "";
     if (/deadline/i.test(message)) {
