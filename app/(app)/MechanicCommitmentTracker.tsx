@@ -85,7 +85,7 @@ export default function MechanicCommitmentTracker({
       <div className="px-5 py-4 border-b border-neutral-200 flex items-center justify-between flex-wrap gap-3">
         <div>
           <p className="text-sm font-semibold text-neutral-900 flex items-center gap-1.5">
-            <Target size={15} className="text-indigo-500" /> Mechanic Performance — this week
+            <Target size={15} className="text-red-500" /> Mechanic Performance — this week
           </p>
           <p className="text-xs text-neutral-500 mt-0.5">
             Weekly target: {formatCurrency(revenueTarget)} in revenue per mechanic · {formatDate(weekStart)} –{" "}

@@ -27,7 +27,7 @@ export default function RestoreBikeTabs({
         <button
           onClick={() => setTab("arrival")}
           className={`flex-1 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-            tab === "arrival" ? "bg-white text-indigo-700 shadow-sm" : "text-neutral-600"
+            tab === "arrival" ? "bg-white text-red-700 shadow-sm" : "text-neutral-600"
           }`}
         >
           Stock Listing ({arrivalCount})
@@ -35,7 +35,7 @@ export default function RestoreBikeTabs({
         <button
           onClick={() => setTab("bikes")}
           className={`flex-1 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-            tab === "bikes" ? "bg-white text-indigo-700 shadow-sm" : "text-neutral-600"
+            tab === "bikes" ? "bg-white text-red-700 shadow-sm" : "text-neutral-600"
           }`}
         >
           Assign Listing ({bikesCount})

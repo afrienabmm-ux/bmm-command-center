@@ -24,7 +24,7 @@ export default function ClaimsTabs({
         <button
           onClick={() => setTab("warranty")}
           className={`flex-1 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-            tab === "warranty" ? "bg-white text-indigo-700 shadow-sm" : "text-neutral-600"
+            tab === "warranty" ? "bg-white text-red-700 shadow-sm" : "text-neutral-600"
           }`}
         >
           Warranty Claim ({warrantyCount})
@@ -32,7 +32,7 @@ export default function ClaimsTabs({
         <button
           onClick={() => setTab("delivery")}
           className={`flex-1 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-            tab === "delivery" ? "bg-white text-indigo-700 shadow-sm" : "text-neutral-600"
+            tab === "delivery" ? "bg-white text-red-700 shadow-sm" : "text-neutral-600"
           }`}
         >
           Delivery Claim ({deliveryCount})

@@ -80,7 +80,7 @@ export default function CatalogClient({
               key={b}
               onClick={() => setTab(b)}
               className={`px-3.5 py-1.5 rounded-md text-xs font-medium transition-colors ${
-                tab === b ? "bg-indigo-500 text-white" : "text-neutral-600 hover:text-neutral-800"
+                tab === b ? "bg-red-500 text-white" : "text-neutral-600 hover:text-neutral-800"
               }`}
             >
               {b} ({data[b]?.length ?? 0})
@@ -89,7 +89,7 @@ export default function CatalogClient({
           <button
             onClick={() => setTab("Labour Charge")}
             className={`px-3.5 py-1.5 rounded-md text-xs font-medium transition-colors ${
-              tab === "Labour Charge" ? "bg-indigo-500 text-white" : "text-neutral-600 hover:text-neutral-800"
+              tab === "Labour Charge" ? "bg-red-500 text-white" : "text-neutral-600 hover:text-neutral-800"
             }`}
           >
             Labour Charge ({labourCharges.length})
@@ -98,7 +98,7 @@ export default function CatalogClient({
         {tab !== "Labour Charge" && (
           <button
             onClick={() => setModalOpen(true)}
-            className="flex items-center gap-1.5 bg-indigo-500 hover:bg-indigo-400 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+            className="flex items-center gap-1.5 bg-red-500 hover:bg-red-400 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
           >
             <Plus size={15} /> Add Product
           </button>
@@ -112,7 +112,7 @@ export default function CatalogClient({
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Search every brand by name, code, or spec…"
-          className="w-full bg-white border border-neutral-200 rounded-lg pl-9 pr-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+          className="w-full bg-white border border-neutral-200 rounded-lg pl-9 pr-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
         />
       </div>
 
@@ -132,7 +132,7 @@ export default function CatalogClient({
                       setTab(itemBrand);
                       setQuery("");
                     }}
-                    className="text-xs font-medium text-indigo-600 hover:text-indigo-700 transition-colors whitespace-nowrap"
+                    className="text-xs font-medium text-red-600 hover:text-red-700 transition-colors whitespace-nowrap"
                   >
                     View in {itemBrand} tab
                   </button>
@@ -242,7 +242,7 @@ function ProductRow({ product, quantity, branch }: { product: CatalogProduct; qu
           onBlur={commitPrice}
           onKeyDown={(e) => e.key === "Enter" && (e.currentTarget as HTMLInputElement).blur()}
           disabled={isPending}
-          className="w-20 rounded-lg border bg-neutral-50 border-neutral-200 text-neutral-800 px-2 py-1.5 text-sm focus:outline-none focus:border-indigo-500/50 disabled:opacity-50"
+          className="w-20 rounded-lg border bg-neutral-50 border-neutral-200 text-neutral-800 px-2 py-1.5 text-sm focus:outline-none focus:border-red-500/50 disabled:opacity-50"
         />
       </td>
       <td className="px-5 py-3">
@@ -255,7 +255,7 @@ function ProductRow({ product, quantity, branch }: { product: CatalogProduct; qu
             onBlur={commit}
             onKeyDown={(e) => e.key === "Enter" && (e.currentTarget as HTMLInputElement).blur()}
             disabled={isPending}
-            className={`w-16 rounded-lg border px-2 py-1.5 text-sm focus:outline-none focus:border-indigo-500/50 disabled:opacity-50 ${
+            className={`w-16 rounded-lg border px-2 py-1.5 text-sm focus:outline-none focus:border-red-500/50 disabled:opacity-50 ${
               low ? "bg-red-50 border-red-200 text-red-700 font-semibold" : "bg-neutral-50 border-neutral-200 text-neutral-800"
             }`}
           />
@@ -327,7 +327,7 @@ function AddProductModal({ brand, branch, onClose }: { brand: CatalogBrand; bran
               value={category}
               onChange={(e) => setCategory(e.target.value)}
               placeholder="e.g. Oil filters, Spark plugs, Brake pads"
-              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
             />
           </div>
           <div>
@@ -339,7 +339,7 @@ function AddProductModal({ brand, branch, onClose }: { brand: CatalogBrand; bran
               value={code}
               onChange={(e) => setCode(e.target.value)}
               placeholder="e.g. B5D-E4450-00"
-              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
             />
           </div>
           <div>
@@ -348,7 +348,7 @@ function AddProductModal({ brand, branch, onClose }: { brand: CatalogBrand; bran
               type="text"
               value={productName}
               onChange={(e) => setProductName(e.target.value)}
-              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
             />
           </div>
           <div>
@@ -360,7 +360,7 @@ function AddProductModal({ brand, branch, onClose }: { brand: CatalogBrand; bran
               value={spec}
               onChange={(e) => setSpec(e.target.value)}
               placeholder="e.g. 1L bottle"
-              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
             />
           </div>
           <div>
@@ -372,7 +372,7 @@ function AddProductModal({ brand, branch, onClose }: { brand: CatalogBrand; bran
               value={price}
               onChange={(e) => setPrice(e.target.value)}
               placeholder="0.00"
-              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
             />
           </div>
           <div>
@@ -382,7 +382,7 @@ function AddProductModal({ brand, branch, onClose }: { brand: CatalogBrand; bran
               min={0}
               value={quantity}
               onChange={(e) => setQuantity(e.target.value)}
-              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
             />
           </div>
         </div>
@@ -396,7 +396,7 @@ function AddProductModal({ brand, branch, onClose }: { brand: CatalogBrand; bran
           <button
             onClick={handleSave}
             disabled={!canSave || isPending}
-            className="bg-indigo-500 hover:bg-indigo-400 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+            className="bg-red-500 hover:bg-red-400 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
           >
             Add Product
           </button>
@@ -415,7 +415,7 @@ function LabourChargeSection({ charges }: { charges: LabourCharge[] }) {
         <p className="text-sm font-medium text-neutral-800">Reference — not tied to stock, PICs quote from this table</p>
         <button
           onClick={() => setAddOpen(true)}
-          className="flex items-center gap-1.5 bg-indigo-500 hover:bg-indigo-400 text-white text-xs font-medium px-3 py-1.5 rounded-lg transition-colors"
+          className="flex items-center gap-1.5 bg-red-500 hover:bg-red-400 text-white text-xs font-medium px-3 py-1.5 rounded-lg transition-colors"
         >
           <Plus size={13} /> Add Row
         </button>
@@ -463,7 +463,7 @@ function LabourChargeRow({ charge }: { charge: LabourCharge }) {
   }
 
   const inputClass =
-    "w-full bg-neutral-50 border border-neutral-200 rounded-lg px-2.5 py-1.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50 disabled:opacity-50";
+    "w-full bg-neutral-50 border border-neutral-200 rounded-lg px-2.5 py-1.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50 disabled:opacity-50";
 
   return (
     <tr className="border-b border-neutral-100 last:border-0 hover:bg-neutral-50">
@@ -534,7 +534,7 @@ function LabourChargeModal({ onClose }: { onClose: () => void }) {
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="e.g. Plug"
-              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
             />
           </div>
           <div>
@@ -544,7 +544,7 @@ function LabourChargeModal({ onClose }: { onClose: () => void }) {
               value={p1}
               onChange={(e) => setP1(e.target.value)}
               placeholder="e.g. RM 40 or N/A"
-              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
             />
           </div>
           <div>
@@ -554,7 +554,7 @@ function LabourChargeModal({ onClose }: { onClose: () => void }) {
               value={p2}
               onChange={(e) => setP2(e.target.value)}
               placeholder="e.g. RM 40 or N/A"
-              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
             />
           </div>
           <div>
@@ -564,7 +564,7 @@ function LabourChargeModal({ onClose }: { onClose: () => void }) {
               value={p3}
               onChange={(e) => setP3(e.target.value)}
               placeholder="e.g. RM 80 or N/A"
-              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
             />
           </div>
         </div>
@@ -578,7 +578,7 @@ function LabourChargeModal({ onClose }: { onClose: () => void }) {
           <button
             onClick={handleSave}
             disabled={!canSave || isPending}
-            className="bg-indigo-500 hover:bg-indigo-400 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+            className="bg-red-500 hover:bg-red-400 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
           >
             Add Row
           </button>

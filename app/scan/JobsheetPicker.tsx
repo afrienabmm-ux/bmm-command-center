@@ -17,7 +17,7 @@ export default function JobsheetPicker({ jobs, selectedId }: { jobs: JobsheetOpt
       <select
         value={selectedId ?? "new"}
         onChange={(e) => router.push(e.target.value === "new" ? "/scan" : `/scan?job=${e.target.value}`)}
-        className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+        className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
       >
         <option value="new">+ New Jobsheet</option>
         {jobs.map((j) => (

@@ -26,7 +26,7 @@ export default function CatalogItemPicker({
   return (
     <div className="relative mb-2">
       <div className="relative">
-        <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-indigo-400" />
+        <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-red-400" />
         <input
           type="text"
           value={query}
@@ -37,7 +37,7 @@ export default function CatalogItemPicker({
           onFocus={() => setOpen(true)}
           onBlur={() => setTimeout(() => setOpen(false), 150)}
           placeholder="Search catalog to add a part (optional)…"
-          className="w-full bg-indigo-50 border border-indigo-200 rounded-lg pl-8 pr-3 py-2 text-sm text-indigo-800 focus:outline-none focus:border-indigo-500/50 placeholder:text-indigo-400"
+          className="w-full bg-red-50 border border-red-200 rounded-lg pl-8 pr-3 py-2 text-sm text-red-800 focus:outline-none focus:border-red-500/50 placeholder:text-red-400"
         />
       </div>
       {open && q && (

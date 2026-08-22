@@ -18,7 +18,7 @@ const TIER_GRADIENTS: Record<string, string> = {
   Bronze: "from-orange-400 via-amber-600 to-orange-800",
   Silver: "from-slate-300 via-slate-400 to-slate-600",
   Gold: "from-yellow-300 via-yellow-500 to-amber-600",
-  Platinum: "from-indigo-300 via-violet-500 to-purple-700",
+  Platinum: "from-red-400 via-red-700 to-neutral-900",
 };
 
 // How long a "check my card" / "just registered" screen survives a page

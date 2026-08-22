@@ -75,20 +75,20 @@ export default function CustomersClient({
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search name, plate, or phone…"
-              className="bg-white border border-neutral-200 rounded-lg pl-8 pr-3 py-2 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50 w-64"
+              className="bg-white border border-neutral-200 rounded-lg pl-8 pr-3 py-2 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50 w-64"
             />
           </div>
           <select
             value={sortBy}
             onChange={(e) => setSortBy(e.target.value as "spend" | "visit")}
-            className="bg-white border border-neutral-200 rounded-lg px-3 py-2 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+            className="bg-white border border-neutral-200 rounded-lg px-3 py-2 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
           >
             <option value="spend">Sort: Total Spend</option>
             <option value="visit">Sort: Last Visit</option>
           </select>
           <button
             onClick={() => setSortDir((d) => (d === "desc" ? "asc" : "desc"))}
-            className="flex items-center gap-1.5 bg-white border border-neutral-200 hover:border-indigo-300 text-neutral-700 text-sm font-medium px-3 py-2 rounded-lg transition-colors whitespace-nowrap"
+            className="flex items-center gap-1.5 bg-white border border-neutral-200 hover:border-red-300 text-neutral-700 text-sm font-medium px-3 py-2 rounded-lg transition-colors whitespace-nowrap"
             title="Toggle sort direction"
           >
             <ArrowUpDown size={14} /> {sortDir === "desc" ? "Highest" : "Lowest"}
@@ -112,7 +112,7 @@ export default function CustomersClient({
           )}
           <button
             onClick={() => setCardModalFor("new")}
-            className="flex items-center gap-1.5 bg-indigo-500 hover:bg-indigo-400 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors whitespace-nowrap"
+            className="flex items-center gap-1.5 bg-red-500 hover:bg-red-400 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors whitespace-nowrap"
           >
             <Plus size={15} /> New Membership Card
           </button>
@@ -166,7 +166,7 @@ export default function CustomersClient({
                       type="button"
                       onClick={() => setRevealedKey(revealed ? null : rowKey)}
                       title="Click to show the card code"
-                      className="inline-flex items-center gap-1 text-xs font-medium text-fuchsia-700 bg-fuchsia-500/10 border border-fuchsia-500/20 rounded-full px-2 py-0.5 hover:bg-fuchsia-500/20 transition-colors"
+                      className="inline-flex items-center gap-1 text-xs font-medium text-red-700 bg-red-500/10 border border-red-500/20 rounded-full px-2 py-0.5 hover:bg-red-500/20 transition-colors"
                     >
                       <CreditCard size={11} /> {revealed ? c.card.cardNumber || "No code" : c.card.tier || "Member"}
                       {!revealed && c.card.expiryDate ? ` · exp ${formatDate(c.card.expiryDate)}` : ""}
@@ -180,7 +180,7 @@ export default function CustomersClient({
                   <div className="flex items-center gap-1 justify-end">
                     <button
                       onClick={() => setCardModalFor(c)}
-                      className="text-neutral-400 hover:text-indigo-600 transition-colors p-1"
+                      className="text-neutral-400 hover:text-red-600 transition-colors p-1"
                       title={c.card ? "Edit membership card" : "Add membership card"}
                       aria-label={c.card ? "Edit membership card" : "Add membership card"}
                     >
@@ -377,7 +377,7 @@ function CardModal({
                 value={cardBranch}
                 onChange={(e) => setCardBranch(e.target.value as Branch)}
                 disabled={locked}
-                className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50 disabled:opacity-60"
+                className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50 disabled:opacity-60"
               >
                 {BRANCHES.map((b) => (
                   <option key={b.value} value={b.value}>
@@ -394,7 +394,7 @@ function CardModal({
               value={customerName}
               onChange={(e) => setCustomerName(e.target.value)}
               disabled={nameLocked}
-              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50 disabled:opacity-60"
+              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50 disabled:opacity-60"
             />
           </div>
           <div>
@@ -404,7 +404,7 @@ function CardModal({
               value={customerPhone}
               onChange={(e) => setCustomerPhone(e.target.value)}
               placeholder="e.g. 012-3456789"
-              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
             />
             {existing && (
               <p className="text-[11px] text-neutral-400 mt-1.5">
@@ -420,7 +420,7 @@ function CardModal({
                 value={customerEmail}
                 onChange={(e) => handleEmailChange(e.target.value)}
                 placeholder="customer@email.com"
-                className="flex-1 bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+                className="flex-1 bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
               />
               {customerEmail.trim() && !emailVerified && !otpSent && (
                 <button
@@ -446,13 +446,13 @@ function CardModal({
                   value={otpCode}
                   onChange={(e) => setOtpCode(e.target.value)}
                   placeholder="6-digit code"
-                  className="flex-1 bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+                  className="flex-1 bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
                 />
                 <button
                   type="button"
                   onClick={handleVerifyCode}
                   disabled={otpPending || !otpCode.trim()}
-                  className="shrink-0 bg-indigo-500 hover:bg-indigo-400 disabled:opacity-50 text-white text-xs font-medium px-3 py-2.5 rounded-lg transition-colors whitespace-nowrap"
+                  className="shrink-0 bg-red-500 hover:bg-red-400 disabled:opacity-50 text-white text-xs font-medium px-3 py-2.5 rounded-lg transition-colors whitespace-nowrap"
                 >
                   {otpPending ? "Checking…" : "Verify"}
                 </button>
@@ -472,7 +472,7 @@ function CardModal({
                 type="text"
                 value={cardNumber}
                 onChange={(e) => setCardNumber(e.target.value)}
-                className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+                className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
               />
             </div>
             <div>
@@ -490,7 +490,7 @@ function CardModal({
                 type="date"
                 value={issuedDate}
                 onChange={(e) => setIssuedDate(e.target.value)}
-                className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+                className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
               />
             </div>
             <div>
@@ -499,7 +499,7 @@ function CardModal({
                 type="date"
                 value={expiryDate ?? ""}
                 onChange={(e) => setExpiryDate(e.target.value)}
-                className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+                className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
               />
             </div>
           </div>
@@ -517,7 +517,7 @@ function CardModal({
           <button
             onClick={handleSave}
             disabled={isPending || !customerName.trim() || (!!customerEmail.trim() && !emailVerified)}
-            className="bg-indigo-500 hover:bg-indigo-400 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+            className="bg-red-500 hover:bg-red-400 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
           >
             {isPending ? "Saving…" : "Save"}
           </button>
@@ -584,7 +584,7 @@ function PromoModal({
             </p>
             <button
               onClick={onClose}
-              className="mt-4 bg-indigo-500 hover:bg-indigo-400 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+              className="mt-4 bg-red-500 hover:bg-red-400 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
             >
               Done
             </button>
@@ -604,7 +604,7 @@ function PromoModal({
                   value={subject}
                   onChange={(e) => setSubject(e.target.value)}
                   placeholder="e.g. This weekend only: 20% off oil change"
-                  className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+                  className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
                 />
               </div>
               <div>
@@ -614,7 +614,7 @@ function PromoModal({
                   onChange={(e) => setMessage(e.target.value)}
                   rows={5}
                   placeholder="Write your promotion here…"
-                  className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+                  className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
                 />
               </div>
               <div>
@@ -655,7 +655,7 @@ function PromoModal({
               <button
                 onClick={handleSend}
                 disabled={isPending || !subject.trim() || !message.trim() || recipientCount === 0}
-                className="bg-indigo-500 hover:bg-indigo-400 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+                className="bg-red-500 hover:bg-red-400 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
               >
                 {isPending ? "Sending…" : `Send to ${recipientCount}`}
               </button>

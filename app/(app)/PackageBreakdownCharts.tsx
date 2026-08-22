@@ -3,11 +3,11 @@ import { BRANCHES, branchLabel, type Branch } from "@/lib/branch";
 import { PieChartCard, type PieSlice } from "./PieChart";
 
 const PACKAGE_COLOR_PALETTE: { colorClass: string; dot: string }[] = [
-  { colorClass: "fill-indigo-500", dot: "bg-indigo-500" },
+  { colorClass: "fill-red-500", dot: "bg-red-500" },
   { colorClass: "fill-emerald-500", dot: "bg-emerald-500" },
   { colorClass: "fill-amber-500", dot: "bg-amber-500" },
   { colorClass: "fill-rose-500", dot: "bg-rose-500" },
-  { colorClass: "fill-purple-500", dot: "bg-purple-500" },
+  { colorClass: "fill-teal-500", dot: "bg-teal-500" },
   { colorClass: "fill-sky-500", dot: "bg-sky-500" },
   { colorClass: "fill-orange-500", dot: "bg-orange-500" },
   { colorClass: "fill-lime-500", dot: "bg-lime-500" },

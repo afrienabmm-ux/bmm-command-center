@@ -61,7 +61,7 @@ function RevenueRunRateChart({ data, title }: { data: RevenuePaceData; title: st
         </p>
         <div className="flex items-center gap-4 text-xs text-neutral-500 mt-2">
           <span className="flex items-center gap-1.5">
-            <span className="w-3 h-[3px] rounded-full bg-indigo-500 inline-block" /> Actual
+            <span className="w-3 h-[3px] rounded-full bg-red-500 inline-block" /> Actual
           </span>
           <span className="flex items-center gap-1.5">
             <span className="w-3 h-0 border-t-2 border-dashed border-rose-500 inline-block" /> Pace needed
@@ -93,7 +93,7 @@ function RevenueRunRateChart({ data, title }: { data: RevenuePaceData; title: st
               ) : null
             )}
             <path d={pacePath} fill="none" strokeWidth={2.5} strokeDasharray="6 4" className="stroke-rose-500" />
-            {actualPath && <path d={actualPath} fill="none" strokeWidth={3} className="stroke-indigo-500" />}
+            {actualPath && <path d={actualPath} fill="none" strokeWidth={3} className="stroke-red-500" />}
             {markerPoint && (
               <g>
                 <line
@@ -105,7 +105,7 @@ function RevenueRunRateChart({ data, title }: { data: RevenuePaceData; title: st
                   strokeWidth={1}
                 />
                 <circle cx={xAt(markerDay - 1)} cy={yAt(markerPoint.paceNeeded)} r={4} className="fill-rose-500" />
-                {markerDay <= today && <circle cx={xAt(markerDay - 1)} cy={yAt(markerPoint.actual)} r={4} className="fill-indigo-500" />}
+                {markerDay <= today && <circle cx={xAt(markerDay - 1)} cy={yAt(markerPoint.actual)} r={4} className="fill-red-500" />}
               </g>
             )}
           </g>
@@ -124,7 +124,7 @@ function RevenueRunRateChart({ data, title }: { data: RevenuePaceData; title: st
             </p>
             {markerDay <= today && (
               <p className="text-neutral-600 mt-1">
-                Actual : <span className="text-indigo-600 font-medium">{formatCurrency(markerPoint.actual)}</span>
+                Actual : <span className="text-red-600 font-medium">{formatCurrency(markerPoint.actual)}</span>
               </p>
             )}
             <p className="text-neutral-600">

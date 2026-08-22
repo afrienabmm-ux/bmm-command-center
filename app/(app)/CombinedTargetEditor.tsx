@@ -55,7 +55,7 @@ export default function CombinedTargetEditor({
                     value={amounts[b.value]}
                     onChange={(e) => setAmounts((prev) => ({ ...prev, [b.value]: e.target.value }))}
                     min={0}
-                    className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+                    className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
                   />
                 </div>
               ))}
@@ -71,7 +71,7 @@ export default function CombinedTargetEditor({
               <button
                 onClick={handleSave}
                 disabled={isPending}
-                className="bg-indigo-500 hover:bg-indigo-400 disabled:opacity-50 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+                className="bg-red-500 hover:bg-red-400 disabled:opacity-50 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
               >
                 {isPending ? "Saving…" : "Save"}
               </button>

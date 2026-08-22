@@ -8,7 +8,7 @@ const CLAIM_STATUS_COLORS: Record<ClaimStatusBreakdownRow["status"], { colorClas
   "In Process": { colorClass: "fill-amber-500", dot: "bg-amber-500" },
   Proceed: { colorClass: "fill-emerald-500", dot: "bg-emerald-500" },
   Rejected: { colorClass: "fill-red-500", dot: "bg-red-500" },
-  "Close Ticket": { colorClass: "fill-indigo-500", dot: "bg-indigo-500" },
+  "Close Ticket": { colorClass: "fill-red-500", dot: "bg-red-500" },
 };
 
 type ClaimType = "warranty" | "delivery";
@@ -46,7 +46,7 @@ export default function ClaimStatusPieCard({
         <select
           value={claimType}
           onChange={(e) => setClaimType(e.target.value as ClaimType)}
-          className="text-xs font-medium bg-neutral-50 border border-neutral-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-indigo-500/50 shrink-0"
+          className="text-xs font-medium bg-neutral-50 border border-neutral-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-red-500/50 shrink-0"
         >
           <option value="warranty">Warranty Claim</option>
           <option value="delivery">Delivery Claim</option>

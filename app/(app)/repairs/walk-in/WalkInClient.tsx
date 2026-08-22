@@ -152,7 +152,7 @@ export default function WalkInClient({
           <button
             onClick={() => setTab("active")}
             className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
-              tab === "active" ? "bg-indigo-500 text-white" : "text-neutral-600 hover:text-neutral-800"
+              tab === "active" ? "bg-red-500 text-white" : "text-neutral-600 hover:text-neutral-800"
             }`}
           >
             Active ({active.length})
@@ -160,7 +160,7 @@ export default function WalkInClient({
           <button
             onClick={() => setTab("completed")}
             className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
-              tab === "completed" ? "bg-indigo-500 text-white" : "text-neutral-600 hover:text-neutral-800"
+              tab === "completed" ? "bg-red-500 text-white" : "text-neutral-600 hover:text-neutral-800"
             }`}
           >
             Completed ({completed.length})
@@ -174,12 +174,12 @@ export default function WalkInClient({
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search customer or plate no…"
-              className="bg-white border border-neutral-200 rounded-lg pl-8 pr-3 py-2 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50 w-64"
+              className="bg-white border border-neutral-200 rounded-lg pl-8 pr-3 py-2 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50 w-64"
             />
           </div>
           <button
             onClick={() => setSortDir((d) => (d === "desc" ? "asc" : "desc"))}
-            className="flex items-center gap-1.5 bg-white border border-neutral-200 hover:border-indigo-300 text-neutral-700 text-sm font-medium px-3 py-2 rounded-lg transition-colors whitespace-nowrap"
+            className="flex items-center gap-1.5 bg-white border border-neutral-200 hover:border-red-300 text-neutral-700 text-sm font-medium px-3 py-2 rounded-lg transition-colors whitespace-nowrap"
             title="Sort by date"
           >
             <ArrowUpDown size={14} /> {sortDir === "desc" ? "Newest" : "Oldest"}
@@ -208,7 +208,7 @@ export default function WalkInClient({
           )}
           <Link
             href="/repairs/walk-in/new"
-            className="flex items-center gap-1.5 bg-indigo-500 hover:bg-indigo-400 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+            className="flex items-center gap-1.5 bg-red-500 hover:bg-red-400 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
           >
             <Plus size={15} /> Add Job
           </Link>
@@ -316,7 +316,7 @@ function ExportFilteredModal({
             <select
               value={mechanicId}
               onChange={(e) => setMechanicId(e.target.value)}
-              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
             >
               <option value="all">All Mechanics</option>
               {mechanics.map((m) => (
@@ -335,7 +335,7 @@ function ExportFilteredModal({
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Search…"
-                className="w-full bg-neutral-50 border border-neutral-200 rounded-lg pl-9 pr-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+                className="w-full bg-neutral-50 border border-neutral-200 rounded-lg pl-9 pr-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
               />
             </div>
           </div>
@@ -360,7 +360,7 @@ function ExportFilteredModal({
           <button
             onClick={() => onExport(matches)}
             disabled={matches.length === 0}
-            className="flex items-center gap-1.5 bg-indigo-500 hover:bg-indigo-400 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+            className="flex items-center gap-1.5 bg-red-500 hover:bg-red-400 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
           >
             <Download size={15} /> {hasFilters ? `Export ${matches.length} Filtered` : "Export All"}
           </button>
@@ -401,7 +401,7 @@ function ExportJobModal({
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search job no. or plate no."
-            className="w-full bg-neutral-50 border border-neutral-200 rounded-lg pl-9 pr-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+            className="w-full bg-neutral-50 border border-neutral-200 rounded-lg pl-9 pr-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
           />
         </div>
         <div className="max-h-72 overflow-y-auto border border-neutral-200 rounded-lg divide-y divide-neutral-100">
@@ -496,7 +496,7 @@ function EndDateCell({ job, editable }: { job: RepairJob; editable: boolean }) {
         className={`flex items-center justify-center w-8 h-8 rounded-lg border text-[10px] font-semibold transition-colors disabled:opacity-50 ${
           date
             ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-700"
-            : "bg-neutral-50 border-neutral-200 text-neutral-400 hover:border-indigo-300 hover:text-indigo-600"
+            : "bg-neutral-50 border-neutral-200 text-neutral-400 hover:border-red-300 hover:text-red-600"
         }`}
       >
         {date ? <Check size={13} /> : "End"}
@@ -593,7 +593,7 @@ function WalkInRow({
         <div className="flex items-center gap-1">
           <Link
             href={`/repairs/walk-in/${job.id}/edit`}
-            className="text-neutral-400 hover:text-indigo-600 transition-colors p-1 inline-block"
+            className="text-neutral-400 hover:text-red-600 transition-colors p-1 inline-block"
             title="Edit job"
             aria-label="Edit job"
           >
@@ -602,7 +602,7 @@ function WalkInRow({
           <Link
             href={`/repairs/walk-in/${job.id}/print`}
             target="_blank"
-            className="text-neutral-400 hover:text-indigo-600 transition-colors p-1 inline-block"
+            className="text-neutral-400 hover:text-red-600 transition-colors p-1 inline-block"
             title="Print job"
             aria-label="Print job"
           >

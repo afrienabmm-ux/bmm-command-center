@@ -34,7 +34,7 @@ export default function MechanicsClient({
                 key={c}
                 onClick={() => setCategoryFilter(c)}
                 className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors whitespace-nowrap ${
-                  categoryFilter === c ? "bg-indigo-500 text-white" : "text-neutral-600 hover:text-neutral-800"
+                  categoryFilter === c ? "bg-red-500 text-white" : "text-neutral-600 hover:text-neutral-800"
                 }`}
               >
                 {c}
@@ -44,7 +44,7 @@ export default function MechanicsClient({
         </div>
         <button
           onClick={() => setModalOpen(true)}
-          className="flex items-center gap-1.5 bg-indigo-500 hover:bg-indigo-400 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+          className="flex items-center gap-1.5 bg-red-500 hover:bg-red-400 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
         >
           <Plus size={15} /> Add Mechanic
         </button>
@@ -86,8 +86,8 @@ function MechanicCard({ mechanic, showBranch }: { mechanic: Mechanic; showBranch
     <div className="bg-white border border-neutral-200 rounded-xl p-5">
       <div className="flex items-start justify-between">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg bg-indigo-500/15 flex items-center justify-center shrink-0">
-            <Wrench size={16} className="text-indigo-600" />
+          <div className="w-10 h-10 rounded-lg bg-red-500/15 flex items-center justify-center shrink-0">
+            <Wrench size={16} className="text-red-600" />
           </div>
           <div>
             <p className="text-sm font-semibold text-neutral-900">
@@ -95,7 +95,7 @@ function MechanicCard({ mechanic, showBranch }: { mechanic: Mechanic; showBranch
             </p>
             <p className="text-xs text-neutral-500">{mechanic.fullName}</p>
             {showBranch && (
-              <p className="text-xs text-indigo-600 font-medium mt-0.5">{branchLabel(mechanic.branch)}</p>
+              <p className="text-xs text-red-600 font-medium mt-0.5">{branchLabel(mechanic.branch)}</p>
             )}
           </div>
         </div>
@@ -207,7 +207,7 @@ function AddMechanicModal({
               <select
                 value={branch}
                 onChange={(e) => setBranch(e.target.value as typeof branch)}
-                className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+                className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
               >
                 {BRANCHES.map((b) => (
                   <option key={b.value} value={b.value}>
@@ -224,7 +224,7 @@ function AddMechanicModal({
               value={fullName}
               onChange={(e) => setFullName(e.target.value)}
               placeholder="e.g. Nur Ain Binti Ahmad"
-              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
             />
           </div>
           <div>
@@ -234,7 +234,7 @@ function AddMechanicModal({
               value={shortName}
               onChange={(e) => setShortName(e.target.value)}
               placeholder="e.g. NAJUA"
-              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
             />
           </div>
           <div>
@@ -245,7 +245,7 @@ function AddMechanicModal({
               onChange={(e) => setShortCode(e.target.value)}
               placeholder="e.g. NJ"
               maxLength={4}
-              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50 uppercase"
+              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50 uppercase"
             />
           </div>
           <div>
@@ -253,7 +253,7 @@ function AddMechanicModal({
             <select
               value={category}
               onChange={(e) => setCategory(e.target.value as MechanicCategory)}
-              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
             >
               {MECHANIC_CATEGORIES.map((c) => (
                 <option key={c} value={c}>
@@ -273,7 +273,7 @@ function AddMechanicModal({
           <button
             onClick={handleSave}
             disabled={!canSave || isPending}
-            className="bg-indigo-500 hover:bg-indigo-400 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+            className="bg-red-500 hover:bg-red-400 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
           >
             Add Mechanic
           </button>

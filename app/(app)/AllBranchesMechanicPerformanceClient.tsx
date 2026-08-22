@@ -87,7 +87,7 @@ function RevenueRow({
           {isTop && r.totalRevenue > 0 && <Crown size={14} className="text-amber-500" />}
           {r.fullName} <span className="text-neutral-500 font-normal">({r.shortCode})</span>
           {isTopRestoreBike && (
-            <span className="flex items-center gap-1 text-xs font-medium text-purple-700 bg-purple-500/10 border border-purple-500/20 rounded-full px-2 py-0.5">
+            <span className="flex items-center gap-1 text-xs font-medium text-red-700 bg-red-500/10 border border-red-500/20 rounded-full px-2 py-0.5">
               <Wrench size={10} /> Top Restore Bike
             </span>
           )}
@@ -252,14 +252,14 @@ export default function AllBranchesMechanicPerformanceClient({
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search mechanic…"
-              className="bg-neutral-50 border border-neutral-200 rounded-lg pl-8 pr-3 py-2 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50 w-40"
+              className="bg-neutral-50 border border-neutral-200 rounded-lg pl-8 pr-3 py-2 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50 w-40"
             />
           </div>
           <div className="flex gap-1 bg-neutral-50 border border-neutral-200 rounded-lg p-1">
             <button
               onClick={() => setView("packages")}
               className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors whitespace-nowrap ${
-                view === "packages" ? "bg-indigo-500 text-white" : "text-neutral-600 hover:text-neutral-800"
+                view === "packages" ? "bg-red-500 text-white" : "text-neutral-600 hover:text-neutral-800"
               }`}
             >
               Total Packages
@@ -267,7 +267,7 @@ export default function AllBranchesMechanicPerformanceClient({
             <button
               onClick={() => setView("revenue")}
               className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors whitespace-nowrap ${
-                view === "revenue" ? "bg-indigo-500 text-white" : "text-neutral-600 hover:text-neutral-800"
+                view === "revenue" ? "bg-red-500 text-white" : "text-neutral-600 hover:text-neutral-800"
               }`}
             >
               Total Revenue
@@ -277,7 +277,7 @@ export default function AllBranchesMechanicPerformanceClient({
             <select
               value={branchFilter}
               onChange={(e) => setBranchFilter(e.target.value as BranchSelection)}
-              className="bg-neutral-50 border border-neutral-200 rounded-lg px-3 py-2 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+              className="bg-neutral-50 border border-neutral-200 rounded-lg px-3 py-2 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
             >
               <option value="all">All Branches</option>
               {BRANCHES.map((b) => (
@@ -399,7 +399,7 @@ export default function AllBranchesMechanicPerformanceClient({
         <div className="px-5 py-3 border-t border-neutral-200">
           <button
             onClick={() => setShowAll((v) => !v)}
-            className="flex items-center gap-1.5 text-sm font-medium text-indigo-600 hover:text-indigo-700 transition-colors"
+            className="flex items-center gap-1.5 text-sm font-medium text-red-600 hover:text-red-700 transition-colors"
           >
             {showAll ? (
               <>

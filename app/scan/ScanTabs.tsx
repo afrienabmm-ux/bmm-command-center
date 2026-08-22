@@ -14,7 +14,7 @@ export default function ScanTabs({ jobsheet, genblu }: { jobsheet: React.ReactNo
         <button
           onClick={() => setTab("jobsheet")}
           className={`flex-1 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-            tab === "jobsheet" ? "bg-white text-indigo-700 shadow-sm" : "text-neutral-600"
+            tab === "jobsheet" ? "bg-white text-red-700 shadow-sm" : "text-neutral-600"
           }`}
         >
           Scan Jobsheet
@@ -22,7 +22,7 @@ export default function ScanTabs({ jobsheet, genblu }: { jobsheet: React.ReactNo
         <button
           onClick={() => setTab("genblu")}
           className={`flex-1 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-            tab === "genblu" ? "bg-white text-indigo-700 shadow-sm" : "text-neutral-600"
+            tab === "genblu" ? "bg-white text-red-700 shadow-sm" : "text-neutral-600"
           }`}
         >
           GenBlu Upload

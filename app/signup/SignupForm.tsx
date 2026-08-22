@@ -27,7 +27,7 @@ export default function SignupForm() {
           name="name"
           required
           placeholder="e.g. Ahmad Faizal"
-          className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+          className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
         />
       </div>
       <div>
@@ -37,7 +37,7 @@ export default function SignupForm() {
           name="email"
           required
           placeholder="you@company.com"
-          className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+          className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
         />
       </div>
       <div>
@@ -48,7 +48,7 @@ export default function SignupForm() {
           required
           minLength={6}
           placeholder="At least 6 characters"
-          className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+          className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
         />
       </div>
 
@@ -57,14 +57,14 @@ export default function SignupForm() {
       <button
         type="submit"
         disabled={isPending}
-        className="w-full bg-indigo-500 hover:bg-indigo-400 disabled:opacity-50 text-white text-sm font-medium py-2.5 rounded-lg transition-colors"
+        className="w-full bg-red-500 hover:bg-red-400 disabled:opacity-50 text-white text-sm font-medium py-2.5 rounded-lg transition-colors"
       >
         {isPending ? "Creating account…" : "Create account"}
       </button>
 
       <p className="text-sm text-neutral-500 text-center">
         Already have an account?{" "}
-        <Link href="/login" className="text-indigo-600 hover:text-indigo-700">
+        <Link href="/login" className="text-red-600 hover:text-red-700">
           Sign in
         </Link>
       </p>

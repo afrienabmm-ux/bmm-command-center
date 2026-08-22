@@ -91,12 +91,12 @@ export default function PackagesClient({
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Search receipt, package…"
-                className="bg-neutral-50 border border-neutral-200 rounded-lg pl-8 pr-3 py-2 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50 w-56"
+                className="bg-neutral-50 border border-neutral-200 rounded-lg pl-8 pr-3 py-2 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50 w-56"
               />
             </div>
             <button
               onClick={() => setSortDir((d) => (d === "desc" ? "asc" : "desc"))}
-              className="flex items-center gap-1.5 bg-neutral-50 border border-neutral-200 hover:border-indigo-300 text-neutral-700 text-xs font-medium px-3 py-2.5 rounded-lg transition-colors whitespace-nowrap"
+              className="flex items-center gap-1.5 bg-neutral-50 border border-neutral-200 hover:border-red-300 text-neutral-700 text-xs font-medium px-3 py-2.5 rounded-lg transition-colors whitespace-nowrap"
               title="Sort by sale date"
             >
               <ArrowUpDown size={13} /> {sortDir === "desc" ? "Newest" : "Oldest"}
@@ -265,7 +265,7 @@ function AddPackageModal({ onClose }: { onClose: () => void }) {
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="e.g. Pakej Otai Santai"
-              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
             />
           </div>
           <div>
@@ -275,7 +275,7 @@ function AddPackageModal({ onClose }: { onClose: () => void }) {
               min={0}
               value={price}
               onChange={(e) => setPrice(e.target.value)}
-              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
             />
           </div>
           <div>
@@ -285,7 +285,7 @@ function AddPackageModal({ onClose }: { onClose: () => void }) {
               value={spec}
               onChange={(e) => setSpec(e.target.value)}
               placeholder="e.g. RS200+ Oil filter"
-              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
             />
           </div>
           <div>
@@ -294,7 +294,7 @@ function AddPackageModal({ onClose }: { onClose: () => void }) {
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               rows={2}
-              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50 resize-none"
+              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50 resize-none"
             />
           </div>
         </div>
@@ -308,7 +308,7 @@ function AddPackageModal({ onClose }: { onClose: () => void }) {
           <button
             onClick={handleSave}
             disabled={!canSave || isPending}
-            className="bg-indigo-500 hover:bg-indigo-400 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+            className="bg-red-500 hover:bg-red-400 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
           >
             Add Package
           </button>

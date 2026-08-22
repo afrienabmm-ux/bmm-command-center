@@ -96,14 +96,14 @@ function ItemsEditor({
               value={it.code}
               onChange={(e) => update(i, { code: e.target.value })}
               placeholder="Code"
-              className="bg-neutral-50 border border-neutral-200 rounded-lg px-2.5 py-2 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+              className="bg-neutral-50 border border-neutral-200 rounded-lg px-2.5 py-2 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
             />
             <input
               type="text"
               value={it.description}
               onChange={(e) => update(i, { description: e.target.value })}
               placeholder="e.g. Engine Oil"
-              className="bg-neutral-50 border border-neutral-200 rounded-lg px-2.5 py-2 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+              className="bg-neutral-50 border border-neutral-200 rounded-lg px-2.5 py-2 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
             />
             <input
               type="number"
@@ -111,7 +111,7 @@ function ItemsEditor({
               value={it.quantity}
               onChange={(e) => update(i, { quantity: e.target.value })}
               placeholder="Qty"
-              className="bg-neutral-50 border border-neutral-200 rounded-lg px-2 py-2 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+              className="bg-neutral-50 border border-neutral-200 rounded-lg px-2 py-2 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
             />
             <input
               type="number"
@@ -119,7 +119,7 @@ function ItemsEditor({
               value={it.price}
               onChange={(e) => update(i, { price: e.target.value })}
               placeholder="Price"
-              className="bg-neutral-50 border border-neutral-200 rounded-lg px-2 py-2 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+              className="bg-neutral-50 border border-neutral-200 rounded-lg px-2 py-2 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
             />
             <button
               type="button"
@@ -136,14 +136,14 @@ function ItemsEditor({
         <button
           type="button"
           onClick={addRow}
-          className="flex items-center gap-1 text-xs font-medium text-indigo-600 hover:text-indigo-700 transition-colors"
+          className="flex items-center gap-1 text-xs font-medium text-red-600 hover:text-red-700 transition-colors"
         >
           <Plus size={13} /> Add Item
         </button>
         <button
           type="button"
           onClick={addTwentyRows}
-          className="flex items-center gap-1 text-xs font-medium text-indigo-600 hover:text-indigo-700 transition-colors"
+          className="flex items-center gap-1 text-xs font-medium text-red-600 hover:text-red-700 transition-colors"
         >
           <Plus size={13} /> Add 20 Items
         </button>
@@ -669,7 +669,7 @@ export default function WalkInJobForm({
           className={
             isScan
               ? "bg-gradient-to-br from-rose-600 via-red-600 to-rose-700 rounded-2xl p-5 mb-5 shadow-lg shadow-red-900/10"
-              : "bg-indigo-50 border border-indigo-200 rounded-xl p-5 mb-4"
+              : "bg-red-50 border border-red-200 rounded-xl p-5 mb-4"
           }
         >
           <div className="flex items-start gap-3">
@@ -677,10 +677,10 @@ export default function WalkInJobForm({
               className={
                 isScan
                   ? "w-11 h-11 rounded-xl bg-white/15 flex items-center justify-center shrink-0"
-                  : "w-9 h-9 rounded-lg bg-indigo-500/15 flex items-center justify-center shrink-0"
+                  : "w-9 h-9 rounded-lg bg-red-500/15 flex items-center justify-center shrink-0"
               }
             >
-              <ScanLine size={isScan ? 20 : 17} className={isScan ? "text-white" : "text-indigo-600"} />
+              <ScanLine size={isScan ? 20 : 17} className={isScan ? "text-white" : "text-red-600"} />
             </div>
             <div className="flex-1 min-w-0">
               <p className={isScan ? "text-sm font-semibold text-white" : "text-sm font-semibold text-neutral-900"}>
@@ -711,7 +711,7 @@ export default function WalkInJobForm({
                 className={
                   isScan
                     ? "flex items-center gap-1.5 bg-white hover:bg-rose-50 disabled:opacity-60 text-red-700 text-sm font-semibold px-4 py-2.5 rounded-xl shadow-sm transition-colors"
-                    : "flex items-center gap-1.5 bg-indigo-500 hover:bg-indigo-400 disabled:opacity-50 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+                    : "flex items-center gap-1.5 bg-red-500 hover:bg-red-400 disabled:opacity-50 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
                 }
               >
                 <Upload size={15} /> {isScanning ? "Reading jobsheet…" : "Upload Jobsheet"}
@@ -756,7 +756,7 @@ export default function WalkInJobForm({
               )}
               {scanRawText && (
                 <details className="mt-2">
-                  <summary className={isScan ? "text-xs text-white/90 cursor-pointer" : "text-xs text-indigo-700 cursor-pointer"}>
+                  <summary className={isScan ? "text-xs text-white/90 cursor-pointer" : "text-xs text-red-700 cursor-pointer"}>
                     What Google read from the photo (for troubleshooting)
                   </summary>
                   {scanSignatureDebug && (
@@ -793,7 +793,7 @@ export default function WalkInJobForm({
                       type="checkbox"
                       checked={signatureConfirmed}
                       onChange={(e) => setSignatureConfirmed(e.target.checked)}
-                      className="accent-indigo-500"
+                      className="accent-red-500"
                     />
                     <span className="text-xs font-medium text-neutral-700">Customer has signed the jobsheet *</span>
                   </label>
@@ -812,7 +812,7 @@ export default function WalkInJobForm({
               type="date"
               value={startedDate}
               onChange={(e) => setStartedDate(e.target.value)}
-              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
             />
           </div>
           <div>
@@ -821,7 +821,7 @@ export default function WalkInJobForm({
               type="text"
               value={customerCode}
               onChange={(e) => setCustomerCode(e.target.value)}
-              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
             />
           </div>
           <div>
@@ -831,7 +831,7 @@ export default function WalkInJobForm({
               type="text"
               value={customerName}
               onChange={(e) => setCustomerName(e.target.value)}
-              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
             />
           </div>
           <div>
@@ -841,7 +841,7 @@ export default function WalkInJobForm({
               value={customerPhone}
               onChange={(e) => setCustomerPhone(e.target.value)}
               placeholder="e.g. 012-3456789"
-              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
             />
             <p className="text-[11px] text-neutral-400 mt-1">Matches this visit to their membership card, even if the name is spelled differently.</p>
           </div>
@@ -853,7 +853,7 @@ export default function WalkInJobForm({
               type="text"
               value={plateNo}
               onChange={(e) => setPlateNo(e.target.value)}
-              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
             />
           </div>
           <div>
@@ -862,7 +862,7 @@ export default function WalkInJobForm({
               type="text"
               value={jobsheetUserId}
               onChange={(e) => setJobsheetUserId(e.target.value)}
-              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
             />
           </div>
           <div>
@@ -872,7 +872,7 @@ export default function WalkInJobForm({
               value={model}
               onChange={(e) => setModel(e.target.value)}
               placeholder="e.g. Y16ZR"
-              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
             />
           </div>
           <div>
@@ -881,7 +881,7 @@ export default function WalkInJobForm({
               type="text"
               value={colour}
               onChange={(e) => setColour(e.target.value)}
-              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
             />
           </div>
           <div>
@@ -890,7 +890,7 @@ export default function WalkInJobForm({
               type="text"
               value={engineNo}
               onChange={(e) => setEngineNo(e.target.value)}
-              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
             />
           </div>
           <div>
@@ -899,7 +899,7 @@ export default function WalkInJobForm({
               type="text"
               value={chassisNo}
               onChange={(e) => setChassisNo(e.target.value)}
-              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
             />
           </div>
           {isScan && <SectionHeader icon={ClipboardList} title="Service Details" />}
@@ -910,7 +910,7 @@ export default function WalkInJobForm({
                 type="text"
                 value={jobsheetNo}
                 onChange={(e) => setJobsheetNo(e.target.value)}
-                className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+                className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
               />
             </div>
             <div>
@@ -919,7 +919,7 @@ export default function WalkInJobForm({
                 type="text"
                 value={salesNo}
                 onChange={(e) => setSalesNo(e.target.value)}
-                className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+                className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
               />
             </div>
             <div>
@@ -928,7 +928,7 @@ export default function WalkInJobForm({
                 type="date"
                 value={salesDate}
                 onChange={(e) => setSalesDate(e.target.value)}
-                className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+                className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
               />
             </div>
             <div>
@@ -937,7 +937,7 @@ export default function WalkInJobForm({
                 type="text"
                 value={warrantyCardNo}
                 onChange={(e) => setWarrantyCardNo(e.target.value)}
-                className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+                className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
               />
             </div>
             <div>
@@ -946,7 +946,7 @@ export default function WalkInJobForm({
                 type="text"
                 value={mileageKm}
                 onChange={(e) => setMileageKm(e.target.value)}
-                className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+                className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
               />
             </div>
             <div>
@@ -955,7 +955,7 @@ export default function WalkInJobForm({
                 type="text"
                 value={nextMileageKm}
                 onChange={(e) => setNextMileageKm(e.target.value)}
-                className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+                className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
               />
             </div>
             <div>
@@ -965,7 +965,7 @@ export default function WalkInJobForm({
                 value={serviceType}
                 onChange={(e) => setServiceType(e.target.value)}
                 placeholder="e.g. NORMAL SERVICE"
-                className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+                className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
               />
             </div>
             <div>
@@ -974,7 +974,7 @@ export default function WalkInJobForm({
                 type="date"
                 value={nextServiceDate}
                 onChange={(e) => setNextServiceDate(e.target.value)}
-                className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+                className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
               />
             </div>
           </div>
@@ -990,8 +990,8 @@ export default function WalkInJobForm({
                   onClick={() => handleLocationChange(b.value)}
                   className={`px-4 py-2 rounded-lg text-sm font-medium border transition-colors disabled:opacity-60 disabled:cursor-not-allowed ${
                     locationBranch === b.value
-                      ? "bg-indigo-500 border-indigo-500 text-white"
-                      : "bg-neutral-50 border-neutral-200 text-neutral-600 hover:border-indigo-500/50"
+                      ? "bg-red-500 border-red-500 text-white"
+                      : "bg-neutral-50 border-neutral-200 text-neutral-600 hover:border-red-500/50"
                   }`}
                 >
                   {b.label}
@@ -1003,8 +1003,8 @@ export default function WalkInJobForm({
                   onClick={() => handleLocationChange("all")}
                   className={`px-4 py-2 rounded-lg text-sm font-medium border transition-colors ${
                     locationBranch === "all"
-                      ? "bg-indigo-500 border-indigo-500 text-white"
-                      : "bg-neutral-50 border-neutral-200 text-neutral-600 hover:border-indigo-500/50"
+                      ? "bg-red-500 border-red-500 text-white"
+                      : "bg-neutral-50 border-neutral-200 text-neutral-600 hover:border-red-500/50"
                   }`}
                 >
                   All Branches
@@ -1021,7 +1021,7 @@ export default function WalkInJobForm({
               ref={mechanicRef}
               value={mechanicId}
               onChange={(e) => setMechanicId(e.target.value)}
-              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
             >
               <option value="" disabled>
                 Select a mechanic…
@@ -1055,7 +1055,7 @@ export default function WalkInJobForm({
               type="checkbox"
               checked={isBigItem}
               onChange={(e) => setIsBigItem(e.target.checked)}
-              className="accent-indigo-500"
+              className="accent-red-500"
             />
             <label htmlFor="is-big-item" className="text-xs font-medium text-neutral-600">
               Big / heavy item repair — only Heavy Repair mechanics can be assigned
@@ -1073,7 +1073,7 @@ export default function WalkInJobForm({
               value={items.length > 0 ? itemsTotal.toFixed(2) : revenueAmount}
               disabled={items.length > 0}
               onChange={(e) => setRevenueAmount(e.target.value)}
-              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50 disabled:opacity-60"
+              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50 disabled:opacity-60"
             />
           </div>
           <div>
@@ -1082,7 +1082,7 @@ export default function WalkInJobForm({
               type="date"
               value={completedDate}
               onChange={(e) => setCompletedDate(e.target.value)}
-              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
             />
             <p className="text-xs text-neutral-500 mt-1.5">Set this to the date the job is officially done.</p>
           </div>
@@ -1095,8 +1095,8 @@ export default function WalkInJobForm({
                 onClick={() => setHasGenblu(true)}
                 className={`px-4 py-2 rounded-lg text-sm font-medium border transition-colors ${
                   hasGenblu
-                    ? "bg-indigo-500 border-indigo-500 text-white"
-                    : "bg-neutral-50 border-neutral-200 text-neutral-600 hover:border-indigo-500/50"
+                    ? "bg-red-500 border-red-500 text-white"
+                    : "bg-neutral-50 border-neutral-200 text-neutral-600 hover:border-red-500/50"
                 }`}
               >
                 Yes
@@ -1106,8 +1106,8 @@ export default function WalkInJobForm({
                 onClick={() => setHasGenblu(false)}
                 className={`px-4 py-2 rounded-lg text-sm font-medium border transition-colors ${
                   !hasGenblu
-                    ? "bg-indigo-500 border-indigo-500 text-white"
-                    : "bg-neutral-50 border-neutral-200 text-neutral-600 hover:border-indigo-500/50"
+                    ? "bg-red-500 border-red-500 text-white"
+                    : "bg-neutral-50 border-neutral-200 text-neutral-600 hover:border-red-500/50"
                 }`}
               >
                 No
@@ -1156,8 +1156,8 @@ export default function WalkInJobForm({
                 onClick={() => setWantsCombo(true)}
                 className={`px-4 py-2 rounded-lg text-sm font-medium border transition-colors ${
                   wantsCombo
-                    ? "bg-indigo-500 border-indigo-500 text-white"
-                    : "bg-neutral-50 border-neutral-200 text-neutral-600 hover:border-indigo-500/50"
+                    ? "bg-red-500 border-red-500 text-white"
+                    : "bg-neutral-50 border-neutral-200 text-neutral-600 hover:border-red-500/50"
                 }`}
               >
                 Yes
@@ -1167,8 +1167,8 @@ export default function WalkInJobForm({
                 onClick={() => setWantsCombo(false)}
                 className={`px-4 py-2 rounded-lg text-sm font-medium border transition-colors ${
                   !wantsCombo
-                    ? "bg-indigo-500 border-indigo-500 text-white"
-                    : "bg-neutral-50 border-neutral-200 text-neutral-600 hover:border-indigo-500/50"
+                    ? "bg-red-500 border-red-500 text-white"
+                    : "bg-neutral-50 border-neutral-200 text-neutral-600 hover:border-red-500/50"
                 }`}
               >
                 No
@@ -1181,7 +1181,7 @@ export default function WalkInJobForm({
                   <select
                     value={comboPackageId}
                     onChange={(e) => setComboPackageId(e.target.value)}
-                    className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+                    className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
                   >
                     {packages.map((p) => (
                       <option key={p.id} value={p.id}>
@@ -1198,7 +1198,7 @@ export default function WalkInJobForm({
                     value={comboReceiptId}
                     onChange={(e) => setComboReceiptId(e.target.value)}
                     placeholder="e.g. CSA030927"
-                    className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+                    className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
                   />
                 </div>
               </div>
@@ -1216,7 +1216,7 @@ export default function WalkInJobForm({
             <button
               onClick={handleSave}
               disabled={isPending}
-              className="bg-indigo-500 hover:bg-indigo-400 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+              className="bg-red-500 hover:bg-red-400 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
             >
               {isPending ? "Saving…" : isEdit ? "Save Changes" : "Add Job"}
             </button>

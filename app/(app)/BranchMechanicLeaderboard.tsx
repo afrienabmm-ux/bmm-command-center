@@ -22,7 +22,7 @@ export default function BranchMechanicLeaderboard({ rows }: { rows: MechanicPerf
           </p>
           <p className="text-xs text-neutral-500 mt-0.5">Ranked by total revenue this month</p>
         </div>
-        <Link href="/sales-performance" className="text-xs font-medium text-indigo-600 hover:text-indigo-700 transition-colors whitespace-nowrap">
+        <Link href="/sales-performance" className="text-xs font-medium text-red-600 hover:text-red-700 transition-colors whitespace-nowrap">
           View all →
         </Link>
       </div>

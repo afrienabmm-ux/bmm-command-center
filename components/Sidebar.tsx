@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import {
   LayoutDashboard,
   ShieldCheck,
@@ -18,6 +18,7 @@ import {
   ClipboardList,
   KeyRound,
   Users,
+  ChevronDown,
 } from "lucide-react";
 import { signOutAction, changeOwnPasswordAction } from "@/lib/auth-actions";
 import type { Role } from "@/lib/current-user";
@@ -29,19 +30,26 @@ type NavLink = { href: string; label: string; icon: typeof LayoutDashboard; page
 // then the trailing links — kept as two groups so Manage Team can be
 // spliced in between them rather than always landing at the very end.
 const mainLinks: NavLink[] = [
-  { href: "/", label: "Dashboard", icon: LayoutDashboard, page: null, color: "text-indigo-500" },
-  { href: "/repairs/walk-in", label: "Jobsheet", icon: ClipboardList, page: "walk-in", color: "text-purple-500" },
+  { href: "/", label: "Dashboard", icon: LayoutDashboard, page: null, color: "text-red-500" },
+  { href: "/repairs/walk-in", label: "Jobsheet", icon: ClipboardList, page: "walk-in", color: "text-red-600" },
   { href: "/sales-performance", label: "Sales Performance", icon: TrendingUp, page: "sales-performance", color: "text-sky-500" },
   { href: "/repairs", label: "Restore Bike", icon: Wrench, page: "repairs", color: "text-sky-500" },
   { href: "/packages", label: "Services Combo", icon: Layers, page: "packages", color: "text-teal-500" },
   { href: "/genblu", label: "GenBlu Tracker", icon: Smartphone, page: "genblu", color: "text-pink-500" },
   { href: "/warranty-claims", label: "Claims", icon: ShieldCheck, page: "warranty-claims", color: "text-amber-500" },
-  { href: "/customers", label: "Memberships", icon: Users, page: "customers", color: "text-fuchsia-500" },
+  { href: "/customers", label: "Memberships", icon: Users, page: "customers", color: "text-rose-600" },
 ];
 
 const trailingLinks: NavLink[] = [{ href: "/mechanics", label: "Mechanics", icon: MechanicIcon, page: "mechanics", color: "text-emerald-500" }];
 
 const TEAM_LINK_COLOR = "text-rose-500";
+
+function initials(name: string, email: string): string {
+  const words = name.trim().split(/\s+/).filter(Boolean);
+  if (words.length >= 2) return (words[0][0] + words[1][0]).toUpperCase();
+  if (words.length === 1) return words[0].slice(0, 2).toUpperCase();
+  return email.slice(0, 2).toUpperCase();
+}
 
 export default function Sidebar({
   email,
@@ -63,6 +71,17 @@ export default function Sidebar({
   const pathname = usePathname();
   const canSeeTeam = role === "Management";
   const [changePasswordOpen, setChangePasswordOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
+  const profileRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!profileOpen) return;
+    function handleClick(e: MouseEvent) {
+      if (profileRef.current && !profileRef.current.contains(e.target as Node)) setProfileOpen(false);
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [profileOpen]);
 
   const visible = (list: NavLink[]) => list.filter((l) => l.page === null || pages.includes(l.page));
   const navLinks: NavLink[] = [
@@ -79,7 +98,7 @@ export default function Sidebar({
         onClick={onToggle}
         title={collapsed ? "Expand menu" : "Collapse menu"}
         aria-label={collapsed ? "Expand menu" : "Collapse menu"}
-        className="absolute top-1/2 -right-3 -translate-y-1/2 z-10 w-6 h-6 flex items-center justify-center rounded-full bg-white border border-neutral-200 text-neutral-400 hover:text-indigo-600 hover:border-indigo-300 shadow-sm transition-colors"
+        className="absolute top-1/2 -right-3 -translate-y-1/2 z-10 w-6 h-6 flex items-center justify-center rounded-full bg-white border border-neutral-200 text-neutral-400 hover:text-red-600 hover:border-red-300 shadow-sm transition-colors"
       >
         {collapsed ? <PanelLeftOpen size={13} /> : <PanelLeftClose size={13} />}
       </button>
@@ -92,6 +111,64 @@ export default function Sidebar({
           <div className="leading-none min-w-0 flex-1">
             <p className="text-sm font-semibold text-neutral-900">After-Sales</p>
             <p className="text-[11px] text-neutral-500 truncate">Berjaya Mega Motors</p>
+          </div>
+        )}
+      </div>
+
+      <div ref={profileRef} className={`relative border-b border-neutral-200 ${collapsed ? "px-2 py-3" : "px-3 py-3"}`}>
+        <button
+          type="button"
+          onClick={() => setProfileOpen((v) => !v)}
+          title={collapsed ? name || email : undefined}
+          className={`w-full flex items-center rounded-lg transition-colors hover:bg-neutral-100 ${
+            collapsed ? "justify-center py-1.5" : "gap-2.5 px-2 py-1.5"
+          }`}
+        >
+          <span className="w-8 h-8 rounded-full bg-red-500/10 text-red-700 text-xs font-semibold flex items-center justify-center shrink-0">
+            {initials(name, email)}
+          </span>
+          {!collapsed && (
+            <>
+              <span className="min-w-0 flex-1 text-left leading-none">
+                <p className="text-sm font-medium text-neutral-800 truncate">{name || email}</p>
+                <p className="text-xs text-neutral-500 truncate mt-0.5">{role}</p>
+              </span>
+              <ChevronDown size={14} className={`text-neutral-400 shrink-0 transition-transform ${profileOpen ? "rotate-180" : ""}`} />
+            </>
+          )}
+        </button>
+
+        {profileOpen && (
+          <div
+            className={`absolute z-20 top-full mt-1 bg-white border border-neutral-200 rounded-xl shadow-lg py-2 ${
+              collapsed ? "left-full ml-2 w-56" : "left-3 right-3"
+            }`}
+          >
+            <div className="px-3.5 py-2 border-b border-neutral-100">
+              <p className="text-sm font-medium text-neutral-800 truncate" title={email}>
+                {name || email}
+              </p>
+              <p className="text-xs text-red-600 mt-0.5">{role}</p>
+              {positionTitle && <p className="text-xs text-neutral-500 mt-0.5 truncate">{positionTitle}</p>}
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setProfileOpen(false);
+                setChangePasswordOpen(true);
+              }}
+              className="w-full flex items-center gap-2 px-3.5 py-2 text-sm text-neutral-600 hover:bg-neutral-50 hover:text-neutral-800 transition-colors"
+            >
+              <KeyRound size={14} /> Change Password
+            </button>
+            <form action={signOutAction}>
+              <button
+                type="submit"
+                className="w-full flex items-center gap-2 px-3.5 py-2 text-sm text-neutral-600 hover:bg-neutral-50 hover:text-neutral-800 transition-colors"
+              >
+                <LogOut size={14} /> Sign out
+              </button>
+            </form>
           </div>
         )}
       </div>
@@ -109,52 +186,16 @@ export default function Sidebar({
                 collapsed ? "justify-center px-2 py-2.5" : "gap-3 px-3 py-2.5"
               } ${
                 active
-                  ? "bg-indigo-500/10 text-indigo-700"
+                  ? "bg-red-500/10 text-red-700"
                   : "text-neutral-600 hover:bg-neutral-100 hover:text-neutral-800"
               }`}
             >
-              <Icon size={17} className={`shrink-0 ${active ? "text-indigo-600" : link.color}`} />
+              <Icon size={17} className={`shrink-0 ${active ? "text-red-600" : link.color}`} />
               {!collapsed && link.label}
             </Link>
           );
         })}
       </nav>
-
-      <div className={`py-4 border-t border-neutral-200 ${collapsed ? "px-2" : "px-5"}`}>
-        {!collapsed && (
-          <>
-            <p className="text-xs text-neutral-500">Signed in as</p>
-            <p className="text-sm text-neutral-700 font-medium truncate" title={email}>
-              {name || email}
-            </p>
-            <p className="text-xs text-indigo-600 mt-0.5">{role}</p>
-            {positionTitle && <p className="text-xs text-neutral-500 mt-0.5 truncate">{positionTitle}</p>}
-          </>
-        )}
-        <button
-          type="button"
-          onClick={() => setChangePasswordOpen(true)}
-          title={collapsed ? "Change password" : undefined}
-          className={`flex items-center text-xs font-medium text-neutral-500 hover:text-neutral-700 transition-colors ${
-            collapsed ? "justify-center w-full py-1.5 rounded-lg hover:bg-neutral-100 mt-1" : "gap-1.5 mt-3"
-          }`}
-        >
-          <KeyRound size={collapsed ? 16 : 13} />
-          {!collapsed && "Change Password"}
-        </button>
-        <form action={signOutAction} className={collapsed ? "" : "mt-2"}>
-          <button
-            type="submit"
-            title={collapsed ? `Sign out (${name || email})` : undefined}
-            className={`flex items-center text-xs font-medium text-neutral-500 hover:text-neutral-700 transition-colors ${
-              collapsed ? "justify-center w-full py-1.5 rounded-lg hover:bg-neutral-100" : "gap-1.5"
-            }`}
-          >
-            <LogOut size={collapsed ? 16 : 13} />
-            {!collapsed && "Sign out"}
-          </button>
-        </form>
-      </div>
 
       {changePasswordOpen && <ChangePasswordModal onClose={() => setChangePasswordOpen(false)} />}
     </aside>
@@ -196,7 +237,7 @@ function ChangePasswordModal({ onClose }: { onClose: () => void }) {
             <div className="flex items-center justify-end">
               <button
                 onClick={onClose}
-                className="bg-indigo-500 hover:bg-indigo-400 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+                className="bg-red-500 hover:bg-red-400 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
               >
                 Done
               </button>
@@ -212,14 +253,14 @@ function ChangePasswordModal({ onClose }: { onClose: () => void }) {
                 value={currentPassword}
                 onChange={(e) => setCurrentPassword(e.target.value)}
                 placeholder="Current password"
-                className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+                className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
               />
               <input
                 type="password"
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
                 placeholder="New password (min. 8 characters)"
-                className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+                className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
               />
             </div>
             {error && <p className="text-sm text-red-700 mt-2">{error}</p>}
@@ -233,7 +274,7 @@ function ChangePasswordModal({ onClose }: { onClose: () => void }) {
               <button
                 onClick={handleSave}
                 disabled={isPending || !currentPassword || !newPassword}
-                className="bg-indigo-500 hover:bg-indigo-400 disabled:opacity-50 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+                className="bg-red-500 hover:bg-red-400 disabled:opacity-50 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
               >
                 {isPending ? "Saving…" : "Save"}
               </button>

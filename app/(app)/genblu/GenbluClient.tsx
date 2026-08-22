@@ -90,7 +90,7 @@ export default function GenbluClient({
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search customer name or plate…"
-            className="bg-white border border-neutral-200 rounded-lg pl-8 pr-3 py-2 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50 w-64"
+            className="bg-white border border-neutral-200 rounded-lg pl-8 pr-3 py-2 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50 w-64"
           />
         </div>
         <div className="flex items-center gap-3 flex-wrap">
@@ -100,14 +100,14 @@ export default function GenbluClient({
             type="date"
             value={fromDate}
             onChange={(e) => setFromDate(e.target.value)}
-            className="bg-white border border-neutral-200 rounded-lg px-2.5 py-2 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+            className="bg-white border border-neutral-200 rounded-lg px-2.5 py-2 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
           />
           <label className="text-xs font-medium text-neutral-500">To</label>
           <input
             type="date"
             value={toDate}
             onChange={(e) => setToDate(e.target.value)}
-            className="bg-white border border-neutral-200 rounded-lg px-2.5 py-2 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+            className="bg-white border border-neutral-200 rounded-lg px-2.5 py-2 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
           />
         </div>
         <button
@@ -119,7 +119,7 @@ export default function GenbluClient({
         </button>
         <button
           onClick={() => setModalOpen(true)}
-          className="flex items-center gap-1.5 bg-indigo-500 hover:bg-indigo-400 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors whitespace-nowrap"
+          className="flex items-center gap-1.5 bg-red-500 hover:bg-red-400 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors whitespace-nowrap"
         >
           <Plus size={15} /> New Registration
         </button>
@@ -171,7 +171,7 @@ export default function GenbluClient({
               <div className="flex items-center gap-1 shrink-0">
                 <button
                   onClick={() => setEditing(r)}
-                  className="text-neutral-400 hover:text-indigo-600 transition-colors p-1"
+                  className="text-neutral-400 hover:text-red-600 transition-colors p-1"
                   title="Edit registration"
                   aria-label="Edit registration"
                 >
@@ -304,7 +304,7 @@ function RegisterModal({
               value={regBranch}
               onChange={(e) => handleBranchChange(e.target.value as Branch)}
               disabled={locked}
-              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50 disabled:opacity-60"
+              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50 disabled:opacity-60"
             >
               {BRANCHES.map((b) => (
                 <option key={b.value} value={b.value}>
@@ -320,7 +320,7 @@ function RegisterModal({
               <select
                 value={salespersonId}
                 onChange={(e) => setSalespersonId(e.target.value)}
-                className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+                className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
               >
                 {branchMechanics.map((m) => (
                   <option key={m.id} value={m.id}>
@@ -334,7 +334,7 @@ function RegisterModal({
                 type="text"
                 name="salesperson_name"
                 required
-                className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+                className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
               />
             )}
           </div>
@@ -347,7 +347,7 @@ function RegisterModal({
                   type="text"
                   name="salesperson_name"
                   required
-                  className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+                  className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
                 />
               </div>
               <div>
@@ -356,7 +356,7 @@ function RegisterModal({
                   type="text"
                   name="salesperson_code"
                   placeholder="e.g. NJ"
-                  className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+                  className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
                 />
               </div>
             </div>
@@ -367,7 +367,7 @@ function RegisterModal({
             <input
               type="text"
               name="customer_name"
-              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
             />
             <p className="text-xs text-neutral-500 mt-1.5">Used to match this customer's spending to GenBlu points.</p>
           </div>
@@ -377,7 +377,7 @@ function RegisterModal({
               type="text"
               name="customer_plate_no"
               required
-              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
             />
           </div>
           <div>
@@ -403,7 +403,7 @@ function RegisterModal({
             <button
               type="submit"
               disabled={isPending}
-              className="bg-indigo-500 hover:bg-indigo-400 disabled:opacity-50 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+              className="bg-red-500 hover:bg-red-400 disabled:opacity-50 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
             >
               {isPending ? "Saving…" : "Register"}
             </button>
@@ -473,7 +473,7 @@ function EditModal({
               <select
                 value={salespersonId}
                 onChange={(e) => handleMechanicChange(e.target.value)}
-                className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+                className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
               >
                 {branchMechanics.map((m) => (
                   <option key={m.id} value={m.id}>
@@ -493,7 +493,7 @@ function EditModal({
                   type="text"
                   value={salespersonName}
                   onChange={(e) => setSalespersonName(e.target.value)}
-                  className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+                  className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
                 />
               </div>
               <div>
@@ -503,7 +503,7 @@ function EditModal({
                   value={salespersonCode}
                   onChange={(e) => setSalespersonCode(e.target.value)}
                   placeholder="e.g. NJ"
-                  className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+                  className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
                 />
               </div>
             </div>
@@ -515,7 +515,7 @@ function EditModal({
               type="text"
               value={customerName}
               onChange={(e) => setCustomerName(e.target.value)}
-              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
             />
           </div>
           <div>
@@ -524,7 +524,7 @@ function EditModal({
               type="text"
               value={plateNo}
               onChange={(e) => setPlateNo(e.target.value)}
-              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
             />
           </div>
           <div>
@@ -561,7 +561,7 @@ function EditModal({
           <button
             onClick={handleSave}
             disabled={isPending || !salespersonName.trim() || !plateNo.trim()}
-            className="bg-indigo-500 hover:bg-indigo-400 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+            className="bg-red-500 hover:bg-red-400 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
           >
             {isPending ? "Saving…" : "Save Changes"}
           </button>

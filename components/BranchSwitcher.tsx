@@ -50,7 +50,7 @@ export default function BranchSwitcher({
           onClick={() => select(opt.value)}
           disabled={isPending}
           className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors whitespace-nowrap disabled:opacity-50 ${
-            activeBranch === opt.value ? "bg-indigo-500 text-white" : "text-neutral-600 hover:text-neutral-800"
+            activeBranch === opt.value ? "bg-red-500 text-white" : "text-neutral-600 hover:text-neutral-800"
           }`}
         >
           {opt.value === "all" ? <Layers size={12} /> : <Building2 size={12} />}

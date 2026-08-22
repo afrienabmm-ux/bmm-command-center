@@ -49,7 +49,7 @@ function PicAutocompleteField({
         onBlur={() => setTimeout(() => setOpen(false), 150)}
         placeholder="e.g. SK"
         autoComplete="off"
-        className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+        className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
       />
       {open && matches.length > 0 && (
         <div className="absolute z-20 mt-1 w-full bg-white border border-neutral-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
@@ -82,7 +82,7 @@ const STATUS_STYLES: Record<ClaimStatus, string> = {
 
 const STOCK_STYLES: Record<StockStatus, string> = {
   "In Stock": "bg-sky-500/10 text-sky-700 border-sky-500/20",
-  Sold: "bg-purple-500/10 text-purple-700 border-purple-500/20",
+  Sold: "bg-red-500/10 text-red-700 border-red-500/20",
 };
 
 export default function ClaimsClient({
@@ -195,13 +195,13 @@ export default function ClaimsClient({
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search name, plate, ticket ID, PIC, status…"
-            className="bg-white border border-neutral-200 rounded-lg pl-8 pr-3 py-2 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50 w-72"
+            className="bg-white border border-neutral-200 rounded-lg pl-8 pr-3 py-2 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50 w-72"
           />
         </div>
         <div className="flex items-center gap-3">
           <button
             onClick={() => setSortDir((d) => (d === "desc" ? "asc" : "desc"))}
-            className="flex items-center gap-1.5 bg-white border border-neutral-200 hover:border-indigo-300 text-neutral-700 text-sm font-medium px-3 py-2 rounded-lg transition-colors whitespace-nowrap"
+            className="flex items-center gap-1.5 bg-white border border-neutral-200 hover:border-red-300 text-neutral-700 text-sm font-medium px-3 py-2 rounded-lg transition-colors whitespace-nowrap"
             title="Sort by submitted date"
           >
             <ArrowUpDown size={14} /> {sortDir === "desc" ? "Newest" : "Oldest"}
@@ -209,7 +209,7 @@ export default function ClaimsClient({
           <select
             value={bikeMakeFilter}
             onChange={(e) => setBikeMakeFilter(e.target.value as BikeMake | "All")}
-            className="bg-white border border-neutral-200 rounded-lg px-3 py-2 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+            className="bg-white border border-neutral-200 rounded-lg px-3 py-2 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
           >
             <option value="All">View All</option>
             {BIKE_MAKES.map((m) => (
@@ -221,7 +221,7 @@ export default function ClaimsClient({
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value as ClaimStatus | "All")}
-            className="bg-white border border-neutral-200 rounded-lg px-3 py-2 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+            className="bg-white border border-neutral-200 rounded-lg px-3 py-2 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
           >
             <option value="All">All Statuses</option>
             {CLAIM_STATUSES.map((s) => (
@@ -239,7 +239,7 @@ export default function ClaimsClient({
           </button>
           <button
             onClick={() => setModalOpen(true)}
-            className="flex items-center gap-1.5 bg-indigo-500 hover:bg-indigo-400 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+            className="flex items-center gap-1.5 bg-red-500 hover:bg-red-400 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
           >
             <Plus size={15} /> Add Claim
           </button>
@@ -339,7 +339,7 @@ function ClaimRow({ claim, showBranch, knownPics }: { claim: WarrantyClaim; show
       <td className="px-5 py-3.5 whitespace-nowrap">
         <button
           onClick={() => setNotesOpen(true)}
-          className="text-neutral-400 hover:text-indigo-600 transition-colors p-1"
+          className="text-neutral-400 hover:text-red-600 transition-colors p-1"
           title="Edit PIC"
           aria-label="Edit PIC"
         >
@@ -348,7 +348,7 @@ function ClaimRow({ claim, showBranch, knownPics }: { claim: WarrantyClaim; show
         <Link
           href={`/warranty-claims/${claim.id}/print`}
           target="_blank"
-          className="text-neutral-400 hover:text-indigo-600 transition-colors p-1 inline-block"
+          className="text-neutral-400 hover:text-red-600 transition-colors p-1 inline-block"
           title="Print claim"
           aria-label="Print claim"
         >
@@ -489,7 +489,7 @@ function LatestStatusCell({ claim }: { claim: WarrantyClaim }) {
             if (e.key === "Escape") handleCancel();
           }}
           placeholder="e.g. ETA: waiting SCM reply"
-          className="flex-1 bg-neutral-50 border border-indigo-300 rounded-lg px-2 py-1 text-xs text-neutral-800 focus:outline-none"
+          className="flex-1 bg-neutral-50 border border-red-300 rounded-lg px-2 py-1 text-xs text-neutral-800 focus:outline-none"
         />
         <button
           onClick={handleSave}
@@ -514,7 +514,7 @@ function LatestStatusCell({ claim }: { claim: WarrantyClaim }) {
       </span>
       <button
         onClick={() => setEditing(true)}
-        className="text-neutral-400 hover:text-indigo-600 transition-colors p-1 shrink-0"
+        className="text-neutral-400 hover:text-red-600 transition-colors p-1 shrink-0"
         title="Update latest status"
         aria-label="Update latest status"
       >
@@ -625,7 +625,7 @@ function NotesModal({
           <button
             onClick={handleSave}
             disabled={isPending}
-            className="bg-indigo-500 hover:bg-indigo-400 disabled:opacity-50 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+            className="bg-red-500 hover:bg-red-400 disabled:opacity-50 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
           >
             {isPending ? "Saving…" : "Save"}
           </button>
@@ -702,7 +702,7 @@ function AddClaimModal({
               <select
                 value={selectedBranch}
                 onChange={(e) => setSelectedBranch(e.target.value as Branch)}
-                className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+                className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
               >
                 {BRANCHES.map((b) => (
                   <option key={b.value} value={b.value}>
@@ -719,7 +719,7 @@ function AddClaimModal({
               value={ticketId}
               onChange={(e) => setTicketId(e.target.value)}
               placeholder="e.g. 001-00-046862"
-              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
             />
           </div>
           <PicAutocompleteField value={pic} onChange={setPic} suggestions={knownPics} />
@@ -729,7 +729,7 @@ function AddClaimModal({
               type="text"
               value={customerName}
               onChange={(e) => setCustomerName(e.target.value)}
-              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
             />
           </div>
           <div className="grid grid-cols-2 gap-3">
@@ -740,7 +740,7 @@ function AddClaimModal({
                 value={plateNo}
                 onChange={(e) => setPlateNo(e.target.value)}
                 placeholder="e.g. WXX 1234"
-                className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+                className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
               />
             </div>
             <div>
@@ -750,7 +750,7 @@ function AddClaimModal({
                 value={model}
                 onChange={(e) => setModel(e.target.value)}
                 placeholder="e.g. Y15ZR"
-                className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+                className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
               />
             </div>
           </div>
@@ -759,7 +759,7 @@ function AddClaimModal({
             <select
               value={bikeMake}
               onChange={(e) => setBikeMake(e.target.value as BikeMake)}
-              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
             >
               {BIKE_MAKES.map((m) => (
                 <option key={m} value={m}>
@@ -775,7 +775,7 @@ function AddClaimModal({
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
               placeholder="012-345 6789"
-              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
             />
           </div>
           <div>
@@ -785,7 +785,7 @@ function AddClaimModal({
               onChange={(e) => setDescription(e.target.value)}
               rows={3}
               placeholder="What's the claim about?"
-              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50 resize-none"
+              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50 resize-none"
             />
           </div>
           <div className="grid grid-cols-2 gap-3">
@@ -794,7 +794,7 @@ function AddClaimModal({
               <select
                 value={stockStatus}
                 onChange={(e) => setStockStatus(e.target.value as StockStatus)}
-                className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+                className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
               >
                 {STOCK_STATUSES.map((s) => (
                   <option key={s} value={s}>
@@ -809,7 +809,7 @@ function AddClaimModal({
                 type="date"
                 value={submittedDate}
                 onChange={(e) => setSubmittedDate(e.target.value)}
-                className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+                className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
               />
             </div>
           </div>
@@ -827,7 +827,7 @@ function AddClaimModal({
           <button
             onClick={handleSave}
             disabled={isPending}
-            className="bg-indigo-500 hover:bg-indigo-400 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+            className="bg-red-500 hover:bg-red-400 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
           >
             Add Claim
           </button>

@@ -78,7 +78,7 @@ function ItemsEditor({
             if (e.target.value) addPackage(e.target.value);
             e.target.value = "";
           }}
-          className="w-full bg-indigo-50 border border-indigo-200 rounded-lg px-3 py-2 text-sm text-indigo-800 focus:outline-none focus:border-indigo-500/50 mb-2"
+          className="w-full bg-red-50 border border-red-200 rounded-lg px-3 py-2 text-sm text-red-800 focus:outline-none focus:border-red-500/50 mb-2"
         >
           <option value="">+ Add from Services Combo (optional)…</option>
           {packages.map((p) => (
@@ -97,14 +97,14 @@ function ItemsEditor({
               value={it.code}
               onChange={(e) => update(i, { code: e.target.value })}
               placeholder="Code"
-              className="bg-neutral-50 border border-neutral-200 rounded-lg px-2.5 py-2 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+              className="bg-neutral-50 border border-neutral-200 rounded-lg px-2.5 py-2 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
             />
             <input
               type="text"
               value={it.description}
               onChange={(e) => update(i, { description: e.target.value })}
               placeholder="e.g. Engine Oil"
-              className="bg-neutral-50 border border-neutral-200 rounded-lg px-2.5 py-2 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+              className="bg-neutral-50 border border-neutral-200 rounded-lg px-2.5 py-2 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
             />
             <input
               type="number"
@@ -112,7 +112,7 @@ function ItemsEditor({
               value={it.quantity}
               onChange={(e) => update(i, { quantity: e.target.value })}
               placeholder="Qty"
-              className="bg-neutral-50 border border-neutral-200 rounded-lg px-2 py-2 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+              className="bg-neutral-50 border border-neutral-200 rounded-lg px-2 py-2 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
             />
             <input
               type="number"
@@ -120,7 +120,7 @@ function ItemsEditor({
               value={it.price}
               onChange={(e) => update(i, { price: e.target.value })}
               placeholder="Price"
-              className="bg-neutral-50 border border-neutral-200 rounded-lg px-2 py-2 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+              className="bg-neutral-50 border border-neutral-200 rounded-lg px-2 py-2 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
             />
             <button
               type="button"
@@ -137,14 +137,14 @@ function ItemsEditor({
         <button
           type="button"
           onClick={addRow}
-          className="flex items-center gap-1 text-xs font-medium text-indigo-600 hover:text-indigo-700 transition-colors"
+          className="flex items-center gap-1 text-xs font-medium text-red-600 hover:text-red-700 transition-colors"
         >
           <Plus size={13} /> Add Item
         </button>
         <button
           type="button"
           onClick={addTwentyRows}
-          className="flex items-center gap-1 text-xs font-medium text-indigo-600 hover:text-indigo-700 transition-colors"
+          className="flex items-center gap-1 text-xs font-medium text-red-600 hover:text-red-700 transition-colors"
         >
           <Plus size={13} /> Add 20 Items
         </button>
@@ -388,7 +388,7 @@ export default function RepairJobForm({
               type="date"
               value={formDate}
               onChange={(e) => setFormDate(e.target.value)}
-              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
             />
             <p className="text-xs text-neutral-500 mt-1.5">
               When this form was filled in — the actual repair start date is set later by clicking &quot;Start&quot; on the list.
@@ -401,7 +401,7 @@ export default function RepairJobForm({
               type="text"
               value={plateNo}
               onChange={(e) => setPlateNo(e.target.value)}
-              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
             />
           </div>
           <div className="relative">
@@ -415,7 +415,7 @@ export default function RepairJobForm({
               onBlur={() => setTimeout(() => setPicSuggestionsOpen(false), 150)}
               placeholder="Type a name…"
               autoComplete="off"
-              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
             />
             {picSuggestionsOpen &&
               (() => {
@@ -450,7 +450,7 @@ export default function RepairJobForm({
               value={preparedBy}
               onChange={(e) => setPreparedBy(e.target.value)}
               placeholder="Name of whoever prepared this quotation"
-              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
             />
           </div>
           <div className="grid grid-cols-2 gap-3">
@@ -462,7 +462,7 @@ export default function RepairJobForm({
                 value={model}
                 onChange={(e) => setModel(e.target.value)}
                 placeholder="e.g. Y15ZR"
-                className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+                className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
               />
             </div>
             <div>
@@ -473,7 +473,7 @@ export default function RepairJobForm({
                 value={bikeYear}
                 onChange={(e) => setBikeYear(e.target.value)}
                 placeholder="e.g. 2019"
-                className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+                className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
               />
             </div>
           </div>
@@ -482,7 +482,7 @@ export default function RepairJobForm({
             <select
               value={condition}
               onChange={(e) => setCondition(e.target.value as RestoreBikeCondition)}
-              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
             >
               {RESTORE_BIKE_CONDITIONS.map((c) => (
                 <option key={c} value={c}>
@@ -498,7 +498,7 @@ export default function RepairJobForm({
               type="date"
               value={arrivedDate}
               onChange={(e) => setArrivedDate(e.target.value)}
-              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
             />
           </div>
           <div ref={imageRef} tabIndex={-1}>
@@ -524,7 +524,7 @@ export default function RepairJobForm({
                     <img
                       src={URL.createObjectURL(file)}
                       alt="New bike photo"
-                      className="w-24 h-24 object-cover rounded-lg border border-indigo-300"
+                      className="w-24 h-24 object-cover rounded-lg border border-red-300"
                     />
                     <button
                       type="button"
@@ -560,7 +560,7 @@ export default function RepairJobForm({
               type="text"
               value={mileageKm}
               onChange={(e) => setMileageKm(e.target.value)}
-              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
             />
           </div>
           <div>
@@ -569,7 +569,7 @@ export default function RepairJobForm({
               value={locationBranch}
               disabled={locked}
               onChange={(e) => handleLocationChange(e.target.value as Branch)}
-              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50 disabled:opacity-60"
+              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50 disabled:opacity-60"
             >
               {BRANCHES.map((b) => (
                 <option key={b.value} value={b.value}>
@@ -585,7 +585,7 @@ export default function RepairJobForm({
               type="checkbox"
               checked={isBigItem}
               onChange={(e) => setIsBigItem(e.target.checked)}
-              className="accent-indigo-500"
+              className="accent-red-500"
             />
             <label htmlFor="is-big-item" className="text-xs font-medium text-neutral-600">
               Big / heavy item repair — only Heavy Repair mechanics can be assigned
@@ -602,7 +602,7 @@ export default function RepairJobForm({
               value={itemsTotal.toFixed(2)}
               disabled
               readOnly
-              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50 disabled:opacity-60"
+              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50 disabled:opacity-60"
             />
             <p className="text-xs text-neutral-500 mt-1.5">Calculated automatically from the parts/items list above.</p>
           </div>
@@ -616,8 +616,8 @@ export default function RepairJobForm({
                   onClick={() => setDealType(t)}
                   className={`px-4 py-2 rounded-lg text-sm font-medium border transition-colors ${
                     dealType === t
-                      ? "bg-indigo-500 border-indigo-500 text-white"
-                      : "bg-neutral-50 border-neutral-200 text-neutral-600 hover:border-indigo-500/50"
+                      ? "bg-red-500 border-red-500 text-white"
+                      : "bg-neutral-50 border-neutral-200 text-neutral-600 hover:border-red-500/50"
                   }`}
                 >
                   {t}
@@ -636,7 +636,7 @@ export default function RepairJobForm({
           <button
             onClick={handleSave}
             disabled={isPending}
-            className="bg-indigo-500 hover:bg-indigo-400 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+            className="bg-red-500 hover:bg-red-400 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
           >
             {isPending ? "Saving…" : isEdit ? "Save Changes" : "Add Job"}
           </button>

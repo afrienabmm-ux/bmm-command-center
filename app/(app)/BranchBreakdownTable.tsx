@@ -80,7 +80,7 @@ export default function BranchBreakdownTable({ rows }: { rows: BranchBreakdownRo
                         </p>
                         <div className="flex items-center gap-2 mt-1">
                           <div className="w-20 h-1.5 bg-neutral-100 rounded-full overflow-hidden shrink-0">
-                            <div className="h-full bg-indigo-500 rounded-full" style={{ width: `${pct}%` }} />
+                            <div className="h-full bg-red-500 rounded-full" style={{ width: `${pct}%` }} />
                           </div>
                           <span className="text-xs text-neutral-500">{pct}%</span>
                         </div>
@@ -101,7 +101,7 @@ export default function BranchBreakdownTable({ rows }: { rows: BranchBreakdownRo
                 </td>
                 <td className="px-5 py-3.5 whitespace-nowrap">
                   {b.topRestoreBike ? (
-                    <span className="text-purple-700 font-medium">
+                    <span className="text-red-700 font-medium">
                       {b.topRestoreBike.fullName} ({b.topRestoreBike.shortCode}) — {formatCurrency(b.topRestoreBike.totalRevenue)}
                     </span>
                   ) : (

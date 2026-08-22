@@ -26,7 +26,7 @@ function AddBikeButton({ branch }: { branch: Branch }) {
     <button
       onClick={handleClick}
       disabled={isPending}
-      className="flex items-center gap-1.5 bg-indigo-500 hover:bg-indigo-400 disabled:opacity-50 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+      className="flex items-center gap-1.5 bg-red-500 hover:bg-red-400 disabled:opacity-50 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
     >
       <Plus size={15} /> {isPending ? "Adding…" : "Add Bike"}
     </button>
@@ -73,7 +73,7 @@ function AssignCell({ job, mechanics, allActiveJobs }: { job: RepairJob; mechani
         value=""
         onChange={(e) => handleChange(e.target.value)}
         disabled={isPending || branchMechanics.length === 0}
-        className="text-xs font-medium bg-indigo-50 border border-indigo-200 text-indigo-700 rounded-lg px-2.5 py-1.5 disabled:opacity-50"
+        className="text-xs font-medium bg-red-50 border border-red-200 text-red-700 rounded-lg px-2.5 py-1.5 disabled:opacity-50"
       >
         <option value="">{branchMechanics.length === 0 ? "No mechanics available" : "Assign…"}</option>
         {branchMechanics.map((m) => (
@@ -94,7 +94,7 @@ function AssignCell({ job, mechanics, allActiveJobs }: { job: RepairJob; mechani
               <button
                 type="button"
                 onClick={() => setIdleHeadsUp(null)}
-                className="bg-indigo-500 hover:bg-indigo-400 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+                className="bg-red-500 hover:bg-red-400 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
               >
                 Got it
               </button>
@@ -159,7 +159,7 @@ function ArrivalRow({
         <div className="flex items-center gap-1">
           <Link
             href={`/repairs/${job.id}/edit`}
-            className="text-neutral-400 hover:text-indigo-600 transition-colors p-1 inline-block"
+            className="text-neutral-400 hover:text-red-600 transition-colors p-1 inline-block"
             title="Edit job"
             aria-label="Edit job"
           >
@@ -168,7 +168,7 @@ function ArrivalRow({
           <Link
             href={`/repairs/${job.id}/print`}
             target="_blank"
-            className="text-neutral-400 hover:text-indigo-600 transition-colors p-1 inline-block"
+            className="text-neutral-400 hover:text-red-600 transition-colors p-1 inline-block"
             title="Print job"
             aria-label="Print job"
           >
@@ -254,12 +254,12 @@ export default function ArrivalListingClient({
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search name or plate no…"
-              className="bg-white border border-neutral-200 rounded-lg pl-8 pr-3 py-2 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50 w-64"
+              className="bg-white border border-neutral-200 rounded-lg pl-8 pr-3 py-2 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50 w-64"
             />
           </div>
           <button
             onClick={() => setSortDir((d) => (d === "desc" ? "asc" : "desc"))}
-            className="flex items-center gap-1.5 bg-white border border-neutral-200 hover:border-indigo-300 text-neutral-700 text-sm font-medium px-3 py-2 rounded-lg transition-colors whitespace-nowrap"
+            className="flex items-center gap-1.5 bg-white border border-neutral-200 hover:border-red-300 text-neutral-700 text-sm font-medium px-3 py-2 rounded-lg transition-colors whitespace-nowrap"
             title="Sort by arrived date"
           >
             <ArrowUpDown size={14} /> {sortDir === "desc" ? "Newest" : "Oldest"}
@@ -270,7 +270,7 @@ export default function ArrivalListingClient({
         ) : (
           <Link
             href="/repairs/new"
-            className="flex items-center gap-1.5 bg-indigo-500 hover:bg-indigo-400 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+            className="flex items-center gap-1.5 bg-red-500 hover:bg-red-400 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
           >
             <Plus size={15} /> Add Bike
           </Link>

@@ -51,7 +51,7 @@ export default async function PrintRepairJobPage({ params }: { params: Promise<{
         <div className="grid grid-cols-[1fr_260px] gap-4">
           <table className="w-full text-xs border-collapse">
             <thead>
-              <tr className="bg-indigo-100">
+              <tr className="bg-red-100">
                 <th className="border border-neutral-400 px-2 py-1 text-left w-8">#</th>
                 <th className="border border-neutral-400 px-2 py-1 text-left">DESCRIPTION</th>
                 <th className="border border-neutral-400 px-2 py-1 w-16">QUANTITY</th>

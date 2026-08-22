@@ -71,7 +71,7 @@ export default function MonthPicker({ year, month, basePath = "/" }: { year: num
         <button
           onClick={() => go(now.getFullYear(), now.getMonth() + 1)}
           disabled={isPending}
-          className="ml-1 text-xs font-medium text-indigo-600 hover:text-indigo-700 disabled:opacity-50 whitespace-nowrap"
+          className="ml-1 text-xs font-medium text-red-600 hover:text-red-700 disabled:opacity-50 whitespace-nowrap"
         >
           Today
         </button>

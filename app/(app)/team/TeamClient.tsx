@@ -40,7 +40,7 @@ export default function TeamClient({ members, currentUserId }: { members: TeamMe
       <div className="flex justify-end">
         <button
           onClick={() => setAddUserOpen(true)}
-          className="flex items-center gap-1.5 bg-indigo-500 hover:bg-indigo-400 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+          className="flex items-center gap-1.5 bg-red-500 hover:bg-red-400 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
         >
           <UserPlus size={15} /> Add User
         </button>
@@ -70,12 +70,12 @@ export default function TeamClient({ members, currentUserId }: { members: TeamMe
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Search name or email…"
-                className="bg-white border border-neutral-200 rounded-lg pl-8 pr-3 py-2 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50 w-56"
+                className="bg-white border border-neutral-200 rounded-lg pl-8 pr-3 py-2 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50 w-56"
               />
             </div>
             <button
               onClick={() => setSortDir((d) => (d === "desc" ? "asc" : "desc"))}
-              className="flex items-center gap-1.5 bg-white border border-neutral-200 hover:border-indigo-300 text-neutral-700 text-sm font-medium px-3 py-2 rounded-lg transition-colors whitespace-nowrap"
+              className="flex items-center gap-1.5 bg-white border border-neutral-200 hover:border-red-300 text-neutral-700 text-sm font-medium px-3 py-2 rounded-lg transition-colors whitespace-nowrap"
               title="Sort by date joined"
             >
               <ArrowUpDown size={14} /> {sortDir === "desc" ? "Newest" : "Oldest"}
@@ -136,7 +136,7 @@ function PendingRow({ member }: { member: TeamMember }) {
       <select
         value={role}
         onChange={(e) => setRole(e.target.value as Role)}
-        className="bg-neutral-50 border border-neutral-200 rounded-lg px-3 py-2 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+        className="bg-neutral-50 border border-neutral-200 rounded-lg px-3 py-2 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
       >
         {ROLES.map((r) => (
           <option key={r} value={r}>
@@ -149,12 +149,12 @@ function PendingRow({ member }: { member: TeamMember }) {
         value={title}
         onChange={(e) => setTitle(e.target.value)}
         placeholder="Title (optional, e.g. HR)"
-        className="bg-neutral-50 border border-neutral-200 rounded-lg px-3 py-2 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50 w-36"
+        className="bg-neutral-50 border border-neutral-200 rounded-lg px-3 py-2 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50 w-36"
       />
       <select
         value={branch}
         onChange={(e) => setBranch(e.target.value as BranchSelection)}
-        className="bg-neutral-50 border border-neutral-200 rounded-lg px-3 py-2 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+        className="bg-neutral-50 border border-neutral-200 rounded-lg px-3 py-2 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
       >
         {BRANCHES.map((b) => (
           <option key={b.value} value={b.value}>
@@ -166,7 +166,7 @@ function PendingRow({ member }: { member: TeamMember }) {
       <button
         onClick={approve}
         disabled={isPending}
-        className="flex items-center justify-center gap-1.5 bg-indigo-500 hover:bg-indigo-400 disabled:opacity-50 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors whitespace-nowrap"
+        className="flex items-center justify-center gap-1.5 bg-red-500 hover:bg-red-400 disabled:opacity-50 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors whitespace-nowrap"
       >
         <UserCheck size={15} /> Approve
       </button>
@@ -206,7 +206,7 @@ function MemberRow({ member, isSelf }: { member: TeamMember; isSelf: boolean }) 
               value={role}
               disabled={isSelf || isPending || member.status === "revoked"}
               onChange={(e) => saveRole(e.target.value as Role)}
-              className="bg-neutral-50 border border-neutral-200 rounded-lg px-2.5 py-1.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50 disabled:opacity-50"
+              className="bg-neutral-50 border border-neutral-200 rounded-lg px-2.5 py-1.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50 disabled:opacity-50"
             >
               {ROLES.map((r) => (
                 <option key={r} value={r}>
@@ -221,7 +221,7 @@ function MemberRow({ member, isSelf }: { member: TeamMember; isSelf: boolean }) 
               onBlur={saveTitle}
               placeholder="Title (optional)"
               disabled={isPending || member.status === "revoked"}
-              className="bg-neutral-50 border border-neutral-200 rounded-lg px-2.5 py-1.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50 disabled:opacity-50 w-56"
+              className="bg-neutral-50 border border-neutral-200 rounded-lg px-2.5 py-1.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50 disabled:opacity-50 w-56"
             />
           </div>
         </td>
@@ -230,7 +230,7 @@ function MemberRow({ member, isSelf }: { member: TeamMember; isSelf: boolean }) 
             value={member.homeBranch}
             disabled={isPending || member.status === "revoked"}
             onChange={(e) => updateBranch(e.target.value as BranchSelection)}
-            className="bg-neutral-50 border border-neutral-200 rounded-lg px-2.5 py-1.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50 disabled:opacity-50"
+            className="bg-neutral-50 border border-neutral-200 rounded-lg px-2.5 py-1.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50 disabled:opacity-50"
           >
             {BRANCHES.map((b) => (
               <option key={b.value} value={b.value}>
@@ -260,7 +260,7 @@ function MemberRow({ member, isSelf }: { member: TeamMember; isSelf: boolean }) 
                 disabled={isPending}
                 title="Reset Password"
                 aria-label="Reset Password"
-                className="text-neutral-400 hover:text-indigo-700 disabled:opacity-50 transition-colors p-1.5"
+                className="text-neutral-400 hover:text-red-700 disabled:opacity-50 transition-colors p-1.5"
               >
                 <KeyRound size={15} />
               </button>
@@ -382,7 +382,7 @@ function ResetPasswordModal({ member, onClose }: { member: TeamMember; onClose: 
             <div className="flex items-center justify-end">
               <button
                 onClick={onClose}
-                className="bg-indigo-500 hover:bg-indigo-400 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+                className="bg-red-500 hover:bg-red-400 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
               >
                 Done
               </button>
@@ -401,7 +401,7 @@ function ResetPasswordModal({ member, onClose }: { member: TeamMember; onClose: 
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="New password (min. 8 characters)"
-              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
             />
             {error && <p className="text-sm text-red-700 mt-2">{error}</p>}
             <div className="flex items-center justify-end gap-3 mt-6">
@@ -414,7 +414,7 @@ function ResetPasswordModal({ member, onClose }: { member: TeamMember; onClose: 
               <button
                 onClick={handleSave}
                 disabled={isPending}
-                className="bg-indigo-500 hover:bg-indigo-400 disabled:opacity-50 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+                className="bg-red-500 hover:bg-red-400 disabled:opacity-50 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
               >
                 {isPending ? "Saving…" : "Set New Password"}
               </button>
@@ -462,7 +462,7 @@ function AddUserModal({ onClose }: { onClose: () => void }) {
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
             />
           </div>
           <div>
@@ -471,7 +471,7 @@ function AddUserModal({ onClose }: { onClose: () => void }) {
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
             />
           </div>
           <div>
@@ -481,7 +481,7 @@ function AddUserModal({ onClose }: { onClose: () => void }) {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Min. 8 characters"
-              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
             />
           </div>
           <div className="flex items-center gap-2">
@@ -490,7 +490,7 @@ function AddUserModal({ onClose }: { onClose: () => void }) {
               <select
                 value={role}
                 onChange={(e) => setRole(e.target.value as Role)}
-                className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+                className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
               >
                 {ROLES.map((r) => (
                   <option key={r} value={r}>
@@ -506,7 +506,7 @@ function AddUserModal({ onClose }: { onClose: () => void }) {
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 placeholder="e.g. HR"
-                className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+                className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
               />
             </div>
           </div>
@@ -515,7 +515,7 @@ function AddUserModal({ onClose }: { onClose: () => void }) {
             <select
               value={branch}
               onChange={(e) => setBranch(e.target.value as BranchSelection)}
-              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
             >
               {BRANCHES.map((b) => (
                 <option key={b.value} value={b.value}>
@@ -537,7 +537,7 @@ function AddUserModal({ onClose }: { onClose: () => void }) {
           <button
             onClick={handleSave}
             disabled={!canSave || isPending}
-            className="bg-indigo-500 hover:bg-indigo-400 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+            className="bg-red-500 hover:bg-red-400 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
           >
             {isPending ? "Creating…" : "Create User"}
           </button>

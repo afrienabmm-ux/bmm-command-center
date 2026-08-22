@@ -68,7 +68,7 @@ export default function GenbluQuickForm({ recentJobs }: { recentJobs: RecentJobs
             <select
               value={selectedId}
               onChange={(e) => setSelectedId(e.target.value)}
-              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
+              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
             >
               {recentJobs.map((j) => (
                 <option key={j.jobId} value={j.jobId}>
@@ -98,7 +98,7 @@ export default function GenbluQuickForm({ recentJobs }: { recentJobs: RecentJobs
             type="button"
             onClick={handleSubmit}
             disabled={isPending || !screenshot}
-            className="w-full bg-indigo-500 hover:bg-indigo-400 disabled:opacity-50 text-white text-sm font-medium px-4 py-2.5 rounded-lg transition-colors"
+            className="w-full bg-red-500 hover:bg-red-400 disabled:opacity-50 text-white text-sm font-medium px-4 py-2.5 rounded-lg transition-colors"
           >
             {isPending ? "Uploading…" : "Upload"}
           </button>

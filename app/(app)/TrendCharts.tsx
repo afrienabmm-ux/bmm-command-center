@@ -86,7 +86,7 @@ export function RevenueTrendChart({ points }: { points: MonthlyTrendPoint[] }) {
             <span className="w-3 h-[3px] rounded-full bg-neutral-400 inline-block" /> Target
           </span>
           <span className="flex items-center gap-1.5">
-            <span className="w-3 h-[3px] rounded-full bg-indigo-500 inline-block" /> Achieved
+            <span className="w-3 h-[3px] rounded-full bg-red-500 inline-block" /> Achieved
           </span>
         </div>
       </div>
@@ -102,7 +102,7 @@ export function RevenueTrendChart({ points }: { points: MonthlyTrendPoint[] }) {
               </g>
             ))}
             <path d={targetPath} fill="none" strokeWidth={3} className="stroke-neutral-400" />
-            <path d={achievedPath} fill="none" strokeWidth={3} className="stroke-indigo-500" />
+            <path d={achievedPath} fill="none" strokeWidth={3} className="stroke-red-500" />
             {points.map((p, i) => {
               const targetY = yAt(p.targetAmount);
               const achievedY = yAt(p.achievedAmount);
@@ -121,7 +121,7 @@ export function RevenueTrendChart({ points }: { points: MonthlyTrendPoint[] }) {
                     x={xAt(i)}
                     y={achievedAbove ? labelAbove(achievedY) : labelBelow(achievedY)}
                     textAnchor="middle"
-                    className="fill-indigo-600 text-[10px] font-semibold"
+                    className="fill-red-600 text-[10px] font-semibold"
                   >
                     {shortAmount(p.achievedAmount)}
                   </text>
@@ -139,7 +139,7 @@ export function RevenueTrendChart({ points }: { points: MonthlyTrendPoint[] }) {
 }
 
 const BRANCH_SERIES: { key: Branch; label: string; stroke: string; text: string; dot: string }[] = [
-  { key: "kapar", label: "Kapar (HQ)", stroke: "stroke-indigo-500", text: "fill-indigo-600", dot: "bg-indigo-500" },
+  { key: "kapar", label: "Kapar (HQ)", stroke: "stroke-red-500", text: "fill-red-600", dot: "bg-red-500" },
   { key: "setia_alam", label: "Setia Alam", stroke: "stroke-orange-500", text: "fill-orange-600", dot: "bg-orange-500" },
   { key: "puncak_alam", label: "Puncak Alam", stroke: "stroke-emerald-500", text: "fill-emerald-600", dot: "bg-emerald-500" },
 ];
