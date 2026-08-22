@@ -94,7 +94,7 @@ export default async function ScanPage({ searchParams }: { searchParams: Promise
     .map((j) => ({ jobId: j.id, branch: j.branch, customerName: j.customerName, customerPlateNo: j.plateNo, date: j.createdAt }));
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-rose-50 via-neutral-50 to-neutral-50">
+    <div className="min-h-screen bg-gradient-to-b from-red-50 via-neutral-50 to-neutral-50">
       <Suspense fallback={null}>
         <SavedToast />
       </Suspense>

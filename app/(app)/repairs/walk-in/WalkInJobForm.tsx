@@ -49,10 +49,10 @@ function itemsFromJob(job: RepairJob): ItemInput[] {
 function SectionHeader({ icon: Icon, title }: { icon: typeof User; title: string }) {
   return (
     <div className="flex items-center gap-2 pt-2 -mb-1">
-      <div className="w-7 h-7 rounded-lg bg-rose-500/10 flex items-center justify-center shrink-0">
-        <Icon size={14} className="text-rose-600" />
+      <div className="w-7 h-7 rounded-lg bg-red-500/10 flex items-center justify-center shrink-0">
+        <Icon size={14} className="text-red-600" />
       </div>
-      <p className="text-xs font-semibold text-rose-700 uppercase tracking-wide">{title}</p>
+      <p className="text-xs font-semibold text-red-700 uppercase tracking-wide">{title}</p>
     </div>
   );
 }
@@ -668,7 +668,7 @@ export default function WalkInJobForm({
         <div
           className={
             isScan
-              ? "bg-gradient-to-br from-rose-600 via-red-600 to-rose-700 rounded-2xl p-5 mb-5 shadow-lg shadow-red-900/10"
+              ? "bg-gradient-to-br from-red-600 via-red-700 to-red-800 rounded-2xl p-5 mb-5 shadow-lg shadow-red-900/10"
               : "bg-red-50 border border-red-200 rounded-xl p-5 mb-4"
           }
         >
@@ -710,7 +710,7 @@ export default function WalkInJobForm({
                 disabled={isScanning}
                 className={
                   isScan
-                    ? "flex items-center gap-1.5 bg-white hover:bg-rose-50 disabled:opacity-60 text-red-700 text-sm font-semibold px-4 py-2.5 rounded-xl shadow-sm transition-colors"
+                    ? "flex items-center gap-1.5 bg-white hover:bg-red-50 disabled:opacity-60 text-red-700 text-sm font-semibold px-4 py-2.5 rounded-xl shadow-sm transition-colors"
                     : "flex items-center gap-1.5 bg-red-500 hover:bg-red-400 disabled:opacity-50 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
                 }
               >
@@ -1236,7 +1236,7 @@ export default function WalkInJobForm({
           <button
             onClick={handleSave}
             disabled={isPending}
-            className="flex-1 bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-500 hover:to-red-500 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-semibold px-4 py-3 rounded-xl shadow-sm transition-colors"
+            className="flex-1 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-500 hover:to-red-600 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-semibold px-4 py-3 rounded-xl shadow-sm transition-colors"
           >
             {isPending ? "Saving…" : isEdit ? "Save Changes" : "Add Job"}
           </button>
