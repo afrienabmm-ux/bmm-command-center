@@ -1087,123 +1087,125 @@ export default function WalkInJobForm({
             <p className="text-xs text-neutral-500 mt-1.5">Set this to the date the job is officially done.</p>
           </div>
           {isScan && <SectionHeader icon={Sparkles} title="Extras" />}
-          <div>
-            <label className="block text-xs font-medium text-neutral-600 mb-1.5">Customer has GenBlu?</label>
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => setHasGenblu(true)}
-                className={`px-4 py-2 rounded-lg text-sm font-medium border transition-colors ${
-                  hasGenblu
-                    ? "bg-red-500 border-red-500 text-white"
-                    : "bg-neutral-50 border-neutral-200 text-neutral-600 hover:border-red-500/50"
-                }`}
-              >
-                Yes
-              </button>
-              <button
-                type="button"
-                onClick={() => setHasGenblu(false)}
-                className={`px-4 py-2 rounded-lg text-sm font-medium border transition-colors ${
-                  !hasGenblu
-                    ? "bg-red-500 border-red-500 text-white"
-                    : "bg-neutral-50 border-neutral-200 text-neutral-600 hover:border-red-500/50"
-                }`}
-              >
-                No
-              </button>
-            </div>
-            {hasGenblu && (
-              <>
-                {!customerName.trim() ? (
-                  <p className="text-xs text-amber-700 mt-1.5">Enter the customer name above first.</p>
-                ) : genbluCheckPending ? (
-                  <p className="text-xs text-neutral-500 mt-1.5">Checking the GenBlu Tracker…</p>
-                ) : genbluAlreadyRegistered ? (
-                  <p className="text-xs text-emerald-700 mt-1.5">
-                    Already registered in the GenBlu Tracker — no need to upload the screenshot again.
-                  </p>
-                ) : (
-                  <div className="mt-2">
-                    <input
-                      ref={genbluFileInputRef}
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      onChange={(e) => setGenbluScreenshot(e.target.files?.[0] ?? null)}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => genbluFileInputRef.current?.click()}
-                      className="flex items-center gap-1.5 bg-neutral-50 hover:bg-neutral-100 border border-neutral-200 text-neutral-700 text-sm font-medium px-3.5 py-2 rounded-lg transition-colors"
-                    >
-                      <Upload size={14} /> {genbluScreenshot ? genbluScreenshot.name : "Upload GenBlu Screenshot"}
-                    </button>
-                    <p className="text-xs text-neutral-500 mt-1.5">
-                      New customer — upload their GenBlu screenshot now so it shows up automatically in the GenBlu
-                      Tracker once this job is saved.
-                    </p>
-                  </div>
-                )}
-              </>
-            )}
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-neutral-600 mb-1.5">Services Combo sold?</label>
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => setWantsCombo(true)}
-                className={`px-4 py-2 rounded-lg text-sm font-medium border transition-colors ${
-                  wantsCombo
-                    ? "bg-red-500 border-red-500 text-white"
-                    : "bg-neutral-50 border-neutral-200 text-neutral-600 hover:border-red-500/50"
-                }`}
-              >
-                Yes
-              </button>
-              <button
-                type="button"
-                onClick={() => setWantsCombo(false)}
-                className={`px-4 py-2 rounded-lg text-sm font-medium border transition-colors ${
-                  !wantsCombo
-                    ? "bg-red-500 border-red-500 text-white"
-                    : "bg-neutral-50 border-neutral-200 text-neutral-600 hover:border-red-500/50"
-                }`}
-              >
-                No
-              </button>
-            </div>
-            {wantsCombo && (
-              <div className="mt-2 grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-medium text-neutral-600 mb-1.5">Package *</label>
-                  <select
-                    value={comboPackageId}
-                    onChange={(e) => setComboPackageId(e.target.value)}
-                    className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
-                  >
-                    {packages.map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.name} — {formatCurrency(p.price)}
-                      </option>
-                    ))}
-                  </select>
-                  {packages.length === 0 && <p className="text-xs text-neutral-500 mt-1">No packages set up yet.</p>}
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-neutral-600 mb-1.5">Receipt ID *</label>
-                  <input
-                    type="text"
-                    value={comboReceiptId}
-                    onChange={(e) => setComboReceiptId(e.target.value)}
-                    placeholder="e.g. CSA030927"
-                    className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
-                  />
-                </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-neutral-600 mb-1.5">Customer has GenBlu?</label>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setHasGenblu(true)}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium border transition-colors ${
+                    hasGenblu
+                      ? "bg-red-500 border-red-500 text-white"
+                      : "bg-neutral-50 border-neutral-200 text-neutral-600 hover:border-red-500/50"
+                  }`}
+                >
+                  Yes
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setHasGenblu(false)}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium border transition-colors ${
+                    !hasGenblu
+                      ? "bg-red-500 border-red-500 text-white"
+                      : "bg-neutral-50 border-neutral-200 text-neutral-600 hover:border-red-500/50"
+                  }`}
+                >
+                  No
+                </button>
               </div>
-            )}
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-neutral-600 mb-1.5">Services Combo sold?</label>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setWantsCombo(true)}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium border transition-colors ${
+                    wantsCombo
+                      ? "bg-red-500 border-red-500 text-white"
+                      : "bg-neutral-50 border-neutral-200 text-neutral-600 hover:border-red-500/50"
+                  }`}
+                >
+                  Yes
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setWantsCombo(false)}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium border transition-colors ${
+                    !wantsCombo
+                      ? "bg-red-500 border-red-500 text-white"
+                      : "bg-neutral-50 border-neutral-200 text-neutral-600 hover:border-red-500/50"
+                  }`}
+                >
+                  No
+                </button>
+              </div>
+            </div>
           </div>
+          {hasGenblu && (
+            <div>
+              {!customerName.trim() ? (
+                <p className="text-xs text-amber-700">Enter the customer name above first.</p>
+              ) : genbluCheckPending ? (
+                <p className="text-xs text-neutral-500">Checking the GenBlu Tracker…</p>
+              ) : genbluAlreadyRegistered ? (
+                <p className="text-xs text-emerald-700">
+                  Already registered in the GenBlu Tracker — no need to upload the screenshot again.
+                </p>
+              ) : (
+                <div>
+                  <input
+                    ref={genbluFileInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => setGenbluScreenshot(e.target.files?.[0] ?? null)}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => genbluFileInputRef.current?.click()}
+                    className="flex items-center gap-1.5 bg-neutral-50 hover:bg-neutral-100 border border-neutral-200 text-neutral-700 text-sm font-medium px-3.5 py-2 rounded-lg transition-colors"
+                  >
+                    <Upload size={14} /> {genbluScreenshot ? genbluScreenshot.name : "Upload GenBlu Screenshot"}
+                  </button>
+                  <p className="text-xs text-neutral-500 mt-1.5">
+                    New customer — upload their GenBlu screenshot now so it shows up automatically in the GenBlu
+                    Tracker once this job is saved.
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+          {wantsCombo && (
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-medium text-neutral-600 mb-1.5">Package *</label>
+                <select
+                  value={comboPackageId}
+                  onChange={(e) => setComboPackageId(e.target.value)}
+                  className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
+                >
+                  {packages.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name} — {formatCurrency(p.price)}
+                    </option>
+                  ))}
+                </select>
+                {packages.length === 0 && <p className="text-xs text-neutral-500 mt-1">No packages set up yet.</p>}
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-neutral-600 mb-1.5">Receipt ID *</label>
+                <input
+                  type="text"
+                  value={comboReceiptId}
+                  onChange={(e) => setComboReceiptId(e.target.value)}
+                  placeholder="e.g. CSA030927"
+                  className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
+                />
+              </div>
+            </div>
+          )}
         </div>
         {!isScan && (
           <div className="flex items-center justify-end gap-3 mt-6 pt-4 border-t border-neutral-200">
