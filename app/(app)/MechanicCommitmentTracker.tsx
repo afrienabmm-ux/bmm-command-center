@@ -20,7 +20,7 @@ function MechanicRow({ r, revenueTarget, showBranch }: { r: MechanicCommitmentRo
   return (
     <tr className="border-b border-neutral-100 last:border-0 hover:bg-neutral-50">
       <td className="px-5 py-3.5 text-neutral-800 font-medium whitespace-nowrap">
-        {r.fullName} <span className="text-neutral-500 font-normal">({r.shortCode})</span>
+        {r.shortCode}
       </td>
       {showBranch && <td className="px-5 py-3.5 text-neutral-600 whitespace-nowrap">{branchLabel(r.branch)}</td>}
       <td className="px-5 py-3.5 text-center whitespace-nowrap">

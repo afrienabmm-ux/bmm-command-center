@@ -43,7 +43,7 @@ export default function BranchMechanicLeaderboard({ rows }: { rows: MechanicPerf
                 </span>
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-medium text-neutral-800 truncate">
-                    {r.fullName} <span className="text-neutral-500 font-normal">({r.shortCode})</span>
+                    {r.shortCode}
                   </p>
                   <p className="text-xs text-neutral-500">
                     {r.restoreBikeCount + r.walkInCount} jobs
