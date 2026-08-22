@@ -142,17 +142,30 @@ export async function registerCustomerCardAction(input: {
   const verified = await hasVerifiedOtp(customerEmail);
   if (!verified) return { error: "Please verify your email first." };
 
-  // Signing up again with the same phone number hands back the existing
-  // card instead of creating a duplicate.
-  const { data: existing, error: fetchError } = await supabaseAdmin
+  // A phone or email already tied to a card blocks a fresh sign-up outright
+  // — pointing them at "Check My Card" instead of silently handing back
+  // someone else's (or their own, unlabelled) existing card, which looked
+  // like a normal successful registration either way.
+  const { data: phoneMatch, error: phoneFetchError } = await supabaseAdmin
     .from("cc_customer_cards")
-    .select("card_number, customer_name")
+    .select("card_number")
     .eq("customer_phone", customerPhone)
     .limit(1);
-  if (fetchError) return { error: fetchError.message };
-  if (existing && existing.length > 0) {
-    const visits = await countVisits(existing[0].customer_name, customerPhone);
-    return { cardNumber: existing[0].card_number, tier: tierForVisits(visits), visitCount: visits };
+  if (phoneFetchError) return { error: phoneFetchError.message };
+  if (phoneMatch && phoneMatch.length > 0) {
+    return { error: "This phone number is already registered. Use \"Check My Card\" above to view your membership instead." };
+  }
+
+  const { data: emailMatch, error: emailFetchError } = await supabaseAdmin
+    .from("cc_customer_cards")
+    .select("card_number")
+    .eq("customer_email", customerEmail)
+    .limit(1);
+  if (emailFetchError) return { error: emailFetchError.message };
+  if (emailMatch && emailMatch.length > 0) {
+    return {
+      error: "This email is already registered to another membership. Use \"Check My Card\" above with your registered phone number instead.",
+    };
   }
 
   const cardNumber = generateCardNumber(input.branch);
