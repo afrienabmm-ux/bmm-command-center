@@ -197,6 +197,10 @@ export const MECHANIC_KPI_RESTORE_BIKE_COUNT = 2;
 // minimum, used as a pace reference rather than a separate pass/fail KPI.
 export const MECHANIC_KPI_WORKING_DAYS = 25;
 export const MECHANIC_KPI_DAILY_TARGET = Math.round(MECHANIC_KPI_REVENUE / MECHANIC_KPI_WORKING_DAYS);
+// Branches run a 6-day working week (closed Sundays), so the weekly
+// commitment tracker's revenue target is 6x the daily KPI reference above
+// rather than a separate number invented from scratch.
+export const MECHANIC_WEEKLY_REVENUE_TARGET = MECHANIC_KPI_DAILY_TARGET * 6;
 
 export type GenbluRegistration = {
   id: string;

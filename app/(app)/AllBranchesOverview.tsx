@@ -16,7 +16,7 @@ import {
   getAllBranchesApprovedReadyToStartJobs,
   getUpcomingServiceReminders,
 } from "@/lib/repairs-actions";
-import { getBranchMonthSummary } from "@/lib/reports-actions";
+import { getBranchMonthSummary, getBranchPerformance } from "@/lib/reports-actions";
 import { getMonthlyTrends } from "@/lib/trends-actions";
 import { getRevenuePace } from "@/lib/revenue-pace-actions";
 import RevenuePace from "./RevenuePace";
@@ -32,6 +32,7 @@ import PackageBreakdownCharts from "./PackageBreakdownCharts";
 import RestoreBikeStatus, { type OverdueRestoreBikeDetail } from "./RestoreBikeStatus";
 import ClaimStatusPieCard from "./ClaimStatusPieCard";
 import { getAllMechanics } from "@/lib/mechanics-actions";
+import BranchMechanicLeaderboard from "./BranchMechanicLeaderboard";
 
 // Rolls (year, month) back one month, correctly crossing a year boundary.
 function previousMonth(year: number, month: number): { year: number; month: number } {
@@ -77,6 +78,7 @@ export default async function AllBranchesOverview({
     idleMechanics,
     todayActivity,
     allMechanics,
+    branchMechanicRows,
   ] = await Promise.all([
     getBranchBreakdown(year, month),
     getAllBranchesOverdueRestoreBikeJobs(onlyBranch),
@@ -97,6 +99,7 @@ export default async function AllBranchesOverview({
     getMechanicsNotActiveToday(onlyBranch),
     getTodayActivity(onlyBranch),
     getAllMechanics(),
+    onlyBranch ? getBranchPerformance(onlyBranch, year, month) : Promise.resolve([]),
   ]);
 
   // Combined view sums every branch's row; single-branch view just reads
@@ -409,7 +412,7 @@ export default async function AllBranchesOverview({
 
       <MonthlyTrends points={trendPoints} />
 
-      {!onlyBranch && <BranchBreakdownTable rows={rows} />}
+      {onlyBranch ? <BranchMechanicLeaderboard rows={branchMechanicRows} /> : <BranchBreakdownTable rows={rows} />}
     </div>
   );
 }

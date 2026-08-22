@@ -1,11 +1,13 @@
 import { requirePage, getActiveBranchSelection, canViewAllBranches } from "@/lib/current-user";
 import { getAllBranchesPerformance, getBranchPerformance, type MechanicPerformanceRowWithBranch } from "@/lib/reports-actions";
 import { getPackageSalesBreakdown } from "@/lib/dashboard-breakdowns-actions";
+import { getMechanicCommitment } from "@/lib/mechanic-commitment-actions";
 import { branchLabel } from "@/lib/branch";
 import PageHeader from "@/components/PageHeader";
 import MonthPicker from "@/components/MonthPicker";
 import AllBranchesMechanicPerformanceTable from "../AllBranchesMechanicPerformanceTable";
 import PackageBreakdownCharts from "../PackageBreakdownCharts";
+import MechanicCommitmentTracker from "../MechanicCommitmentTracker";
 
 export const dynamic = "force-dynamic";
 
@@ -36,7 +38,7 @@ export default async function SalesPerformancePage({
   const prevYear = month === 1 ? year - 1 : year;
   const prevMonth = month === 1 ? 12 : month - 1;
 
-  const [rows, prevRows, packageBreakdown] = await Promise.all([
+  const [rows, prevRows, packageBreakdown, commitment] = await Promise.all([
     onlyBranch
       ? getBranchPerformance(onlyBranch, year, month).then(
           (r): MechanicPerformanceRowWithBranch[] => r.map((row) => ({ ...row, branch: onlyBranch }))
@@ -44,6 +46,7 @@ export default async function SalesPerformancePage({
       : getAllBranchesPerformance(year, month),
     onlyBranch ? getBranchPerformance(onlyBranch, prevYear, prevMonth) : getAllBranchesPerformance(prevYear, prevMonth),
     getPackageSalesBreakdown(year, month),
+    getMechanicCommitment(onlyBranch),
   ]);
 
   // A plain object, not a Map — Map instances can't cross the Server/Client
@@ -60,6 +63,7 @@ export default async function SalesPerformancePage({
         action={<MonthPicker year={year} month={month} basePath="/sales-performance" />}
       />
       <div className="p-8 space-y-8">
+        <MechanicCommitmentTracker summary={commitment} branchSelection={branchSelection} />
         <AllBranchesMechanicPerformanceTable
           rows={rows}
           branchSelection={branchSelection}
