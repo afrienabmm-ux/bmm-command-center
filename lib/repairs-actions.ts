@@ -355,6 +355,7 @@ export type ServiceReminder = {
   id: string;
   branch: Branch;
   customerName: string;
+  customerPhone: string;
   plateNo: string;
   model: string;
   nextServiceDate: string;
@@ -370,7 +371,7 @@ export async function getUpcomingServiceReminders(onlyBranch?: Branch): Promise<
   const branches = onlyBranch ? [onlyBranch] : BRANCHES.map((b) => b.value);
   const { data, error } = await supabaseAdmin
     .from("cc_repair_jobs")
-    .select("id, branch, customer_name, plate_no, model, next_service_date")
+    .select("id, branch, customer_name, customer_phone, plate_no, model, next_service_date")
     .eq("job_type", "Walk-in")
     .in("branch", branches)
     .neq("next_service_date", "");
@@ -389,6 +390,7 @@ export async function getUpcomingServiceReminders(onlyBranch?: Branch): Promise<
         id: r.id as string,
         branch: r.branch as Branch,
         customerName: r.customer_name as string,
+        customerPhone: r.customer_phone as string,
         plateNo: r.plate_no as string,
         model: r.model as string,
         nextServiceDate: r.next_service_date as string,

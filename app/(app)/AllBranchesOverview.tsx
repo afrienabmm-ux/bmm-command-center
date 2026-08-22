@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { AlertTriangle, Clock, ShieldCheck, CheckCircle2, ClipboardList, Wrench, Wallet, Layers, PackageCheck, ArrowUp, ArrowDown, CalendarClock } from "lucide-react";
+import { AlertTriangle, Clock, ShieldCheck, CheckCircle2, ClipboardList, Wrench, Wallet, Layers, PackageCheck, ArrowUp, ArrowDown } from "lucide-react";
 import { formatCurrency, formatDate, monthLabel } from "@/lib/format";
 import { branchLabel, type Branch, type BranchSelection } from "@/lib/branch";
 import StatCard from "@/components/StatCard";
@@ -33,6 +33,7 @@ import RestoreBikeStatus, { type OverdueRestoreBikeDetail } from "./RestoreBikeS
 import ClaimStatusPieCard from "./ClaimStatusPieCard";
 import { getAllMechanics } from "@/lib/mechanics-actions";
 import BranchMechanicLeaderboard from "./BranchMechanicLeaderboard";
+import ServiceReminderBanner from "./ServiceReminderBanner";
 
 // Rolls (year, month) back one month, correctly crossing a year boundary.
 function previousMonth(year: number, month: number): { year: number; month: number } {
@@ -326,38 +327,7 @@ export default async function AllBranchesOverview({
         </Link>
       )}
 
-      {serviceReminders.length > 0 && (
-        <Link
-          href={
-            serviceReminders.length === 1
-              ? `/repairs/walk-in?highlight=${serviceReminders[0].id}`
-              : "/repairs/walk-in"
-          }
-          className="block bg-sky-50 border border-sky-200 rounded-xl p-5 hover:border-sky-300 transition-colors"
-        >
-          <div className="flex items-start gap-3">
-            <div className="w-9 h-9 rounded-lg bg-sky-500/10 flex items-center justify-center shrink-0">
-              <CalendarClock size={17} className="text-sky-600" />
-            </div>
-            <div className="min-w-0">
-              <p className="text-sm font-semibold text-sky-700">
-                {serviceReminders.length} customer{serviceReminders.length === 1 ? "" : "s"} due for their next
-                service — remind them
-              </p>
-              <p className="text-xs text-sky-600 mt-1">
-                {serviceReminders
-                  .slice(0, 6)
-                  .map(
-                    (j) =>
-                      `${j.customerName || j.plateNo} (${j.daysUntil >= 0 ? `due in ${j.daysUntil}d` : `${-j.daysUntil}d overdue`})`
-                  )
-                  .join(", ")}
-                {serviceReminders.length > 6 ? `, +${serviceReminders.length - 6} more` : ""}
-              </p>
-            </div>
-          </div>
-        </Link>
-      )}
+      <ServiceReminderBanner reminders={serviceReminders} />
 
       <IdleMechanicsNotice mechanics={idleMechanics} />
 
