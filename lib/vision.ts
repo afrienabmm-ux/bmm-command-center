@@ -237,6 +237,40 @@ async function inkResidualScore(buffer: Buffer, left: number, top: number, width
 
 export type SignatureCheck = { result: boolean | null; debug: string };
 
+function levenshtein(a: string, b: string): number {
+  if (a === b) return 0;
+  const m = a.length;
+  const n = b.length;
+  if (m === 0) return n;
+  if (n === 0) return m;
+  const dp = new Array(n + 1);
+  for (let j = 0; j <= n; j++) dp[j] = j;
+  for (let i = 1; i <= m; i++) {
+    let prev = dp[0];
+    dp[0] = i;
+    for (let j = 1; j <= n; j++) {
+      const tmp = dp[j];
+      dp[j] = a[i - 1] === b[j - 1] ? prev : 1 + Math.min(prev, dp[j - 1], dp[j]);
+      prev = tmp;
+    }
+  }
+  return dp[n];
+}
+
+// Tolerates two different OCR failure modes on a label word: characters
+// substituted/missing within it ("Custamer", "Signaturo" — caught by the
+// edit-distance check), and it running together with an adjacent word
+// with no space in between ("CustomerSignature" — caught by the substring
+// check, since edit distance alone would see a whole extra word's worth
+// of "difference" and reject it).
+function looksLikeWord(raw: string, canonical: string): boolean {
+  const normalized = raw.toLowerCase().replace(/[^a-z]/g, "");
+  if (!normalized) return false;
+  if (normalized.includes(canonical)) return true;
+  const threshold = Math.max(1, Math.floor(canonical.length * 0.34));
+  return levenshtein(normalized, canonical) <= threshold;
+}
+
 // The jobsheet has two signature lines — "Authorised Signature" (staff)
 // and "Customer Signature" — and only the customer's matters here.
 // Anchoring on any word containing "signature" risked landing on the
@@ -245,14 +279,16 @@ export type SignatureCheck = { result: boolean | null; debug: string };
 // Required") that reads as pen-stroke texture to the ink check below — a
 // real scan came back "detected" on a completely blank customer box for
 // exactly that reason. Requiring a "Customer" word immediately to the
-// left, on the same line, is how the two get told apart.
+// left, on the same line, is how the two get told apart — matched
+// loosely so a slightly misread "Customer" doesn't make the whole check
+// come back empty-handed.
 function findCustomerSignatureLabel(words: PositionedWord[]): PositionedWord | null {
-  const customerWords = words.filter((w) => /^customer$/i.test(w.text));
+  const customerWords = words.filter((w) => looksLikeWord(w.text, "customer"));
   let best: PositionedWord | null = null;
   let bestDist = Infinity;
   for (const cust of customerWords) {
     for (const w of words) {
-      if (!/signature/i.test(w.text)) continue;
+      if (!looksLikeWord(w.text, "signature")) continue;
       if (w.x < cust.x) continue;
       if (Math.abs(w.yCenter - cust.yCenter) > cust.height * 0.8) continue;
       const dist = w.x - cust.x;
