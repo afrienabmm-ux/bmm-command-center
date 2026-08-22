@@ -275,32 +275,79 @@ function parseJobsheetText(text: string): ScannedJobsheet {
   else if (upper.includes("KAPA")) branch = "kapar";
 
   // Item rows look like: "1  9OO00000023  OIL ROCK OIL SYNTHESIS ...  1.00  UNIT  96.00  96.00"
-  // (No., Code, Description, Qty, UOM, Unit Price, Amount, ...). Lines that
-  // don't follow that shape (discount lines, blank rows) are skipped rather
-  // than guessed at.
+  // (No., Code, Description, Qty, UOM, Unit Price, Amount, ...).
+  //
+  // Parsed by scanning tokens left-to-right for a clean "<number> <UOM
+  // word>" pair rather than one big regex over the whole line — a single
+  // pattern turned out to backtrack past real noise (a stray extra digit,
+  // a misread punctuation mark standing in for a missing column) and lock
+  // onto entirely the wrong tokens as qty/price instead of just failing to
+  // match. That's worse than skipping the row: it silently saves a wrong
+  // quantity or price instead of leaving the row for the mechanic to type
+  // in by hand.
   const items: ScannedJobsheetItem[] = [];
-  // [.,:] with optional surrounding whitespace on the decimal parts — OCR
-  // sometimes reads the decimal point as a comma ("1.00" -> "1,00") or,
-  // worse, as a colon with stray spaces on both sides ("14.50" -> "14 : 50").
-  // The leading row number is optional — it's occasionally dropped
-  // entirely by OCR on the first item line, but code/description/qty/price
-  // are what the form actually needs, so the row is still worth keeping
-  // without it.
-  const itemLinePattern =
-    /^(?:\d+\s+)?(\S+)\s+(.+?)\s+(\d+(?:\s*[.,:]\s*\d+)?)\s+\S+\s+(\d+(?:\s*[.,:]\s*\d{2}))\s+\d+(?:\s*[.,:]\s*\d{2})/;
-  function toDecimal(raw: string): number {
-    return Number(raw.replace(/\s+/g, "").replace(/[,:]/g, ".")) || 0;
+  const UOM_WORDS = /^(UNIT|UNI|PCS?|SET|PKT|PAIR|PRS|LTRS?|L|KG|BTL|BOX|TIN|ROLL|PAIL|EA|NOS)$/i;
+
+  function isNumericToken(tok: string): boolean {
+    return /^\d+(?:[.,:]\d+)?$/.test(tok);
   }
-  for (const line of text.split("\n")) {
-    const m = line.match(itemLinePattern);
-    if (!m) continue;
-    const [, code, description, qty, unitPrice] = m;
-    items.push({
-      code: code.trim(),
-      description: description.trim(),
-      quantity: toDecimal(qty) || 1,
-      price: toDecimal(unitPrice),
-    });
+  function tokenToNumber(tok: string): number {
+    return Number(tok.replace(/[,:]/g, ".")) || 0;
+  }
+
+  for (const rawLine of text.split("\n")) {
+    // OCR sometimes reads a decimal point as a colon with stray spaces on
+    // both sides ("14.50" -> "14 : 50") — merged back into one token
+    // before splitting, so it isn't mistaken for two unrelated numbers.
+    const line = rawLine.replace(/(\d+)\s*:\s*(\d{2})(?!\d)/g, "$1.$2");
+    const tokens = line.split(/\s+/).filter(Boolean);
+    if (tokens.length < 4) continue;
+
+    // A leading row number is a separate token from the code that
+    // follows it, and — unlike a product code — never runs more than two
+    // digits, so a genuinely numeric code (e.g. "9000000013") doesn't get
+    // mistaken for one and swallowed.
+    let i = /^\d{1,2}$/.test(tokens[0]) ? 1 : 0;
+    const code = tokens[i];
+    const descStart = i + 1;
+
+    // The first "<clean number> <UOM word>" pair after the code is Qty
+    // followed by UOM. Requiring the word to be a real UOM (not just any
+    // run of letters) matters here specifically — motor oil descriptions
+    // are full of "<number> <ALL-CAPS spec>" pairs like "40 API" or "40
+    // SN" that would otherwise get mistaken for the quantity.
+    let qtyIndex = -1;
+    for (let j = descStart; j < tokens.length - 1; j++) {
+      if (isNumericToken(tokens[j]) && UOM_WORDS.test(tokens[j + 1])) {
+        qtyIndex = j;
+        break;
+      }
+    }
+    if (qtyIndex === -1) continue;
+
+    const description = tokens.slice(descStart, qtyIndex).join(" ").trim();
+    const quantity = tokenToNumber(tokens[qtyIndex]) || 1;
+    const afterUom = tokens
+      .slice(qtyIndex + 2)
+      .filter(isNumericToken)
+      .map(tokenToNumber);
+    if (afterUom.length === 0) continue;
+
+    // Unit Price is whichever candidate, multiplied by Qty, actually
+    // matches a later number on the same row (Amount) — real rows are
+    // internally consistent that way, which is what lets a spurious extra
+    // number OCR sometimes inserts get skipped instead of mistaken for
+    // the real price. Falls back to the first candidate if nothing lines
+    // up (still better than leaving the row out entirely).
+    let price = afterUom[0];
+    for (let k = 0; k < afterUom.length - 1; k++) {
+      if (Math.abs(quantity * afterUom[k] - afterUom[k + 1]) < 0.5) {
+        price = afterUom[k];
+        break;
+      }
+    }
+
+    items.push({ code: code.trim(), description, quantity, price });
   }
 
   return {
