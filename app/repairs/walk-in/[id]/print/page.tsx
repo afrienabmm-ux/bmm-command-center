@@ -3,6 +3,7 @@ import { requirePage } from "@/lib/current-user";
 import { getRepairJobById, getJobsheetPhotoUrlAction } from "@/lib/repairs-actions";
 import { getAllMechanics } from "@/lib/mechanics-actions";
 import { formatDate } from "@/lib/format";
+import { branchLabel } from "@/lib/branch";
 import PrintButton from "../../../[id]/print/PrintButton";
 
 export const dynamic = "force-dynamic";
@@ -49,6 +50,9 @@ export default async function PrintWalkInJobPage({ params }: { params: Promise<{
         <h1 className="text-sm font-bold underline mb-3">JOBSHEET</h1>
 
         <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-xs mb-4">
+          <p>
+            <span className="font-semibold">Branch :</span> {branchLabel(job.branch)}
+          </p>
           <p>
             <span className="font-semibold">Customer Name :</span> {job.customerName}
           </p>
