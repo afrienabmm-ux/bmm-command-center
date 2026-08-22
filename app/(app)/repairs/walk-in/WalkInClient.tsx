@@ -9,6 +9,7 @@ import { isHeavyRepairJob, type RepairStatus, type RepairJob } from "@/lib/types
 import type { Mechanic } from "@/lib/types";
 import { branchLabel, type Branch, type BranchSelection } from "@/lib/branch";
 import { formatCurrency, formatDate, daysBetween, toCsv } from "@/lib/format";
+import { useToast } from "@/lib/useToast";
 
 // Walk-in jobs never enter QC (that's Restore Bike only), but the shared
 // RepairStatus type still includes it, so this map needs an entry too.
@@ -471,6 +472,7 @@ function shortDate(iso: string): string {
 // Pending — see setWalkInEndDateAction.
 function EndDateCell({ job, editable }: { job: RepairJob; editable: boolean }) {
   const [isPending, startTransition] = useTransition();
+  const { showError, toastNode } = useToast();
   const date = job.completedDate;
 
   function handleClick() {
@@ -478,13 +480,14 @@ function EndDateCell({ job, editable }: { job: RepairJob; editable: boolean }) {
       try {
         await setWalkInEndDateAction(job.id, job.branch, date ? null : new Date().toISOString().slice(0, 10));
       } catch (err) {
-        window.alert(err instanceof Error ? err.message : "Something went wrong.");
+        showError(err instanceof Error ? err.message : "Something went wrong.");
       }
     });
   }
 
   return (
     <div className="flex flex-col items-center gap-0.5">
+      {toastNode}
       <button
         type="button"
         onClick={handleClick}

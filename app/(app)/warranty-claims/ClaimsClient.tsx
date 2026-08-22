@@ -21,6 +21,7 @@ import {
 } from "@/lib/types";
 import { BRANCHES, branchLabel, type Branch, type BranchSelection } from "@/lib/branch";
 import { formatDate, toCsv } from "@/lib/format";
+import { useToast } from "@/lib/useToast";
 
 // Native <datalist> renders as a disconnected floating box on iOS Safari
 // instead of anchoring under the input, so PIC suggestions use a plain
@@ -100,6 +101,7 @@ export default function ClaimsClient({
   const [sortDir, setSortDir] = useState<"desc" | "asc">("desc");
   const [exporting, setExporting] = useState(false);
   const showBranchColumn = branchSelection === "all";
+  const { toastNode } = useToast();
 
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -182,6 +184,7 @@ export default function ClaimsClient({
 
   return (
     <div>
+      {toastNode}
       <PicScoreboard claims={claims} />
 
       <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
@@ -400,48 +403,56 @@ function ClaimRow({ claim, showBranch, knownPics }: { claim: WarrantyClaim; show
 // clicking through them one at a time.
 function StatusCell({ claim }: { claim: WarrantyClaim }) {
   const [isPending, startTransition] = useTransition();
+  const { showError, toastNode } = useToast();
   function handleChange(next: ClaimStatus) {
     startTransition(async () => {
       const result = await updateClaimStatusAction(claim.id, claim.branch, next);
-      if (result && "error" in result) window.alert(result.error);
+      if (result && "error" in result) showError(result.error);
     });
   }
   return (
-    <select
-      value={claim.status}
-      onChange={(e) => handleChange(e.target.value as ClaimStatus)}
-      disabled={isPending}
-      className={`text-xs font-medium pl-2.5 pr-6 py-1.5 rounded-full border transition-colors disabled:opacity-50 cursor-pointer ${STATUS_STYLES[claim.status]}`}
-    >
-      {CLAIM_STATUSES.map((s) => (
-        <option key={s} value={s}>
-          {s}
-        </option>
-      ))}
-    </select>
+    <>
+      {toastNode}
+      <select
+        value={claim.status}
+        onChange={(e) => handleChange(e.target.value as ClaimStatus)}
+        disabled={isPending}
+        className={`text-xs font-medium pl-2.5 pr-6 py-1.5 rounded-full border transition-colors disabled:opacity-50 cursor-pointer ${STATUS_STYLES[claim.status]}`}
+      >
+        {CLAIM_STATUSES.map((s) => (
+          <option key={s} value={s}>
+            {s}
+          </option>
+        ))}
+      </select>
+    </>
   );
 }
 
 // Click-to-cycle Stock button — same idea, just two states.
 function StockCell({ claim }: { claim: WarrantyClaim }) {
   const [isPending, startTransition] = useTransition();
+  const { showError, toastNode } = useToast();
   function handleClick() {
     const next = STOCK_STATUSES[(STOCK_STATUSES.indexOf(claim.stockStatus) + 1) % STOCK_STATUSES.length];
     startTransition(async () => {
       const result = await updateClaimStockStatusAction(claim.id, claim.branch, next);
-      if (result && "error" in result) window.alert(result.error);
+      if (result && "error" in result) showError(result.error);
     });
   }
   return (
-    <button
-      type="button"
-      onClick={handleClick}
-      disabled={isPending}
-      title={`Click to cycle: ${STOCK_STATUSES.join(" -> ")}`}
-      className={`text-xs font-medium px-2.5 py-1.5 rounded-full border transition-colors disabled:opacity-50 ${STOCK_STYLES[claim.stockStatus]}`}
-    >
-      {claim.stockStatus}
-    </button>
+    <>
+      {toastNode}
+      <button
+        type="button"
+        onClick={handleClick}
+        disabled={isPending}
+        title={`Click to cycle: ${STOCK_STATUSES.join(" -> ")}`}
+        className={`text-xs font-medium px-2.5 py-1.5 rounded-full border transition-colors disabled:opacity-50 ${STOCK_STYLES[claim.stockStatus]}`}
+      >
+        {claim.stockStatus}
+      </button>
+    </>
   );
 }
 

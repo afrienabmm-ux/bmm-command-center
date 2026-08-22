@@ -12,6 +12,7 @@ import {
 import { CLAIM_STATUSES, STOCK_STATUSES, type ClaimStatus, type StockStatus, type DeliveryClaim } from "@/lib/types";
 import { BRANCHES, branchLabel, type Branch, type BranchSelection } from "@/lib/branch";
 import { formatDate, toCsv } from "@/lib/format";
+import { useToast } from "@/lib/useToast";
 
 // Native <datalist> renders as a disconnected floating box on iOS Safari
 // instead of anchoring under the input, so PIC suggestions use a plain
@@ -92,6 +93,7 @@ export default function DeliveryClaimsClient({
   const [sortDir, setSortDir] = useState<"desc" | "asc">("desc");
   const [exporting, setExporting] = useState(false);
   const showBranchColumn = branchSelection === "all";
+  const { toastNode } = useToast();
 
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -145,6 +147,7 @@ export default function DeliveryClaimsClient({
 
   return (
     <div>
+      {toastNode}
       <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
         <div className="relative">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
@@ -332,47 +335,55 @@ function ClaimRow({ claim, showBranch, knownPics }: { claim: DeliveryClaim; show
 
 function StatusCell({ claim }: { claim: DeliveryClaim }) {
   const [isPending, startTransition] = useTransition();
+  const { showError, toastNode } = useToast();
   function handleChange(next: ClaimStatus) {
     startTransition(async () => {
       const result = await updateDeliveryClaimStatusAction(claim.id, claim.branch, next);
-      if (result && "error" in result) window.alert(result.error);
+      if (result && "error" in result) showError(result.error);
     });
   }
   return (
-    <select
-      value={claim.status}
-      onChange={(e) => handleChange(e.target.value as ClaimStatus)}
-      disabled={isPending}
-      className={`text-xs font-medium pl-2.5 pr-6 py-1.5 rounded-full border transition-colors disabled:opacity-50 cursor-pointer ${STATUS_STYLES[claim.status]}`}
-    >
-      {CLAIM_STATUSES.map((s) => (
-        <option key={s} value={s}>
-          {s}
-        </option>
-      ))}
-    </select>
+    <>
+      {toastNode}
+      <select
+        value={claim.status}
+        onChange={(e) => handleChange(e.target.value as ClaimStatus)}
+        disabled={isPending}
+        className={`text-xs font-medium pl-2.5 pr-6 py-1.5 rounded-full border transition-colors disabled:opacity-50 cursor-pointer ${STATUS_STYLES[claim.status]}`}
+      >
+        {CLAIM_STATUSES.map((s) => (
+          <option key={s} value={s}>
+            {s}
+          </option>
+        ))}
+      </select>
+    </>
   );
 }
 
 function StockCell({ claim }: { claim: DeliveryClaim }) {
   const [isPending, startTransition] = useTransition();
+  const { showError, toastNode } = useToast();
   function handleClick() {
     const next = STOCK_STATUSES[(STOCK_STATUSES.indexOf(claim.stockStatus) + 1) % STOCK_STATUSES.length];
     startTransition(async () => {
       const result = await updateDeliveryClaimStockStatusAction(claim.id, claim.branch, next);
-      if (result && "error" in result) window.alert(result.error);
+      if (result && "error" in result) showError(result.error);
     });
   }
   return (
-    <button
-      type="button"
-      onClick={handleClick}
-      disabled={isPending}
-      title={`Click to cycle: ${STOCK_STATUSES.join(" -> ")}`}
-      className={`text-xs font-medium px-2.5 py-1.5 rounded-full border transition-colors disabled:opacity-50 ${STOCK_STYLES[claim.stockStatus]}`}
-    >
-      {claim.stockStatus}
-    </button>
+    <>
+      {toastNode}
+      <button
+        type="button"
+        onClick={handleClick}
+        disabled={isPending}
+        title={`Click to cycle: ${STOCK_STATUSES.join(" -> ")}`}
+        className={`text-xs font-medium px-2.5 py-1.5 rounded-full border transition-colors disabled:opacity-50 ${STOCK_STYLES[claim.stockStatus]}`}
+      >
+        {claim.stockStatus}
+      </button>
+    </>
   );
 }
 

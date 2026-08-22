@@ -12,6 +12,7 @@ import type { Mechanic, CatalogProduct, Package } from "@/lib/types";
 import { BRANCHES, branchLabel, type Branch, type BranchSelection } from "@/lib/branch";
 import { formatCurrency } from "@/lib/format";
 import CatalogItemPicker from "@/components/CatalogItemPicker";
+import { useToast } from "@/lib/useToast";
 
 type ItemInput = { code: string; description: string; quantity: string; price: string };
 
@@ -194,6 +195,7 @@ export default function WalkInJobForm({
   const [comboPackageId, setComboPackageId] = useState(packages[0]?.id ?? "");
   const [comboReceiptId, setComboReceiptId] = useState("");
   const [isPending, startTransition] = useTransition();
+  const { showError, showInfo, toastNode } = useToast();
   const [isScanning, setIsScanning] = useState(false);
   const [scanError, setScanError] = useState<string | null>(null);
   const [scanNotice, setScanNotice] = useState<string | null>(null);
@@ -268,7 +270,7 @@ export default function WalkInJobForm({
       setSignatureDetected(scanned.signatureDetected);
       setSignatureConfirmed(scanned.signatureDetected === true);
       if (scanned.signatureDetected !== true) {
-        window.alert(
+        showError(
           "No customer signature detected on this jobsheet. Please check that the customer has signed it, or take a clearer photo and scan again."
         );
       }
@@ -483,11 +485,11 @@ export default function WalkInJobForm({
     }
     if (!effectiveBranch) return;
     if (hasGenblu && !genbluAlreadyRegistered && !genbluScreenshot) {
-      window.alert("Upload the customer's GenBlu screenshot before saving, or switch \"Customer has GenBlu?\" to No.");
+      showError("Upload the customer's GenBlu screenshot before saving, or switch \"Customer has GenBlu?\" to No.");
       return;
     }
     if (wantsCombo && (!comboPackageId || comboReceiptId.trim() === "")) {
-      window.alert("Pick a package and enter the receipt ID, or switch \"Services Combo sold?\" to No.");
+      showError("Pick a package and enter the receipt ID, or switch \"Services Combo sold?\" to No.");
       return;
     }
     const cleanItems = items
@@ -558,11 +560,11 @@ export default function WalkInJobForm({
             screenshot: genbluScreenshot,
           });
           if (genbluResult && "error" in genbluResult) {
-            window.alert(`Job not saved — ${genbluResult.error}`);
+            showError(`Job not saved — ${genbluResult.error}`);
             return;
           }
         } catch {
-          window.alert(
+          showError(
             "Job not saved — couldn't verify the GenBlu screenshot (the check took too long). Please try again."
           );
           return;
@@ -572,13 +574,13 @@ export default function WalkInJobForm({
       if (isEdit && job) {
         const result = await updateRepairJobAction(job.id, job.branch, payload);
         if (result && "error" in result) {
-          window.alert(result.error);
+          showError(result.error);
           return;
         }
       } else {
         const result = await addRepairJobAction({ ...payload, branch: effectiveBranch, jobType: "Walk-in" });
         if ("error" in result) {
-          window.alert(result.error);
+          showError(result.error);
           return;
         }
       }
@@ -613,9 +615,13 @@ export default function WalkInJobForm({
             // Non-fatal — the job is already saved either way.
           }
         }
-        window.alert(
+        showInfo(
           `${customerName.trim()} earned ${Math.round(finalRevenue).toLocaleString()} GenBlu points (${formatCurrency(finalRevenue)}) from this job.`
         );
+        // Give the PIC a moment to actually read the toast above before the
+        // page navigates away — window.alert used to block until dismissed,
+        // this is the non-blocking equivalent of that pause.
+        await new Promise((resolve) => setTimeout(resolve, 3000));
       }
       router.push(`${redirectTo}${redirectTo.includes("?") ? "&" : "?"}saved=1`);
     });
@@ -623,6 +629,7 @@ export default function WalkInJobForm({
 
   return (
     <div className="max-w-2xl mx-auto">
+      {toastNode}
       {!isEdit && (
         <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-5 mb-4">
           <div className="flex items-start gap-3">

@@ -9,6 +9,7 @@ import type { Mechanic } from "@/lib/types";
 import { branchLabel, type Branch, type BranchSelection } from "@/lib/branch";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { useRouter } from "next/navigation";
+import { useToast } from "@/lib/useToast";
 
 function AddBikeButton({ branch }: { branch: Branch }) {
   const router = useRouter();
@@ -41,6 +42,7 @@ function AddBikeButton({ branch }: { branch: Branch }) {
 // mechanics don't get quietly skipped over.
 function AssignCell({ job, mechanics, allActiveJobs }: { job: RepairJob; mechanics: Mechanic[]; allActiveJobs: RepairJob[] }) {
   const [isPending, startTransition] = useTransition();
+  const { showError, showInfo, toastNode } = useToast();
   const branchMechanics = mechanics.filter((m) => m.branch === job.branch && (!isHeavyRepairJob(job) || m.category === "Heavy Repair"));
 
   function handleChange(mechanicId: string) {
@@ -48,13 +50,13 @@ function AssignCell({ job, mechanics, allActiveJobs }: { job: RepairJob; mechani
     startTransition(async () => {
       const result = await assignMechanicAction(job.id, job.branch, mechanicId);
       if (result && "error" in result) {
-        window.alert(result.error);
+        showError(result.error);
         return;
       }
       const busyMechanicIds = new Set(allActiveJobs.filter((j) => j.mechanicId).map((j) => j.mechanicId as string));
       const freeMechanics = mechanics.filter((m) => m.branch === job.branch && m.id !== mechanicId && !busyMechanicIds.has(m.id));
       if (freeMechanics.length > 0) {
-        window.alert(
+        showInfo(
           `Heads up — ${freeMechanics.map((m) => `${m.shortName} (${m.shortCode})`).join(", ")} still ${
             freeMechanics.length === 1 ? "has" : "have"
           } no job today. Make sure they're getting work too so they can chase their daily revenue.`
@@ -64,19 +66,22 @@ function AssignCell({ job, mechanics, allActiveJobs }: { job: RepairJob; mechani
   }
 
   return (
-    <select
-      value=""
-      onChange={(e) => handleChange(e.target.value)}
-      disabled={isPending || branchMechanics.length === 0}
-      className="text-xs font-medium bg-indigo-50 border border-indigo-200 text-indigo-700 rounded-lg px-2.5 py-1.5 disabled:opacity-50"
-    >
-      <option value="">{branchMechanics.length === 0 ? "No mechanics available" : "Assign…"}</option>
-      {branchMechanics.map((m) => (
-        <option key={m.id} value={m.id}>
-          {m.shortName} ({m.shortCode})
-        </option>
-      ))}
-    </select>
+    <>
+      {toastNode}
+      <select
+        value=""
+        onChange={(e) => handleChange(e.target.value)}
+        disabled={isPending || branchMechanics.length === 0}
+        className="text-xs font-medium bg-indigo-50 border border-indigo-200 text-indigo-700 rounded-lg px-2.5 py-1.5 disabled:opacity-50"
+      >
+        <option value="">{branchMechanics.length === 0 ? "No mechanics available" : "Assign…"}</option>
+        {branchMechanics.map((m) => (
+          <option key={m.id} value={m.id}>
+            {m.shortName} ({m.shortCode})
+          </option>
+        ))}
+      </select>
+    </>
   );
 }
 

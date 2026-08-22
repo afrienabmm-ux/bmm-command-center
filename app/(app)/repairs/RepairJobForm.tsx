@@ -15,6 +15,7 @@ import type { Mechanic, Package, CatalogProduct } from "@/lib/types";
 import { BRANCHES, branchLabel, type Branch, type BranchSelection } from "@/lib/branch";
 import { formatCurrency } from "@/lib/format";
 import CatalogItemPicker from "@/components/CatalogItemPicker";
+import { useToast } from "@/lib/useToast";
 
 type ItemInput = { code: string; description: string; quantity: string; price: string };
 
@@ -206,6 +207,7 @@ export default function RepairJobForm({
   const [existingPhotos, setExistingPhotos] = useState<{ path: string; url: string }[]>([]);
   const [imageError, setImageError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const { showError, toastNode } = useToast();
   const formDateRef = useRef<HTMLInputElement>(null);
   const plateNoRef = useRef<HTMLInputElement>(null);
   const picNameRef = useRef<HTMLInputElement>(null);
@@ -251,7 +253,7 @@ export default function RepairJobForm({
     startTransition(async () => {
       const result = await removeRestoreBikeImageAction(job.id, job.branch, path);
       if (result && "error" in result) {
-        window.alert(result.error);
+        showError(result.error);
         return;
       }
       setExistingPhotos((prev) => prev.filter((p) => p.path !== path));
@@ -347,13 +349,13 @@ export default function RepairJobForm({
       if (isEdit && job) {
         const result = await updateRepairJobAction(job.id, job.branch, payload);
         if (result && "error" in result) {
-          window.alert(result.error);
+          showError(result.error);
           return;
         }
       } else {
         const result = await addRepairJobAction({ ...payload, branch: locationBranch, jobType: "Restore Bike" });
         if ("error" in result) {
-          window.alert(result.error);
+          showError(result.error);
           return;
         }
         jobId = result.id;
@@ -363,7 +365,11 @@ export default function RepairJobForm({
         newPhotoFiles.forEach((file) => imageFormData.append("images", file));
         const uploadResult = await uploadRestoreBikeImagesAction(jobId, locationBranch, imageFormData);
         if (uploadResult && "error" in uploadResult) {
-          window.alert(`Job saved, but the photo upload failed: ${uploadResult.error}`);
+          // Stay on the page (instead of navigating away like the success
+          // path below) so the PIC actually sees this — the job itself did
+          // save, just not the photos.
+          showError(`Job saved, but the photo upload failed: ${uploadResult.error}`);
+          return;
         }
       }
       router.push("/repairs");
@@ -372,6 +378,7 @@ export default function RepairJobForm({
 
   return (
     <div className="max-w-2xl mx-auto">
+      {toastNode}
       <div className="bg-white border border-neutral-200 rounded-xl p-6">
         <div className="space-y-4">
           <div>

@@ -19,6 +19,7 @@ import {
 import type { Mechanic } from "@/lib/types";
 import { branchLabel, type Branch, type BranchSelection } from "@/lib/branch";
 import { formatCurrency, formatDate, daysBetween, toCsv } from "@/lib/format";
+import { useToast } from "@/lib/useToast";
 
 const STATUS_STYLES: Record<RepairStatus, string> = {
   Pending: "bg-neutral-100 text-neutral-700 border-neutral-300",
@@ -65,6 +66,7 @@ export default function RepairsClient({
   highlightId?: string;
 }) {
   const [tab, setTab] = useState<"active" | "qc" | "completed">("active");
+  const { toastNode } = useToast();
 
   // Deep-linked from a dashboard alert (e.g. "ready to start") — jump to
   // whichever sub-tab the highlighted job is actually in, since it isn't
@@ -184,6 +186,7 @@ export default function RepairsClient({
 
   return (
     <div>
+      {toastNode}
       {overdueCount > 0 && (
         <div className="flex items-center gap-3 bg-red-50 border border-red-200 rounded-xl p-4 mb-4">
           <div className="w-9 h-9 rounded-lg bg-red-500/10 flex items-center justify-center shrink-0">
@@ -528,13 +531,14 @@ function StatusCell({ job }: { job: RepairJob }) {
 function QcFailReasonModal({ job, onClose }: { job: RepairJob; onClose: () => void }) {
   const [reason, setReason] = useState("");
   const [isPending, startTransition] = useTransition();
+  const { showError, toastNode } = useToast();
 
   function handleConfirm() {
     if (reason.trim() === "") return;
     startTransition(async () => {
       const result = await setQcResultAction(job.id, job.branch, "Failed", reason);
       if (result && "error" in result) {
-        window.alert(result.error);
+        showError(result.error);
         return;
       }
       onClose();
@@ -543,6 +547,7 @@ function QcFailReasonModal({ job, onClose }: { job: RepairJob; onClose: () => vo
 
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 px-4">
+      {toastNode}
       <div className="bg-white border border-neutral-200 rounded-xl w-full max-w-sm p-6 text-left">
         <h2 className="text-sm font-semibold text-neutral-900 mb-2">Why did this fail QC?</h2>
         <p className="text-sm text-neutral-600 mb-3">
@@ -579,6 +584,7 @@ function QcFailReasonModal({ job, onClose }: { job: RepairJob; onClose: () => vo
 function QcResultCell({ job }: { job: RepairJob }) {
   const [isPending, startTransition] = useTransition();
   const [failModalOpen, setFailModalOpen] = useState(false);
+  const { showError, toastNode } = useToast();
 
   function handleChange(value: string) {
     if (value === "Failed") {
@@ -588,12 +594,13 @@ function QcResultCell({ job }: { job: RepairJob }) {
     if (value !== "Passed") return;
     startTransition(async () => {
       const result = await setQcResultAction(job.id, job.branch, "Passed");
-      if (result && "error" in result) window.alert(result.error);
+      if (result && "error" in result) showError(result.error);
     });
   }
 
   return (
     <>
+      {toastNode}
       <select
         value=""
         onChange={(e) => handleChange(e.target.value)}
@@ -745,6 +752,7 @@ function RepairDateCell({
   editable: boolean;
 }) {
   const [isPending, startTransition] = useTransition();
+  const { showError, toastNode } = useToast();
   const date = stage === "started" ? job.startedDate : job.completedDate;
   const missingStockDates = stage === "started" && (!job.stockOrderDate || !job.stockArriveDate);
   // Not blocked by approval/stock-date state here — clicking still fires,
@@ -767,12 +775,17 @@ function RepairDateCell({
         date ? null : new Date().toISOString().slice(0, 10)
       );
       if (result && "error" in result) {
-        window.alert(result.error);
+        showError(result.error);
       }
     });
   }
 
-  return <StageButton label={stage === "started" ? "St" : "En"} date={date} onClick={handleClick} disabled={disabled} title={title} />;
+  return (
+    <>
+      {toastNode}
+      <StageButton label={stage === "started" ? "St" : "En"} date={date} onClick={handleClick} disabled={disabled} title={title} />
+    </>
+  );
 }
 
 // So the GM can see what a Restore Bike's cost is actually made up of —
