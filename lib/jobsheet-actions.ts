@@ -237,7 +237,12 @@ function extractFields(text: string): Record<string, string> {
 // has to check and confirm before saving.
 function parseJobsheetText(text: string): ScannedJobsheet {
   const f = extractFields(text);
-  const customerCode = f.customerCode ?? "";
+  // Customer Code is always purely numeric on the physical jobsheet — the
+  // raw captured value often runs on into the next (unlabeled) field on the
+  // same line, e.g. "801206 - 10 - 5757 JOB CARD" once OCR merges Customer
+  // Code with the adjacent Job Card No. field, so only the first digit run
+  // is kept.
+  const customerCode = (f.customerCode ?? "").match(/\d+/)?.[0] ?? "";
   const customerName = f.customerName ?? "";
   const plateNo = f.plateNo ?? "";
   const model = f.model ?? "";
@@ -272,9 +277,18 @@ function parseJobsheetText(text: string): ScannedJobsheet {
   // don't follow that shape (discount lines, blank rows) are skipped rather
   // than guessed at.
   const items: ScannedJobsheetItem[] = [];
-  // [.,] instead of a plain "." on the decimal parts — OCR sometimes reads
-  // the decimal point as a comma (observed: "1.00" -> "1,00").
-  const itemLinePattern = /^\d+\s+(\S+)\s+(.+?)\s+(\d+(?:[.,]\d+)?)\s+\S+\s+(\d+(?:[.,]\d{2}))\s+\d+(?:[.,]\d{2})/;
+  // [.,:] with optional surrounding whitespace on the decimal parts — OCR
+  // sometimes reads the decimal point as a comma ("1.00" -> "1,00") or,
+  // worse, as a colon with stray spaces on both sides ("14.50" -> "14 : 50").
+  // The leading row number is optional — it's occasionally dropped
+  // entirely by OCR on the first item line, but code/description/qty/price
+  // are what the form actually needs, so the row is still worth keeping
+  // without it.
+  const itemLinePattern =
+    /^(?:\d+\s+)?(\S+)\s+(.+?)\s+(\d+(?:\s*[.,:]\s*\d+)?)\s+\S+\s+(\d+(?:\s*[.,:]\s*\d{2}))\s+\d+(?:\s*[.,:]\s*\d{2})/;
+  function toDecimal(raw: string): number {
+    return Number(raw.replace(/\s+/g, "").replace(/[,:]/g, ".")) || 0;
+  }
   for (const line of text.split("\n")) {
     const m = line.match(itemLinePattern);
     if (!m) continue;
@@ -282,8 +296,8 @@ function parseJobsheetText(text: string): ScannedJobsheet {
     items.push({
       code: code.trim(),
       description: description.trim(),
-      quantity: Number(qty.replace(",", ".")) || 1,
-      price: Number(unitPrice.replace(",", ".")) || 0,
+      quantity: toDecimal(qty) || 1,
+      price: toDecimal(unitPrice),
     });
   }
 
