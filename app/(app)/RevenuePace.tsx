@@ -64,7 +64,7 @@ function RevenueRunRateChart({ data, title }: { data: RevenuePaceData; title: st
             <span className="w-3 h-[3px] rounded-full bg-red-500 inline-block" /> Actual
           </span>
           <span className="flex items-center gap-1.5">
-            <span className="w-3 h-0 border-t-2 border-dashed border-rose-500 inline-block" /> Pace needed
+            <span className="w-3 h-0 border-t-2 border-dashed border-neutral-400 inline-block" /> Pace needed
           </span>
         </div>
       </div>
@@ -92,7 +92,7 @@ function RevenueRunRateChart({ data, title }: { data: RevenuePaceData; title: st
                 </text>
               ) : null
             )}
-            <path d={pacePath} fill="none" strokeWidth={2.5} strokeDasharray="6 4" className="stroke-rose-500" />
+            <path d={pacePath} fill="none" strokeWidth={2.5} strokeDasharray="6 4" className="stroke-neutral-400" />
             {actualPath && <path d={actualPath} fill="none" strokeWidth={3} className="stroke-red-500" />}
             {markerPoint && (
               <g>
@@ -104,7 +104,7 @@ function RevenueRunRateChart({ data, title }: { data: RevenuePaceData; title: st
                   className="stroke-neutral-300"
                   strokeWidth={1}
                 />
-                <circle cx={xAt(markerDay - 1)} cy={yAt(markerPoint.paceNeeded)} r={4} className="fill-rose-500" />
+                <circle cx={xAt(markerDay - 1)} cy={yAt(markerPoint.paceNeeded)} r={4} className="fill-neutral-400" />
                 {markerDay <= today && <circle cx={xAt(markerDay - 1)} cy={yAt(markerPoint.actual)} r={4} className="fill-red-500" />}
               </g>
             )}
@@ -128,7 +128,7 @@ function RevenueRunRateChart({ data, title }: { data: RevenuePaceData; title: st
               </p>
             )}
             <p className="text-neutral-600">
-              Pace needed : <span className="text-rose-600 font-medium">{formatCurrency(markerPoint.paceNeeded)}</span>
+              Pace needed : <span className="text-neutral-700 font-medium">{formatCurrency(markerPoint.paceNeeded)}</span>
             </p>
           </div>
         )}
