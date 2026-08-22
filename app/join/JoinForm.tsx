@@ -398,11 +398,10 @@ function LookupTab({ restored, onClear }: { restored: StoredLookup | null; onCle
           autoCapitalize="characters"
           value={phone}
           onChange={(e) => setPhone(e.target.value)}
-          placeholder="Your phone number"
+          placeholder="Phone Number / Plate No."
           className={inputClass}
         />
       </div>
-      <p className="text-[11px] text-neutral-400 -mt-1.5 pl-1">Don&apos;t remember your number? Enter your plate number instead.</p>
 
       {error && <p className="text-sm text-red-700">{error}</p>}
 
