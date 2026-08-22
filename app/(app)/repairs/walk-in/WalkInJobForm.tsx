@@ -235,6 +235,7 @@ export default function WalkInJobForm({
   // start confirmed since there's nothing new to check unless re-scanned.
   const [signatureDetected, setSignatureDetected] = useState<boolean | null>(null);
   const [signatureConfirmed, setSignatureConfirmed] = useState(isEdit);
+  const [jobsheetPhotoPath, setJobsheetPhotoPath] = useState<string | null>(job?.jobsheetPhotoPath ?? null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const customerNameRef = useRef<HTMLInputElement>(null);
   const plateNoRef = useRef<HTMLInputElement>(null);
@@ -287,12 +288,13 @@ export default function WalkInJobForm({
       formData.append("file", uploadBlob, isPdf ? file.name : "jobsheet.jpg");
 
       const res = await fetch("/api/scan-jobsheet", { method: "POST", body: formData });
-      const result: { data: ScannedJobsheet } | { error: string } = await res.json();
+      const result: { data: ScannedJobsheet; photoPath: string | null } | { error: string } = await res.json();
       if ("error" in result) {
         setScanError(result.error);
         return;
       }
       const scanned = result.data;
+      setJobsheetPhotoPath(result.photoPath);
       setScanRawText(scanned.rawText);
       setScanSignatureDebug(scanned.signatureDebug);
       setSignatureDetected(scanned.signatureDetected);
@@ -569,6 +571,7 @@ export default function WalkInJobForm({
       items: cleanItems,
       completedDate: completedDate || null,
       isBigItem,
+      jobsheetPhotoPath,
     };
 
     const finalRevenue = items.length > 0 ? itemsTotal : Number(revenueAmount) || 0;

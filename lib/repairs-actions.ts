@@ -62,6 +62,7 @@ type Row = {
   qc_date: string | null;
   qc_fail_reason: string | null;
   signature_status: string;
+  jobsheet_photo_path: string | null;
   cc_repair_job_items: ItemRow[] | null;
 };
 
@@ -120,6 +121,7 @@ function toJob(r: Row): RepairJob {
     qcDate: r.qc_date,
     qcFailReason: r.qc_fail_reason,
     signatureStatus: r.signature_status,
+    jobsheetPhotoPath: r.jobsheet_photo_path,
   };
 }
 
@@ -546,6 +548,7 @@ export async function addRepairJobAction(input: {
   // quotation being done, no separate click needed.
   quotationDate?: string | null;
   signatureStatus?: string;
+  jobsheetPhotoPath?: string | null;
 }): Promise<{ error: string } | { id: string }> {
   const user = await requireApproved();
   assertCanEditBranch(user, input.branch);
@@ -616,6 +619,7 @@ export async function addRepairJobAction(input: {
       jobsheet_user_id: input.jobsheetUserId ?? "",
       quotation_date: input.quotationDate ?? null,
       signature_status: input.signatureStatus ?? "",
+      jobsheet_photo_path: input.jobsheetPhotoPath ?? null,
     })
     .select("id")
     .single();
@@ -678,6 +682,7 @@ export async function updateRepairJobAction(
     // this column.
     quotationDate?: string | null;
     signatureStatus?: string;
+    jobsheetPhotoPath?: string | null;
   }
 ): Promise<{ error: string } | void> {
   const user = await requireApproved();
@@ -737,6 +742,11 @@ export async function updateRepairJobAction(
   }
   if (input.quotationDate !== undefined) update.quotation_date = input.quotationDate;
   if (input.signatureStatus !== undefined) update.signature_status = input.signatureStatus;
+  // A re-scan on an existing job replaces the saved photo with the new
+  // one; leaving it untouched (undefined) when the form wasn't re-scanned
+  // is what keeps a job's original photo from being wiped out on every
+  // ordinary edit.
+  if (input.jobsheetPhotoPath !== undefined) update.jobsheet_photo_path = input.jobsheetPhotoPath;
   // Stock Order/Arrive are click-to-stamp only on the Bikes Listing list now
   // (setRestoreBikeWorkflowDateAction) — the edit form no longer sends
   // these, so omitting them here must NOT silently null out a date already
@@ -1013,4 +1023,18 @@ export async function getRestoreBikeImageUrl(path: string): Promise<string | nul
 export async function getRestoreBikeImageUrls(paths: string[]): Promise<string[]> {
   const urls = await Promise.all(paths.map((p) => getRestoreBikeImageUrl(p)));
   return urls.filter((u): u is string => u !== null);
+}
+
+const JOBSHEET_PHOTO_BUCKET = "jobsheet-photos";
+
+// The original photo of the paper jobsheet, uploaded through Scan
+// Jobsheet — same private-bucket-plus-signed-URL pattern as Restore Bike
+// photos. Lets a manager check the real thing directly whenever the
+// automated reading (item rows, signature check) needs a human
+// double-check.
+export async function getJobsheetPhotoUrlAction(path: string): Promise<string | null> {
+  await requireApproved();
+  const { data, error } = await supabaseAdmin.storage.from(JOBSHEET_PHOTO_BUCKET).createSignedUrl(path, 60 * 60);
+  if (error) return null;
+  return data.signedUrl;
 }

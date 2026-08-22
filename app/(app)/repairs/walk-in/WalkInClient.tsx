@@ -3,8 +3,8 @@
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Plus, Download, Pencil, Search, Trash2, Check, Printer, ArrowUpDown, ChevronDown } from "lucide-react";
-import { setWalkInEndDateAction, deleteRepairJobAction } from "@/lib/repairs-actions";
+import { Plus, Download, Pencil, Search, Trash2, Check, Printer, ArrowUpDown, ChevronDown, ImageIcon } from "lucide-react";
+import { setWalkInEndDateAction, deleteRepairJobAction, getJobsheetPhotoUrlAction } from "@/lib/repairs-actions";
 import { isHeavyRepairJob, type RepairStatus, type RepairJob } from "@/lib/types";
 import type { Mechanic } from "@/lib/types";
 import { branchLabel, type Branch, type BranchSelection } from "@/lib/branch";
@@ -609,8 +609,20 @@ function WalkInRow({
   const [isPending, startTransition] = useTransition();
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [photoPending, setPhotoPending] = useState(false);
   const days = daysBetween(job.startedDate, job.completedDate ?? new Date().toISOString().slice(0, 10));
   const rowRef = useRef<HTMLTableRowElement>(null);
+
+  // Opens the original scanned photo in a new tab — a signed URL is
+  // resolved on click rather than up front, since it expires after an
+  // hour and this list can stay open on screen much longer than that.
+  async function handleViewPhoto() {
+    if (!job.jobsheetPhotoPath || photoPending) return;
+    setPhotoPending(true);
+    const url = await getJobsheetPhotoUrlAction(job.jobsheetPhotoPath);
+    setPhotoPending(false);
+    if (url) window.open(url, "_blank", "noopener,noreferrer");
+  }
 
   // Double-click anywhere on the row (except an actual link/button, which
   // already has its own action) opens the jobsheet's full details.
@@ -686,6 +698,20 @@ function WalkInRow({
       </td>
       <td className="px-5 py-3.5">
         <div className="flex items-center gap-1">
+          {job.jobsheetPhotoPath && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                handleViewPhoto();
+              }}
+              disabled={photoPending}
+              className="text-neutral-400 hover:text-red-600 transition-colors p-1 disabled:opacity-50"
+              title="View scanned jobsheet photo"
+              aria-label="View scanned jobsheet photo"
+            >
+              <ImageIcon size={14} />
+            </button>
+          )}
           <Link
             href={`/repairs/walk-in/${job.id}/edit`}
             className="text-neutral-400 hover:text-red-600 transition-colors p-1 inline-block"

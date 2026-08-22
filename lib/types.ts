@@ -175,6 +175,13 @@ export type RepairJob = {
   // "not_detected" (scan ran, found nothing, but staff confirmed anyway),
   // "unchecked" (scan couldn't tell), or "" (no scan — manual entry).
   signatureStatus: string;
+  // Walk-in only — the original photo of the paper jobsheet, uploaded
+  // through Scan Jobsheet. Kept so a manager can look at the real thing
+  // whenever the automated reading (item rows, signature check) needs a
+  // human double-check. Stored the same way as GenBlu screenshots and
+  // Restore Bike photos (private bucket, path only; resolved to a signed
+  // URL on read). Null for jobs entered by hand, without scanning.
+  jobsheetPhotoPath: string | null;
 };
 
 export const RESTORE_BIKE_CONDITIONS = ["L", "H"] as const;
