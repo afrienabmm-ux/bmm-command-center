@@ -14,7 +14,7 @@ export default function JoinPage() {
           <img
             src="/bmm-logo.png"
             alt="Berjaya Mega Motors"
-            className="w-16 h-16 rounded-full object-cover mb-3 ring-4 ring-white/30 shadow-lg"
+            className="w-16 h-16 rounded-full object-cover mb-3 ring-4 ring-white/30 shadow-lg animate-pop"
           />
           <p className="text-2xl font-bold text-white tracking-tight">Membership Club</p>
           <p className="text-xs text-white/70 text-center mt-1">BERJAYA MEGA MOTORS</p>
