@@ -238,12 +238,13 @@ function extractFields(text: string): Record<string, string> {
 // has to check and confirm before saving.
 function parseJobsheetText(text: string): ScannedJobsheet {
   const f = extractFields(text);
-  // Customer Code is always purely numeric on the physical jobsheet — the
-  // raw captured value often runs on into the next (unlabeled) field on the
-  // same line, e.g. "801206 - 10 - 5757 JOB CARD" once OCR merges Customer
-  // Code with the adjacent Job Card No. field, so only the first digit run
-  // is kept.
-  const customerCode = (f.customerCode ?? "").match(/\d+/)?.[0] ?? "";
+  // Customer Code is a dash-separated run of number groups, e.g.
+  // "801206 - 10 - 5757" — but the raw captured value often keeps running
+  // on into trailing text further down the same line ("... 5757 JOB CARD")
+  // since that text has no recognized label of its own to cut the value
+  // off at. Every leading digit group and its dash separators are kept;
+  // anything after the last one (like "JOB CARD") is dropped.
+  const customerCode = (f.customerCode ?? "").match(/^\d+(?:\s*-\s*\d+)*/)?.[0]?.trim() ?? "";
   const customerName = f.customerName ?? "";
   const plateNo = f.plateNo ?? "";
   const model = f.model ?? "";
