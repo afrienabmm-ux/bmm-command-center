@@ -6,7 +6,6 @@ import { requireApproved, requireManagement, assertCanEditBranch } from "./curre
 import { BRANCHES, type Branch, type BranchSelection } from "./branch";
 import type { CustomerCard, CustomerSummary } from "./types";
 import { getPackageSales, type PackageSaleWithNames } from "./packages-actions";
-import { tierForVisits } from "./membership";
 import { sendEmail } from "./email";
 
 function normalizeName(name: string): string {
@@ -24,7 +23,7 @@ type CardRow = {
   customer_phone: string;
   customer_email: string;
   card_number: string;
-  tier: string;
+  bought_bike_here: boolean;
   issued_date: string;
   expiry_date: string | null;
   notes: string;
@@ -39,7 +38,7 @@ function toCard(r: CardRow): CustomerCard {
     customerPhone: r.customer_phone,
     customerEmail: r.customer_email,
     cardNumber: r.card_number,
-    tier: r.tier,
+    boughtBikeHere: r.bought_bike_here,
     issuedDate: r.issued_date,
     expiryDate: r.expiry_date,
     notes: r.notes,
@@ -156,9 +155,7 @@ function buildSummaries(
         plates: Array.from(entry.plates),
         lastVisit: entry.lastVisit,
         packagesBought: Array.from(entry.packagesBought.entries()).map(([name, count]) => ({ name, count })),
-        // Tier is automatic (based on visit count), not whatever was last
-        // stored — so it always reflects the customer's current standing.
-        card: card ? { ...card, tier: tierForVisits(entry.jobCount) } : null,
+        card,
       };
     })
     .sort((a, b) => b.totalSpend - a.totalSpend);
@@ -192,7 +189,7 @@ export async function addCustomerCardAction(input: {
   customerPhone: string;
   customerEmail: string;
   cardNumber: string;
-  tier: string;
+  boughtBikeHere: boolean;
   issuedDate: string;
   expiryDate: string | null;
   notes: string;
@@ -201,6 +198,12 @@ export async function addCustomerCardAction(input: {
   assertCanEditBranch(user, input.branch);
   const customerName = input.customerName.trim();
   if (!customerName) return { error: "Customer name is required." };
+  // The stamp-reward card is only for customers who bought their bike from
+  // us — no card at all for anyone else, rather than a card that just sits
+  // there unable to earn rewards.
+  if (!input.boughtBikeHere) {
+    return { error: "Only customers who bought their bike from us are eligible for a membership card." };
+  }
   const customerPhone = input.customerPhone.trim();
   const customerEmail = input.customerEmail.trim().toLowerCase();
 
@@ -213,7 +216,7 @@ export async function addCustomerCardAction(input: {
     customer_phone: customerPhone,
     customer_email: customerEmail,
     card_number: input.cardNumber.trim(),
-    tier: input.tier.trim(),
+    bought_bike_here: input.boughtBikeHere,
     issued_date: input.issuedDate,
     expiry_date: input.expiryDate || null,
     notes: input.notes.trim(),
@@ -256,7 +259,7 @@ export async function updateCustomerCardAction(
     customerPhone: string;
     customerEmail: string;
     cardNumber: string;
-    tier: string;
+    boughtBikeHere: boolean;
     issuedDate: string;
     expiryDate: string | null;
     notes: string;
@@ -266,6 +269,12 @@ export async function updateCustomerCardAction(
   assertCanEditBranch(user, branch);
   const customerName = input.customerName.trim();
   if (!customerName) return { error: "Customer name is required." };
+  if (!input.boughtBikeHere) {
+    return {
+      error:
+        "Only customers who bought their bike from us are eligible for a membership card — delete the card instead of unchecking this.",
+    };
+  }
   const customerPhone = input.customerPhone.trim();
   const customerEmail = input.customerEmail.trim().toLowerCase();
 
@@ -279,7 +288,7 @@ export async function updateCustomerCardAction(
       customer_phone: customerPhone,
       customer_email: customerEmail,
       card_number: input.cardNumber.trim(),
-      tier: input.tier.trim(),
+      bought_bike_here: input.boughtBikeHere,
       issued_date: input.issuedDate,
       expiry_date: input.expiryDate || null,
       notes: input.notes.trim(),

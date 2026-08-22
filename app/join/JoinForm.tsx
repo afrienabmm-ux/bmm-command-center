@@ -12,14 +12,7 @@ import {
 } from "@/lib/customer-registration-actions";
 import { BRANCHES, type Branch } from "@/lib/branch";
 import { formatCurrency, formatDate } from "@/lib/format";
-import { stampsOnCurrentCard, stampCardSize, hasFreeServiceReady } from "@/lib/membership";
-
-const TIER_GRADIENTS: Record<string, string> = {
-  Bronze: "from-orange-400 via-amber-600 to-orange-800",
-  Silver: "from-slate-300 via-slate-400 to-slate-600",
-  Gold: "from-yellow-300 via-yellow-500 to-amber-600",
-  Platinum: "from-red-400 via-red-700 to-neutral-900",
-};
+import { stampsOnCurrentCard, stampCardSize, rewardForStamp, nextReward } from "@/lib/membership";
 
 // How long a "check my card" / "just registered" screen survives a page
 // refresh before the customer has to type their phone number again.
@@ -27,7 +20,7 @@ const SESSION_TTL_MS = 3 * 60 * 60 * 1000;
 const JOIN_STORAGE_KEY = "bmm_join_session";
 const LOOKUP_STORAGE_KEY = "bmm_lookup_session";
 
-type StoredJoin = { name: string; cardNumber: string; tier: string; visitCount: number; savedAt: number };
+type StoredJoin = { name: string; cardNumber: string; visitCount: number; savedAt: number };
 type StoredLookup = { result: MembershipLookup; savedAt: number };
 
 function readSession<T extends { savedAt: number }>(key: string): T | null {
@@ -55,26 +48,23 @@ function writeSession(key: string, data: object) {
 }
 
 function TierCard({
-  tier,
   cardNumber,
   name,
   memberSince,
 }: {
-  tier: string;
   cardNumber: string;
   name: string;
   memberSince?: string;
 }) {
-  const gradient = TIER_GRADIENTS[tier] ?? TIER_GRADIENTS.Bronze;
   return (
-    <div className={`relative w-full aspect-[1.6/1] rounded-2xl bg-gradient-to-br ${gradient} p-5 text-white shadow-xl overflow-hidden`}>
+    <div className="relative w-full aspect-[1.6/1] rounded-2xl bg-gradient-to-br from-red-500 via-red-700 to-neutral-900 p-5 text-white shadow-xl overflow-hidden">
       <div className="absolute -right-8 -top-8 w-32 h-32 bg-white/10 rounded-full" />
       <div className="absolute -right-1 bottom-1 w-20 h-20 bg-white/10 rounded-full" />
       <div className="flex items-center justify-between relative z-10">
         <p className="text-[10px] font-semibold tracking-widest uppercase opacity-80">BMM Membership</p>
         <Sparkles size={16} className="opacity-90" />
       </div>
-      <p className="text-[10px] uppercase tracking-widest opacity-70 mt-7">{tier} Member</p>
+      <p className="text-[10px] uppercase tracking-widest opacity-70 mt-7">Member</p>
       <p className="text-xl font-bold tracking-widest mt-1">{cardNumber}</p>
       <div className="flex items-end justify-between mt-4 relative z-10">
         <p className="text-xs opacity-90 truncate uppercase tracking-wide">{name}</p>
@@ -84,36 +74,51 @@ function TierCard({
   );
 }
 
+// Mirrors the physical Yamaha Cares punch card exactly — specific rewards
+// at stamps 1/4/7/10 within each 10-visit cycle, not a flat "10 visits =
+// 1 free service" count.
 function StampProgress({ visitCount }: { visitCount: number }) {
   const stamps = stampsOnCurrentCard(visitCount);
   const size = stampCardSize();
-  const ready = hasFreeServiceReady(visitCount);
+  const upcoming = nextReward(stamps);
+  const justEarned = rewardForStamp(stamps);
   return (
     <div className="bg-white border border-neutral-200 rounded-xl p-4 mt-4">
       <div className="flex items-center justify-between mb-3">
-        <p className="text-[11px] font-semibold text-neutral-700 uppercase tracking-wide">Progress to Your Free Service</p>
+        <p className="text-[11px] font-semibold text-neutral-700 uppercase tracking-wide">Your Stamp Card</p>
         <p className="text-xs font-bold text-red-600">
           {stamps}/{size}
         </p>
       </div>
       <div className="flex items-center gap-1.5 flex-wrap">
-        {Array.from({ length: size }).map((_, i) => (
-          <div
-            key={i}
-            className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 ${
-              i < stamps
-                ? "bg-gradient-to-br from-red-500 to-rose-600 text-white shadow-sm"
-                : "bg-neutral-100 text-neutral-300 border border-neutral-200"
-            }`}
-          >
-            <Wrench size={13} />
-          </div>
-        ))}
+        {Array.from({ length: size }).map((_, i) => {
+          const stampNo = i + 1;
+          const reward = rewardForStamp(stampNo);
+          const filled = stampNo <= stamps;
+          return (
+            <div key={i} className="flex flex-col items-center gap-1 w-[18%]">
+              <div
+                className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 ${
+                  filled
+                    ? "bg-gradient-to-br from-red-500 to-rose-600 text-white shadow-sm"
+                    : reward
+                      ? "bg-red-50 text-red-300 border-2 border-dashed border-red-200"
+                      : "bg-neutral-100 text-neutral-300 border border-neutral-200"
+                }`}
+              >
+                {filled ? <Wrench size={14} /> : <span className="text-[10px] font-semibold">{stampNo}</span>}
+              </div>
+              {reward && <p className="text-[8px] text-neutral-500 text-center leading-tight">{reward}</p>}
+            </div>
+          );
+        })}
       </div>
       <p className="text-[11px] text-neutral-400 mt-3 text-center">
-        {ready
-          ? "🎉 You've earned a FREE service — redeem it at the counter!"
-          : `Complete ${size} services and get 1 FREE service.`}
+        {justEarned
+          ? `🎉 You've earned: ${justEarned} — redeem it at the counter!`
+          : upcoming
+            ? `Next reward: ${upcoming.label} at stamp ${upcoming.stamp}.`
+            : "Card complete — a new one starts on your next visit."}
       </p>
     </div>
   );
@@ -180,17 +185,18 @@ function JoinTab({ restored, onClear }: { restored: StoredJoin | null; onClear: 
   const [name, setName] = useState(restored?.name ?? "");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
+  const [boughtBikeHere, setBoughtBikeHere] = useState(false);
   const [code, setCode] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const [result, setResult] = useState<{ cardNumber: string; tier: string; visitCount: number } | null>(
-    restored ? { cardNumber: restored.cardNumber, tier: restored.tier, visitCount: restored.visitCount } : null
+  const [result, setResult] = useState<{ cardNumber: string; visitCount: number } | null>(
+    restored ? { cardNumber: restored.cardNumber, visitCount: restored.visitCount } : null
   );
   const [isPending, startTransition] = useTransition();
 
   useEffect(() => {
     if (restored) {
       setName(restored.name);
-      setResult({ cardNumber: restored.cardNumber, tier: restored.tier, visitCount: restored.visitCount });
+      setResult({ cardNumber: restored.cardNumber, visitCount: restored.visitCount });
     }
   }, [restored]);
 
@@ -214,13 +220,19 @@ function JoinTab({ restored, onClear }: { restored: StoredJoin | null; onClear: 
         setError(verifyRes.error);
         return;
       }
-      const res = await registerCustomerCardAction({ branch, customerName: name, customerPhone: phone, customerEmail: email });
+      const res = await registerCustomerCardAction({
+        branch,
+        customerName: name,
+        customerPhone: phone,
+        customerEmail: email,
+        boughtBikeHere,
+      });
       if ("error" in res) {
         setError(res.error);
         return;
       }
       setResult(res);
-      writeSession(JOIN_STORAGE_KEY, { name: name.trim(), cardNumber: res.cardNumber, tier: res.tier, visitCount: res.visitCount });
+      writeSession(JOIN_STORAGE_KEY, { name: name.trim(), cardNumber: res.cardNumber, visitCount: res.visitCount });
     });
   }
 
@@ -230,7 +242,7 @@ function JoinTab({ restored, onClear }: { restored: StoredJoin | null; onClear: 
         <p className="text-sm text-neutral-600 text-center mb-4">
           Hi <span className="font-semibold text-neutral-900">{name.trim()}</span>! You&apos;re in.
         </p>
-        <TierCard tier={result.tier} cardNumber={result.cardNumber} name={name} />
+        <TierCard cardNumber={result.cardNumber} name={name} />
         <StampProgress visitCount={result.visitCount} />
         <p className="text-xs text-neutral-400 text-center mt-4">Show this screen at the counter</p>
         <button
@@ -331,11 +343,23 @@ function JoinTab({ restored, onClear }: { restored: StoredJoin | null; onClear: 
         />
       </div>
 
+      <label className="flex items-start gap-2.5 bg-red-50 border border-red-100 rounded-xl px-3.5 py-3">
+        <input
+          type="checkbox"
+          checked={boughtBikeHere}
+          onChange={(e) => setBoughtBikeHere(e.target.checked)}
+          className="accent-red-500 mt-0.5"
+        />
+        <span className="text-xs text-neutral-700">
+          I bought my bike from Berjaya Mega Motors — this membership card is only for bike-buyers.
+        </span>
+      </label>
+
       {error && <p className="text-sm text-red-700">{error}</p>}
 
       <button
         onClick={handleSendCode}
-        disabled={isPending || !name.trim() || !phone.trim() || !email.trim()}
+        disabled={isPending || !name.trim() || !phone.trim() || !email.trim() || !boughtBikeHere}
         className={primaryButtonClass}
       >
         {isPending ? "Sending…" : "Send Verification Code"}
@@ -405,12 +429,7 @@ function LookupTab({ restored, onClear }: { restored: StoredLookup | null; onCle
         <p className="text-sm text-neutral-600 text-center mb-4">
           Hi <span className="font-semibold text-neutral-900">{result.customerName.trim()}</span>!
         </p>
-        <TierCard
-          tier={result.tier}
-          cardNumber={result.cardNumber}
-          name={result.customerName}
-          memberSince={formatDate(result.issuedDate)}
-        />
+        <TierCard cardNumber={result.cardNumber} name={result.customerName} memberSince={formatDate(result.issuedDate)} />
         {result.expiryDate && (
           <p className="text-[11px] text-neutral-400 text-center mt-2">Expires {formatDate(result.expiryDate)}</p>
         )}

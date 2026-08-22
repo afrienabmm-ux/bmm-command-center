@@ -3,14 +3,13 @@
 import { revalidatePath } from "next/cache";
 import { supabaseAdmin } from "./supabase-server";
 import type { Branch } from "./branch";
-import { tierForVisits } from "./membership";
 import { sendEmail } from "./email";
 
 function normalizePhone(phone: string): string {
   return phone.replace(/\D/g, "");
 }
 
-// Visits (and therefore tier) are counted from Walk-in job history matched
+// Visits (and therefore stamp progress) are counted from Walk-in job history matched
 // by phone first, name second — same approach as the staff Memberships
 // page. Phone survives name typos/spelling variants between visits.
 async function countVisits(customerName: string, customerPhone?: string): Promise<number> {
@@ -159,13 +158,17 @@ export async function registerCustomerCardAction(input: {
   customerName: string;
   customerPhone: string;
   customerEmail: string;
-}): Promise<{ error: string } | { cardNumber: string; tier: string; visitCount: number }> {
+  boughtBikeHere: boolean;
+}): Promise<{ error: string } | { cardNumber: string; visitCount: number }> {
   const customerName = input.customerName.trim();
   const customerPhone = input.customerPhone.trim();
   const customerEmail = normalizeEmail(input.customerEmail);
   if (!customerName) return { error: "Please enter your name." };
   if (!customerPhone) return { error: "Please enter your phone number." };
   if (!customerEmail) return { error: "Please verify your email first." };
+  if (!input.boughtBikeHere) {
+    return { error: "This membership card is only for customers who bought their bike from us." };
+  }
 
   const verified = await hasVerifiedOtp(customerEmail);
   if (!verified) return { error: "Please verify your email first." };
@@ -177,25 +180,23 @@ export async function registerCustomerCardAction(input: {
 
   const cardNumber = generateCardNumber(input.branch);
   const visits = await countVisits(customerName, customerPhone);
-  const tier = tierForVisits(visits);
   const { error } = await supabaseAdmin.from("cc_customer_cards").insert({
     branch: input.branch,
     customer_name: customerName,
     customer_phone: customerPhone,
     customer_email: customerEmail,
     card_number: cardNumber,
-    tier,
+    bought_bike_here: true,
     issued_date: new Date().toISOString().slice(0, 10),
   });
   if (error) return { error: error.message };
   revalidatePath("/customers");
-  return { cardNumber, tier, visitCount: visits };
+  return { cardNumber, visitCount: visits };
 }
 
 export type MembershipLookup = {
   customerName: string;
   cardNumber: string;
-  tier: string;
   issuedDate: string;
   expiryDate: string | null;
   totalSpend: number;
@@ -233,7 +234,6 @@ async function buildLookupResult(card: {
   return {
     customerName: card.customer_name,
     cardNumber: card.card_number,
-    tier: tierForVisits(visitCount),
     issuedDate: card.issued_date,
     expiryDate: card.expiry_date,
     totalSpend,

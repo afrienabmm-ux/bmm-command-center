@@ -1,23 +1,6 @@
-// Membership tier is fully automatic — based on how many Walk-in visits a
-// customer has, not something staff pick. Ladder: Bronze (new member) ->
-// Silver at 10 visits -> Gold at 20 -> Platinum at 30.
-const TIER_THRESHOLDS: { tier: string; minVisits: number }[] = [
-  { tier: "Platinum", minVisits: 30 },
-  { tier: "Gold", minVisits: 20 },
-  { tier: "Silver", minVisits: 10 },
-  { tier: "Bronze", minVisits: 0 },
-];
-
-export function tierForVisits(visitCount: number): string {
-  for (const t of TIER_THRESHOLDS) {
-    if (visitCount >= t.minVisits) return t.tier;
-  }
-  return "Bronze";
-}
-
-// The old physical stamp card: every 10 visits earns 1 free service, then
-// the count starts fresh — visit 10, 20, 30... each land exactly on a free
-// service. STAMP_CARD_SIZE visits per card.
+// The old physical stamp card: every 10 visits fills one card, then the
+// count starts fresh — visit 10, 20, 30... each land exactly on a full
+// card. STAMP_CARD_SIZE visits per card.
 const STAMP_CARD_SIZE = 10;
 
 // How many visits into the current 10-visit card the customer is — 10
@@ -34,11 +17,34 @@ export function stampCardSize(): number {
 }
 
 // True right when a visit count lands exactly on a multiple of 10 — the
-// visit that just earned a free service.
+// visit that just filled the card (and earned the stamp-10 reward).
 export function hasFreeServiceReady(visitCount: number): boolean {
   return visitCount > 0 && visitCount % STAMP_CARD_SIZE === 0;
 }
 
 export function freeServicesEarned(visitCount: number): number {
   return Math.floor(visitCount / STAMP_CARD_SIZE);
+}
+
+export type StampReward = { stamp: number; label: string };
+
+// The real physical Yamaha Cares punch card — specific free items/vouchers
+// at specific stamps within each 10-visit cycle, not a tier that climbs
+// forever. Matches the printed card exactly.
+export const STAMP_REWARDS: StampReward[] = [
+  { stamp: 1, label: "Free Oil" },
+  { stamp: 4, label: "Free Diagnostic Tool + Plug" },
+  { stamp: 7, label: "Free Coolant" },
+  { stamp: 10, label: "RM50 Voucher — Helmet & Apparels" },
+];
+
+// The reward just earned by landing exactly on this stamp, if any.
+export function rewardForStamp(stamp: number): string | null {
+  return STAMP_REWARDS.find((r) => r.stamp === stamp)?.label ?? null;
+}
+
+// The next reward still ahead on the current card, or null once the
+// customer is on/past the last one (stamp 10 — card complete).
+export function nextReward(stamps: number): StampReward | null {
+  return STAMP_REWARDS.find((r) => r.stamp > stamps) ?? null;
 }

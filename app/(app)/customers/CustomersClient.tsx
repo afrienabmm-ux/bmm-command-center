@@ -6,7 +6,7 @@ import { addCustomerCardAction, updateCustomerCardAction, deleteCustomerCardActi
 import { sendRegistrationOtpAction, verifyRegistrationOtpAction } from "@/lib/customer-registration-actions";
 import { BRANCHES, branchLabel, type Branch, type BranchSelection } from "@/lib/branch";
 import { formatDate, formatCurrency } from "@/lib/format";
-import { tierForVisits } from "@/lib/membership";
+import { stampsOnCurrentCard, nextReward } from "@/lib/membership";
 import type { CustomerSummary, CustomerCard } from "@/lib/types";
 
 export default function CustomersClient({
@@ -168,7 +168,12 @@ export default function CustomersClient({
                       title="Click to show the card code"
                       className="inline-flex items-center gap-1 text-xs font-medium text-red-700 bg-red-500/10 border border-red-500/20 rounded-full px-2 py-0.5 hover:bg-red-500/20 transition-colors"
                     >
-                      <CreditCard size={11} /> {revealed ? c.card.cardNumber || "No code" : c.card.tier || "Member"}
+                      <CreditCard size={11} />{" "}
+                      {revealed
+                        ? c.card.cardNumber || "No code"
+                        : `Stamp ${stampsOnCurrentCard(c.jobCount)}/10${
+                            nextReward(stampsOnCurrentCard(c.jobCount)) ? ` — next: ${nextReward(stampsOnCurrentCard(c.jobCount))!.label}` : ""
+                          }`}
                       {!revealed && c.card.expiryDate ? ` · exp ${formatDate(c.card.expiryDate)}` : ""}
                     </button>
                   ) : (
@@ -276,8 +281,7 @@ function CardModal({
   const [customerPhone, setCustomerPhone] = useState(existing?.customerPhone ?? "");
   const [customerEmail, setCustomerEmail] = useState(existing?.customerEmail ?? "");
   const [cardNumber, setCardNumber] = useState(existing?.cardNumber ?? "");
-  // Tier is automatic, based on visit count — not something staff pick.
-  const tier = tierForVisits(customer?.jobCount ?? 0);
+  const [boughtBikeHere, setBoughtBikeHere] = useState(existing?.boughtBikeHere ?? false);
   const [issuedDate, setIssuedDate] = useState(existing?.issuedDate ?? new Date().toISOString().slice(0, 10));
   const [expiryDate, setExpiryDate] = useState(existing?.expiryDate ?? "");
   const [error, setError] = useState<string | null>(null);
@@ -341,7 +345,7 @@ function CardModal({
       customerPhone,
       customerEmail: emailVerified ? customerEmail : "",
       cardNumber,
-      tier,
+      boughtBikeHere,
       issuedDate,
       expiryDate: expiryDate || null,
       notes: existing?.notes ?? "",
@@ -465,23 +469,28 @@ function CardModal({
             )}
             {otpError && <p className="text-xs text-red-700 mt-1.5">{otpError}</p>}
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-medium text-neutral-600 mb-1.5">Card No.</label>
-              <input
-                type="text"
-                value={cardNumber}
-                onChange={(e) => setCardNumber(e.target.value)}
-                className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-neutral-600 mb-1.5">Tier</label>
-              <div className="w-full bg-neutral-100 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-600">
-                {tier}
-              </div>
-              <p className="text-[11px] text-neutral-400 mt-1">Automatic, based on visit count.</p>
-            </div>
+          <div>
+            <label className="block text-xs font-medium text-neutral-600 mb-1.5">Card No.</label>
+            <input
+              type="text"
+              value={cardNumber}
+              onChange={(e) => setCardNumber(e.target.value)}
+              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
+            />
+          </div>
+          <div className="flex items-start gap-2 bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-3">
+            <input
+              id="bought-bike-here"
+              type="checkbox"
+              checked={boughtBikeHere}
+              onChange={(e) => setBoughtBikeHere(e.target.checked)}
+              className="accent-red-500 mt-0.5"
+            />
+            <label htmlFor="bought-bike-here" className="text-xs text-neutral-700">
+              <span className="font-medium">Bought their bike with us *</span>
+              <br />
+              <span className="text-neutral-500">Only bike-buyers are eligible for the stamp-reward card.</span>
+            </label>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -516,7 +525,7 @@ function CardModal({
           </button>
           <button
             onClick={handleSave}
-            disabled={isPending || !customerName.trim() || (!!customerEmail.trim() && !emailVerified)}
+            disabled={isPending || !customerName.trim() || !boughtBikeHere || (!!customerEmail.trim() && !emailVerified)}
             className="bg-red-500 hover:bg-red-400 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
           >
             {isPending ? "Saving…" : "Save"}

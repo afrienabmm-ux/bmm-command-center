@@ -241,9 +241,9 @@ export type CatalogProduct = {
 };
 
 // The loyalty/membership card concept — separate from the Services Combo
-// packages themselves. Replaces the paper stamp card; tier is free text
-// (e.g. "Silver"/"Gold"/"Platinum") rather than a fixed enum since the
-// tier structure isn't decided yet.
+// packages themselves. Digital version of the physical Yamaha Cares stamp
+// card, with specific rewards at specific stamps (see STAMP_REWARDS in
+// lib/membership.ts) rather than a tier that climbs forever.
 export type CustomerCard = {
   id: string;
   branch: Branch;
@@ -253,7 +253,9 @@ export type CustomerCard = {
   // OTP verified there); staff-added cards leave this blank.
   customerEmail: string;
   cardNumber: string;
-  tier: string;
+  // Eligibility for the stamp-reward card — only customers who bought
+  // their bike from us can earn/redeem the stamp rewards.
+  boughtBikeHere: boolean;
   issuedDate: string;
   expiryDate: string | null;
   notes: string;
