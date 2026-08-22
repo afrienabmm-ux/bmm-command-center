@@ -23,6 +23,8 @@ type CardRow = {
   customer_phone: string;
   customer_email: string;
   card_number: string;
+  plate_no: string;
+  model: string;
   bought_bike_here: boolean;
   issued_date: string;
   expiry_date: string | null;
@@ -38,6 +40,8 @@ function toCard(r: CardRow): CustomerCard {
     customerPhone: r.customer_phone,
     customerEmail: r.customer_email,
     cardNumber: r.card_number,
+    plateNo: r.plate_no,
+    model: r.model,
     boughtBikeHere: r.bought_bike_here,
     issuedDate: r.issued_date,
     expiryDate: r.expiry_date,
@@ -189,6 +193,8 @@ export async function addCustomerCardAction(input: {
   customerPhone: string;
   customerEmail: string;
   cardNumber: string;
+  plateNo: string;
+  model: string;
   boughtBikeHere: boolean;
   issuedDate: string;
   expiryDate: string | null;
@@ -216,6 +222,8 @@ export async function addCustomerCardAction(input: {
     customer_phone: customerPhone,
     customer_email: customerEmail,
     card_number: input.cardNumber.trim(),
+    plate_no: input.plateNo.trim(),
+    model: input.model.trim(),
     bought_bike_here: input.boughtBikeHere,
     issued_date: input.issuedDate,
     expiry_date: input.expiryDate || null,
@@ -259,6 +267,8 @@ export async function updateCustomerCardAction(
     customerPhone: string;
     customerEmail: string;
     cardNumber: string;
+    plateNo: string;
+    model: string;
     boughtBikeHere: boolean;
     issuedDate: string;
     expiryDate: string | null;
@@ -288,6 +298,8 @@ export async function updateCustomerCardAction(
       customer_phone: customerPhone,
       customer_email: customerEmail,
       card_number: input.cardNumber.trim(),
+      plate_no: input.plateNo.trim(),
+      model: input.model.trim(),
       bought_bike_here: input.boughtBikeHere,
       issued_date: input.issuedDate,
       expiry_date: input.expiryDate || null,
@@ -308,9 +320,7 @@ export async function deleteCustomerCardAction(id: string, branch: Branch): Prom
 
 // Management-only — emails every member in view (deduped by address) with
 // the given subject/message and, optionally, a poster image. Only members
-// who registered through /join (and so have a verified email on file) can
-// be reached this way; free to run since it goes through the same Gmail
-// account as OTP codes.
+// with an email on file can be reached this way.
 export async function sendPromotionAction(
   formData: FormData
 ): Promise<{ error: string } | { sentCount: number; failedCount: number }> {

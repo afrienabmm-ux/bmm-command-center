@@ -1,13 +1,10 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
-import { Search, User, Phone, Mail, Building2, Sparkles, KeyRound, Wrench } from "lucide-react";
+import { Search, User, Phone, Mail, Building2, Sparkles, Wrench, Bike } from "lucide-react";
 import {
   registerCustomerCardAction,
-  sendRegistrationOtpAction,
-  verifyRegistrationOtpAction,
-  requestLookupOtpAction,
-  verifyLookupOtpAction,
+  lookupCustomerCardAction,
   type MembershipLookup,
 } from "@/lib/customer-registration-actions";
 import { BRANCHES, type Branch } from "@/lib/branch";
@@ -180,13 +177,13 @@ export default function JoinForm() {
 }
 
 function JoinTab({ restored, onClear }: { restored: StoredJoin | null; onClear: () => void }) {
-  const [step, setStep] = useState<"form" | "otp">("form");
   const [branch, setBranch] = useState<Branch>("kapar");
   const [name, setName] = useState(restored?.name ?? "");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
+  const [plateNo, setPlateNo] = useState("");
+  const [model, setModel] = useState("");
   const [boughtBikeHere, setBoughtBikeHere] = useState(false);
-  const [code, setCode] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<{ cardNumber: string; visitCount: number } | null>(
     restored ? { cardNumber: restored.cardNumber, visitCount: restored.visitCount } : null
@@ -200,31 +197,16 @@ function JoinTab({ restored, onClear }: { restored: StoredJoin | null; onClear: 
     }
   }, [restored]);
 
-  function handleSendCode() {
+  function handleRegister() {
     setError(null);
     startTransition(async () => {
-      const res = await sendRegistrationOtpAction(email, phone);
-      if ("error" in res) {
-        setError(res.error);
-        return;
-      }
-      setStep("otp");
-    });
-  }
-
-  function handleVerifyAndRegister() {
-    setError(null);
-    startTransition(async () => {
-      const verifyRes = await verifyRegistrationOtpAction(email, code);
-      if ("error" in verifyRes) {
-        setError(verifyRes.error);
-        return;
-      }
       const res = await registerCustomerCardAction({
         branch,
         customerName: name,
         customerPhone: phone,
         customerEmail: email,
+        plateNo,
+        model,
         boughtBikeHere,
       });
       if ("error" in res) {
@@ -251,47 +233,11 @@ function JoinTab({ restored, onClear }: { restored: StoredJoin | null; onClear: 
             onClear();
             setResult(null);
             setName("");
-            setStep("form");
           }}
           className="text-xs font-medium text-neutral-500 hover:text-neutral-700 mt-4 w-full text-center"
         >
           Not you? Start over
         </button>
-      </div>
-    );
-  }
-
-  if (step === "otp") {
-    return (
-      <div className="space-y-3.5">
-        <p className="text-xs text-neutral-500">
-          We sent a 6-digit code to <span className="font-medium text-neutral-800">{email}</span>. Enter it below.
-        </p>
-        <div className="relative">
-          <KeyRound size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-400" />
-          <input
-            type="text"
-            inputMode="numeric"
-            value={code}
-            onChange={(e) => setCode(e.target.value)}
-            placeholder="6-digit code"
-            className={inputClass}
-          />
-        </div>
-
-        {error && <p className="text-sm text-red-700">{error}</p>}
-
-        <button onClick={handleVerifyAndRegister} disabled={isPending || !code.trim()} className={primaryButtonClass}>
-          {isPending ? "Verifying…" : "Verify & Get Card"}
-        </button>
-        <div className="flex items-center justify-between text-xs text-neutral-500">
-          <button type="button" onClick={() => setStep("form")} className="hover:text-neutral-700">
-            Change details
-          </button>
-          <button type="button" onClick={handleSendCode} disabled={isPending} className="hover:text-neutral-700">
-            Resend code
-          </button>
-        </div>
       </div>
     );
   }
@@ -332,13 +278,32 @@ function JoinTab({ restored, onClear }: { restored: StoredJoin | null; onClear: 
           className={inputClass}
         />
       </div>
+      <div className="grid grid-cols-2 gap-3">
+        <div className="relative">
+          <Bike size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-400" />
+          <input
+            type="text"
+            value={plateNo}
+            onChange={(e) => setPlateNo(e.target.value)}
+            placeholder="Plate No."
+            className={inputClass}
+          />
+        </div>
+        <input
+          type="text"
+          value={model}
+          onChange={(e) => setModel(e.target.value)}
+          placeholder="Model (optional)"
+          className="w-full bg-neutral-50 border border-neutral-200 rounded-xl px-3.5 py-3 text-sm text-neutral-800 focus:outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100 transition-colors"
+        />
+      </div>
       <div className="relative">
         <Mail size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-400" />
         <input
           type="email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          placeholder="Email address"
+          placeholder="Email address (optional)"
           className={inputClass}
         />
       </div>
@@ -358,21 +323,18 @@ function JoinTab({ restored, onClear }: { restored: StoredJoin | null; onClear: 
       {error && <p className="text-sm text-red-700">{error}</p>}
 
       <button
-        onClick={handleSendCode}
-        disabled={isPending || !name.trim() || !phone.trim() || !email.trim() || !boughtBikeHere}
+        onClick={handleRegister}
+        disabled={isPending || !name.trim() || !phone.trim() || !plateNo.trim() || !boughtBikeHere}
         className={primaryButtonClass}
       >
-        {isPending ? "Sending…" : "Send Verification Code"}
+        {isPending ? "Getting your card…" : "Get My Services Card"}
       </button>
     </div>
   );
 }
 
 function LookupTab({ restored, onClear }: { restored: StoredLookup | null; onClear: () => void }) {
-  const [step, setStep] = useState<"phone" | "otp">("phone");
   const [phone, setPhone] = useState("");
-  const [code, setCode] = useState("");
-  const [emailHint, setEmailHint] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<MembershipLookup | null>(restored?.result ?? null);
   const [isPending, startTransition] = useTransition();
@@ -381,30 +343,10 @@ function LookupTab({ restored, onClear }: { restored: StoredLookup | null; onCle
     if (restored) setResult(restored.result);
   }, [restored]);
 
-  function handleRequestCode() {
+  function handleLookup() {
     setError(null);
     startTransition(async () => {
-      const res = await requestLookupOtpAction(phone);
-      if ("error" in res) {
-        setError(res.error);
-        return;
-      }
-      if (!res.needsOtp) {
-        // No email on file for this card (older/staff-added card) — show
-        // the lookup straight away, same as before this feature existed.
-        setResult(res.result);
-        writeSession(LOOKUP_STORAGE_KEY, { result: res.result });
-        return;
-      }
-      setEmailHint(res.emailHint);
-      setStep("otp");
-    });
-  }
-
-  function handleVerifyCode() {
-    setError(null);
-    startTransition(async () => {
-      const res = await verifyLookupOtpAction(phone, code);
+      const res = await lookupCustomerCardAction(phone);
       if ("error" in res) {
         setError(res.error);
         return;
@@ -419,8 +361,6 @@ function LookupTab({ restored, onClear }: { restored: StoredLookup | null; onCle
     onClear();
     setResult(null);
     setPhone("");
-    setCode("");
-    setStep("phone");
   }
 
   if (result) {
@@ -451,42 +391,6 @@ function LookupTab({ restored, onClear }: { restored: StoredLookup | null; onCle
     );
   }
 
-  if (step === "otp") {
-    return (
-      <div className="space-y-3.5">
-        <p className="text-xs text-neutral-500">
-          For your privacy, we sent a 6-digit code to <span className="font-medium text-neutral-800">{emailHint}</span> — the
-          email on file for this card.
-        </p>
-        <div className="relative">
-          <KeyRound size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-400" />
-          <input
-            type="text"
-            inputMode="numeric"
-            value={code}
-            onChange={(e) => setCode(e.target.value)}
-            placeholder="6-digit code"
-            className={inputClass}
-          />
-        </div>
-
-        {error && <p className="text-sm text-red-700">{error}</p>}
-
-        <button onClick={handleVerifyCode} disabled={isPending || !code.trim()} className={primaryButtonClass}>
-          {isPending ? "Verifying…" : "Verify & Show Card"}
-        </button>
-        <div className="flex items-center justify-between text-xs text-neutral-500">
-          <button type="button" onClick={() => setStep("phone")} className="hover:text-neutral-700">
-            Change number
-          </button>
-          <button type="button" onClick={handleRequestCode} disabled={isPending} className="hover:text-neutral-700">
-            Resend code
-          </button>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-3.5">
       <div className="relative">
@@ -495,14 +399,15 @@ function LookupTab({ restored, onClear }: { restored: StoredLookup | null; onCle
           type="tel"
           value={phone}
           onChange={(e) => setPhone(e.target.value)}
-          placeholder="The number you signed up with"
+          placeholder="Your phone number"
           className={inputClass}
         />
       </div>
+      <p className="text-[11px] text-neutral-400 -mt-1.5 pl-1">Don&apos;t remember your number? Enter your plate number instead.</p>
 
       {error && <p className="text-sm text-red-700">{error}</p>}
 
-      <button onClick={handleRequestCode} disabled={isPending || !phone.trim()} className={primaryButtonClass}>
+      <button onClick={handleLookup} disabled={isPending || !phone.trim()} className={primaryButtonClass}>
         <Search size={14} /> {isPending ? "Looking up…" : "Find My Card"}
       </button>
     </div>

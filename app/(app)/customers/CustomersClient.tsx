@@ -3,7 +3,6 @@
 import { useMemo, useState, useTransition } from "react";
 import { Plus, Search, Pencil, Trash2, CreditCard, X, Link2, Check, Mail, ArrowUpDown } from "lucide-react";
 import { addCustomerCardAction, updateCustomerCardAction, deleteCustomerCardAction, sendPromotionAction } from "@/lib/customers-actions";
-import { sendRegistrationOtpAction, verifyRegistrationOtpAction } from "@/lib/customer-registration-actions";
 import { BRANCHES, branchLabel, type Branch, type BranchSelection } from "@/lib/branch";
 import { formatDate, formatCurrency } from "@/lib/format";
 import { stampsOnCurrentCard, nextReward } from "@/lib/membership";
@@ -281,70 +280,25 @@ function CardModal({
   const [customerPhone, setCustomerPhone] = useState(existing?.customerPhone ?? "");
   const [customerEmail, setCustomerEmail] = useState(existing?.customerEmail ?? "");
   const [cardNumber, setCardNumber] = useState(existing?.cardNumber ?? "");
+  const [plateNo, setPlateNo] = useState(existing?.plateNo ?? "");
+  const [model, setModel] = useState(existing?.model ?? "");
   const [boughtBikeHere, setBoughtBikeHere] = useState(existing?.boughtBikeHere ?? false);
   const [issuedDate, setIssuedDate] = useState(existing?.issuedDate ?? new Date().toISOString().slice(0, 10));
   const [expiryDate, setExpiryDate] = useState(existing?.expiryDate ?? "");
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
-  // An email carried over unchanged from an already-saved card was already
-  // verified when it was first added (either here or via /join) — only a
-  // brand new or edited address needs a fresh code.
-  const [emailVerified, setEmailVerified] = useState(!!existing?.customerEmail);
-  const [otpSent, setOtpSent] = useState(false);
-  const [otpCode, setOtpCode] = useState("");
-  const [otpPending, setOtpPending] = useState(false);
-  const [otpError, setOtpError] = useState<string | null>(null);
-
   const nameLocked = customer !== null;
 
-  function handleEmailChange(value: string) {
-    setCustomerEmail(value);
-    setOtpSent(false);
-    setOtpCode("");
-    setOtpError(null);
-    setEmailVerified(value.trim().toLowerCase() === (existing?.customerEmail ?? "") && value.trim() !== "");
-  }
-
-  function handleSendCode() {
-    setOtpError(null);
-    setOtpPending(true);
-    startTransition(async () => {
-      const result = await sendRegistrationOtpAction(customerEmail);
-      setOtpPending(false);
-      if ("error" in result) {
-        setOtpError(result.error);
-        return;
-      }
-      setOtpSent(true);
-    });
-  }
-
-  function handleVerifyCode() {
-    setOtpError(null);
-    setOtpPending(true);
-    startTransition(async () => {
-      const result = await verifyRegistrationOtpAction(customerEmail, otpCode);
-      setOtpPending(false);
-      if ("error" in result) {
-        setOtpError(result.error);
-        return;
-      }
-      setEmailVerified(true);
-    });
-  }
-
   function handleSave() {
-    if (customerEmail.trim() && !emailVerified) {
-      setError("Please verify the email address first, or clear it to skip adding one.");
-      return;
-    }
     const input = {
       branch: cardBranch,
       customerName,
       customerPhone,
-      customerEmail: emailVerified ? customerEmail : "",
+      customerEmail: customerEmail.trim(),
       cardNumber,
+      plateNo,
+      model,
       boughtBikeHere,
       issuedDate,
       expiryDate: expiryDate || null,
@@ -416,58 +370,37 @@ function CardModal({
               </p>
             )}
           </div>
-          <div>
-            <label className="block text-xs font-medium text-neutral-600 mb-1.5">Email</label>
-            <div className="flex items-center gap-2">
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-neutral-600 mb-1.5">Plate No.</label>
               <input
-                type="email"
-                value={customerEmail}
-                onChange={(e) => handleEmailChange(e.target.value)}
-                placeholder="customer@email.com"
-                className="flex-1 bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
+                type="text"
+                value={plateNo}
+                onChange={(e) => setPlateNo(e.target.value)}
+                placeholder="e.g. VQY 4011"
+                className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
               />
-              {customerEmail.trim() && !emailVerified && !otpSent && (
-                <button
-                  type="button"
-                  onClick={handleSendCode}
-                  disabled={otpPending}
-                  className="shrink-0 bg-neutral-100 hover:bg-neutral-200 disabled:opacity-50 text-neutral-800 text-xs font-medium px-3 py-2.5 rounded-lg transition-colors whitespace-nowrap"
-                >
-                  {otpPending ? "Sending…" : "Send Code"}
-                </button>
-              )}
-              {emailVerified && customerEmail.trim() && (
-                <span className="shrink-0 flex items-center gap-1 text-xs font-medium text-emerald-700">
-                  <Check size={14} /> Verified
-                </span>
-              )}
             </div>
-            {otpSent && !emailVerified && (
-              <div className="flex items-center gap-2 mt-2">
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  value={otpCode}
-                  onChange={(e) => setOtpCode(e.target.value)}
-                  placeholder="6-digit code"
-                  className="flex-1 bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
-                />
-                <button
-                  type="button"
-                  onClick={handleVerifyCode}
-                  disabled={otpPending || !otpCode.trim()}
-                  className="shrink-0 bg-red-500 hover:bg-red-400 disabled:opacity-50 text-white text-xs font-medium px-3 py-2.5 rounded-lg transition-colors whitespace-nowrap"
-                >
-                  {otpPending ? "Checking…" : "Verify"}
-                </button>
-              </div>
-            )}
-            {otpSent && !emailVerified && (
-              <p className="text-[11px] text-neutral-400 mt-1.5">
-                Code sent — check the customer&apos;s inbox and enter it above.
-              </p>
-            )}
-            {otpError && <p className="text-xs text-red-700 mt-1.5">{otpError}</p>}
+            <div>
+              <label className="block text-xs font-medium text-neutral-600 mb-1.5">Model</label>
+              <input
+                type="text"
+                value={model}
+                onChange={(e) => setModel(e.target.value)}
+                placeholder="e.g. Y15ZR"
+                className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
+              />
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-neutral-600 mb-1.5">Email (optional)</label>
+            <input
+              type="email"
+              value={customerEmail}
+              onChange={(e) => setCustomerEmail(e.target.value)}
+              placeholder="customer@email.com"
+              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
+            />
           </div>
           <div>
             <label className="block text-xs font-medium text-neutral-600 mb-1.5">Card No.</label>
@@ -525,7 +458,7 @@ function CardModal({
           </button>
           <button
             onClick={handleSave}
-            disabled={isPending || !customerName.trim() || !boughtBikeHere || (!!customerEmail.trim() && !emailVerified)}
+            disabled={isPending || !customerName.trim() || !boughtBikeHere}
             className="bg-red-500 hover:bg-red-400 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
           >
             {isPending ? "Saving…" : "Save"}

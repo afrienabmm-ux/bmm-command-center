@@ -249,10 +249,13 @@ export type CustomerCard = {
   branch: Branch;
   customerName: string;
   customerPhone: string;
-  // Only set for cards created through the public /join sign-up (email
-  // OTP verified there); staff-added cards leave this blank.
+  // Optional — collected at registration if the customer gives one.
   customerEmail: string;
   cardNumber: string;
+  // The bike the customer registered with — matches the plate/model fields
+  // on the physical card.
+  plateNo: string;
+  model: string;
   // Eligibility for the stamp-reward card — only customers who bought
   // their bike from us can earn/redeem the stamp rewards.
   boughtBikeHere: boolean;

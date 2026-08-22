@@ -3,7 +3,6 @@
 import { revalidatePath } from "next/cache";
 import { supabaseAdmin } from "./supabase-server";
 import type { Branch } from "./branch";
-import { sendEmail } from "./email";
 
 function normalizePhone(phone: string): string {
   return phone.replace(/\D/g, "");
@@ -38,54 +37,12 @@ function generateCardNumber(branch: Branch): string {
   return `MC-${BRANCH_PREFIX[branch]}-${rand}`;
 }
 
-const OTP_TTL_MINUTES = 10;
-
-function generateOtpCode(): string {
-  return String(Math.floor(100000 + Math.random() * 900000));
-}
-
 function normalizeEmail(email: string): string {
   return email.trim().toLowerCase();
 }
 
-// Shared by both registration and the "check my card" lookup — sends a
-// 6-digit code to the given email and stores it for verifyOtpCode to
-// check. Free to run (unlike SMS OTP, which costs money per message) —
-// that's why both flows verify email instead of phone.
-async function sendOtpCode(email: string): Promise<{ error: string } | { sent: true }> {
-  const code = generateOtpCode();
-  const expiresAt = new Date(Date.now() + OTP_TTL_MINUTES * 60 * 1000).toISOString();
-
-  const { error } = await supabaseAdmin.from("cc_email_otps").insert({
-    email,
-    code,
-    expires_at: expiresAt,
-  });
-  if (error) return { error: error.message };
-
-  const result = await sendEmail({
-    to: email,
-    subject: "Your BMM Services Card verification code",
-    html: `<p>Your verification code is <strong style="font-size:20px;letter-spacing:2px;">${code}</strong></p><p>It expires in ${OTP_TTL_MINUTES} minutes.</p>`,
-  });
-  if ("error" in result) return { error: "Couldn't send the verification email. Please check the address and try again." };
-  return { sent: true };
-}
-
-// Masks an email for display before it's verified — e.g. "jo***@gmail.com"
-// — so the lookup screen can show which address the code went to without
-// revealing the full address to whoever typed in the phone number.
-function maskEmail(email: string): string {
-  const [local, domain] = email.split("@");
-  if (!domain) return email;
-  const visible = local.slice(0, Math.min(2, local.length));
-  return `${visible}${"*".repeat(Math.max(local.length - visible.length, 3))}@${domain}`;
-}
-
-// Shared by sendRegistrationOtpAction (checked upfront, before wasting an
-// email send on a dead end) and registerCustomerCardAction (checked again
-// right before the insert, as a safety net against two people registering
-// the same phone/email in the gap between those two steps).
+// Shared by both registration and the "check my card" lookup — a phone or
+// email already used on another card can't be reused for a new one.
 async function findRegistrationDuplicate(phone: string, email: string): Promise<{ error: string } | null> {
   if (phone) {
     const { data, error } = await supabaseAdmin.from("cc_customer_cards").select("id").eq("customer_phone", phone).limit(1);
@@ -106,58 +63,13 @@ async function findRegistrationDuplicate(phone: string, email: string): Promise<
   return null;
 }
 
-export async function sendRegistrationOtpAction(email: string, phone?: string): Promise<{ error: string } | { sent: true }> {
-  const trimmed = normalizeEmail(email);
-  if (!trimmed || !trimmed.includes("@")) return { error: "Enter a valid email address." };
-
-  const dupError = await findRegistrationDuplicate(phone?.trim() ?? "", trimmed);
-  if (dupError) return dupError;
-
-  return sendOtpCode(trimmed);
-}
-
-async function verifyOtpCode(email: string, code: string): Promise<{ error: string } | { verified: true }> {
-  const enteredCode = code.trim();
-  if (!enteredCode) return { error: "Enter the code from your email." };
-
-  const { data, error } = await supabaseAdmin
-    .from("cc_email_otps")
-    .select("id, code, expires_at")
-    .eq("email", email)
-    .order("created_at", { ascending: false })
-    .limit(1);
-  if (error) return { error: error.message };
-  if (!data || data.length === 0) return { error: "No code was sent to this email. Request a new one." };
-
-  const row = data[0];
-  if (new Date(row.expires_at) < new Date()) return { error: "This code has expired. Request a new one." };
-  if (row.code !== enteredCode) return { error: "Incorrect code — please try again." };
-
-  const { error: updateError } = await supabaseAdmin.from("cc_email_otps").update({ verified: true }).eq("id", row.id);
-  if (updateError) return { error: updateError.message };
-  return { verified: true };
-}
-
-export async function verifyRegistrationOtpAction(email: string, code: string): Promise<{ error: string } | { verified: true }> {
-  return verifyOtpCode(normalizeEmail(email), code);
-}
-
-async function hasVerifiedOtp(email: string): Promise<boolean> {
-  const { data } = await supabaseAdmin
-    .from("cc_email_otps")
-    .select("id")
-    .eq("email", normalizeEmail(email))
-    .eq("verified", true)
-    .gte("expires_at", new Date().toISOString())
-    .limit(1);
-  return !!data && data.length > 0;
-}
-
 export async function registerCustomerCardAction(input: {
   branch: Branch;
   customerName: string;
   customerPhone: string;
   customerEmail: string;
+  plateNo: string;
+  model: string;
   boughtBikeHere: boolean;
 }): Promise<{ error: string } | { cardNumber: string; visitCount: number }> {
   const customerName = input.customerName.trim();
@@ -165,16 +77,11 @@ export async function registerCustomerCardAction(input: {
   const customerEmail = normalizeEmail(input.customerEmail);
   if (!customerName) return { error: "Please enter your name." };
   if (!customerPhone) return { error: "Please enter your phone number." };
-  if (!customerEmail) return { error: "Please verify your email first." };
+  if (!input.plateNo.trim()) return { error: "Please enter your bike's plate number." };
   if (!input.boughtBikeHere) {
     return { error: "This services card is only for customers who bought their bike from us." };
   }
 
-  const verified = await hasVerifiedOtp(customerEmail);
-  if (!verified) return { error: "Please verify your email first." };
-
-  // Already checked once before the OTP was even sent (sendRegistrationOtpAction)
-  // — this is just a safety net for the gap between then and now.
   const dupError = await findRegistrationDuplicate(customerPhone, customerEmail);
   if (dupError) return dupError;
 
@@ -186,6 +93,8 @@ export async function registerCustomerCardAction(input: {
     customer_phone: customerPhone,
     customer_email: customerEmail,
     card_number: cardNumber,
+    plate_no: input.plateNo.trim(),
+    model: input.model.trim(),
     bought_bike_here: true,
     issued_date: new Date().toISOString().slice(0, 10),
   });
@@ -241,50 +150,33 @@ async function buildLookupResult(card: {
   };
 }
 
-async function findCardByPhone(phone: string) {
-  const { data, error } = await supabaseAdmin
+// Accepts either the phone number the customer signed up with, or their
+// plate number — handy for a customer who doesn't remember which number
+// they used but definitely knows their own plate.
+async function findCardByPhoneOrPlate(query: string) {
+  const cols = "customer_name, customer_phone, card_number, issued_date, expiry_date";
+  const { data: byPhone, error: phoneError } = await supabaseAdmin
     .from("cc_customer_cards")
-    .select("customer_name, customer_phone, customer_email, card_number, issued_date, expiry_date")
-    .eq("customer_phone", phone)
+    .select(cols)
+    .eq("customer_phone", query)
     .limit(1);
-  if (error) throw new Error(error.message);
-  return data && data.length > 0 ? data[0] : null;
+  if (phoneError) throw new Error(phoneError.message);
+  if (byPhone && byPhone.length > 0) return byPhone[0];
+
+  const { data: byPlate, error: plateError } = await supabaseAdmin.from("cc_customer_cards").select(cols).ilike("plate_no", query).limit(1);
+  if (plateError) throw new Error(plateError.message);
+  return byPlate && byPlate.length > 0 ? byPlate[0] : null;
 }
 
-// Step 1 of "check my card": find the card by phone and, if it has a
-// verified email on file, send a code there instead of showing anything
-// yet — so typing in someone else's phone number can't show their card.
-// Cards with no email on file (added by staff, or from before this
-// feature existed) fall back to showing the lookup straight away.
-export async function requestLookupOtpAction(
-  customerPhone: string
-): Promise<{ error: string } | { needsOtp: true; emailHint: string } | { needsOtp: false; result: MembershipLookup }> {
-  const phone = customerPhone.trim();
-  if (!phone) return { error: "Enter the phone number you signed up with." };
+// "Check my card" — no OTP, since this is just a stamp-reward card, not an
+// account with anything sensitive on it. Looked up straight away by phone
+// or, failing that, plate number.
+export async function lookupCustomerCardAction(phoneOrPlate: string): Promise<{ error: string } | MembershipLookup> {
+  const query = phoneOrPlate.trim();
+  if (!query) return { error: "Enter the phone number you signed up with, or your plate number." };
 
-  const card = await findCardByPhone(phone);
-  if (!card) return { error: "No services card found for that phone number. Sign up above to get one." };
-
-  if (!card.customer_email) {
-    const result = await buildLookupResult(card);
-    return { needsOtp: false, result };
-  }
-
-  const sendResult = await sendOtpCode(card.customer_email);
-  if ("error" in sendResult) return sendResult;
-  return { needsOtp: true, emailHint: maskEmail(card.customer_email) };
-}
-
-// Step 2 — verifies the code against the card's own email, then returns
-// the full lookup.
-export async function verifyLookupOtpAction(customerPhone: string, code: string): Promise<{ error: string } | MembershipLookup> {
-  const phone = customerPhone.trim();
-  const card = await findCardByPhone(phone);
-  if (!card) return { error: "No services card found for that phone number." };
-  if (!card.customer_email) return { error: "This card has no email on file to verify." };
-
-  const verifyResult = await verifyOtpCode(card.customer_email, code);
-  if ("error" in verifyResult) return verifyResult;
+  const card = await findCardByPhoneOrPlate(query);
+  if (!card) return { error: "No services card found for that phone number or plate number. Sign up above to get one." };
 
   return buildLookupResult(card);
 }
