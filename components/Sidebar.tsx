@@ -98,9 +98,9 @@ export default function Sidebar({
         onClick={onToggle}
         title={collapsed ? "Expand menu" : "Collapse menu"}
         aria-label={collapsed ? "Expand menu" : "Collapse menu"}
-        className="absolute top-1/2 -right-3 -translate-y-1/2 z-10 w-6 h-6 flex items-center justify-center rounded-full bg-white border border-neutral-200 text-neutral-400 hover:text-red-600 hover:border-red-300 shadow-sm transition-colors"
+        className="absolute top-1/2 -right-2.5 -translate-y-1/2 z-10 w-4 h-4 flex items-center justify-center rounded-full bg-white border border-neutral-200 text-neutral-300 hover:text-red-600 hover:border-red-300 transition-colors"
       >
-        {collapsed ? <PanelLeftOpen size={13} /> : <PanelLeftClose size={13} />}
+        {collapsed ? <PanelLeftOpen size={9} /> : <PanelLeftClose size={9} />}
       </button>
 
       <div
