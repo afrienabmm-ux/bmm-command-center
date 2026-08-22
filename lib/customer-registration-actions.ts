@@ -56,7 +56,7 @@ export async function registerCustomerCardAction(input: {
   plateNo: string;
   model: string;
   boughtBikeHere: boolean;
-}): Promise<{ error: string } | { cardNumber: string; visitCount: number }> {
+}): Promise<{ error: string } | { cardNumber: string; visitCount: number; plateNo: string }> {
   const customerName = input.customerName.trim();
   const customerPhone = input.customerPhone.trim();
   if (!customerName) return { error: "Please enter your name." };
@@ -71,24 +71,26 @@ export async function registerCustomerCardAction(input: {
 
   const cardNumber = generateCardNumber(input.branch);
   const visits = await countVisits(customerName, customerPhone);
+  const plateNo = input.plateNo.trim();
   const { error } = await supabaseAdmin.from("cc_customer_cards").insert({
     branch: input.branch,
     customer_name: customerName,
     customer_phone: customerPhone,
     card_number: cardNumber,
-    plate_no: input.plateNo.trim(),
+    plate_no: plateNo,
     model: input.model.trim(),
     bought_bike_here: true,
     issued_date: new Date().toISOString().slice(0, 10),
   });
   if (error) return { error: error.message };
   revalidatePath("/customers");
-  return { cardNumber, visitCount: visits };
+  return { cardNumber, visitCount: visits, plateNo };
 }
 
 export type MembershipLookup = {
   customerName: string;
   cardNumber: string;
+  plateNo: string;
   issuedDate: string;
   expiryDate: string | null;
   totalSpend: number;
@@ -99,6 +101,7 @@ async function buildLookupResult(card: {
   customer_name: string;
   customer_phone: string;
   card_number: string;
+  plate_no: string;
   issued_date: string;
   expiry_date: string | null;
 }): Promise<MembershipLookup> {
@@ -126,6 +129,7 @@ async function buildLookupResult(card: {
   return {
     customerName: card.customer_name,
     cardNumber: card.card_number,
+    plateNo: card.plate_no,
     issuedDate: card.issued_date,
     expiryDate: card.expiry_date,
     totalSpend,
@@ -137,7 +141,7 @@ async function buildLookupResult(card: {
 // plate number — handy for a customer who doesn't remember which number
 // they used but definitely knows their own plate.
 async function findCardByPhoneOrPlate(query: string) {
-  const cols = "customer_name, customer_phone, card_number, issued_date, expiry_date";
+  const cols = "customer_name, customer_phone, card_number, plate_no, issued_date, expiry_date";
   const { data: byPhone, error: phoneError } = await supabaseAdmin
     .from("cc_customer_cards")
     .select(cols)

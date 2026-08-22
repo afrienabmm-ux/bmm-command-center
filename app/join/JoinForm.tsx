@@ -17,7 +17,7 @@ const SESSION_TTL_MS = 3 * 60 * 60 * 1000;
 const JOIN_STORAGE_KEY = "bmm_join_session";
 const LOOKUP_STORAGE_KEY = "bmm_lookup_session";
 
-type StoredJoin = { name: string; cardNumber: string; visitCount: number; savedAt: number };
+type StoredJoin = { name: string; cardNumber: string; visitCount: number; plateNo: string; savedAt: number };
 type StoredLookup = { result: MembershipLookup; savedAt: number };
 
 function readSession<T extends { savedAt: number }>(key: string): T | null {
@@ -47,10 +47,12 @@ function writeSession(key: string, data: object) {
 function TierCard({
   cardNumber,
   name,
+  plateNo,
   memberSince,
 }: {
   cardNumber: string;
   name: string;
+  plateNo?: string;
   memberSince?: string;
 }) {
   return (
@@ -64,7 +66,10 @@ function TierCard({
       <p className="text-[10px] uppercase tracking-widest opacity-70 mt-7">Member</p>
       <p className="text-xl font-bold tracking-widest mt-1">{cardNumber}</p>
       <div className="flex items-end justify-between mt-4 relative z-10">
-        <p className="text-xs opacity-90 truncate uppercase tracking-wide">{name}</p>
+        <div className="min-w-0">
+          <p className="text-xs opacity-90 truncate uppercase tracking-wide">{name}</p>
+          {plateNo && <p className="text-[10px] opacity-70 truncate uppercase tracking-wide mt-0.5">{plateNo}</p>}
+        </div>
         {memberSince && <p className="text-[10px] opacity-70 shrink-0 ml-2">Since {memberSince}</p>}
       </div>
     </div>
@@ -184,15 +189,15 @@ function JoinTab({ restored, onClear }: { restored: StoredJoin | null; onClear: 
   const [model, setModel] = useState("");
   const [boughtBikeHere, setBoughtBikeHere] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [result, setResult] = useState<{ cardNumber: string; visitCount: number } | null>(
-    restored ? { cardNumber: restored.cardNumber, visitCount: restored.visitCount } : null
+  const [result, setResult] = useState<{ cardNumber: string; visitCount: number; plateNo: string } | null>(
+    restored ? { cardNumber: restored.cardNumber, visitCount: restored.visitCount, plateNo: restored.plateNo } : null
   );
   const [isPending, startTransition] = useTransition();
 
   useEffect(() => {
     if (restored) {
       setName(restored.name);
-      setResult({ cardNumber: restored.cardNumber, visitCount: restored.visitCount });
+      setResult({ cardNumber: restored.cardNumber, visitCount: restored.visitCount, plateNo: restored.plateNo });
     }
   }, [restored]);
 
@@ -212,7 +217,7 @@ function JoinTab({ restored, onClear }: { restored: StoredJoin | null; onClear: 
         return;
       }
       setResult(res);
-      writeSession(JOIN_STORAGE_KEY, { name: name.trim(), cardNumber: res.cardNumber, visitCount: res.visitCount });
+      writeSession(JOIN_STORAGE_KEY, { name: name.trim(), cardNumber: res.cardNumber, visitCount: res.visitCount, plateNo: res.plateNo });
     });
   }
 
@@ -222,7 +227,7 @@ function JoinTab({ restored, onClear }: { restored: StoredJoin | null; onClear: 
         <p className="text-sm text-neutral-600 text-center mb-4">
           Hi <span className="font-semibold text-neutral-900">{name.trim()}</span>! You&apos;re in.
         </p>
-        <TierCard cardNumber={result.cardNumber} name={name} />
+        <TierCard cardNumber={result.cardNumber} name={name} plateNo={result.plateNo} />
         <StampProgress visitCount={result.visitCount} />
         <p className="text-xs text-neutral-400 text-center mt-4">Show this screen at the counter</p>
         <button
@@ -356,7 +361,12 @@ function LookupTab({ restored, onClear }: { restored: StoredLookup | null; onCle
         <p className="text-sm text-neutral-600 text-center mb-4">
           Hi <span className="font-semibold text-neutral-900">{result.customerName.trim()}</span>!
         </p>
-        <TierCard cardNumber={result.cardNumber} name={result.customerName} memberSince={formatDate(result.issuedDate)} />
+        <TierCard
+          cardNumber={result.cardNumber}
+          name={result.customerName}
+          plateNo={result.plateNo}
+          memberSince={formatDate(result.issuedDate)}
+        />
         {result.expiryDate && (
           <p className="text-[11px] text-neutral-400 text-center mt-2">Expires {formatDate(result.expiryDate)}</p>
         )}
