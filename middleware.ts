@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 
-const PUBLIC_PATHS = ["/login", "/signup"];
+const PUBLIC_PATHS = ["/login", "/signup", "/forgot-password"];
 // Customer-facing membership sign-up — no staff login needed, so every
 // path under /join is public regardless of query string.
 const PUBLIC_PREFIXES = ["/join"];
