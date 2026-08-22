@@ -14,7 +14,6 @@ import { DEAL_TYPES, RESTORE_BIKE_CONDITIONS, type RestoreBikeCondition, type Re
 import type { Mechanic, Package, CatalogProduct } from "@/lib/types";
 import { BRANCHES, branchLabel, type Branch, type BranchSelection } from "@/lib/branch";
 import { formatCurrency } from "@/lib/format";
-import CatalogItemPicker from "@/components/CatalogItemPicker";
 import { useToast } from "@/lib/useToast";
 
 type ItemInput = { code: string; description: string; quantity: string; price: string };
@@ -38,12 +37,10 @@ function ItemsEditor({
   items,
   onChange,
   packages,
-  catalogProducts,
 }: {
   items: ItemInput[];
   onChange: (items: ItemInput[]) => void;
   packages: Package[];
-  catalogProducts: CatalogProduct[];
 }) {
   function update(i: number, patch: Partial<ItemInput>) {
     onChange(items.map((it, idx) => (idx === i ? { ...it, ...patch } : it)));
@@ -62,15 +59,11 @@ function ItemsEditor({
     if (!pkg) return;
     onChange([...items, { code: "", description: pkg.name, quantity: "1", price: String(pkg.price) }]);
   }
-  function addCatalogProduct(product: CatalogProduct) {
-    onChange([...items, { code: product.code, description: product.productName, quantity: "1", price: String(product.price) }]);
-  }
   const total = items.reduce((sum, it) => sum + (Number(it.quantity) || 0) * (Number(it.price) || 0), 0);
 
   return (
     <div>
       <label className="block text-xs font-medium text-neutral-600 mb-1.5">Parts / Items</label>
-      {catalogProducts.length > 0 && <CatalogItemPicker products={catalogProducts} onSelect={addCatalogProduct} />}
       {packages.length > 0 && (
         <select
           value=""
@@ -592,7 +585,7 @@ export default function RepairJobForm({
             </label>
           </div>
 
-          <ItemsEditor items={items} onChange={setItems} packages={packages} catalogProducts={catalogProducts} />
+          <ItemsEditor items={items} onChange={setItems} packages={packages} />
 
           <div>
             <label className="block text-xs font-medium text-neutral-600 mb-1.5">Cost Restore (RM)</label>

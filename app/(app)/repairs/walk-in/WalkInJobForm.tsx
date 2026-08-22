@@ -24,7 +24,6 @@ import type { RepairJob } from "@/lib/types";
 import type { Mechanic, CatalogProduct, Package } from "@/lib/types";
 import { BRANCHES, branchLabel, type Branch, type BranchSelection } from "@/lib/branch";
 import { formatCurrency } from "@/lib/format";
-import CatalogItemPicker from "@/components/CatalogItemPicker";
 import { useToast } from "@/lib/useToast";
 
 type ItemInput = { code: string; description: string; quantity: string; price: string };
@@ -60,11 +59,9 @@ function SectionHeader({ icon: Icon, title }: { icon: typeof User; title: string
 function ItemsEditor({
   items,
   onChange,
-  catalogProducts,
 }: {
   items: ItemInput[];
   onChange: (items: ItemInput[]) => void;
-  catalogProducts: CatalogProduct[];
 }) {
   function update(i: number, patch: Partial<ItemInput>) {
     onChange(items.map((it, idx) => (idx === i ? { ...it, ...patch } : it)));
@@ -78,15 +75,11 @@ function ItemsEditor({
   function removeRow(i: number) {
     onChange(items.filter((_, idx) => idx !== i));
   }
-  function addCatalogProduct(product: CatalogProduct) {
-    onChange([...items, { code: product.code, description: product.productName, quantity: "1", price: String(product.price) }]);
-  }
   const total = items.reduce((sum, it) => sum + (Number(it.quantity) || 0) * (Number(it.price) || 0), 0);
 
   return (
     <div>
       <label className="block text-xs font-medium text-neutral-600 mb-1.5">Parts / Items</label>
-      {catalogProducts.length > 0 && <CatalogItemPicker products={catalogProducts} onSelect={addCatalogProduct} />}
       <div className="space-y-2">
         {items.map((it, i) => (
           <div key={i} className="grid grid-cols-[auto_90px_1fr_70px_100px_auto] gap-2 items-center">
@@ -1063,7 +1056,7 @@ export default function WalkInJobForm({
           </div>
 
           {isScan && <SectionHeader icon={Boxes} title="Parts & Cost" />}
-          <ItemsEditor items={items} onChange={setItems} catalogProducts={catalogProducts} />
+          <ItemsEditor items={items} onChange={setItems} />
 
           <div>
             <label className="block text-xs font-medium text-neutral-600 mb-1.5">Cost Total (RM)</label>
