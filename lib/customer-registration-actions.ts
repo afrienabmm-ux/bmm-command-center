@@ -83,9 +83,37 @@ function maskEmail(email: string): string {
   return `${visible}${"*".repeat(Math.max(local.length - visible.length, 3))}@${domain}`;
 }
 
-export async function sendRegistrationOtpAction(email: string): Promise<{ error: string } | { sent: true }> {
+// Shared by sendRegistrationOtpAction (checked upfront, before wasting an
+// email send on a dead end) and registerCustomerCardAction (checked again
+// right before the insert, as a safety net against two people registering
+// the same phone/email in the gap between those two steps).
+async function findRegistrationDuplicate(phone: string, email: string): Promise<{ error: string } | null> {
+  if (phone) {
+    const { data, error } = await supabaseAdmin.from("cc_customer_cards").select("id").eq("customer_phone", phone).limit(1);
+    if (error) return { error: error.message };
+    if (data && data.length > 0) {
+      return { error: "This phone number is already registered. Use \"Check My Card\" above to view your membership instead." };
+    }
+  }
+  if (email) {
+    const { data, error } = await supabaseAdmin.from("cc_customer_cards").select("id").eq("customer_email", email).limit(1);
+    if (error) return { error: error.message };
+    if (data && data.length > 0) {
+      return {
+        error: "This email is already registered to another membership. Use \"Check My Card\" above with your registered phone number instead.",
+      };
+    }
+  }
+  return null;
+}
+
+export async function sendRegistrationOtpAction(email: string, phone?: string): Promise<{ error: string } | { sent: true }> {
   const trimmed = normalizeEmail(email);
   if (!trimmed || !trimmed.includes("@")) return { error: "Enter a valid email address." };
+
+  const dupError = await findRegistrationDuplicate(phone?.trim() ?? "", trimmed);
+  if (dupError) return dupError;
+
   return sendOtpCode(trimmed);
 }
 
@@ -142,31 +170,10 @@ export async function registerCustomerCardAction(input: {
   const verified = await hasVerifiedOtp(customerEmail);
   if (!verified) return { error: "Please verify your email first." };
 
-  // A phone or email already tied to a card blocks a fresh sign-up outright
-  // — pointing them at "Check My Card" instead of silently handing back
-  // someone else's (or their own, unlabelled) existing card, which looked
-  // like a normal successful registration either way.
-  const { data: phoneMatch, error: phoneFetchError } = await supabaseAdmin
-    .from("cc_customer_cards")
-    .select("card_number")
-    .eq("customer_phone", customerPhone)
-    .limit(1);
-  if (phoneFetchError) return { error: phoneFetchError.message };
-  if (phoneMatch && phoneMatch.length > 0) {
-    return { error: "This phone number is already registered. Use \"Check My Card\" above to view your membership instead." };
-  }
-
-  const { data: emailMatch, error: emailFetchError } = await supabaseAdmin
-    .from("cc_customer_cards")
-    .select("card_number")
-    .eq("customer_email", customerEmail)
-    .limit(1);
-  if (emailFetchError) return { error: emailFetchError.message };
-  if (emailMatch && emailMatch.length > 0) {
-    return {
-      error: "This email is already registered to another membership. Use \"Check My Card\" above with your registered phone number instead.",
-    };
-  }
+  // Already checked once before the OTP was even sent (sendRegistrationOtpAction)
+  // — this is just a safety net for the gap between then and now.
+  const dupError = await findRegistrationDuplicate(customerPhone, customerEmail);
+  if (dupError) return dupError;
 
   const cardNumber = generateCardNumber(input.branch);
   const visits = await countVisits(customerName, customerPhone);

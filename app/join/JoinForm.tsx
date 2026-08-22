@@ -197,7 +197,7 @@ function JoinTab({ restored, onClear }: { restored: StoredJoin | null; onClear: 
   function handleSendCode() {
     setError(null);
     startTransition(async () => {
-      const res = await sendRegistrationOtpAction(email);
+      const res = await sendRegistrationOtpAction(email, phone);
       if ("error" in res) {
         setError(res.error);
         return;
