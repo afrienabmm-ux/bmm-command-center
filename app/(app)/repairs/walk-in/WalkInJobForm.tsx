@@ -48,7 +48,7 @@ function itemsFromJob(job: RepairJob): ItemInput[] {
 // fields broken into named steps.
 function SectionHeader({ icon: Icon, title }: { icon: typeof User; title: string }) {
   return (
-    <div className="flex items-center gap-2 pt-2 -mb-1">
+    <div className="flex items-center gap-2 pt-2 pb-1">
       <div className="w-7 h-7 rounded-lg bg-red-500/10 flex items-center justify-center shrink-0">
         <Icon size={14} className="text-red-600" />
       </div>
