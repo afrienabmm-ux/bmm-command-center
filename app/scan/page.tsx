@@ -77,6 +77,7 @@ export default async function ScanPage({ searchParams }: { searchParams: Promise
         packages={packages}
         preferCamera
         redirectTo="/scan"
+        variant="scan"
       />
     </div>
   );
@@ -93,11 +94,11 @@ export default async function ScanPage({ searchParams }: { searchParams: Promise
     .map((j) => ({ jobId: j.id, branch: j.branch, customerName: j.customerName, customerPlateNo: j.plateNo, date: j.createdAt }));
 
   return (
-    <div className="min-h-screen bg-neutral-50">
+    <div className="min-h-screen bg-gradient-to-b from-rose-50 via-neutral-50 to-neutral-50">
       <Suspense fallback={null}>
         <SavedToast />
       </Suspense>
-      <div className="sticky top-0 z-10 bg-white border-b border-neutral-200 px-4 py-3 flex items-center gap-2.5">
+      <div className="sticky top-0 z-10 bg-white/90 backdrop-blur border-b border-neutral-200 px-4 py-3 flex items-center gap-2.5">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/bmm-logo.png" alt="Berjaya Mega Motors" className="w-7 h-7 rounded-full object-cover shrink-0" />
         <div className="leading-none min-w-0">

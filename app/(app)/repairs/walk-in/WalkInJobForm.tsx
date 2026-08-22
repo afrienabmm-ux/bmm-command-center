@@ -2,7 +2,20 @@
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Trash2, ScanLine, Upload, CheckCircle2, AlertTriangle } from "lucide-react";
+import {
+  Plus,
+  Trash2,
+  ScanLine,
+  Upload,
+  CheckCircle2,
+  AlertTriangle,
+  User,
+  Bike,
+  ClipboardList,
+  Wrench,
+  Boxes,
+  Sparkles,
+} from "lucide-react";
 import { addRepairJobAction, updateRepairJobAction } from "@/lib/repairs-actions";
 import { checkGenbluRegisteredAction, ensureGenbluRegistrationAction } from "@/lib/genblu-actions";
 import { addPackageSaleAction } from "@/lib/packages-actions";
@@ -27,6 +40,21 @@ function itemsFromJob(job: RepairJob): ItemInput[] {
     quantity: String(i.quantity),
     price: String(i.price),
   }));
+}
+
+// Visual-only grouping used on the phone scan page (variant="scan") — the
+// desktop form stays one flat list, but a long wall of fields on a phone
+// with no landmarks to scroll past feels a lot more tedious than the same
+// fields broken into named steps.
+function SectionHeader({ icon: Icon, title }: { icon: typeof User; title: string }) {
+  return (
+    <div className="flex items-center gap-2 pt-2 -mb-1">
+      <div className="w-7 h-7 rounded-lg bg-rose-500/10 flex items-center justify-center shrink-0">
+        <Icon size={14} className="text-rose-600" />
+      </div>
+      <p className="text-xs font-semibold text-rose-700 uppercase tracking-wide">{title}</p>
+    </div>
+  );
 }
 
 function ItemsEditor({
@@ -139,6 +167,7 @@ export default function WalkInJobForm({
   packages,
   preferCamera = false,
   redirectTo = "/repairs/walk-in",
+  variant = "full",
 }: {
   job: RepairJob | null;
   branchSelection: BranchSelection;
@@ -156,7 +185,12 @@ export default function WalkInJobForm({
   // back at itself so saving a job never drags a phone visitor into the
   // desktop dashboard's sidebar layout.
   redirectTo?: string;
+  // "scan" turns on the phone-friendly visual treatment (section headers,
+  // warmer scan card, sticky save bar) used only on /scan — the desktop
+  // Restore/Walk-in admin forms keep today's plain layout untouched.
+  variant?: "full" | "scan";
 }) {
+  const isScan = variant === "scan";
   const router = useRouter();
   const isEdit = job !== null;
   // Set the instant the form opens (or the job's own date when editing) —
@@ -631,14 +665,28 @@ export default function WalkInJobForm({
     <div className="max-w-2xl mx-auto">
       {toastNode}
       {!isEdit && (
-        <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-5 mb-4">
+        <div
+          className={
+            isScan
+              ? "bg-gradient-to-br from-rose-600 via-red-600 to-rose-700 rounded-2xl p-5 mb-5 shadow-lg shadow-red-900/10"
+              : "bg-indigo-50 border border-indigo-200 rounded-xl p-5 mb-4"
+          }
+        >
           <div className="flex items-start gap-3">
-            <div className="w-9 h-9 rounded-lg bg-indigo-500/15 flex items-center justify-center shrink-0">
-              <ScanLine size={17} className="text-indigo-600" />
+            <div
+              className={
+                isScan
+                  ? "w-11 h-11 rounded-xl bg-white/15 flex items-center justify-center shrink-0"
+                  : "w-9 h-9 rounded-lg bg-indigo-500/15 flex items-center justify-center shrink-0"
+              }
+            >
+              <ScanLine size={isScan ? 20 : 17} className={isScan ? "text-white" : "text-indigo-600"} />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-neutral-900">Scan Jobsheet</p>
-              <p className="text-xs text-neutral-500 mt-0.5 mb-3">
+              <p className={isScan ? "text-sm font-semibold text-white" : "text-sm font-semibold text-neutral-900"}>
+                Scan Jobsheet
+              </p>
+              <p className={isScan ? "text-xs text-white/80 mt-0.5 mb-3" : "text-xs text-neutral-500 mt-0.5 mb-3"}>
                 Upload a clear photo or PDF of the paper jobsheet — it'll fill in the boxes below for you to check before saving.
               </p>
               <input
@@ -660,12 +708,36 @@ export default function WalkInJobForm({
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={isScanning}
-                className="flex items-center gap-1.5 bg-indigo-500 hover:bg-indigo-400 disabled:opacity-50 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+                className={
+                  isScan
+                    ? "flex items-center gap-1.5 bg-white hover:bg-rose-50 disabled:opacity-60 text-red-700 text-sm font-semibold px-4 py-2.5 rounded-xl shadow-sm transition-colors"
+                    : "flex items-center gap-1.5 bg-indigo-500 hover:bg-indigo-400 disabled:opacity-50 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+                }
               >
                 <Upload size={15} /> {isScanning ? "Reading jobsheet…" : "Upload Jobsheet"}
               </button>
-              {scanError && <p className="text-xs text-red-700 mt-2">{scanError}</p>}
-              {scanNotice && <p className="text-xs text-emerald-700 mt-2">{scanNotice}</p>}
+              {scanError && (
+                <p
+                  className={
+                    isScan
+                      ? "text-xs text-white bg-black/20 rounded-lg px-3 py-2 mt-2"
+                      : "text-xs text-red-700 mt-2"
+                  }
+                >
+                  {scanError}
+                </p>
+              )}
+              {scanNotice && (
+                <p
+                  className={
+                    isScan
+                      ? "text-xs text-white bg-black/20 rounded-lg px-3 py-2 mt-2"
+                      : "text-xs text-emerald-700 mt-2"
+                  }
+                >
+                  {scanNotice}
+                </p>
+              )}
               {scanMissing && (
                 <div className="mt-2 bg-amber-50 border border-amber-200 rounded-lg p-3">
                   <p className="text-xs text-amber-800 font-medium">
@@ -684,7 +756,9 @@ export default function WalkInJobForm({
               )}
               {scanRawText && (
                 <details className="mt-2">
-                  <summary className="text-xs text-indigo-700 cursor-pointer">What Google read from the photo (for troubleshooting)</summary>
+                  <summary className={isScan ? "text-xs text-white/90 cursor-pointer" : "text-xs text-indigo-700 cursor-pointer"}>
+                    What Google read from the photo (for troubleshooting)
+                  </summary>
                   {scanSignatureDebug && (
                     <p className="mt-2 text-[11px] text-neutral-500 font-mono">Signature check: {scanSignatureDebug}</p>
                   )}
@@ -729,8 +803,9 @@ export default function WalkInJobForm({
           </div>
         </div>
       )}
-      <div className="bg-white border border-neutral-200 rounded-xl p-6">
+      <div className={isScan ? "bg-white border border-neutral-200 rounded-2xl p-5 shadow-sm" : "bg-white border border-neutral-200 rounded-xl p-6"}>
         <div className="space-y-4">
+          {isScan && <SectionHeader icon={User} title="Customer" />}
           <div>
             <label className="block text-xs font-medium text-neutral-600 mb-1.5">Job Date</label>
             <input
@@ -770,6 +845,7 @@ export default function WalkInJobForm({
             />
             <p className="text-[11px] text-neutral-400 mt-1">Matches this visit to their membership card, even if the name is spelled differently.</p>
           </div>
+          {isScan && <SectionHeader icon={Bike} title="Vehicle" />}
           <div>
             <label className="block text-xs font-medium text-neutral-600 mb-1.5">Plate No. *</label>
             <input
@@ -826,6 +902,7 @@ export default function WalkInJobForm({
               className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-indigo-500/50"
             />
           </div>
+          {isScan && <SectionHeader icon={ClipboardList} title="Service Details" />}
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-medium text-neutral-600 mb-1.5">Job No. (jobsheet)</label>
@@ -901,6 +978,7 @@ export default function WalkInJobForm({
               />
             </div>
           </div>
+          {isScan && <SectionHeader icon={Wrench} title="Assignment" />}
           <div>
             <label className="block text-xs font-medium text-neutral-600 mb-1.5">Location</label>
             <div className="flex items-center gap-2 flex-wrap">
@@ -984,6 +1062,7 @@ export default function WalkInJobForm({
             </label>
           </div>
 
+          {isScan && <SectionHeader icon={Boxes} title="Parts & Cost" />}
           <ItemsEditor items={items} onChange={setItems} catalogProducts={catalogProducts} />
 
           <div>
@@ -1007,6 +1086,7 @@ export default function WalkInJobForm({
             />
             <p className="text-xs text-neutral-500 mt-1.5">Set this to the date the job is officially done.</p>
           </div>
+          {isScan && <SectionHeader icon={Sparkles} title="Extras" />}
           <div>
             <label className="block text-xs font-medium text-neutral-600 mb-1.5">Customer has GenBlu?</label>
             <div className="flex items-center gap-2">
@@ -1125,22 +1205,43 @@ export default function WalkInJobForm({
             )}
           </div>
         </div>
-        <div className="flex items-center justify-end gap-3 mt-6 pt-4 border-t border-neutral-200">
+        {!isScan && (
+          <div className="flex items-center justify-end gap-3 mt-6 pt-4 border-t border-neutral-200">
+            <button
+              onClick={() => router.push(redirectTo)}
+              className="text-sm font-medium text-neutral-600 hover:text-neutral-800 px-4 py-2 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleSave}
+              disabled={isPending}
+              className="bg-indigo-500 hover:bg-indigo-400 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+            >
+              {isPending ? "Saving…" : isEdit ? "Save Changes" : "Add Job"}
+            </button>
+          </div>
+        )}
+      </div>
+      {/* Sticky bottom action bar — a phone tech shouldn't have to scroll
+          all the way to the end just to find Save. */}
+      {isScan && (
+        <div className="sticky bottom-0 mt-6 py-3 bg-white/90 backdrop-blur border-t border-neutral-200 flex items-center gap-3">
           <button
             onClick={() => router.push(redirectTo)}
-            className="text-sm font-medium text-neutral-600 hover:text-neutral-800 px-4 py-2 transition-colors"
+            className="text-sm font-medium text-neutral-600 hover:text-neutral-800 px-3 py-3 transition-colors shrink-0"
           >
             Cancel
           </button>
           <button
             onClick={handleSave}
             disabled={isPending}
-            className="bg-indigo-500 hover:bg-indigo-400 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+            className="flex-1 bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-500 hover:to-red-500 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-semibold px-4 py-3 rounded-xl shadow-sm transition-colors"
           >
             {isPending ? "Saving…" : isEdit ? "Save Changes" : "Add Job"}
           </button>
         </div>
-      </div>
+      )}
     </div>
   );
 }
