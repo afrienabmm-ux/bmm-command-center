@@ -201,11 +201,17 @@ export async function addCustomerCardAction(input: {
   assertCanEditBranch(user, input.branch);
   const customerName = input.customerName.trim();
   if (!customerName) return { error: "Customer name is required." };
+  const customerPhone = input.customerPhone.trim();
+  const customerEmail = input.customerEmail.trim().toLowerCase();
+
+  const dupError = await checkCustomerCardDuplicate(customerPhone, customerEmail);
+  if (dupError) return dupError;
+
   const { error } = await supabaseAdmin.from("cc_customer_cards").insert({
     branch: input.branch,
     customer_name: customerName,
-    customer_phone: input.customerPhone.trim(),
-    customer_email: input.customerEmail.trim().toLowerCase(),
+    customer_phone: customerPhone,
+    customer_email: customerEmail,
     card_number: input.cardNumber.trim(),
     tier: input.tier.trim(),
     issued_date: input.issuedDate,
@@ -214,6 +220,32 @@ export async function addCustomerCardAction(input: {
   });
   if (error) return { error: error.message };
   revalidatePath("/customers");
+}
+
+// Same phone/email uniqueness check the public /join sign-up enforces —
+// staff adding or editing a card here shouldn't be able to create a
+// duplicate either. excludeId leaves the card being edited out of its own
+// duplicate check.
+async function checkCustomerCardDuplicate(
+  phone: string,
+  email: string,
+  excludeId?: string
+): Promise<{ error: string } | null> {
+  if (phone) {
+    let query = supabaseAdmin.from("cc_customer_cards").select("id").eq("customer_phone", phone).limit(1);
+    if (excludeId) query = query.neq("id", excludeId);
+    const { data, error } = await query;
+    if (error) return { error: error.message };
+    if (data && data.length > 0) return { error: "This phone number is already registered to another membership card." };
+  }
+  if (email) {
+    let query = supabaseAdmin.from("cc_customer_cards").select("id").eq("customer_email", email).limit(1);
+    if (excludeId) query = query.neq("id", excludeId);
+    const { data, error } = await query;
+    if (error) return { error: error.message };
+    if (data && data.length > 0) return { error: "This email is already registered to another membership card." };
+  }
+  return null;
 }
 
 export async function updateCustomerCardAction(
@@ -234,12 +266,18 @@ export async function updateCustomerCardAction(
   assertCanEditBranch(user, branch);
   const customerName = input.customerName.trim();
   if (!customerName) return { error: "Customer name is required." };
+  const customerPhone = input.customerPhone.trim();
+  const customerEmail = input.customerEmail.trim().toLowerCase();
+
+  const dupError = await checkCustomerCardDuplicate(customerPhone, customerEmail, id);
+  if (dupError) return dupError;
+
   const { error } = await supabaseAdmin
     .from("cc_customer_cards")
     .update({
       customer_name: customerName,
-      customer_phone: input.customerPhone.trim(),
-      customer_email: input.customerEmail.trim().toLowerCase(),
+      customer_phone: customerPhone,
+      customer_email: customerEmail,
       card_number: input.cardNumber.trim(),
       tier: input.tier.trim(),
       issued_date: input.issuedDate,
