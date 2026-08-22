@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
-import { Search, User, Phone, Building2, Sparkles, Wrench, Bike } from "lucide-react";
+import { Search, User, Phone, Building2, Sparkles, Wrench, Bike, ChevronDown } from "lucide-react";
 import {
   registerCustomerCardAction,
   lookupCustomerCardAction,
@@ -252,7 +252,7 @@ function JoinTab({ restored, onClear }: { restored: StoredJoin | null; onClear: 
         <select
           value={branch}
           onChange={(e) => setBranch(e.target.value as Branch)}
-          className={`${inputClass} appearance-none`}
+          className="w-full appearance-none bg-neutral-50 border border-neutral-200 hover:border-red-300 rounded-xl pl-10 pr-9 py-3 text-sm text-neutral-800 focus:outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100 transition-colors cursor-pointer"
         >
           {BRANCHES.map((b) => (
             <option key={b.value} value={b.value}>
@@ -260,6 +260,7 @@ function JoinTab({ restored, onClear }: { restored: StoredJoin | null; onClear: 
             </option>
           ))}
         </select>
+        <ChevronDown size={15} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none" />
       </div>
       <div className="relative">
         <User size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-400" />

@@ -15,6 +15,7 @@ import {
   Wrench,
   Boxes,
   Sparkles,
+  ChevronDown,
 } from "lucide-react";
 import { addRepairJobAction, updateRepairJobAction } from "@/lib/repairs-actions";
 import { checkGenbluRegisteredAction, ensureGenbluRegistrationAction } from "@/lib/genblu-actions";
@@ -1010,23 +1011,26 @@ export default function WalkInJobForm({
           </div>
           <div>
             <label className="block text-xs font-medium text-neutral-600 mb-1.5">Mechanic *</label>
-            <select
-              ref={mechanicRef}
-              value={mechanicId}
-              onChange={(e) => setMechanicId(e.target.value)}
-              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
-            >
-              <option value="" disabled>
-                Select a mechanic…
-              </option>
-              {eligibleMechanics.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.shortName} ({m.shortCode})
-                  {locationBranch === "all" ? ` — ${branchLabel(m.branch)}` : ""}
-                  {m.category === "Heavy Repair" ? " — Heavy Repair" : ""}
+            <div className="relative">
+              <select
+                ref={mechanicRef}
+                value={mechanicId}
+                onChange={(e) => setMechanicId(e.target.value)}
+                className="w-full appearance-none bg-neutral-50 border border-neutral-200 hover:border-red-300 rounded-lg pl-3.5 pr-9 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50 focus:ring-2 focus:ring-red-100 transition-colors cursor-pointer"
+              >
+                <option value="" disabled>
+                  Select a mechanic…
                 </option>
-              ))}
-            </select>
+                {eligibleMechanics.map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.shortName} ({m.shortCode})
+                    {locationBranch === "all" ? ` — ${branchLabel(m.branch)}` : ""}
+                    {m.category === "Heavy Repair" ? " — Heavy Repair" : ""}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown size={15} className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none" />
+            </div>
             {isHeavyJob && (
               <p className="text-xs text-amber-700 mt-1.5">
                 Marked as a heavy / big item repair — only Heavy Repair mechanics can be assigned.
@@ -1174,17 +1178,20 @@ export default function WalkInJobForm({
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="block text-xs font-medium text-neutral-600 mb-1.5">Package *</label>
-                <select
-                  value={comboPackageId}
-                  onChange={(e) => setComboPackageId(e.target.value)}
-                  className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
-                >
-                  {packages.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.name} — {formatCurrency(p.price)}
-                    </option>
-                  ))}
-                </select>
+                <div className="relative">
+                  <select
+                    value={comboPackageId}
+                    onChange={(e) => setComboPackageId(e.target.value)}
+                    className="w-full appearance-none bg-neutral-50 border border-neutral-200 hover:border-red-300 rounded-lg pl-3.5 pr-9 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50 focus:ring-2 focus:ring-red-100 transition-colors cursor-pointer"
+                  >
+                    {packages.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.name} — {formatCurrency(p.price)}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown size={15} className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none" />
+                </div>
                 {packages.length === 0 && <p className="text-xs text-neutral-500 mt-1">No packages set up yet.</p>}
               </div>
               <div>

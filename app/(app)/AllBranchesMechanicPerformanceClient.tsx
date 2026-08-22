@@ -274,18 +274,21 @@ export default function AllBranchesMechanicPerformanceClient({
             </button>
           </div>
           {!locked && (
-            <select
-              value={branchFilter}
-              onChange={(e) => setBranchFilter(e.target.value as BranchSelection)}
-              className="bg-neutral-50 border border-neutral-200 rounded-lg px-3 py-2 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
-            >
-              <option value="all">All Branches</option>
-              {BRANCHES.map((b) => (
-                <option key={b.value} value={b.value}>
-                  {b.label}
-                </option>
-              ))}
-            </select>
+            <div className="relative">
+              <select
+                value={branchFilter}
+                onChange={(e) => setBranchFilter(e.target.value as BranchSelection)}
+                className="appearance-none bg-neutral-50 border border-neutral-200 hover:border-red-300 rounded-lg pl-3 pr-8 py-2 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50 focus:ring-2 focus:ring-red-100 transition-colors cursor-pointer"
+              >
+                <option value="all">All Branches</option>
+                {BRANCHES.map((b) => (
+                  <option key={b.value} value={b.value}>
+                    {b.label}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none" />
+            </div>
           )}
           <button
             onClick={handleExport}

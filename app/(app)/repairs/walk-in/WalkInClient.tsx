@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Plus, Download, Pencil, Search, Trash2, Check, Printer, ArrowUpDown } from "lucide-react";
+import { Plus, Download, Pencil, Search, Trash2, Check, Printer, ArrowUpDown, ChevronDown } from "lucide-react";
 import { setWalkInEndDateAction, deleteRepairJobAction } from "@/lib/repairs-actions";
 import { isHeavyRepairJob, type RepairStatus, type RepairJob } from "@/lib/types";
 import type { Mechanic } from "@/lib/types";
@@ -392,18 +392,21 @@ function ExportFilteredModal({
         <div className="space-y-3 mb-4">
           <div>
             <label className="block text-xs font-medium text-neutral-600 mb-1.5">Mechanic</label>
-            <select
-              value={mechanicId}
-              onChange={(e) => setMechanicId(e.target.value)}
-              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
-            >
-              <option value="all">All Mechanics</option>
-              {mechanics.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.shortName} ({m.shortCode})
-                </option>
-              ))}
-            </select>
+            <div className="relative">
+              <select
+                value={mechanicId}
+                onChange={(e) => setMechanicId(e.target.value)}
+                className="w-full appearance-none bg-neutral-50 border border-neutral-200 hover:border-red-300 rounded-lg pl-3 pr-9 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50 focus:ring-2 focus:ring-red-100 transition-colors cursor-pointer"
+              >
+                <option value="all">All Mechanics</option>
+                {mechanics.map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.shortName} ({m.shortCode})
+                  </option>
+                ))}
+              </select>
+              <ChevronDown size={15} className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none" />
+            </div>
           </div>
           <div>
             <label className="block text-xs font-medium text-neutral-600 mb-1.5">Job No. / Plate No. / Customer</label>

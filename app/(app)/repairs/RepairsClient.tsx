@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import Link from "next/link";
-import { Download, Pencil, AlertTriangle, Search, Check, Trash2, Printer, Eye, X, ArrowUpDown } from "lucide-react";
+import { Download, Pencil, AlertTriangle, Search, Check, Trash2, Printer, Eye, X, ArrowUpDown, ChevronDown } from "lucide-react";
 import {
   updateRepairApprovalAction,
   setRestoreBikeWorkflowDateAction,
@@ -379,18 +379,21 @@ function ExportRestoreBikeModal({
         <div className="space-y-3 mb-4">
           <div>
             <label className="block text-xs font-medium text-neutral-600 mb-1.5">Mechanic</label>
-            <select
-              value={mechanicId}
-              onChange={(e) => setMechanicId(e.target.value)}
-              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
-            >
-              <option value="all">All Mechanics</option>
-              {mechanics.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.shortName} ({m.shortCode})
-                </option>
-              ))}
-            </select>
+            <div className="relative">
+              <select
+                value={mechanicId}
+                onChange={(e) => setMechanicId(e.target.value)}
+                className="w-full appearance-none bg-neutral-50 border border-neutral-200 hover:border-red-300 rounded-lg pl-3 pr-9 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50 focus:ring-2 focus:ring-red-100 transition-colors cursor-pointer"
+              >
+                <option value="all">All Mechanics</option>
+                {mechanics.map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.shortName} ({m.shortCode})
+                  </option>
+                ))}
+              </select>
+              <ChevronDown size={15} className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none" />
+            </div>
           </div>
           <div>
             <label className="block text-xs font-medium text-neutral-600 mb-1.5">Job No. / Plate No. / PIC</label>
@@ -601,18 +604,21 @@ function QcResultCell({ job }: { job: RepairJob }) {
   return (
     <>
       {toastNode}
-      <select
-        value=""
-        onChange={(e) => handleChange(e.target.value)}
-        disabled={isPending}
-        className="text-xs font-medium bg-white border border-neutral-200 rounded-lg px-2.5 py-1.5 disabled:opacity-50"
-      >
-        <option value="" disabled>
-          Pass or fail?
-        </option>
-        <option value="Passed">Pass</option>
-        <option value="Failed">Fail</option>
-      </select>
+      <div className="relative inline-block">
+        <select
+          value=""
+          onChange={(e) => handleChange(e.target.value)}
+          disabled={isPending}
+          className="appearance-none text-xs font-medium bg-white border border-neutral-200 hover:border-red-300 rounded-lg pl-2.5 pr-7 py-1.5 focus:outline-none focus:border-red-500/50 focus:ring-2 focus:ring-red-100 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          <option value="" disabled>
+            Pass or fail?
+          </option>
+          <option value="Passed">Pass</option>
+          <option value="Failed">Fail</option>
+        </select>
+        <ChevronDown size={12} className="absolute right-2 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none" />
+      </div>
       {failModalOpen && <QcFailReasonModal job={job} onClose={() => setFailModalOpen(false)} />}
     </>
   );

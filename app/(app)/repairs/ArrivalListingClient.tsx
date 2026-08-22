@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
-import { Plus, Pencil, Printer, Trash2, Search, ArrowUpDown, AlertTriangle } from "lucide-react";
+import { Plus, Pencil, Printer, Trash2, Search, ArrowUpDown, AlertTriangle, ChevronDown } from "lucide-react";
 import { assignMechanicAction, deleteRepairJobAction, quickAddRestoreBikeArrivalAction } from "@/lib/repairs-actions";
 import { isHeavyRepairJob, type RepairJob } from "@/lib/types";
 import type { Mechanic } from "@/lib/types";
@@ -69,19 +69,22 @@ function AssignCell({ job, mechanics, allActiveJobs }: { job: RepairJob; mechani
   return (
     <>
       {toastNode}
-      <select
-        value=""
-        onChange={(e) => handleChange(e.target.value)}
-        disabled={isPending || branchMechanics.length === 0}
-        className="text-xs font-medium bg-red-50 border border-red-200 text-red-700 rounded-lg px-2.5 py-1.5 disabled:opacity-50"
-      >
-        <option value="">{branchMechanics.length === 0 ? "No mechanics available" : "Assign…"}</option>
-        {branchMechanics.map((m) => (
-          <option key={m.id} value={m.id}>
-            {m.shortName} ({m.shortCode})
-          </option>
-        ))}
-      </select>
+      <div className="relative inline-block">
+        <select
+          value=""
+          onChange={(e) => handleChange(e.target.value)}
+          disabled={isPending || branchMechanics.length === 0}
+          className="appearance-none text-xs font-medium bg-red-50 border border-red-200 hover:border-red-300 text-red-700 rounded-lg pl-2.5 pr-7 py-1.5 focus:outline-none focus:ring-2 focus:ring-red-100 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          <option value="">{branchMechanics.length === 0 ? "No mechanics available" : "Assign…"}</option>
+          {branchMechanics.map((m) => (
+            <option key={m.id} value={m.id}>
+              {m.shortName} ({m.shortCode})
+            </option>
+          ))}
+        </select>
+        <ChevronDown size={12} className="absolute right-2 top-1/2 -translate-y-1/2 text-red-400 pointer-events-none" />
+      </div>
       {idleHeadsUp && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 px-4">
           <div className="bg-white border border-neutral-200 rounded-xl w-full max-w-sm p-6 text-left">

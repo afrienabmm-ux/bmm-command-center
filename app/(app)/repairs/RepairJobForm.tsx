@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Trash2, X } from "lucide-react";
+import { Plus, Trash2, X, ChevronDown } from "lucide-react";
 import {
   addRepairJobAction,
   updateRepairJobAction,
@@ -65,21 +65,24 @@ function ItemsEditor({
     <div>
       <label className="block text-xs font-medium text-neutral-600 mb-1.5">Parts / Items</label>
       {packages.length > 0 && (
-        <select
-          value=""
-          onChange={(e) => {
-            if (e.target.value) addPackage(e.target.value);
-            e.target.value = "";
-          }}
-          className="w-full bg-red-50 border border-red-200 rounded-lg px-3 py-2 text-sm text-red-800 focus:outline-none focus:border-red-500/50 mb-2"
-        >
-          <option value="">+ Add from Services Combo (optional)…</option>
-          {packages.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.name} — {formatCurrency(p.price)}
-            </option>
-          ))}
-        </select>
+        <div className="relative mb-2">
+          <select
+            value=""
+            onChange={(e) => {
+              if (e.target.value) addPackage(e.target.value);
+              e.target.value = "";
+            }}
+            className="w-full appearance-none bg-red-50 border border-red-200 hover:border-red-300 rounded-lg pl-3 pr-9 py-2 text-sm text-red-800 focus:outline-none focus:border-red-500/50 focus:ring-2 focus:ring-red-100 transition-colors cursor-pointer"
+          >
+            <option value="">+ Add from Services Combo (optional)…</option>
+            {packages.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.name} — {formatCurrency(p.price)}
+              </option>
+            ))}
+          </select>
+          <ChevronDown size={15} className="absolute right-3 top-1/2 -translate-y-1/2 text-red-400 pointer-events-none" />
+        </div>
       )}
       <div className="space-y-2">
         {items.map((it, i) => (
@@ -472,17 +475,20 @@ export default function RepairJobForm({
           </div>
           <div>
             <label className="block text-xs font-medium text-neutral-600 mb-1.5">Condition *</label>
-            <select
-              value={condition}
-              onChange={(e) => setCondition(e.target.value as RestoreBikeCondition)}
-              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
-            >
-              {RESTORE_BIKE_CONDITIONS.map((c) => (
-                <option key={c} value={c}>
-                  {c} — {c === "L" ? "Light" : "Heavy"}
-                </option>
-              ))}
-            </select>
+            <div className="relative">
+              <select
+                value={condition}
+                onChange={(e) => setCondition(e.target.value as RestoreBikeCondition)}
+                className="w-full appearance-none bg-neutral-50 border border-neutral-200 hover:border-red-300 rounded-lg pl-3.5 pr-9 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50 focus:ring-2 focus:ring-red-100 transition-colors cursor-pointer"
+              >
+                {RESTORE_BIKE_CONDITIONS.map((c) => (
+                  <option key={c} value={c}>
+                    {c} — {c === "L" ? "Light" : "Heavy"}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown size={15} className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none" />
+            </div>
           </div>
           <div>
             <label className="block text-xs font-medium text-neutral-600 mb-1.5">Arrived Date *</label>
@@ -558,18 +564,21 @@ export default function RepairJobForm({
           </div>
           <div>
             <label className="block text-xs font-medium text-neutral-600 mb-1.5">Location *</label>
-            <select
-              value={locationBranch}
-              disabled={locked}
-              onChange={(e) => handleLocationChange(e.target.value as Branch)}
-              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50 disabled:opacity-60"
-            >
-              {BRANCHES.map((b) => (
-                <option key={b.value} value={b.value}>
-                  {b.label}
-                </option>
-              ))}
-            </select>
+            <div className="relative">
+              <select
+                value={locationBranch}
+                disabled={locked}
+                onChange={(e) => handleLocationChange(e.target.value as Branch)}
+                className="w-full appearance-none bg-neutral-50 border border-neutral-200 hover:border-red-300 rounded-lg pl-3.5 pr-9 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50 focus:ring-2 focus:ring-red-100 transition-colors cursor-pointer disabled:opacity-60"
+              >
+                {BRANCHES.map((b) => (
+                  <option key={b.value} value={b.value}>
+                    {b.label}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown size={15} className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none" />
+            </div>
           </div>
 
           <div className="flex items-center gap-2">

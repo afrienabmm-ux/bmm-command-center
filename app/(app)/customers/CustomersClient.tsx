@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
-import { Plus, Search, Pencil, Trash2, CreditCard, X, Link2, Check, ArrowUpDown } from "lucide-react";
+import { Plus, Search, Pencil, Trash2, CreditCard, X, Link2, Check, ArrowUpDown, ChevronDown } from "lucide-react";
 import { addCustomerCardAction, updateCustomerCardAction, deleteCustomerCardAction } from "@/lib/customers-actions";
 import { BRANCHES, branchLabel, type Branch, type BranchSelection } from "@/lib/branch";
 import { formatDate, formatCurrency } from "@/lib/format";
@@ -75,14 +75,17 @@ export default function CustomersClient({
               className="bg-white border border-neutral-200 rounded-lg pl-8 pr-3 py-2 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50 w-64"
             />
           </div>
-          <select
-            value={sortBy}
-            onChange={(e) => setSortBy(e.target.value as "spend" | "visit")}
-            className="bg-white border border-neutral-200 rounded-lg px-3 py-2 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
-          >
-            <option value="spend">Sort: Total Spend</option>
-            <option value="visit">Sort: Last Visit</option>
-          </select>
+          <div className="relative">
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value as "spend" | "visit")}
+              className="appearance-none bg-white border border-neutral-200 hover:border-red-300 rounded-lg pl-3 pr-8 py-2 text-sm text-neutral-700 font-medium focus:outline-none focus:border-red-500/50 focus:ring-2 focus:ring-red-100 transition-colors cursor-pointer"
+            >
+              <option value="spend">Sort: Total Spend</option>
+              <option value="visit">Sort: Last Visit</option>
+            </select>
+            <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none" />
+          </div>
           <button
             onClick={() => setSortDir((d) => (d === "desc" ? "asc" : "desc"))}
             className="flex items-center gap-1.5 bg-white border border-neutral-200 hover:border-red-300 text-neutral-700 text-sm font-medium px-3 py-2 rounded-lg transition-colors whitespace-nowrap"

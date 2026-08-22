@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
-import { UserCheck, ShieldOff, RefreshCcw, Trash2, KeyRound, UserPlus, Search, ArrowUpDown } from "lucide-react";
+import { UserCheck, ShieldOff, RefreshCcw, Trash2, KeyRound, UserPlus, Search, ArrowUpDown, ChevronDown } from "lucide-react";
 import {
   approveUserAction,
   createUserAction,
@@ -133,17 +133,20 @@ function PendingRow({ member }: { member: TeamMember }) {
           {member.email} · Signed up {formatDate(member.createdAt)}
         </p>
       </div>
-      <select
-        value={role}
-        onChange={(e) => setRole(e.target.value as Role)}
-        className="bg-neutral-50 border border-neutral-200 rounded-lg px-3 py-2 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
-      >
-        {ROLES.map((r) => (
-          <option key={r} value={r}>
-            {r}
-          </option>
-        ))}
-      </select>
+      <div className="relative">
+        <select
+          value={role}
+          onChange={(e) => setRole(e.target.value as Role)}
+          className="appearance-none bg-neutral-50 border border-neutral-200 hover:border-red-300 rounded-lg pl-3 pr-8 py-2 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50 focus:ring-2 focus:ring-red-100 transition-colors cursor-pointer"
+        >
+          {ROLES.map((r) => (
+            <option key={r} value={r}>
+              {r}
+            </option>
+          ))}
+        </select>
+        <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none" />
+      </div>
       <input
         type="text"
         value={title}
@@ -151,18 +154,21 @@ function PendingRow({ member }: { member: TeamMember }) {
         placeholder="Title (optional, e.g. HR)"
         className="bg-neutral-50 border border-neutral-200 rounded-lg px-3 py-2 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50 w-36"
       />
-      <select
-        value={branch}
-        onChange={(e) => setBranch(e.target.value as BranchSelection)}
-        className="bg-neutral-50 border border-neutral-200 rounded-lg px-3 py-2 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
-      >
-        {BRANCHES.map((b) => (
-          <option key={b.value} value={b.value}>
-            {b.label}
-          </option>
-        ))}
-        <option value="all">All Branches</option>
-      </select>
+      <div className="relative">
+        <select
+          value={branch}
+          onChange={(e) => setBranch(e.target.value as BranchSelection)}
+          className="appearance-none bg-neutral-50 border border-neutral-200 hover:border-red-300 rounded-lg pl-3 pr-8 py-2 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50 focus:ring-2 focus:ring-red-100 transition-colors cursor-pointer"
+        >
+          {BRANCHES.map((b) => (
+            <option key={b.value} value={b.value}>
+              {b.label}
+            </option>
+          ))}
+          <option value="all">All Branches</option>
+        </select>
+        <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none" />
+      </div>
       <button
         onClick={approve}
         disabled={isPending}
@@ -202,18 +208,21 @@ function MemberRow({ member, isSelf }: { member: TeamMember; isSelf: boolean }) 
         </td>
         <td className="px-5 py-3.5">
           <div className="flex items-center gap-2">
-            <select
-              value={role}
-              disabled={isSelf || isPending || member.status === "revoked"}
-              onChange={(e) => saveRole(e.target.value as Role)}
-              className="bg-neutral-50 border border-neutral-200 rounded-lg px-2.5 py-1.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50 disabled:opacity-50"
-            >
-              {ROLES.map((r) => (
-                <option key={r} value={r}>
-                  {r}
-                </option>
-              ))}
-            </select>
+            <div className="relative">
+              <select
+                value={role}
+                disabled={isSelf || isPending || member.status === "revoked"}
+                onChange={(e) => saveRole(e.target.value as Role)}
+                className="appearance-none bg-neutral-50 border border-neutral-200 hover:border-red-300 rounded-lg pl-2.5 pr-7 py-1.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50 focus:ring-2 focus:ring-red-100 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {ROLES.map((r) => (
+                  <option key={r} value={r}>
+                    {r}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown size={12} className="absolute right-2 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none" />
+            </div>
             <input
               type="text"
               value={title}
@@ -226,19 +235,22 @@ function MemberRow({ member, isSelf }: { member: TeamMember; isSelf: boolean }) 
           </div>
         </td>
         <td className="px-5 py-3.5 text-center">
-          <select
-            value={member.homeBranch}
-            disabled={isPending || member.status === "revoked"}
-            onChange={(e) => updateBranch(e.target.value as BranchSelection)}
-            className="bg-neutral-50 border border-neutral-200 rounded-lg px-2.5 py-1.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50 disabled:opacity-50"
-          >
-            {BRANCHES.map((b) => (
-              <option key={b.value} value={b.value}>
-                {b.label}
-              </option>
-            ))}
-            <option value="all">All Branches</option>
-          </select>
+          <div className="relative inline-block">
+            <select
+              value={member.homeBranch}
+              disabled={isPending || member.status === "revoked"}
+              onChange={(e) => updateBranch(e.target.value as BranchSelection)}
+              className="appearance-none bg-neutral-50 border border-neutral-200 hover:border-red-300 rounded-lg pl-2.5 pr-7 py-1.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50 focus:ring-2 focus:ring-red-100 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {BRANCHES.map((b) => (
+                <option key={b.value} value={b.value}>
+                  {b.label}
+                </option>
+              ))}
+              <option value="all">All Branches</option>
+            </select>
+            <ChevronDown size={12} className="absolute right-2 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none" />
+          </div>
         </td>
         <td className="px-5 py-3.5 text-center">
           <span
@@ -487,17 +499,20 @@ function AddUserModal({ onClose }: { onClose: () => void }) {
           <div className="flex items-center gap-2">
             <div className="flex-1">
               <label className="block text-xs font-medium text-neutral-600 mb-1.5">Access Level</label>
-              <select
-                value={role}
-                onChange={(e) => setRole(e.target.value as Role)}
-                className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
-              >
-                {ROLES.map((r) => (
-                  <option key={r} value={r}>
-                    {r}
-                  </option>
-                ))}
-              </select>
+              <div className="relative">
+                <select
+                  value={role}
+                  onChange={(e) => setRole(e.target.value as Role)}
+                  className="w-full appearance-none bg-neutral-50 border border-neutral-200 hover:border-red-300 rounded-lg pl-3 pr-9 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50 focus:ring-2 focus:ring-red-100 transition-colors cursor-pointer"
+                >
+                  {ROLES.map((r) => (
+                    <option key={r} value={r}>
+                      {r}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown size={15} className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none" />
+              </div>
             </div>
             <div className="flex-1">
               <label className="block text-xs font-medium text-neutral-600 mb-1.5">Title (optional)</label>
@@ -512,18 +527,21 @@ function AddUserModal({ onClose }: { onClose: () => void }) {
           </div>
           <div>
             <label className="block text-xs font-medium text-neutral-600 mb-1.5">Branch</label>
-            <select
-              value={branch}
-              onChange={(e) => setBranch(e.target.value as BranchSelection)}
-              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
-            >
-              {BRANCHES.map((b) => (
-                <option key={b.value} value={b.value}>
-                  {b.label}
-                </option>
-              ))}
-              <option value="all">All Branches</option>
-            </select>
+            <div className="relative">
+              <select
+                value={branch}
+                onChange={(e) => setBranch(e.target.value as BranchSelection)}
+                className="w-full appearance-none bg-neutral-50 border border-neutral-200 hover:border-red-300 rounded-lg pl-3 pr-9 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50 focus:ring-2 focus:ring-red-100 transition-colors cursor-pointer"
+              >
+                {BRANCHES.map((b) => (
+                  <option key={b.value} value={b.value}>
+                    {b.label}
+                  </option>
+                ))}
+                <option value="all">All Branches</option>
+              </select>
+              <ChevronDown size={15} className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none" />
+            </div>
           </div>
         </div>
         {error && <p className="text-sm text-red-700 mt-3">{error}</p>}

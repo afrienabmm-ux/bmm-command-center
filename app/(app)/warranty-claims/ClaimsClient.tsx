@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
-import { Plus, Search, Download, Trash2, Pencil, Printer, Check, X, ArrowUpDown } from "lucide-react";
+import { Plus, Search, Download, Trash2, Pencil, Printer, Check, X, ArrowUpDown, ChevronDown } from "lucide-react";
 import {
   addWarrantyClaimAction,
   updateClaimStatusAction,
@@ -206,30 +206,36 @@ export default function ClaimsClient({
           >
             <ArrowUpDown size={14} /> {sortDir === "desc" ? "Newest" : "Oldest"}
           </button>
-          <select
-            value={bikeMakeFilter}
-            onChange={(e) => setBikeMakeFilter(e.target.value as BikeMake | "All")}
-            className="bg-white border border-neutral-200 rounded-lg px-3 py-2 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
-          >
-            <option value="All">View All</option>
-            {BIKE_MAKES.map((m) => (
-              <option key={m} value={m}>
-                {m}
-              </option>
-            ))}
-          </select>
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value as ClaimStatus | "All")}
-            className="bg-white border border-neutral-200 rounded-lg px-3 py-2 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
-          >
-            <option value="All">All Statuses</option>
-            {CLAIM_STATUSES.map((s) => (
-              <option key={s} value={s}>
-                {s}
-              </option>
-            ))}
-          </select>
+          <div className="relative">
+            <select
+              value={bikeMakeFilter}
+              onChange={(e) => setBikeMakeFilter(e.target.value as BikeMake | "All")}
+              className="appearance-none bg-white border border-neutral-200 hover:border-red-300 rounded-lg pl-3 pr-8 py-2 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50 focus:ring-2 focus:ring-red-100 transition-colors cursor-pointer"
+            >
+              <option value="All">View All</option>
+              {BIKE_MAKES.map((m) => (
+                <option key={m} value={m}>
+                  {m}
+                </option>
+              ))}
+            </select>
+            <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none" />
+          </div>
+          <div className="relative">
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value as ClaimStatus | "All")}
+              className="appearance-none bg-white border border-neutral-200 hover:border-red-300 rounded-lg pl-3 pr-8 py-2 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50 focus:ring-2 focus:ring-red-100 transition-colors cursor-pointer"
+            >
+              <option value="All">All Statuses</option>
+              {CLAIM_STATUSES.map((s) => (
+                <option key={s} value={s}>
+                  {s}
+                </option>
+              ))}
+            </select>
+            <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none" />
+          </div>
           <button
             onClick={handleExport}
             disabled={exporting}
@@ -699,17 +705,20 @@ function AddClaimModal({
           {!locked && (
             <div>
               <label className="block text-xs font-medium text-neutral-600 mb-1.5">Branch *</label>
-              <select
-                value={selectedBranch}
-                onChange={(e) => setSelectedBranch(e.target.value as Branch)}
-                className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
-              >
-                {BRANCHES.map((b) => (
-                  <option key={b.value} value={b.value}>
-                    {b.label}
-                  </option>
-                ))}
-              </select>
+              <div className="relative">
+                <select
+                  value={selectedBranch}
+                  onChange={(e) => setSelectedBranch(e.target.value as Branch)}
+                  className="w-full appearance-none bg-neutral-50 border border-neutral-200 hover:border-red-300 rounded-lg pl-3.5 pr-9 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50 focus:ring-2 focus:ring-red-100 transition-colors cursor-pointer"
+                >
+                  {BRANCHES.map((b) => (
+                    <option key={b.value} value={b.value}>
+                      {b.label}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown size={15} className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none" />
+              </div>
             </div>
           )}
           <div>
@@ -756,17 +765,20 @@ function AddClaimModal({
           </div>
           <div>
             <label className="block text-xs font-medium text-neutral-600 mb-1.5">Bike Make</label>
-            <select
-              value={bikeMake}
-              onChange={(e) => setBikeMake(e.target.value as BikeMake)}
-              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
-            >
-              {BIKE_MAKES.map((m) => (
-                <option key={m} value={m}>
-                  {m}
-                </option>
-              ))}
-            </select>
+            <div className="relative">
+              <select
+                value={bikeMake}
+                onChange={(e) => setBikeMake(e.target.value as BikeMake)}
+                className="w-full appearance-none bg-neutral-50 border border-neutral-200 hover:border-red-300 rounded-lg pl-3.5 pr-9 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50 focus:ring-2 focus:ring-red-100 transition-colors cursor-pointer"
+              >
+                {BIKE_MAKES.map((m) => (
+                  <option key={m} value={m}>
+                    {m}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown size={15} className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none" />
+            </div>
           </div>
           <div>
             <label className="block text-xs font-medium text-neutral-600 mb-1.5">Phone No.</label>
@@ -791,17 +803,20 @@ function AddClaimModal({
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-medium text-neutral-600 mb-1.5">Stock Status</label>
-              <select
-                value={stockStatus}
-                onChange={(e) => setStockStatus(e.target.value as StockStatus)}
-                className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
-              >
-                {STOCK_STATUSES.map((s) => (
-                  <option key={s} value={s}>
-                    {s}
-                  </option>
-                ))}
-              </select>
+              <div className="relative">
+                <select
+                  value={stockStatus}
+                  onChange={(e) => setStockStatus(e.target.value as StockStatus)}
+                  className="w-full appearance-none bg-neutral-50 border border-neutral-200 hover:border-red-300 rounded-lg pl-3.5 pr-9 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50 focus:ring-2 focus:ring-red-100 transition-colors cursor-pointer"
+                >
+                  {STOCK_STATUSES.map((s) => (
+                    <option key={s} value={s}>
+                      {s}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown size={15} className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none" />
+              </div>
             </div>
             <div>
               <label className="block text-xs font-medium text-neutral-600 mb-1.5">Submitted Date</label>

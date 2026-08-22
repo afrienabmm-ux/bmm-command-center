@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Plus, Trash2, Wrench } from "lucide-react";
+import { Plus, Trash2, Wrench, ChevronDown } from "lucide-react";
 import { addMechanicAction, toggleMechanicStatusAction, updateMechanicCategoryAction, deleteMechanicAction } from "@/lib/mechanics-actions";
 import { MECHANIC_CATEGORIES, type Mechanic, type MechanicStatus, type MechanicCategory } from "@/lib/types";
 import { BRANCHES, branchLabel, type BranchSelection } from "@/lib/branch";
@@ -204,17 +204,20 @@ function AddMechanicModal({
           {activeBranch === "all" && (
             <div>
               <label className="block text-xs font-medium text-neutral-600 mb-1.5">Branch *</label>
-              <select
-                value={branch}
-                onChange={(e) => setBranch(e.target.value as typeof branch)}
-                className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
-              >
-                {BRANCHES.map((b) => (
-                  <option key={b.value} value={b.value}>
-                    {b.label}
-                  </option>
-                ))}
-              </select>
+              <div className="relative">
+                <select
+                  value={branch}
+                  onChange={(e) => setBranch(e.target.value as typeof branch)}
+                  className="w-full appearance-none bg-neutral-50 border border-neutral-200 hover:border-red-300 rounded-lg pl-3.5 pr-9 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50 focus:ring-2 focus:ring-red-100 transition-colors cursor-pointer"
+                >
+                  {BRANCHES.map((b) => (
+                    <option key={b.value} value={b.value}>
+                      {b.label}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown size={15} className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none" />
+              </div>
             </div>
           )}
           <div>
@@ -250,17 +253,20 @@ function AddMechanicModal({
           </div>
           <div>
             <label className="block text-xs font-medium text-neutral-600 mb-1.5">Category</label>
-            <select
-              value={category}
-              onChange={(e) => setCategory(e.target.value as MechanicCategory)}
-              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
-            >
-              {MECHANIC_CATEGORIES.map((c) => (
-                <option key={c} value={c}>
-                  {c}
-                </option>
-              ))}
-            </select>
+            <div className="relative">
+              <select
+                value={category}
+                onChange={(e) => setCategory(e.target.value as MechanicCategory)}
+                className="w-full appearance-none bg-neutral-50 border border-neutral-200 hover:border-red-300 rounded-lg pl-3.5 pr-9 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50 focus:ring-2 focus:ring-red-100 transition-colors cursor-pointer"
+              >
+                {MECHANIC_CATEGORIES.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown size={15} className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none" />
+            </div>
           </div>
         </div>
         <div className="flex items-center justify-end gap-3 mt-6">

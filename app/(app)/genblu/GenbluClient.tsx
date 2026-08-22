@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
-import { Plus, ImageIcon, Download, X, Pencil, Trash2, Search, Award } from "lucide-react";
+import { Plus, ImageIcon, Download, X, Pencil, Trash2, Search, Award, ChevronDown } from "lucide-react";
 import { addGenbluRegistrationAction, updateGenbluRegistrationAction, deleteGenbluRegistrationAction } from "@/lib/genblu-actions";
 import { exportGenbluCsv, exportAllBranchesGenbluCsv } from "@/lib/export-actions";
 import { BRANCHES, branchLabel, type Branch, type BranchSelection } from "@/lib/branch";
@@ -299,36 +299,42 @@ function RegisterModal({
         <form action={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-xs font-medium text-neutral-600 mb-1.5">Branch</label>
-            <select
-              name="branch"
-              value={regBranch}
-              onChange={(e) => handleBranchChange(e.target.value as Branch)}
-              disabled={locked}
-              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50 disabled:opacity-60"
-            >
-              {BRANCHES.map((b) => (
-                <option key={b.value} value={b.value}>
-                  {b.label}
-                </option>
-              ))}
-            </select>
+            <div className="relative">
+              <select
+                name="branch"
+                value={regBranch}
+                onChange={(e) => handleBranchChange(e.target.value as Branch)}
+                disabled={locked}
+                className="w-full appearance-none bg-neutral-50 border border-neutral-200 hover:border-red-300 rounded-lg pl-3.5 pr-9 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50 focus:ring-2 focus:ring-red-100 transition-colors cursor-pointer disabled:opacity-60"
+              >
+                {BRANCHES.map((b) => (
+                  <option key={b.value} value={b.value}>
+                    {b.label}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown size={15} className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none" />
+            </div>
             <p className="text-xs text-neutral-500 mt-1.5">Pick the branch first — it decides which salespeople show up below.</p>
           </div>
           <div>
             <label className="block text-xs font-medium text-neutral-600 mb-1.5">Salesperson Name *</label>
             {branchMechanics.length > 0 ? (
-              <select
-                value={salespersonId}
-                onChange={(e) => setSalespersonId(e.target.value)}
-                className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
-              >
-                {branchMechanics.map((m) => (
-                  <option key={m.id} value={m.id}>
-                    {m.shortName} ({m.shortCode})
-                  </option>
-                ))}
-                <option value="custom">Other (type manually)</option>
-              </select>
+              <div className="relative">
+                <select
+                  value={salespersonId}
+                  onChange={(e) => setSalespersonId(e.target.value)}
+                  className="w-full appearance-none bg-neutral-50 border border-neutral-200 hover:border-red-300 rounded-lg pl-3.5 pr-9 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50 focus:ring-2 focus:ring-red-100 transition-colors cursor-pointer"
+                >
+                  {branchMechanics.map((m) => (
+                    <option key={m.id} value={m.id}>
+                      {m.shortName} ({m.shortCode})
+                    </option>
+                  ))}
+                  <option value="custom">Other (type manually)</option>
+                </select>
+                <ChevronDown size={15} className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none" />
+              </div>
             ) : (
               <input
                 type="text"
@@ -470,18 +476,21 @@ function EditModal({
           <div>
             <label className="block text-xs font-medium text-neutral-600 mb-1.5">Salesperson Name *</label>
             {branchMechanics.length > 0 ? (
-              <select
-                value={salespersonId}
-                onChange={(e) => handleMechanicChange(e.target.value)}
-                className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
-              >
-                {branchMechanics.map((m) => (
-                  <option key={m.id} value={m.id}>
-                    {m.shortName} ({m.shortCode})
-                  </option>
-                ))}
-                <option value="custom">Other (type manually)</option>
-              </select>
+              <div className="relative">
+                <select
+                  value={salespersonId}
+                  onChange={(e) => handleMechanicChange(e.target.value)}
+                  className="w-full appearance-none bg-neutral-50 border border-neutral-200 hover:border-red-300 rounded-lg pl-3.5 pr-9 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50 focus:ring-2 focus:ring-red-100 transition-colors cursor-pointer"
+                >
+                  {branchMechanics.map((m) => (
+                    <option key={m.id} value={m.id}>
+                      {m.shortName} ({m.shortCode})
+                    </option>
+                  ))}
+                  <option value="custom">Other (type manually)</option>
+                </select>
+                <ChevronDown size={15} className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none" />
+              </div>
             ) : null}
           </div>
 

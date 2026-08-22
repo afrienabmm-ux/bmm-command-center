@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { CheckCircle2 } from "lucide-react";
+import { CheckCircle2, ChevronDown } from "lucide-react";
 import { attachGenbluScreenshotAction } from "@/lib/genblu-actions";
 import { branchLabel, type Branch } from "@/lib/branch";
 import { formatDate } from "@/lib/format";
@@ -65,17 +65,20 @@ export default function GenbluQuickForm({ recentJobs }: { recentJobs: RecentJobs
         <div className="space-y-4">
           <div>
             <label className="block text-xs font-medium text-neutral-600 mb-1.5">Customer / Jobsheet *</label>
-            <select
-              value={selectedId}
-              onChange={(e) => setSelectedId(e.target.value)}
-              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
-            >
-              {recentJobs.map((j) => (
-                <option key={j.jobId} value={j.jobId}>
-                  {j.customerName || "—"} · {j.customerPlateNo} · {branchLabel(j.branch)} · {formatDate(j.date)}
-                </option>
-              ))}
-            </select>
+            <div className="relative">
+              <select
+                value={selectedId}
+                onChange={(e) => setSelectedId(e.target.value)}
+                className="w-full appearance-none bg-neutral-50 border border-neutral-200 hover:border-red-300 rounded-lg pl-3.5 pr-9 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50 focus:ring-2 focus:ring-red-100 transition-colors cursor-pointer"
+              >
+                {recentJobs.map((j) => (
+                  <option key={j.jobId} value={j.jobId}>
+                    {j.customerName || "—"} · {j.customerPlateNo} · {branchLabel(j.branch)} · {formatDate(j.date)}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown size={15} className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none" />
+            </div>
           </div>
           <div>
             <label className="block text-xs font-medium text-neutral-600 mb-1.5">Points Screenshot *</label>
