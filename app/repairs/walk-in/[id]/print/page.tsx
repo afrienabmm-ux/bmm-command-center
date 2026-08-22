@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { requirePage } from "@/lib/current-user";
-import { getRepairJobById } from "@/lib/repairs-actions";
+import { getRepairJobById, getJobsheetPhotoUrlAction } from "@/lib/repairs-actions";
 import { getAllMechanics } from "@/lib/mechanics-actions";
 import { formatDate } from "@/lib/format";
 import PrintButton from "../../../[id]/print/PrintButton";
@@ -12,6 +12,11 @@ export default async function PrintWalkInJobPage({ params }: { params: Promise<{
   const { id } = await params;
   const [job, mechanics] = await Promise.all([getRepairJobById(id), getAllMechanics()]);
   if (!job) notFound();
+
+  // The original scanned photo, printed as a second page right after the
+  // formatted jobsheet — lets whoever's holding the printout compare the
+  // two directly instead of having to pull up the photo separately.
+  const photoUrl = job.jobsheetPhotoPath ? await getJobsheetPhotoUrlAction(job.jobsheetPhotoPath) : null;
 
   const mechanic = mechanics.find((m) => m.id === job.mechanicId);
   const itemsTotal = job.items.reduce((sum, it) => sum + it.quantity * it.price, 0);
@@ -139,6 +144,14 @@ export default async function PrintWalkInJobPage({ params }: { params: Promise<{
           </div>
         </div>
       </div>
+
+      {photoUrl && (
+        <div className="max-w-3xl mx-auto bg-white p-8 print:p-0 print:max-w-none print:break-before-page mt-6 print:mt-0 text-black">
+          <p className="text-[10px] font-bold mb-2">SCANNED JOBSHEET PHOTO</p>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={photoUrl} alt="Scanned jobsheet" className="w-full h-auto" />
+        </div>
+      )}
     </div>
   );
 }
