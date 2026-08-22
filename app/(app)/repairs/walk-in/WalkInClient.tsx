@@ -39,6 +39,9 @@ export default function WalkInClient({
   const [exportFilteredModalOpen, setExportFilteredModalOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [sortDir, setSortDir] = useState<"desc" | "asc">("desc");
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const [bulkDeleting, setBulkDeleting] = useState(false);
 
   // Deep-linked from a dashboard alert (e.g. "due for their next
   // service") — jump to whichever tab the job is actually in and clear
@@ -63,6 +66,38 @@ export default function WalkInClient({
   }, [jobs, query, sortDir]);
   const allJobs = useMemo(() => [...active, ...completed], [active, completed]);
   const showBranchColumn = branchSelection === "all";
+
+  // Selection is scoped to whatever's currently visible — switching tabs
+  // or typing a new search clears it rather than silently carrying over
+  // picks the PIC can no longer see.
+  useEffect(() => {
+    setSelectedIds(new Set());
+  }, [tab, query]);
+
+  const allVisibleSelected = visible.length > 0 && visible.every((j) => selectedIds.has(j.id));
+
+  function toggleSelectAll() {
+    setSelectedIds(allVisibleSelected ? new Set() : new Set(visible.map((j) => j.id)));
+  }
+
+  function toggleSelectOne(id: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function handleBulkDelete() {
+    setBulkDeleting(true);
+    const targets = allJobs.filter((j) => selectedIds.has(j.id));
+    Promise.all(targets.map((j) => deleteRepairJobAction(j.id, j.branch))).then(() => {
+      setBulkDeleting(false);
+      setBulkDeleteOpen(false);
+      setSelectedIds(new Set());
+    });
+  }
 
   function mechanicLabel(id: string | null) {
     if (!id) return "—";
@@ -206,6 +241,14 @@ export default function WalkInClient({
               <Download size={15} /> Export Filtered…
             </button>
           )}
+          {selectedIds.size > 0 && (
+            <button
+              onClick={() => setBulkDeleteOpen(true)}
+              className="flex items-center gap-1.5 bg-red-50 hover:bg-red-100 border border-red-200 text-red-700 text-sm font-medium px-4 py-2 rounded-lg transition-colors whitespace-nowrap"
+            >
+              <Trash2 size={15} /> Delete Selected ({selectedIds.size})
+            </button>
+          )}
           <Link
             href="/repairs/walk-in/new"
             className="flex items-center gap-1.5 bg-red-500 hover:bg-red-400 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
@@ -220,6 +263,16 @@ export default function WalkInClient({
           <table className="w-full text-sm">
             <thead>
               <tr className="text-left text-xs text-neutral-500 border-b border-neutral-200">
+                <th className="px-5 py-3 w-10">
+                  <input
+                    type="checkbox"
+                    checked={allVisibleSelected}
+                    onChange={toggleSelectAll}
+                    disabled={visible.length === 0}
+                    aria-label="Select all"
+                    className="accent-red-500"
+                  />
+                </th>
                 <th className="font-medium px-5 py-3 whitespace-nowrap">Job No.</th>
                 {showBranchColumn && <th className="font-medium px-5 py-3 whitespace-nowrap">Branch</th>}
                 <th className="font-medium px-5 py-3 whitespace-nowrap">Customer</th>
@@ -244,11 +297,13 @@ export default function WalkInClient({
                   mechanicLabel={mechanicLabel(job.mechanicId)}
                   editable={tab === "active"}
                   highlight={job.id === highlightId}
+                  selected={selectedIds.has(job.id)}
+                  onToggleSelect={() => toggleSelectOne(job.id)}
                 />
               ))}
               {visible.length === 0 && (
                 <tr>
-                  <td colSpan={showBranchColumn ? 13 : 12} className="px-5 py-10 text-center text-neutral-500 text-sm">
+                  <td colSpan={showBranchColumn ? 14 : 13} className="px-5 py-10 text-center text-neutral-500 text-sm">
                     {jobs.length === 0
                       ? `${tab === "active" ? "No active" : "No completed"} Jobsheet jobs.`
                       : "No jobs match your search."}
@@ -271,6 +326,30 @@ export default function WalkInClient({
           onExport={handleExportFiltered}
           onClose={() => setExportFilteredModalOpen(false)}
         />
+      )}
+
+      {bulkDeleteOpen && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 px-4">
+          <div className="bg-white border border-neutral-200 rounded-xl w-full max-w-sm p-6 text-left">
+            <h2 className="text-sm font-semibold text-neutral-900 mb-2">Delete {selectedIds.size} job{selectedIds.size === 1 ? "" : "s"}?</h2>
+            <p className="text-sm text-neutral-600 mb-6">These jobs will be permanently removed. This can&apos;t be undone.</p>
+            <div className="flex items-center justify-end gap-3">
+              <button
+                onClick={() => setBulkDeleteOpen(false)}
+                className="text-sm font-medium text-neutral-600 hover:text-neutral-800 px-4 py-2 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleBulkDelete}
+                disabled={bulkDeleting}
+                className="bg-red-600 hover:bg-red-500 disabled:opacity-50 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+              >
+                {bulkDeleting ? "Deleting…" : `Delete ${selectedIds.size}`}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
@@ -512,12 +591,16 @@ function WalkInRow({
   mechanicLabel,
   editable,
   highlight,
+  selected,
+  onToggleSelect,
 }: {
   job: RepairJob;
   showBranch: boolean;
   mechanicLabel: string;
   editable: boolean;
   highlight?: boolean;
+  selected: boolean;
+  onToggleSelect: () => void;
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -529,7 +612,7 @@ function WalkInRow({
   // Double-click anywhere on the row (except an actual link/button, which
   // already has its own action) opens the jobsheet's full details.
   function handleRowDoubleClick(e: React.MouseEvent<HTMLTableRowElement>) {
-    if ((e.target as HTMLElement).closest("a, button")) return;
+    if ((e.target as HTMLElement).closest("a, button, input")) return;
     router.push(`/repairs/walk-in/${job.id}/edit`);
   }
 
@@ -562,6 +645,15 @@ function WalkInRow({
         flashed ? "bg-sky-50" : ""
       }`}
     >
+      <td className="px-5 py-3.5" onClick={(e) => e.stopPropagation()}>
+        <input
+          type="checkbox"
+          checked={selected}
+          onChange={onToggleSelect}
+          aria-label={`Select job ${job.jobNo}`}
+          className="accent-red-500"
+        />
+      </td>
       <td className="px-5 py-3.5 text-neutral-800 font-medium whitespace-nowrap">{job.jobNo}</td>
       {showBranch && <td className="px-5 py-3.5 text-neutral-600 whitespace-nowrap">{branchLabel(job.branch)}</td>}
       <td className="px-5 py-3.5 text-neutral-700 whitespace-nowrap">{job.customerName || "—"}</td>
