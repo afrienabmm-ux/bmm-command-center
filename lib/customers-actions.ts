@@ -202,7 +202,7 @@ export async function addCustomerCardAction(input: {
   // us — no card at all for anyone else, rather than a card that just sits
   // there unable to earn rewards.
   if (!input.boughtBikeHere) {
-    return { error: "Only customers who bought their bike from us are eligible for a membership card." };
+    return { error: "Only customers who bought their bike from us are eligible for a services card." };
   }
   const customerPhone = input.customerPhone.trim();
   const customerEmail = input.customerEmail.trim().toLowerCase();
@@ -239,14 +239,14 @@ async function checkCustomerCardDuplicate(
     if (excludeId) query = query.neq("id", excludeId);
     const { data, error } = await query;
     if (error) return { error: error.message };
-    if (data && data.length > 0) return { error: "This phone number is already registered to another membership card." };
+    if (data && data.length > 0) return { error: "This phone number is already registered to another services card." };
   }
   if (email) {
     let query = supabaseAdmin.from("cc_customer_cards").select("id").eq("customer_email", email).limit(1);
     if (excludeId) query = query.neq("id", excludeId);
     const { data, error } = await query;
     if (error) return { error: error.message };
-    if (data && data.length > 0) return { error: "This email is already registered to another membership card." };
+    if (data && data.length > 0) return { error: "This email is already registered to another services card." };
   }
   return null;
 }
@@ -272,7 +272,7 @@ export async function updateCustomerCardAction(
   if (!input.boughtBikeHere) {
     return {
       error:
-        "Only customers who bought their bike from us are eligible for a membership card — delete the card instead of unchecking this.",
+        "Only customers who bought their bike from us are eligible for a services card — delete the card instead of unchecking this.",
     };
   }
   const customerPhone = input.customerPhone.trim();

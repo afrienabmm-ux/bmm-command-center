@@ -114,7 +114,7 @@ export default function CustomersClient({
             onClick={() => setCardModalFor("new")}
             className="flex items-center gap-1.5 bg-red-500 hover:bg-red-400 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors whitespace-nowrap"
           >
-            <Plus size={15} /> New Membership Card
+            <Plus size={15} /> New Services Card
           </button>
         </div>
       </div>
@@ -132,7 +132,7 @@ export default function CustomersClient({
               <th className="px-4 py-3 text-center">Visits</th>
               <th className="px-4 py-3 text-center">Total Spend</th>
               <th className="px-4 py-3">Packages Bought</th>
-              <th className="px-4 py-3">Membership Card</th>
+              <th className="px-4 py-3">Services Card</th>
               <th className="px-4 py-3">Last Visit</th>
               <th className="px-4 py-3 w-20"></th>
             </tr>
@@ -186,8 +186,8 @@ export default function CustomersClient({
                     <button
                       onClick={() => setCardModalFor(c)}
                       className="text-neutral-400 hover:text-red-600 transition-colors p-1"
-                      title={c.card ? "Edit membership card" : "Add membership card"}
-                      aria-label={c.card ? "Edit membership card" : "Add membership card"}
+                      title={c.card ? "Edit services card" : "Add services card"}
+                      aria-label={c.card ? "Edit services card" : "Add services card"}
                     >
                       <Pencil size={14} />
                     </button>
@@ -195,8 +195,8 @@ export default function CustomersClient({
                       <button
                         onClick={() => setDeleting(c.card)}
                         className="text-neutral-400 hover:text-red-600 transition-colors p-1"
-                        title="Delete membership card"
-                        aria-label="Delete membership card"
+                        title="Delete services card"
+                        aria-label="Delete services card"
                       >
                         <Trash2 size={14} />
                       </button>
@@ -237,9 +237,9 @@ export default function CustomersClient({
       {deleting && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 px-4">
           <div className="bg-white border border-neutral-200 rounded-xl w-full max-w-sm p-6">
-            <h2 className="text-sm font-semibold text-neutral-900 mb-2">Delete this membership card?</h2>
+            <h2 className="text-sm font-semibold text-neutral-900 mb-2">Delete this services card?</h2>
             <p className="text-sm text-neutral-600 mb-6">
-              <span className="text-neutral-800 font-medium">{deleting.customerName}</span>&apos;s membership card
+              <span className="text-neutral-800 font-medium">{deleting.customerName}</span>&apos;s services card
               will be permanently removed. This can&apos;t be undone.
             </p>
             <div className="flex items-center justify-end gap-3">
@@ -367,7 +367,7 @@ function CardModal({
       <div className="bg-white border border-neutral-200 rounded-xl w-full max-w-sm p-6">
         <div className="flex items-center justify-between mb-5">
           <h2 className="text-sm font-semibold text-neutral-900">
-            {existing ? "Edit Membership Card" : "New Membership Card"}
+            {existing ? "Edit Services Card" : "New Services Card"}
           </h2>
           <button onClick={onClose} className="text-neutral-400 hover:text-neutral-700" aria-label="Close">
             <X size={16} />
@@ -603,7 +603,7 @@ function PromoModal({
             <p className="text-xs text-neutral-500 mb-4">
               Emails {recipientCount} member{recipientCount === 1 ? "" : "s"} with an email on file
               {branchSelection === "all" ? " across all branches" : ""} — anyone who signed up through the
-              membership link.
+              services card link.
             </p>
             <div className="space-y-4">
               <div>

@@ -9,7 +9,7 @@ export const PAGE_DEFS = [
   { key: "mechanics", label: "Mechanics", href: "/mechanics" },
   { key: "catalog", label: "Catalog", href: "/catalog" },
   { key: "packages", label: "Services Combo", href: "/packages" },
-  { key: "customers", label: "Memberships", href: "/customers" },
+  { key: "customers", label: "Services Card", href: "/customers" },
 ] as const;
 
 export type PageKey = (typeof PAGE_DEFS)[number]["key"];

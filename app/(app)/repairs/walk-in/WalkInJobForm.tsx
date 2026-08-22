@@ -836,7 +836,7 @@ export default function WalkInJobForm({
               placeholder="e.g. 012-3456789"
               className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
             />
-            <p className="text-[11px] text-neutral-400 mt-1">Matches this visit to their membership card, even if the name is spelled differently.</p>
+            <p className="text-[11px] text-neutral-400 mt-1">Matches this visit to their services card, even if the name is spelled differently.</p>
           </div>
           {isScan && <SectionHeader icon={Bike} title="Vehicle" />}
           <div>

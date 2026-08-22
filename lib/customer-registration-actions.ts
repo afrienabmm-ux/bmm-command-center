@@ -65,7 +65,7 @@ async function sendOtpCode(email: string): Promise<{ error: string } | { sent: t
 
   const result = await sendEmail({
     to: email,
-    subject: "Your BMM Membership verification code",
+    subject: "Your BMM Services Card verification code",
     html: `<p>Your verification code is <strong style="font-size:20px;letter-spacing:2px;">${code}</strong></p><p>It expires in ${OTP_TTL_MINUTES} minutes.</p>`,
   });
   if ("error" in result) return { error: "Couldn't send the verification email. Please check the address and try again." };
@@ -91,7 +91,7 @@ async function findRegistrationDuplicate(phone: string, email: string): Promise<
     const { data, error } = await supabaseAdmin.from("cc_customer_cards").select("id").eq("customer_phone", phone).limit(1);
     if (error) return { error: error.message };
     if (data && data.length > 0) {
-      return { error: "This phone number is already registered. Use \"Check My Card\" above to view your membership instead." };
+      return { error: "This phone number is already registered. Use \"Check My Card\" above to view your services card instead." };
     }
   }
   if (email) {
@@ -99,7 +99,7 @@ async function findRegistrationDuplicate(phone: string, email: string): Promise<
     if (error) return { error: error.message };
     if (data && data.length > 0) {
       return {
-        error: "This email is already registered to another membership. Use \"Check My Card\" above with your registered phone number instead.",
+        error: "This email is already registered to another services card. Use \"Check My Card\" above with your registered phone number instead.",
       };
     }
   }
@@ -167,7 +167,7 @@ export async function registerCustomerCardAction(input: {
   if (!customerPhone) return { error: "Please enter your phone number." };
   if (!customerEmail) return { error: "Please verify your email first." };
   if (!input.boughtBikeHere) {
-    return { error: "This membership card is only for customers who bought their bike from us." };
+    return { error: "This services card is only for customers who bought their bike from us." };
   }
 
   const verified = await hasVerifiedOtp(customerEmail);
@@ -263,7 +263,7 @@ export async function requestLookupOtpAction(
   if (!phone) return { error: "Enter the phone number you signed up with." };
 
   const card = await findCardByPhone(phone);
-  if (!card) return { error: "No membership card found for that phone number. Sign up above to get one." };
+  if (!card) return { error: "No services card found for that phone number. Sign up above to get one." };
 
   if (!card.customer_email) {
     const result = await buildLookupResult(card);
@@ -280,7 +280,7 @@ export async function requestLookupOtpAction(
 export async function verifyLookupOtpAction(customerPhone: string, code: string): Promise<{ error: string } | MembershipLookup> {
   const phone = customerPhone.trim();
   const card = await findCardByPhone(phone);
-  if (!card) return { error: "No membership card found for that phone number." };
+  if (!card) return { error: "No services card found for that phone number." };
   if (!card.customer_email) return { error: "This card has no email on file to verify." };
 
   const verifyResult = await verifyOtpCode(card.customer_email, code);

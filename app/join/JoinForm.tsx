@@ -61,7 +61,7 @@ function TierCard({
       <div className="absolute -right-8 -top-8 w-32 h-32 bg-white/10 rounded-full" />
       <div className="absolute -right-1 bottom-1 w-20 h-20 bg-white/10 rounded-full" />
       <div className="flex items-center justify-between relative z-10">
-        <p className="text-[10px] font-semibold tracking-widest uppercase opacity-80">BMM Membership</p>
+        <p className="text-[10px] font-semibold tracking-widest uppercase opacity-80">BMM Services Card</p>
         <Sparkles size={16} className="opacity-90" />
       </div>
       <p className="text-[10px] uppercase tracking-widest opacity-70 mt-7">Member</p>
@@ -351,7 +351,7 @@ function JoinTab({ restored, onClear }: { restored: StoredJoin | null; onClear: 
           className="accent-red-500 mt-0.5"
         />
         <span className="text-xs text-neutral-700">
-          I bought my bike from Berjaya Mega Motors — this membership card is only for bike-buyers.
+          I bought my bike from Berjaya Mega Motors — this services card is only for bike-buyers.
         </span>
       </label>
 

@@ -27,7 +27,7 @@ export async function sendEmail(input: {
   if (!transporter) return { error: "Email sending isn't set up yet." };
   try {
     await transporter.sendMail({
-      from: `BMM Membership <${process.env.GMAIL_USER}>`,
+      from: `BMM Services Card <${process.env.GMAIL_USER}>`,
       to: input.to,
       subject: input.subject,
       html: input.html,
