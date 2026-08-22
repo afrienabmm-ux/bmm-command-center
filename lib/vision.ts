@@ -237,23 +237,51 @@ async function inkResidualScore(buffer: Buffer, left: number, top: number, width
 
 export type SignatureCheck = { result: boolean | null; debug: string };
 
+// The jobsheet has two signature lines — "Authorised Signature" (staff)
+// and "Customer Signature" — and only the customer's matters here.
+// Anchoring on any word containing "signature" risked landing on the
+// Authorised one instead, which on this form sits right next to dense
+// printed text ("This Is Computer Generated Document / No Signature Is
+// Required") that reads as pen-stroke texture to the ink check below — a
+// real scan came back "detected" on a completely blank customer box for
+// exactly that reason. Requiring a "Customer" word immediately to the
+// left, on the same line, is how the two get told apart.
+function findCustomerSignatureLabel(words: PositionedWord[]): PositionedWord | null {
+  const customerWords = words.filter((w) => /^customer$/i.test(w.text));
+  let best: PositionedWord | null = null;
+  let bestDist = Infinity;
+  for (const cust of customerWords) {
+    for (const w of words) {
+      if (!/signature/i.test(w.text)) continue;
+      if (w.x < cust.x) continue;
+      if (Math.abs(w.yCenter - cust.yCenter) > cust.height * 0.8) continue;
+      const dist = w.x - cust.x;
+      if (dist < bestDist) {
+        bestDist = dist;
+        best = w;
+      }
+    }
+  }
+  return best;
+}
+
 // Best-effort check for a customer signature on a scanned jobsheet: finds
-// the "Signature" label via OCR word positions, then looks for actual
-// pen-stroke texture near it — not just whether the printed label itself
-// was read (that's always there, signed or not), and not fooled by a
-// shadow across the page either. Checks a box both above and below the
+// the "Customer Signature" label via OCR word positions, then looks for
+// actual pen-stroke texture near it — not just whether the printed label
+// itself was read (that's always there, signed or not), and not fooled by
+// a shadow across the page either. Checks a box both above and below the
 // label, since where the blank signature line sits relative to the label
 // varies by jobsheet template, and goes with whichever side scores
 // higher. Returns a null result when the label itself can't be found, or
 // neither region could be checked (different layout, bad crop, OCR miss)
 // — the caller should ask the PIC to confirm by hand in that case rather
 // than treating it as "not signed". Also returns the raw scores/threshold
-// as a debug string — this heuristic has been miscalibrated twice
-// already, so surfacing the actual numbers is how it gets fixed for real
-// instead of guessed at a third time.
+// as a debug string — this heuristic has been miscalibrated before, so
+// surfacing the actual numbers is how it gets fixed for real instead of
+// guessed at again.
 async function detectSignature(buffer: Buffer, words: PositionedWord[], imageWidth: number, imageHeight: number): Promise<SignatureCheck> {
-  const label = words.find((w) => /signature/i.test(w.text));
-  if (!label) return { result: null, debug: "no 'Signature' label found by OCR" };
+  const label = findCustomerSignatureLabel(words);
+  if (!label) return { result: null, debug: "no 'Customer Signature' label found by OCR" };
 
   // Wide enough to cover writing that drifts either side of where the
   // label starts, clamped to the image so a label near an edge doesn't
