@@ -7,48 +7,46 @@
 // otherwise have come back empty.
 //
 // Optional: skipped entirely (returns null, not an error) if
-// ANTHROPIC_API_KEY isn't configured in the environment, so a missing key
-// never breaks a scan that the regex alone would've handled fine.
+// GEMINI_API_KEY isn't configured in the environment, so a missing key
+// never breaks a scan that the regex alone would've handled fine. Uses
+// Gemini rather than a paid-only API since its free tier needs no card on
+// file — same reasoning as OCR.space being the primary OCR engine below.
 export type AiExtractedItem = { code: string; description: string; quantity: number; price: number };
 
-const MODEL = "claude-haiku-4-5-20251001";
+const DEFAULT_MODEL = "gemini-2.0-flash";
 
 export async function extractItemsWithAi(rawText: string): Promise<AiExtractedItem[] | null> {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
+  const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) return null;
+
+  const model = process.env.GEMINI_MODEL || DEFAULT_MODEL;
+  const prompt =
+    "This is raw, noisy OCR text from a photographed motorcycle workshop jobsheet. Find the parts/items table and extract every row as JSON. OCR often mangles decimal points (a '.' may read as ',', ':', or a stray space) and sometimes drops the leading row number — use context to recover the real code, description, quantity and unit price anyway. Respond with ONLY a JSON array (no prose, no markdown fences), each item as {\"code\": string, \"description\": string, \"quantity\": number, \"price\": number}. If you can't find any item rows at all, respond with [].\n\nOCR TEXT:\n" +
+    rawText;
 
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 20000);
   try {
-    const res = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        "x-api-key": apiKey,
-        "anthropic-version": "2023-06-01",
-      },
-      body: JSON.stringify({
-        model: MODEL,
-        max_tokens: 1024,
-        messages: [
-          {
-            role: "user",
-            content:
-              "This is raw, noisy OCR text from a photographed motorcycle workshop jobsheet. Find the parts/items table and extract every row as JSON. OCR often mangles decimal points (a '.' may read as ',', ':', or a stray space) and sometimes drops the leading row number — use context to recover the real code, description, quantity and unit price anyway. Respond with ONLY a JSON array (no prose, no markdown fences), each item as {\"code\": string, \"description\": string, \"quantity\": number, \"price\": number}. If you can't find any item rows at all, respond with [].\n\nOCR TEXT:\n" +
-              rawText,
-          },
-        ],
-      }),
-      signal: controller.signal,
-    });
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: { responseMimeType: "application/json" },
+        }),
+        signal: controller.signal,
+      }
+    );
     if (!res.ok) return null;
 
-    const json = (await res.json()) as { content?: { text?: string }[] };
-    const content = json.content?.[0]?.text;
+    const json = (await res.json()) as { candidates?: { content?: { parts?: { text?: string }[] } }[] };
+    const content = json.candidates?.[0]?.content?.parts?.[0]?.text;
     if (typeof content !== "string") return null;
 
-    // The model is asked for JSON-only output, but strip markdown fences
-    // defensively in case it wraps the array in ```json anyway.
+    // responseMimeType above should guarantee clean JSON, but strip
+    // markdown fences defensively in case the model wraps it anyway.
     const cleaned = content.trim().replace(/^```(?:json)?\s*/i, "").replace(/```\s*$/, "");
     const parsed: unknown = JSON.parse(cleaned);
     if (!Array.isArray(parsed)) return null;

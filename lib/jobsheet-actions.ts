@@ -357,7 +357,7 @@ export async function scanJobsheet(
     // than guess — if that leaves zero items despite the raw text almost
     // certainly containing an items table, this is a best-effort second
     // pass that lets an LLM use context to recover what the regex couldn't.
-    // No-ops (parsed.items stays empty) if ANTHROPIC_API_KEY isn't set.
+    // No-ops (parsed.items stays empty) if GEMINI_API_KEY isn't set.
     if (parsed.items.length === 0) {
       const aiItems = await extractItemsWithAi(text);
       if (aiItems && aiItems.length > 0) parsed.items = aiItems;
