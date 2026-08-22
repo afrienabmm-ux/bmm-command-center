@@ -131,7 +131,7 @@ export default function Sidebar({
             <>
               <span className="min-w-0 flex-1 text-left leading-none">
                 <p className="text-sm font-medium text-neutral-800 truncate">{name || email}</p>
-                <p className="text-xs text-neutral-500 truncate mt-0.5">{role}</p>
+                <p className="text-xs text-neutral-500 truncate mt-0.5">{positionTitle || role}</p>
               </span>
               <ChevronDown size={14} className={`text-neutral-400 shrink-0 transition-transform ${profileOpen ? "rotate-180" : ""}`} />
             </>
