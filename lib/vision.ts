@@ -4,8 +4,9 @@ import { createWorker, type Worker } from "tesseract.js";
 import path from "path";
 import sharp from "sharp";
 
-// Free, self-hosted OCR — no Google Cloud account, no card, no per-scan
-// cost. Runs entirely inside this server process. The English language
+// Last-resort OCR engine (see runOcr below for the full Vision -> OCR.space
+// -> Tesseract fallback chain) — free, self-hosted, no account or card
+// needed, runs entirely inside this server process. The English language
 // data is bundled into the deployment (see next.config.ts's
 // outputFileTracingIncludes) and read straight off local disk via
 // langPath, instead of being fetched from tesseract.js's default CDN on
@@ -23,9 +24,9 @@ import sharp from "sharp";
 // isn't affected by that rewriting, so pointing it at the real on-disk
 // package files directly sidesteps the bug.
 //
-// Less accurate on messy handwriting than a paid cloud OCR service, but
-// works fine on printed/typed jobsheets and GenBlu screenshots, which is
-// all this app needs it for.
+// Less accurate on messy handwriting than the cloud engines above, but
+// works fine on printed/typed jobsheets and GenBlu screenshots as a last
+// resort if both of those are ever unavailable.
 let cachedWorker: Promise<Worker> | null = null;
 
 function getWorker(): Promise<Worker> {
@@ -121,9 +122,61 @@ type OcrSpaceResponse = {
 
 type OcrResult = { text: string; words: PositionedWord[] };
 
-// Primary OCR engine — a hosted API with a genuinely free tier (no card
-// on file, unlike Google Cloud Vision) that's noticeably more accurate
-// than the local Tesseract fallback on real phone photos. Returns null
+type VisionVertex = { x?: number; y?: number };
+type VisionTextAnnotation = { description?: string; boundingPoly?: { vertices?: VisionVertex[] } };
+type VisionResponse = { responses?: { textAnnotations?: VisionTextAnnotation[]; error?: { message?: string } }[] };
+
+// Primary OCR engine when GOOGLE_VISION_API_KEY is set — most accurate of
+// the three on real phone photos of handwriting/messy jobsheets. Called
+// via a plain API key over REST (no service-account JSON, which is fiddly
+// to store as an env var on Vercel) — see GOOGLE_VISION_API_KEY in
+// .env.example for how to get one. Returns null on any failure so the
+// caller falls back to OCR.space/Tesseract instead of failing the scan.
+async function extractViaGoogleVision(buffer: Buffer): Promise<OcrResult | null> {
+  const apiKey = process.env.GOOGLE_VISION_API_KEY;
+  if (!apiKey) return null;
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 25000);
+  try {
+    const res = await fetch(`https://vision.googleapis.com/v1/images:annotate?key=${apiKey}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      signal: controller.signal,
+      body: JSON.stringify({
+        requests: [{ image: { content: buffer.toString("base64") }, features: [{ type: "TEXT_DETECTION" }] }],
+      }),
+    });
+    if (!res.ok) return null;
+    const json = (await res.json()) as VisionResponse;
+    const result = json.responses?.[0];
+    if (!result || result.error) return null;
+
+    // The first annotation is the whole recognized text blob (used only as
+    // the fallback if word positions can't be reconstructed into rows);
+    // every entry after that is one word with its own bounding box.
+    const [full, ...wordAnnotations] = result.textAnnotations ?? [];
+    const words: PositionedWord[] = [];
+    for (const w of wordAnnotations) {
+      const text = w.description?.trim();
+      const vertices = w.boundingPoly?.vertices;
+      if (!text || !vertices || vertices.length === 0) continue;
+      const ys = vertices.map((v) => v.y ?? 0);
+      const xs = vertices.map((v) => v.x ?? 0);
+      const top = Math.min(...ys);
+      const bottom = Math.max(...ys);
+      words.push({ text, x: Math.min(...xs), yCenter: (top + bottom) / 2, height: bottom - top || 20 });
+    }
+    return { text: reconstructRowsFromWords(words, full?.description ?? ""), words };
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+// Secondary engine, tried when Vision isn't configured or fails — a
+// hosted API with a genuinely free tier (no card on file). Returns null
 // (rather than throwing) for any reason it can't be used, so the caller
 // falls back to Tesseract instead of failing the whole scan.
 async function extractViaOcrSpace(buffer: Buffer): Promise<OcrResult | null> {
@@ -167,15 +220,26 @@ async function extractViaOcrSpace(buffer: Buffer): Promise<OcrResult | null> {
   }
 }
 
-// Shared by extractTextFromImage and scanJobsheetImage — runs OCR.space
-// first, with the local Tesseract engine as a fallback if that's
-// unavailable or fails for any reason (missing/exhausted API key, network
-// issue, etc.), and returns both the reconstructed text and each word's
-// position (needed to locate the signature box on a jobsheet).
+// Shared by extractTextFromImage and scanJobsheetImage — tries Google
+// Vision first, then OCR.space, then falls back to the local Tesseract
+// engine if both are unavailable or fail for any reason (missing/exhausted
+// API key, network issue, etc.), and returns both the reconstructed text
+// and each word's position (needed to locate the signature box on a
+// jobsheet).
 async function runOcr(buffer: Buffer): Promise<OcrResult> {
-  const hosted = await extractViaOcrSpace(buffer);
-  if (hosted !== null && hosted.text.trim() !== "") return hosted;
+  const vision = await extractViaGoogleVision(buffer);
+  if (vision !== null && vision.text.trim() !== "") {
+    console.log("[runOcr] engine=google-vision");
+    return vision;
+  }
 
+  const hosted = await extractViaOcrSpace(buffer);
+  if (hosted !== null && hosted.text.trim() !== "") {
+    console.log("[runOcr] engine=ocr.space");
+    return hosted;
+  }
+
+  console.log("[runOcr] engine=tesseract");
   const worker = await getWorker();
   const { data } = await worker.recognize(buffer, {}, { blocks: true, text: true });
   const words = collectWordsFromTesseractBlocks(data.blocks);
