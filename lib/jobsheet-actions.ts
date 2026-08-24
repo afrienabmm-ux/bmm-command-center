@@ -267,7 +267,12 @@ function parseJobsheetText(text: string): ScannedJobsheet {
   const nextMileageKm = f.nextMileageKm ?? "";
   const serviceType = f.serviceType ?? "";
   const nextServiceDate = f.nextServiceDate ? (toIsoDate(f.nextServiceDate) ?? "") : "";
-  const jobsheetUserId = f.jobsheetUserId ?? "";
+  // User ID is only ever a 3-digit number ("004") or a 2-letter code
+  // ("NI") — anything else caught by the label match is OCR noise
+  // (trailing text from the next field bleeding onto the same line), not
+  // a real ID, so it's dropped rather than filled in wrong.
+  const rawUserId = f.jobsheetUserId ?? "";
+  const jobsheetUserId = rawUserId.match(/^\d{3}\b/)?.[0] ?? rawUserId.match(/^[A-Za-z]{2}\b/)?.[0] ?? "";
 
   let branch: Branch | null = null;
   const upper = text.toUpperCase();
