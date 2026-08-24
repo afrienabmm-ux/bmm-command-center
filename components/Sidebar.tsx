@@ -94,17 +94,8 @@ export default function Sidebar({
     <aside
       className={`relative ${collapsed ? "w-16" : "w-64"} shrink-0 bg-neutral-50 border-r border-neutral-200 flex flex-col transition-[width] duration-200`}
     >
-      <button
-        onClick={onToggle}
-        title={collapsed ? "Expand menu" : "Collapse menu"}
-        aria-label={collapsed ? "Expand menu" : "Collapse menu"}
-        className="absolute top-1/2 -right-3.5 -translate-y-1/2 z-10 w-7 h-7 flex items-center justify-center rounded-full bg-white border border-neutral-200 text-neutral-500 hover:text-red-600 hover:border-red-300 shadow-md transition-colors"
-      >
-        {collapsed ? <ChevronRight size={15} /> : <ChevronLeft size={15} />}
-      </button>
-
       <div
-        className={`h-16 flex items-center border-b border-neutral-200 ${collapsed ? "justify-center px-2" : "gap-2.5 px-5"}`}
+        className={`h-16 flex items-center border-b border-neutral-200 ${collapsed ? "flex-col justify-center gap-1.5 px-2 py-1.5" : "gap-2.5 px-5"}`}
       >
         <img src="/bmm-logo.png" alt="Berjaya Mega Motors" className="w-8 h-8 rounded-full object-cover shrink-0" />
         {!collapsed && (
@@ -113,6 +104,14 @@ export default function Sidebar({
             <p className="text-[11px] text-neutral-500 truncate">Berjaya Mega Motors</p>
           </div>
         )}
+        <button
+          onClick={onToggle}
+          title={collapsed ? "Expand menu" : "Collapse menu"}
+          aria-label={collapsed ? "Expand menu" : "Collapse menu"}
+          className="w-6 h-6 flex items-center justify-center rounded-full border border-neutral-200 text-neutral-500 hover:text-red-600 hover:border-red-300 transition-colors shrink-0"
+        >
+          {collapsed ? <ChevronRight size={13} /> : <ChevronLeft size={13} />}
+        </button>
       </div>
 
       <div ref={profileRef} className={`relative border-b border-neutral-200 ${collapsed ? "px-2 py-3" : "px-3 py-3"}`}>
