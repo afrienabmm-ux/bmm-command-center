@@ -95,7 +95,7 @@ export default function Sidebar({
       className={`relative ${collapsed ? "w-16" : "w-64"} shrink-0 bg-neutral-50 border-r border-neutral-200 flex flex-col transition-[width] duration-200`}
     >
       <div
-        className={`h-16 flex items-center border-b border-neutral-200 ${collapsed ? "flex-col justify-center gap-1.5 px-2 py-1.5" : "gap-2.5 px-5"}`}
+        className={`flex items-center border-b border-neutral-200 ${collapsed ? "h-auto flex-col gap-2.5 px-2 py-4" : "h-16 gap-2.5 px-5"}`}
       >
         <img src="/bmm-logo.png" alt="Berjaya Mega Motors" className="w-8 h-8 rounded-full object-cover shrink-0" />
         {!collapsed && (
