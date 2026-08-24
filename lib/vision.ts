@@ -390,7 +390,13 @@ async function detectSignature(buffer: Buffer, words: PositionedWord[], imageWid
   const left = Math.max(0, Math.min(label.x - boxWidth * 0.3, imageWidth - boxWidth));
   if (boxWidth < 10) return { result: null, debug: "label found but box too narrow to check" };
 
-  const regionHeight = Math.max(label.height * 4, 30);
+  // Kept tight against the label on purpose — a wider region (previously
+  // 4x label height) reached far enough up to catch the defect-checklist
+  // grid printed above the Customer Signature line on a real jobsheet,
+  // misreading its text/checkbox borders as ink and reporting "signed" on
+  // a blank line. The actual blank signing line is only about as tall as
+  // the label text itself, not several lines of it.
+  const regionHeight = Math.max(label.height * 1.5, 20);
   const candidates: { name: string; top: number; height: number }[] = [
     { name: "above", top: label.yCenter - label.height / 2 - regionHeight, height: regionHeight },
     { name: "below", top: label.yCenter + label.height / 2, height: regionHeight },
