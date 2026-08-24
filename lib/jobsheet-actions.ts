@@ -311,21 +311,26 @@ function parseJobsheetText(text: string): ScannedJobsheet {
     let code = tokens[i];
     let descStart = i + 1;
 
-    // A dash-suffixed code (e.g. "90793-AHB02") sometimes gets read back
-    // with the dash split off as its own token, or attached to whichever
-    // side it's closer to ("90793 - AHB02", "90793- AHB02", "90793 -AHB02")
-    // instead of one unbroken word — left alone, the dash and suffix would
-    // get swallowed into the start of the description instead of staying
-    // part of the code.
-    const CODE_SUFFIX = /^[A-Za-z]{1,4}\d{2,5}$/;
+    // A dash-suffixed code (e.g. "90793-AHB02", or "157-E3440-09" — the
+    // suffix itself can have its own internal dash) sometimes gets read
+    // back with the dash split off as its own token, or attached to
+    // whichever side it's closer to ("90793 - AHB02", "90793- AHB02",
+    // "90793 -AHB02") instead of one unbroken word — left alone, the dash
+    // and suffix would get swallowed into the start of the description
+    // instead of staying part of the code. A code suffix chunk is short,
+    // alphanumeric, and mixes letters with digits — a real description
+    // word doesn't.
+    function looksLikeCodeSuffix(tok: string): boolean {
+      return tok.length <= 12 && /^[A-Za-z0-9]+(?:-[A-Za-z0-9]+)*$/.test(tok) && /[A-Za-z]/.test(tok) && /\d/.test(tok);
+    }
     const next = tokens[descStart] ?? "";
-    if (code.endsWith("-") && CODE_SUFFIX.test(next)) {
+    if (code.endsWith("-") && looksLikeCodeSuffix(next)) {
       code += next;
       descStart += 1;
-    } else if (next === "-" && CODE_SUFFIX.test(tokens[descStart + 1] ?? "")) {
+    } else if (next === "-" && looksLikeCodeSuffix(tokens[descStart + 1] ?? "")) {
       code += "-" + tokens[descStart + 1];
       descStart += 2;
-    } else if (next.startsWith("-") && CODE_SUFFIX.test(next.slice(1))) {
+    } else if (next.startsWith("-") && looksLikeCodeSuffix(next.slice(1))) {
       code += next;
       descStart += 1;
     }
