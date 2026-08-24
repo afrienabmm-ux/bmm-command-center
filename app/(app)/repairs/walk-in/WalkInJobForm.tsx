@@ -802,7 +802,21 @@ export default function WalkInJobForm({
                     <input
                       type="checkbox"
                       checked={signatureConfirmed}
-                      onChange={(e) => setSignatureConfirmed(e.target.checked)}
+                      onChange={(e) => {
+                        const checked = e.target.checked;
+                        // Ticking this box against the detector's own "no
+                        // signature found" result is exactly the moment a
+                        // blank jobsheet could slip through unnoticed — a
+                        // warning here, not a block, since the PIC may well
+                        // have checked the photo themselves and know better
+                        // than the heuristic.
+                        if (checked && signatureDetected === false) {
+                          showError(
+                            "No customer signature was detected on this jobsheet — please double-check the photo before confirming."
+                          );
+                        }
+                        setSignatureConfirmed(checked);
+                      }}
                       className="accent-red-500"
                     />
                     <span className="text-xs font-medium text-neutral-700">Customer has signed the jobsheet *</span>
