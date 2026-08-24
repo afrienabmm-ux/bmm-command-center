@@ -298,7 +298,13 @@ export default function WalkInJobForm({
       setScanRawText(scanned.rawText);
       setScanSignatureDebug(scanned.signatureDebug);
       setSignatureDetected(scanned.signatureDetected);
-      setSignatureConfirmed(scanned.signatureDetected === true);
+      // Never auto-tick this from the detector's result, even when it says
+      // "detected" — the ink-texture check has come back true on a blank
+      // jobsheet before (dense printed text near the signature line reads
+      // as pen strokes), so the PIC always has to look at the photo and
+      // confirm it themselves. The detector's result is shown below only
+      // as a hint, not a substitute for that check.
+      setSignatureConfirmed(false);
       if (scanned.signatureDetected !== true) {
         showError(
           "No customer signature detected on this jobsheet. Please check that the customer has signed it, or take a clearer photo and scan again."
@@ -779,7 +785,7 @@ export default function WalkInJobForm({
                 >
                   {signatureDetected === true && (
                     <p className="text-xs text-emerald-700 flex items-center gap-1.5">
-                      <CheckCircle2 size={14} /> Customer signature detected on the jobsheet.
+                      <CheckCircle2 size={14} /> Looks like a customer signature is on the jobsheet — please check the photo and confirm below.
                     </p>
                   )}
                   {signatureDetected === false && (
