@@ -7,6 +7,7 @@ import {
   updateRepairApprovalAction,
   setRestoreBikeWorkflowDateAction,
   setQcResultAction,
+  setQcFailFollowupAction,
   deleteRepairJobAction,
 } from "@/lib/repairs-actions";
 import {
@@ -501,7 +502,23 @@ function ExportJobModal({
 
 // Status is no longer a manual choice — it just follows the Start/End
 // stamps (see setRestoreBikeWorkflowDateAction), so this is read-only.
-function StatusCell({ job }: { job: RepairJob }) {
+// The follow-up stamp is the one exception: a QC failure needs a PIC to
+// actually confirm they looked into it (the server blocks re-submitting to
+// QC otherwise — see setRestoreBikeWorkflowDateAction's "completed" gate).
+function StatusCell({ job, editable }: { job: RepairJob; editable: boolean }) {
+  const [isPending, startTransition] = useTransition();
+  const needsFollowup = job.qcResult === "Failed" && !!job.qcFailReason;
+
+  function toggleFollowup() {
+    startTransition(async () => {
+      await setQcFailFollowupAction(
+        job.id,
+        job.branch,
+        job.qcFailFollowupDate ? null : new Date().toISOString().slice(0, 10)
+      );
+    });
+  }
+
   return (
     <div className="flex flex-col gap-1 items-center">
       <span className={`text-xs font-medium px-2.5 py-1 rounded-full border ${STATUS_STYLES[job.status]}`}>{job.status}</span>
@@ -519,6 +536,21 @@ function StatusCell({ job }: { job: RepairJob }) {
       )}
       {job.qcResult === "Failed" && job.qcFailReason && (
         <span className="text-[10px] text-red-600 max-w-[160px]">{job.qcFailReason}</span>
+      )}
+      {needsFollowup && (
+        <button
+          type="button"
+          onClick={toggleFollowup}
+          disabled={isPending || !editable}
+          title={job.qcFailFollowupDate ? `Followed up ${formatDate(job.qcFailFollowupDate)} — click to clear` : "Click once you've followed up on the QC failure"}
+          className={`text-[10px] font-medium px-2 py-0.5 rounded-full border transition-colors disabled:opacity-50 ${
+            job.qcFailFollowupDate
+              ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-700"
+              : "bg-amber-500/10 border-amber-500/30 text-amber-700 hover:border-amber-400"
+          }`}
+        >
+          {job.qcFailFollowupDate ? `Followed up ${formatDate(job.qcFailFollowupDate)}` : "Mark followed up"}
+        </button>
       )}
     </div>
   );
@@ -967,7 +999,7 @@ function RestoreBikeRow({
       </td>
       <td className="px-5 py-3.5 text-neutral-600 whitespace-nowrap text-center">{job.dealType || "—"}</td>
       <td className="px-5 py-3.5 text-center">
-        <StatusCell job={job} />
+        <StatusCell job={job} editable={editable} />
       </td>
       {showQc && (
         <td className="px-5 py-3.5 text-center">

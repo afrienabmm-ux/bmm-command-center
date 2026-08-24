@@ -61,6 +61,7 @@ type Row = {
   qc_result: QcResult | null;
   qc_date: string | null;
   qc_fail_reason: string | null;
+  qc_fail_followup_date: string | null;
   signature_status: string;
   jobsheet_photo_path: string | null;
   cc_repair_job_items: ItemRow[] | null;
@@ -120,6 +121,7 @@ function toJob(r: Row): RepairJob {
     qcResult: r.qc_result,
     qcDate: r.qc_date,
     qcFailReason: r.qc_fail_reason,
+    qcFailFollowupDate: r.qc_fail_followup_date,
     signatureStatus: r.signature_status,
     jobsheetPhotoPath: r.jobsheet_photo_path,
   };
@@ -829,11 +831,13 @@ export async function setRestoreBikeWorkflowDateAction(
     started_date?: string | null;
     stock_order_date?: string | null;
     stock_arrive_date?: string | null;
+    qc_fail_reason?: string | null;
+    qc_fail_followup_date?: string | null;
   } | null = null;
   if (stage === "started" || stage === "completed") {
     const { data, error: fetchError } = await supabaseAdmin
       .from("cc_repair_jobs")
-      .select("approval_status, started_date, stock_order_date, stock_arrive_date")
+      .select("approval_status, started_date, stock_order_date, stock_arrive_date, qc_fail_reason, qc_fail_followup_date")
       .eq("id", id)
       .single();
     if (fetchError) return { error: fetchError.message };
@@ -846,6 +850,9 @@ export async function setRestoreBikeWorkflowDateAction(
     }
     if (value !== null && stage === "completed" && !existing?.started_date) {
       return { error: "The job hasn't started yet." };
+    }
+    if (value !== null && stage === "completed" && existing?.qc_fail_reason && !existing?.qc_fail_followup_date) {
+      return { error: "Follow up on the QC failure reason before sending this back for QC again." };
     }
   }
 
@@ -894,7 +901,8 @@ export async function assignMechanicAction(id: string, branch: Branch, mechanicI
 // mechanic to redo (clears the End Date so it reappears in Active) but
 // keeps the "Failed" result and the PIC's reason visible on the job,
 // instead of silently wiping them — a reason is required for Fail so
-// there's always a record of why.
+// there's always a record of why. Also clears any old follow-up stamp —
+// each failure needs its own follow-up, not a leftover one from last time.
 export async function setQcResultAction(
   id: string,
   branch: Branch,
@@ -911,10 +919,31 @@ export async function setQcResultAction(
   const today = new Date().toISOString().slice(0, 10);
   const update =
     result === "Passed"
-      ? { status: "Completed", qc_result: "Passed", qc_date: today, qc_fail_reason: null }
-      : { status: "In Progress", completed_date: null, qc_result: "Failed", qc_date: today, qc_fail_reason: failReason!.trim() };
+      ? { status: "Completed", qc_result: "Passed", qc_date: today, qc_fail_reason: null, qc_fail_followup_date: null }
+      : {
+          status: "In Progress",
+          completed_date: null,
+          qc_result: "Failed",
+          qc_date: today,
+          qc_fail_reason: failReason!.trim(),
+          qc_fail_followup_date: null,
+        };
 
   const { error } = await supabaseAdmin.from("cc_repair_jobs").update(update).eq("id", id);
+  if (error) return { error: error.message };
+  revalidatePath("/repairs");
+  revalidatePath("/");
+}
+
+// Click-to-stamp confirmation that the PIC actually looked into why the
+// bike failed QC — required before the repair can be re-submitted to QC
+// (see the "completed" stage check in setRestoreBikeWorkflowDateAction),
+// so a failure reason can't just sit there unaddressed. Same toggle
+// behaviour as the other workflow stamps: clicking again un-stamps it.
+export async function setQcFailFollowupAction(id: string, branch: Branch, value: string | null): Promise<{ error: string } | void> {
+  const user = await requireApproved();
+  assertCanEditBranch(user, branch);
+  const { error } = await supabaseAdmin.from("cc_repair_jobs").update({ qc_fail_followup_date: value }).eq("id", id);
   if (error) return { error: error.message };
   revalidatePath("/repairs");
   revalidatePath("/");

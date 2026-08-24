@@ -170,6 +170,11 @@ export type RepairJob = {
   qcResult: QcResult | null;
   qcDate: string | null;
   qcFailReason: string | null;
+  // Set once the branch PIC confirms they've actually looked into the QC
+  // failure reason above — required before the repair can be re-submitted
+  // to QC, so a failure can't just get quietly redone without addressing
+  // why it failed in the first place.
+  qcFailFollowupDate: string | null;
   // Walk-in only — what the jobsheet scan actually found for the customer
   // signature, separate from the staff confirmation checkbox: "detected",
   // "not_detected" (scan ran, found nothing, but staff confirmed anyway),
