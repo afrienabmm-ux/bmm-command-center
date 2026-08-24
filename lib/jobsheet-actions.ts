@@ -308,8 +308,27 @@ function parseJobsheetText(text: string): ScannedJobsheet {
     // digits, so a genuinely numeric code (e.g. "9000000013") doesn't get
     // mistaken for one and swallowed.
     let i = /^\d{1,2}$/.test(tokens[0]) ? 1 : 0;
-    const code = tokens[i];
-    const descStart = i + 1;
+    let code = tokens[i];
+    let descStart = i + 1;
+
+    // A dash-suffixed code (e.g. "90793-AHB02") sometimes gets read back
+    // with the dash split off as its own token, or attached to whichever
+    // side it's closer to ("90793 - AHB02", "90793- AHB02", "90793 -AHB02")
+    // instead of one unbroken word — left alone, the dash and suffix would
+    // get swallowed into the start of the description instead of staying
+    // part of the code.
+    const CODE_SUFFIX = /^[A-Za-z]{1,4}\d{2,5}$/;
+    const next = tokens[descStart] ?? "";
+    if (code.endsWith("-") && CODE_SUFFIX.test(next)) {
+      code += next;
+      descStart += 1;
+    } else if (next === "-" && CODE_SUFFIX.test(tokens[descStart + 1] ?? "")) {
+      code += "-" + tokens[descStart + 1];
+      descStart += 2;
+    } else if (next.startsWith("-") && CODE_SUFFIX.test(next.slice(1))) {
+      code += next;
+      descStart += 1;
+    }
 
     // The first "<clean number> <UOM word>" pair after the code is Qty
     // followed by UOM. Requiring the word to be a real UOM (not just any
