@@ -48,11 +48,15 @@ export type ScannedJobsheet = {
 // (e.g. "IVP001568 01139026813") — pull it out into its own field without
 // touching salesNo itself, which stays exactly as scanned.
 function extractPhoneNumber(raw: string): string {
-  const local = raw.match(/\b01\d{8,9}\b/);
+  // OCR sometimes splits a long digit run with a stray space in the
+  // middle ("6011 27236001" instead of "601127236001") — rejoined here so
+  // the number's shape isn't broken up before matching.
+  const joined = raw.replace(/(\d)\s+(?=\d)/g, "$1");
+  const local = joined.match(/\b01\d{8,9}\b/);
   if (local) return local[0];
   // Sometimes read with the country code instead of the leading 0 ("60"
   // + the rest of the number, no "+") — reconstruct the local 01... form.
-  const intl = raw.match(/\b60(1\d{7,9})\b/);
+  const intl = joined.match(/\b60(1\d{7,9})\b/);
   return intl ? `0${intl[1]}` : "";
 }
 
