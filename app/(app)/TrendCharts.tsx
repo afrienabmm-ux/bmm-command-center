@@ -204,24 +204,41 @@ export function BranchJobsChart({ points }: { points: MonthlyTrendPoint[] }) {
                 .join(" ");
               return <path key={s.key} d={path} fill="none" strokeWidth={3} className={s.stroke} />;
             })}
-            {points.map((p, i) => (
-              <g key={`${p.year}-${p.month}`}>
-                {BRANCH_SERIES.map((s) => (
-                  <text
-                    key={s.key}
-                    x={xAt(i)}
-                    y={labelAbove(yAt(p.repairJobsByBranch[s.key]) + SERIES_Y_NUDGE[s.key])}
-                    textAnchor="middle"
-                    className={`text-[10px] font-semibold ${s.text}`}
-                  >
-                    {p.repairJobsByBranch[s.key]}
+            {points.map((p, i) => {
+              // The line nudge above is invisible for the lines themselves,
+              // but applying the same nudge to the number labels stacked
+              // three near-identical digits a couple pixels apart whenever
+              // branches tie (the common case — all 0 most months), which
+              // reads as clutter rather than a number. Labels instead show
+              // once per distinct value, at the real (un-nudged) height —
+              // neutral-colored when more than one branch shares it, since
+              // no single branch color would be accurate.
+              const seen = new Set<number>();
+              return (
+                <g key={`${p.year}-${p.month}`}>
+                  {BRANCH_SERIES.map((s) => {
+                    const value = p.repairJobsByBranch[s.key];
+                    if (seen.has(value)) return null;
+                    seen.add(value);
+                    const tally = BRANCH_SERIES.filter((other) => p.repairJobsByBranch[other.key] === value).length;
+                    return (
+                      <text
+                        key={s.key}
+                        x={xAt(i)}
+                        y={labelAbove(yAt(value))}
+                        textAnchor="middle"
+                        className={`text-[10px] font-semibold ${tally > 1 ? "fill-neutral-500" : s.text}`}
+                      >
+                        {value}
+                      </text>
+                    );
+                  })}
+                  <text x={xAt(i)} y={monthLabelY} textAnchor="middle" className="fill-neutral-500 text-[10px] font-medium uppercase">
+                    {p.label}
                   </text>
-                ))}
-                <text x={xAt(i)} y={monthLabelY} textAnchor="middle" className="fill-neutral-500 text-[10px] font-medium uppercase">
-                  {p.label}
-                </text>
-              </g>
-            ))}
+                </g>
+              );
+            })}
           </g>
         </svg>
       </div>
