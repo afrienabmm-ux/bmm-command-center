@@ -10,7 +10,7 @@ export default function SignupPage() {
             alt="Berjaya Mega Motors"
             className="w-16 h-16 rounded-full object-cover mb-4 ring-4 ring-white/30 shadow-lg animate-pop"
           />
-          <h2 className="text-xl font-bold mb-2">Join After-Sales Dashboard!</h2>
+          <h2 className="text-xl font-bold mb-2 uppercase">Join After-Sales Dashboard!</h2>
           <p className="text-sm text-red-100 leading-relaxed">
             Create your account to get started. A manager will approve it and assign your branch and position
             before you can access anything.

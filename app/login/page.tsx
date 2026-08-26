@@ -14,7 +14,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
             alt="Berjaya Mega Motors"
             className="w-16 h-16 rounded-full object-cover mb-4 ring-4 ring-white/30 shadow-lg animate-pop"
           />
-          <h2 className="text-xl font-bold mb-2">Welcome to After-Sales Dashboard!</h2>
+          <h2 className="text-xl font-bold mb-2 uppercase">Welcome to After-Sales Dashboard!</h2>
           <p className="text-sm text-red-100 leading-relaxed">
             Sign in with your email and password to get started. New here? Create an account to join the team.
           </p>
