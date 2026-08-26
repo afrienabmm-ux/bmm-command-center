@@ -47,17 +47,38 @@ export type ScannedJobsheet = {
 // number printed right after the sales/invoice number, space-separated
 // (e.g. "IVP001568 01139026813") — pull it out into its own field without
 // touching salesNo itself, which stays exactly as scanned.
-function extractPhoneNumber(raw: string): string {
-  // OCR sometimes splits a long digit run with a stray space in the
-  // middle ("6011 27236001" instead of "601127236001") — rejoined here so
-  // the number's shape isn't broken up before matching.
-  const joined = raw.replace(/(\d)\s+(?=\d)/g, "$1");
-  const local = joined.match(/\b01\d{8,9}\b/);
+function findPhoneNumber(text: string): string {
+  const local = text.match(/\b01\d{8,9}\b/);
   if (local) return local[0];
   // Sometimes read with the country code instead of the leading 0 ("60"
   // + the rest of the number, no "+") — reconstruct the local 01... form.
-  const intl = joined.match(/\b60(1\d{7,9})\b/);
+  const intl = text.match(/\b60(1\d{7,9})\b/);
   return intl ? `0${intl[1]}` : "";
+}
+
+function extractPhoneNumber(raw: string): string {
+  // OCR sometimes reads one long digit run as two or three separate
+  // whitespace-split pieces ("6011 27236001", or even "011 3902 6813").
+  // Blindly rejoining every digit-space-digit gap in the whole string
+  // risked merging two genuinely unrelated numbers that just happen to
+  // sit next to each other — e.g. the sales/order code's last digit
+  // getting glued onto the start of an otherwise-perfectly-readable phone
+  // number right after it ("IVA014032 0176615018"), making both
+  // unmatchable. Splitting into whitespace tokens first and only ever
+  // joining tokens that are ALL digits (a code like "IVA014032" has
+  // letters, so it's never a merge candidate) avoids that: try each token
+  // alone, then each run of 2-3 consecutive all-digit tokens, until one
+  // forms a valid phone number.
+  const tokens = raw.split(/\s+/).filter(Boolean);
+  for (let windowSize = 1; windowSize <= 3; windowSize++) {
+    for (let i = 0; i + windowSize <= tokens.length; i++) {
+      const slice = tokens.slice(i, i + windowSize);
+      if (!slice.every((t) => /^\d+$/.test(t))) continue;
+      const found = findPhoneNumber(slice.join(""));
+      if (found) return found;
+    }
+  }
+  return "";
 }
 
 function toIsoDate(raw: string): string | null {
