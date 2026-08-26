@@ -9,7 +9,11 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
     <div className="min-h-screen w-full flex items-center justify-center px-4 bg-red-950">
       <div className="w-full max-w-sm">
         <div className="flex flex-col items-center mb-8">
-          <img src="/bmm-logo.png" alt="Berjaya Mega Motors" className="w-16 h-16 rounded-full object-cover mb-3" />
+          <img
+            src="/bmm-logo.png"
+            alt="Berjaya Mega Motors"
+            className="w-16 h-16 rounded-full object-cover mb-3 ring-4 ring-white/30 shadow-lg animate-pop"
+          />
           <p className="text-base font-semibold text-white">After-Sales</p>
           <p className="text-xs text-neutral-300">Berjaya Mega Motors — After-Sales</p>
         </div>
