@@ -325,7 +325,8 @@ export async function ensureGenbluRegistrationAction(input: {
 // upload once a customer is already registered, since the jobsheet form
 // that calls it only needs the screenshot once), this always attaches the
 // screenshot: onto the existing registration if the customer already has
-// one, or a newly created one otherwise.
+// one (adding this screenshot's points to their running total — see the
+// comment below), or a newly created one otherwise.
 export async function attachGenbluScreenshotAction(input: {
   branch: Branch;
   customerName: string;
@@ -363,15 +364,23 @@ export async function attachGenbluScreenshotAction(input: {
 
   const { data: existing, error: fetchError } = await supabaseAdmin
     .from("cc_genblu_registrations")
-    .select("id, customer_name")
+    .select("id, customer_name, points_accrued")
     .eq("branch", input.branch);
   if (fetchError) return { error: fetchError.message };
   const match = (existing ?? []).find((r) => normalizeName(r.customer_name) === normalizeName(customerName));
 
   if (match) {
+    // Each screenshot is proof of one award (points the admin gave the
+    // customer on that visit — the "deducted" wording on it is from the
+    // admin's own account, not the customer's), not a snapshot of their
+    // whole balance. A repeat upload adds to the running total on file
+    // instead of replacing it, so points from earlier visits aren't lost.
+    // If this screenshot's amount couldn't be read, the total is left as
+    // it was rather than being reset to null.
+    const newTotal = pointsAccrued === null ? match.points_accrued : (match.points_accrued ?? 0) + pointsAccrued;
     const { error } = await supabaseAdmin
       .from("cc_genblu_registrations")
-      .update({ screenshot_path: path, points_accrued: pointsAccrued })
+      .update({ screenshot_path: path, points_accrued: newTotal })
       .eq("id", match.id);
     if (error) return { error: error.message };
   } else {
