@@ -45,7 +45,10 @@ export async function signInAction(formData: FormData): Promise<AuthResult> {
   // "/", not "//") — a "next" value is attacker-controllable via the URL,
   // and an unchecked redirect could otherwise send a freshly-authenticated
   // session off to an external site.
-  redirect(next.startsWith("/") && !next.startsWith("//") ? next : "/");
+  const target = next.startsWith("/") && !next.startsWith("//") ? next : "/";
+  // Tags the landing page with a one-time flag so AppShell can greet the
+  // person by name right after signing in, then strips it from the URL.
+  redirect(`${target}${target.includes("?") ? "&" : "?"}welcome=1`);
 }
 
 export async function signOutAction(): Promise<void> {

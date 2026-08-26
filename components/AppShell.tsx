@@ -1,8 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import Sidebar from "@/components/Sidebar";
 import BranchSwitcher from "@/components/BranchSwitcher";
+import { useToast } from "@/lib/useToast";
 import type { Role } from "@/lib/current-user";
 import type { PageKey } from "@/lib/permissions";
 import type { BranchSelection } from "@/lib/branch";
@@ -31,12 +33,30 @@ export default function AppShell({
   children: React.ReactNode;
 }) {
   const [collapsed, setCollapsed] = useState(false);
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const { showInfo, toastNode } = useToast();
+  const welcomedRef = useRef(false);
 
   // Read the saved preference after mount so the server and client render
   // the same markup on first paint.
   useEffect(() => {
     setCollapsed(window.localStorage.getItem(STORAGE_KEY) === "true");
   }, []);
+
+  // signInAction tags the post-login redirect with ?welcome=1 — greet the
+  // person by name once, then strip the param so refreshing or navigating
+  // back doesn't show it again.
+  useEffect(() => {
+    if (searchParams.get("welcome") !== "1" || welcomedRef.current) return;
+    welcomedRef.current = true;
+    showInfo(`Welcome, ${name}!`);
+    const rest = new URLSearchParams(searchParams);
+    rest.delete("welcome");
+    const query = rest.toString();
+    router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
+  }, [searchParams, pathname, name, router, showInfo]);
 
   function toggle() {
     setCollapsed((prev) => {
@@ -48,6 +68,7 @@ export default function AppShell({
 
   return (
     <div className="flex w-full">
+      {toastNode}
       <Sidebar
         email={email}
         name={name}

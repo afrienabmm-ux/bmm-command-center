@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { AlertCircle, Info, X } from "lucide-react";
+import { AlertCircle, CheckCircle2, X } from "lucide-react";
 
 // A non-blocking replacement for window.alert() — the native browser
 // dialog stops the whole page and looks like an OS error, not part of the
@@ -29,13 +29,13 @@ export default function Toast({
     <div
       role="alert"
       className={`fixed top-4 left-1/2 -translate-x-1/2 z-[100] flex items-start gap-2.5 max-w-md w-[calc(100%-2rem)] sm:w-auto text-sm font-medium px-4 py-3 rounded-xl shadow-lg border ${
-        isError ? "bg-red-50 border-red-200 text-red-800" : "bg-red-50 border-red-200 text-red-800"
+        isError ? "bg-red-50 border-red-200 text-red-800" : "bg-emerald-50 border-emerald-200 text-emerald-800"
       }`}
     >
       {isError ? (
         <AlertCircle size={17} className="shrink-0 mt-0.5" />
       ) : (
-        <Info size={17} className="shrink-0 mt-0.5" />
+        <CheckCircle2 size={17} className="shrink-0 mt-0.5" />
       )}
       <p className="flex-1">{message}</p>
       <button
