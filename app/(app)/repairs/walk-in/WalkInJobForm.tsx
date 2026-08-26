@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
   Plus,
@@ -389,8 +389,13 @@ export default function WalkInJobForm({
       // every mechanic belongs to exactly one branch anyway. Falls back to
       // the header-detected branch only when no mechanic code matched.
       const mechanicCandidates = locked ? mechanics.filter((m) => m.branch === locationBranch) : mechanics;
-      const matchedMechanic = scanned.mechanicCode
-        ? mechanicCandidates.find((m) => m.shortCode.toLowerCase() === scanned.mechanicCode.toLowerCase())
+      // Compared with punctuation/whitespace stripped on both sides —
+      // an exact match missed real reads like "T." or "T " (a trailing
+      // OCR artifact) even though the code itself was read correctly.
+      const normalizeCode = (s: string) => s.replace(/[^a-z0-9]/gi, "").toLowerCase();
+      const scannedCodeNormalized = normalizeCode(scanned.mechanicCode ?? "");
+      const matchedMechanic = scannedCodeNormalized
+        ? mechanicCandidates.find((m) => normalizeCode(m.shortCode) === scannedCodeNormalized)
         : undefined;
       if (matchedMechanic) {
         if (!locked) setLocationBranch(matchedMechanic.branch);
@@ -436,17 +441,12 @@ export default function WalkInJobForm({
 
   const isHeavyJob = isBigItem;
 
-  // A mechanic already carrying another active (non-Completed) job — of
-  // either type — can't be handed a second one until it's marked Completed.
-  const busyMechanicIds = useMemo(
-    () => new Set(allActiveJobs.filter((j) => j.id !== job?.id && j.mechanicId).map((j) => j.mechanicId as string)),
-    [allActiveJobs, job]
-  );
-
   const branchMechanics = locationBranch === "all" ? mechanics : mechanics.filter((m) => m.branch === locationBranch);
+  // No longer excludes mechanics who already have another active job — a
+  // PIC can assign anyone regardless of how busy they already are, same
+  // as Restore Bike assignment from the Arrival Listing tab.
   const eligibleMechanics = branchMechanics.filter((m) => {
     if (m.id === mechanicId) return true;
-    if (busyMechanicIds.has(m.id)) return false;
     if (isHeavyJob && m.category !== "Heavy Repair") return false;
     return true;
   });
@@ -1068,7 +1068,7 @@ export default function WalkInJobForm({
             )}
             {branchMechanics.length > eligibleMechanics.length && (
               <p className="text-xs text-neutral-500 mt-1.5">
-                {branchMechanics.length - eligibleMechanics.length} mechanic{branchMechanics.length - eligibleMechanics.length === 1 ? "" : "s"} hidden — already on an active job, or not a Heavy Repair mechanic.
+                {branchMechanics.length - eligibleMechanics.length} mechanic{branchMechanics.length - eligibleMechanics.length === 1 ? "" : "s"} hidden — not a Heavy Repair mechanic.
               </p>
             )}
             {mechanicId === "" && (

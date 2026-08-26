@@ -50,6 +50,14 @@ export async function middleware(request: NextRequest) {
     return response;
   }
 
+  // The Field Scanner account only ever exists to drive /scan — whoever
+  // has that link should never be able to reach anything else just by
+  // typing a different URL, even though the account itself is a real,
+  // approved session that would otherwise pass every check below.
+  if (user?.email === process.env.FIELD_SCANNER_EMAIL) {
+    return NextResponse.redirect(new URL("/scan", request.url));
+  }
+
   if (!user && !isPublic) {
     return NextResponse.redirect(new URL("/login", request.url));
   }

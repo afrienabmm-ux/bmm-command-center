@@ -82,7 +82,11 @@ export default async function ScanPage({ searchParams }: { searchParams: Promise
     </div>
   );
 
-  const canUploadGenblu = hasPageAccess(currentUser, "genblu");
+  // The shared Field Scanner link (see middleware.ts) is jobsheet scanning
+  // only — no GenBlu tab, so field staff with just this link have exactly
+  // one thing they can do here. Staff on their own account still get both.
+  const isFieldScanner = currentUser.email === process.env.FIELD_SCANNER_EMAIL;
+  const canUploadGenblu = !isFieldScanner && hasPageAccess(currentUser, "genblu");
 
   // Most recent Walk-in jobs (active or completed) are what a GenBlu
   // screenshot actually gets attached to — the whole point of this tab is
