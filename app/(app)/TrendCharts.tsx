@@ -144,6 +144,14 @@ const BRANCH_SERIES: { key: Branch; label: string; stroke: string; text: string;
   { key: "puncak_alam", label: "Puncak Alam", stroke: "stroke-emerald-500", text: "fill-emerald-600", dot: "bg-emerald-500" },
 ];
 
+// Three branches often sit at the exact same count (all 0 most months) —
+// drawn at identical coordinates, only the last-drawn line would actually
+// be visible, silently hiding the other two underneath it. A tiny per-
+// series nudge (imperceptible next to any real difference, since the
+// chart spans well over 100px) keeps all three visible as separate flat
+// lines instead of two disappearing under the third.
+const SERIES_Y_NUDGE: Record<Branch, number> = { kapar: -2, setia_alam: 0, puncak_alam: 2 };
+
 // Repair jobs completed per month, one line per branch — same gridline/
 // label mechanics as the revenue chart, just three series instead of two.
 export function BranchJobsChart({ points }: { points: MonthlyTrendPoint[] }) {
@@ -191,7 +199,9 @@ export function BranchJobsChart({ points }: { points: MonthlyTrendPoint[] }) {
               </g>
             ))}
             {BRANCH_SERIES.map((s) => {
-              const path = points.map((p, i) => `${i === 0 ? "M" : "L"}${xAt(i)},${yAt(p.repairJobsByBranch[s.key])}`).join(" ");
+              const path = points
+                .map((p, i) => `${i === 0 ? "M" : "L"}${xAt(i)},${yAt(p.repairJobsByBranch[s.key]) + SERIES_Y_NUDGE[s.key]}`)
+                .join(" ");
               return <path key={s.key} d={path} fill="none" strokeWidth={3} className={s.stroke} />;
             })}
             {points.map((p, i) => (
@@ -200,7 +210,7 @@ export function BranchJobsChart({ points }: { points: MonthlyTrendPoint[] }) {
                   <text
                     key={s.key}
                     x={xAt(i)}
-                    y={labelAbove(yAt(p.repairJobsByBranch[s.key]))}
+                    y={labelAbove(yAt(p.repairJobsByBranch[s.key]) + SERIES_Y_NUDGE[s.key])}
                     textAnchor="middle"
                     className={`text-[10px] font-semibold ${s.text}`}
                   >
