@@ -18,7 +18,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
           <p className="text-xs text-neutral-300">Berjaya Mega Motors — After-Sales</p>
         </div>
 
-        <div className="bg-white border border-neutral-200 rounded-xl p-6">
+        <div className="bg-white border border-neutral-200 rounded-xl p-6 shadow-2xl shadow-black/40">
           <h1 className="text-sm font-semibold text-neutral-900 mb-5">Sign in</h1>
           <LoginForm next={next} />
         </div>
