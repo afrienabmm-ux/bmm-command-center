@@ -2,20 +2,23 @@ import SignupForm from "./SignupForm";
 
 export default function SignupPage() {
   return (
-    <div className="min-h-screen w-full flex items-center justify-center px-4">
-      <div className="w-full max-w-sm">
-        <div className="flex flex-col items-center mb-8">
-          <img src="/bmm-logo.png" alt="Berjaya Mega Motors" className="w-16 h-16 rounded-full object-cover mb-3" />
-          <p className="text-base font-semibold text-neutral-900">After-Sales</p>
-          <p className="text-xs text-neutral-500">Berjaya Mega Motors — After-Sales</p>
+    <div className="min-h-screen w-full flex items-center justify-center px-4 bg-red-950">
+      <div className="w-full max-w-3xl bg-white rounded-2xl shadow-2xl shadow-black/40 overflow-hidden flex flex-col md:flex-row">
+        <div className="md:w-2/5 bg-gradient-to-br from-red-600 to-red-900 text-white p-8 flex flex-col items-center justify-center text-center">
+          <img
+            src="/bmm-logo.png"
+            alt="Berjaya Mega Motors"
+            className="w-16 h-16 rounded-full object-cover mb-4 ring-4 ring-white/30 shadow-lg animate-pop"
+          />
+          <h2 className="text-xl font-bold mb-2">Join After-Sales Dashboard!</h2>
+          <p className="text-sm text-red-100 leading-relaxed">
+            Create your account to get started. A manager will approve it and assign your branch and position
+            before you can access anything.
+          </p>
         </div>
 
-        <div className="bg-white border border-neutral-200 rounded-xl p-6">
-          <h1 className="text-sm font-semibold text-neutral-900 mb-1.5">Create your account</h1>
-          <p className="text-xs text-neutral-500 mb-5">
-            A manager will need to approve your account and assign your branch and position before you can access
-            anything.
-          </p>
+        <div className="md:w-3/5 p-8">
+          <h1 className="text-sm font-semibold text-neutral-900 mb-5">Create your account</h1>
           <SignupForm />
         </div>
       </div>
