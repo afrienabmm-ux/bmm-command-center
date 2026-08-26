@@ -19,6 +19,8 @@ import {
   KeyRound,
   Users,
   ChevronDown,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import { signOutAction, changeOwnPasswordAction } from "@/lib/auth-actions";
 import type { Role } from "@/lib/current-user";
@@ -204,6 +206,7 @@ export default function Sidebar({
 function ChangePasswordModal({ onClose }: { onClose: () => void }) {
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
+  const [showPasswords, setShowPasswords] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
   const [isPending, startTransition] = useTransition();
@@ -247,20 +250,42 @@ function ChangePasswordModal({ onClose }: { onClose: () => void }) {
             <h2 className="text-sm font-semibold text-neutral-900 mb-2">Change password</h2>
             <p className="text-sm text-neutral-600 mb-4">Enter your current password, then choose a new one.</p>
             <div className="space-y-3">
-              <input
-                type="password"
-                value={currentPassword}
-                onChange={(e) => setCurrentPassword(e.target.value)}
-                placeholder="Current password"
-                className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
-              />
-              <input
-                type="password"
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-                placeholder="New password (min. 8 characters)"
-                className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
-              />
+              <div className="relative">
+                <input
+                  type={showPasswords ? "text" : "password"}
+                  value={currentPassword}
+                  onChange={(e) => setCurrentPassword(e.target.value)}
+                  placeholder="Current password"
+                  className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 pr-10 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPasswords((v) => !v)}
+                  tabIndex={-1}
+                  aria-label={showPasswords ? "Hide passwords" : "Show passwords"}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-600 transition-colors"
+                >
+                  {showPasswords ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+              </div>
+              <div className="relative">
+                <input
+                  type={showPasswords ? "text" : "password"}
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  placeholder="New password (min. 8 characters)"
+                  className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 pr-10 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPasswords((v) => !v)}
+                  tabIndex={-1}
+                  aria-label={showPasswords ? "Hide passwords" : "Show passwords"}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-600 transition-colors"
+                >
+                  {showPasswords ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+              </div>
             </div>
             {error && <p className="text-sm text-red-700 mt-2">{error}</p>}
             <div className="flex items-center justify-end gap-3 mt-6">

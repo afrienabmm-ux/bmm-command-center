@@ -1,7 +1,8 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import Link from "next/link";
+import { Eye, EyeOff } from "lucide-react";
 import { signInAction, type AuthResult } from "@/lib/auth-actions";
 
 export default function LoginForm({ next }: { next?: string }) {
@@ -9,6 +10,7 @@ export default function LoginForm({ next }: { next?: string }) {
     (_prev, formData) => signInAction(formData),
     undefined
   );
+  const [showPassword, setShowPassword] = useState(false);
 
   return (
     <form action={formAction} className="space-y-4">
@@ -30,13 +32,24 @@ export default function LoginForm({ next }: { next?: string }) {
             Forgot password?
           </Link>
         </div>
-        <input
-          type="password"
-          name="password"
-          required
-          placeholder="••••••••"
-          className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
-        />
+        <div className="relative">
+          <input
+            type={showPassword ? "text" : "password"}
+            name="password"
+            required
+            placeholder="••••••••"
+            className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 pr-10 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
+          />
+          <button
+            type="button"
+            onClick={() => setShowPassword((v) => !v)}
+            tabIndex={-1}
+            aria-label={showPassword ? "Hide password" : "Show password"}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-600 transition-colors"
+          >
+            {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+          </button>
+        </div>
       </div>
 
       {state && "error" in state ? <p className="text-sm text-red-700">{state.error}</p> : null}
