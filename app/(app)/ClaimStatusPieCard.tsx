@@ -48,7 +48,7 @@ export default function ClaimStatusPieCard({
           <select
             value={claimType}
             onChange={(e) => setClaimType(e.target.value as ClaimType)}
-            className="appearance-none text-xs font-medium bg-neutral-50 border border-neutral-200 hover:border-red-300 rounded-lg pl-2.5 pr-7 py-1.5 focus:outline-none focus:border-red-500/50 focus:ring-2 focus:ring-red-100 transition-colors cursor-pointer"
+            className="appearance-none text-xs font-medium bg-neutral-50 border border-neutral-200 hover:border-red-300 rounded-xl pl-2.5 pr-7 py-1.5 focus:outline-none focus:border-red-500/50 focus:ring-2 focus:ring-red-100 transition-colors cursor-pointer"
           >
             <option value="warranty">Warranty Claim</option>
             <option value="delivery">Delivery Claim</option>

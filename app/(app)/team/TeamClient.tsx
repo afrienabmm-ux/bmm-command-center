@@ -137,7 +137,7 @@ function PendingRow({ member }: { member: TeamMember }) {
         <select
           value={role}
           onChange={(e) => setRole(e.target.value as Role)}
-          className="appearance-none bg-neutral-50 border border-neutral-200 hover:border-red-300 rounded-lg pl-3 pr-8 py-2 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50 focus:ring-2 focus:ring-red-100 transition-colors cursor-pointer"
+          className="appearance-none bg-neutral-50 border border-neutral-200 hover:border-red-300 rounded-xl pl-3 pr-8 py-2 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50 focus:ring-2 focus:ring-red-100 transition-colors cursor-pointer"
         >
           {ROLES.map((r) => (
             <option key={r} value={r}>
@@ -158,7 +158,7 @@ function PendingRow({ member }: { member: TeamMember }) {
         <select
           value={branch}
           onChange={(e) => setBranch(e.target.value as BranchSelection)}
-          className="appearance-none bg-neutral-50 border border-neutral-200 hover:border-red-300 rounded-lg pl-3 pr-8 py-2 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50 focus:ring-2 focus:ring-red-100 transition-colors cursor-pointer"
+          className="appearance-none bg-neutral-50 border border-neutral-200 hover:border-red-300 rounded-xl pl-3 pr-8 py-2 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50 focus:ring-2 focus:ring-red-100 transition-colors cursor-pointer"
         >
           {BRANCHES.map((b) => (
             <option key={b.value} value={b.value}>
@@ -213,7 +213,7 @@ function MemberRow({ member, isSelf }: { member: TeamMember; isSelf: boolean }) 
                 value={role}
                 disabled={isSelf || isPending || member.status === "revoked"}
                 onChange={(e) => saveRole(e.target.value as Role)}
-                className="appearance-none bg-neutral-50 border border-neutral-200 hover:border-red-300 rounded-lg pl-2.5 pr-7 py-1.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50 focus:ring-2 focus:ring-red-100 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                className="appearance-none bg-neutral-50 border border-neutral-200 hover:border-red-300 rounded-xl pl-2.5 pr-7 py-1.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50 focus:ring-2 focus:ring-red-100 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {ROLES.map((r) => (
                   <option key={r} value={r}>
@@ -240,7 +240,7 @@ function MemberRow({ member, isSelf }: { member: TeamMember; isSelf: boolean }) 
               value={member.homeBranch}
               disabled={isPending || member.status === "revoked"}
               onChange={(e) => updateBranch(e.target.value as BranchSelection)}
-              className="appearance-none bg-neutral-50 border border-neutral-200 hover:border-red-300 rounded-lg pl-2.5 pr-7 py-1.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50 focus:ring-2 focus:ring-red-100 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+              className="appearance-none bg-neutral-50 border border-neutral-200 hover:border-red-300 rounded-xl pl-2.5 pr-7 py-1.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50 focus:ring-2 focus:ring-red-100 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {BRANCHES.map((b) => (
                 <option key={b.value} value={b.value}>
@@ -503,7 +503,7 @@ function AddUserModal({ onClose }: { onClose: () => void }) {
                 <select
                   value={role}
                   onChange={(e) => setRole(e.target.value as Role)}
-                  className="w-full appearance-none bg-neutral-50 border border-neutral-200 hover:border-red-300 rounded-lg pl-3 pr-9 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50 focus:ring-2 focus:ring-red-100 transition-colors cursor-pointer"
+                  className="w-full appearance-none bg-neutral-50 border border-neutral-200 hover:border-red-300 rounded-xl pl-3 pr-9 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50 focus:ring-2 focus:ring-red-100 transition-colors cursor-pointer"
                 >
                   {ROLES.map((r) => (
                     <option key={r} value={r}>
@@ -531,7 +531,7 @@ function AddUserModal({ onClose }: { onClose: () => void }) {
               <select
                 value={branch}
                 onChange={(e) => setBranch(e.target.value as BranchSelection)}
-                className="w-full appearance-none bg-neutral-50 border border-neutral-200 hover:border-red-300 rounded-lg pl-3 pr-9 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50 focus:ring-2 focus:ring-red-100 transition-colors cursor-pointer"
+                className="w-full appearance-none bg-neutral-50 border border-neutral-200 hover:border-red-300 rounded-xl pl-3 pr-9 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50 focus:ring-2 focus:ring-red-100 transition-colors cursor-pointer"
               >
                 {BRANCHES.map((b) => (
                   <option key={b.value} value={b.value}>

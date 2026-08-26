@@ -208,7 +208,7 @@ function AddMechanicModal({
                 <select
                   value={branch}
                   onChange={(e) => setBranch(e.target.value as typeof branch)}
-                  className="w-full appearance-none bg-neutral-50 border border-neutral-200 hover:border-red-300 rounded-lg pl-3.5 pr-9 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50 focus:ring-2 focus:ring-red-100 transition-colors cursor-pointer"
+                  className="w-full appearance-none bg-neutral-50 border border-neutral-200 hover:border-red-300 rounded-xl pl-3.5 pr-9 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50 focus:ring-2 focus:ring-red-100 transition-colors cursor-pointer"
                 >
                   {BRANCHES.map((b) => (
                     <option key={b.value} value={b.value}>
@@ -257,7 +257,7 @@ function AddMechanicModal({
               <select
                 value={category}
                 onChange={(e) => setCategory(e.target.value as MechanicCategory)}
-                className="w-full appearance-none bg-neutral-50 border border-neutral-200 hover:border-red-300 rounded-lg pl-3.5 pr-9 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50 focus:ring-2 focus:ring-red-100 transition-colors cursor-pointer"
+                className="w-full appearance-none bg-neutral-50 border border-neutral-200 hover:border-red-300 rounded-xl pl-3.5 pr-9 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50 focus:ring-2 focus:ring-red-100 transition-colors cursor-pointer"
               >
                 {MECHANIC_CATEGORIES.map((c) => (
                   <option key={c} value={c}>

@@ -72,7 +72,7 @@ function ItemsEditor({
               if (e.target.value) addPackage(e.target.value);
               e.target.value = "";
             }}
-            className="w-full appearance-none bg-red-50 border border-red-200 hover:border-red-300 rounded-lg pl-3 pr-9 py-2 text-sm text-red-800 focus:outline-none focus:border-red-500/50 focus:ring-2 focus:ring-red-100 transition-colors cursor-pointer"
+            className="w-full appearance-none bg-red-50 border border-red-200 hover:border-red-300 rounded-xl pl-3 pr-9 py-2 text-sm text-red-800 focus:outline-none focus:border-red-500/50 focus:ring-2 focus:ring-red-100 transition-colors cursor-pointer"
           >
             <option value="">+ Add from Services Combo (optional)…</option>
             {packages.map((p) => (
@@ -479,7 +479,7 @@ export default function RepairJobForm({
               <select
                 value={condition}
                 onChange={(e) => setCondition(e.target.value as RestoreBikeCondition)}
-                className="w-full appearance-none bg-neutral-50 border border-neutral-200 hover:border-red-300 rounded-lg pl-3.5 pr-9 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50 focus:ring-2 focus:ring-red-100 transition-colors cursor-pointer"
+                className="w-full appearance-none bg-neutral-50 border border-neutral-200 hover:border-red-300 rounded-xl pl-3.5 pr-9 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50 focus:ring-2 focus:ring-red-100 transition-colors cursor-pointer"
               >
                 {RESTORE_BIKE_CONDITIONS.map((c) => (
                   <option key={c} value={c}>
@@ -569,7 +569,7 @@ export default function RepairJobForm({
                 value={locationBranch}
                 disabled={locked}
                 onChange={(e) => handleLocationChange(e.target.value as Branch)}
-                className="w-full appearance-none bg-neutral-50 border border-neutral-200 hover:border-red-300 rounded-lg pl-3.5 pr-9 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50 focus:ring-2 focus:ring-red-100 transition-colors cursor-pointer disabled:opacity-60"
+                className="w-full appearance-none bg-neutral-50 border border-neutral-200 hover:border-red-300 rounded-xl pl-3.5 pr-9 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50 focus:ring-2 focus:ring-red-100 transition-colors cursor-pointer disabled:opacity-60"
               >
                 {BRANCHES.map((b) => (
                   <option key={b.value} value={b.value}>

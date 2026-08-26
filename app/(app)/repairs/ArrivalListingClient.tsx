@@ -74,7 +74,7 @@ function AssignCell({ job, mechanics, allActiveJobs }: { job: RepairJob; mechani
           value=""
           onChange={(e) => handleChange(e.target.value)}
           disabled={isPending || branchMechanics.length === 0}
-          className="appearance-none text-xs font-medium bg-red-50 border border-red-200 hover:border-red-300 text-red-700 rounded-lg pl-2.5 pr-7 py-1.5 focus:outline-none focus:ring-2 focus:ring-red-100 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+          className="appearance-none text-xs font-medium bg-red-50 border border-red-200 hover:border-red-300 text-red-700 rounded-xl pl-2.5 pr-7 py-1.5 focus:outline-none focus:ring-2 focus:ring-red-100 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <option value="">{branchMechanics.length === 0 ? "No mechanics available" : "Assign…"}</option>
           {branchMechanics.map((m) => (

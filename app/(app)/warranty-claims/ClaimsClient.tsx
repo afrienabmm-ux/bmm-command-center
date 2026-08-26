@@ -210,7 +210,7 @@ export default function ClaimsClient({
             <select
               value={bikeMakeFilter}
               onChange={(e) => setBikeMakeFilter(e.target.value as BikeMake | "All")}
-              className="appearance-none bg-white border border-neutral-200 hover:border-red-300 rounded-lg pl-3 pr-8 py-2 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50 focus:ring-2 focus:ring-red-100 transition-colors cursor-pointer"
+              className="appearance-none bg-white border border-neutral-200 hover:border-red-300 rounded-xl pl-3 pr-8 py-2 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50 focus:ring-2 focus:ring-red-100 transition-colors cursor-pointer"
             >
               <option value="All">View All</option>
               {BIKE_MAKES.map((m) => (
@@ -225,7 +225,7 @@ export default function ClaimsClient({
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value as ClaimStatus | "All")}
-              className="appearance-none bg-white border border-neutral-200 hover:border-red-300 rounded-lg pl-3 pr-8 py-2 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50 focus:ring-2 focus:ring-red-100 transition-colors cursor-pointer"
+              className="appearance-none bg-white border border-neutral-200 hover:border-red-300 rounded-xl pl-3 pr-8 py-2 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50 focus:ring-2 focus:ring-red-100 transition-colors cursor-pointer"
             >
               <option value="All">All Statuses</option>
               {CLAIM_STATUSES.map((s) => (
@@ -709,7 +709,7 @@ function AddClaimModal({
                 <select
                   value={selectedBranch}
                   onChange={(e) => setSelectedBranch(e.target.value as Branch)}
-                  className="w-full appearance-none bg-neutral-50 border border-neutral-200 hover:border-red-300 rounded-lg pl-3.5 pr-9 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50 focus:ring-2 focus:ring-red-100 transition-colors cursor-pointer"
+                  className="w-full appearance-none bg-neutral-50 border border-neutral-200 hover:border-red-300 rounded-xl pl-3.5 pr-9 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50 focus:ring-2 focus:ring-red-100 transition-colors cursor-pointer"
                 >
                   {BRANCHES.map((b) => (
                     <option key={b.value} value={b.value}>
@@ -769,7 +769,7 @@ function AddClaimModal({
               <select
                 value={bikeMake}
                 onChange={(e) => setBikeMake(e.target.value as BikeMake)}
-                className="w-full appearance-none bg-neutral-50 border border-neutral-200 hover:border-red-300 rounded-lg pl-3.5 pr-9 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50 focus:ring-2 focus:ring-red-100 transition-colors cursor-pointer"
+                className="w-full appearance-none bg-neutral-50 border border-neutral-200 hover:border-red-300 rounded-xl pl-3.5 pr-9 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50 focus:ring-2 focus:ring-red-100 transition-colors cursor-pointer"
               >
                 {BIKE_MAKES.map((m) => (
                   <option key={m} value={m}>
@@ -807,7 +807,7 @@ function AddClaimModal({
                 <select
                   value={stockStatus}
                   onChange={(e) => setStockStatus(e.target.value as StockStatus)}
-                  className="w-full appearance-none bg-neutral-50 border border-neutral-200 hover:border-red-300 rounded-lg pl-3.5 pr-9 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50 focus:ring-2 focus:ring-red-100 transition-colors cursor-pointer"
+                  className="w-full appearance-none bg-neutral-50 border border-neutral-200 hover:border-red-300 rounded-xl pl-3.5 pr-9 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50 focus:ring-2 focus:ring-red-100 transition-colors cursor-pointer"
                 >
                   {STOCK_STATUSES.map((s) => (
                     <option key={s} value={s}>

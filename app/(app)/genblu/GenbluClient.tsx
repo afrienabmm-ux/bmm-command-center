@@ -305,7 +305,7 @@ function RegisterModal({
                 value={regBranch}
                 onChange={(e) => handleBranchChange(e.target.value as Branch)}
                 disabled={locked}
-                className="w-full appearance-none bg-neutral-50 border border-neutral-200 hover:border-red-300 rounded-lg pl-3.5 pr-9 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50 focus:ring-2 focus:ring-red-100 transition-colors cursor-pointer disabled:opacity-60"
+                className="w-full appearance-none bg-neutral-50 border border-neutral-200 hover:border-red-300 rounded-xl pl-3.5 pr-9 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50 focus:ring-2 focus:ring-red-100 transition-colors cursor-pointer disabled:opacity-60"
               >
                 {BRANCHES.map((b) => (
                   <option key={b.value} value={b.value}>
@@ -324,7 +324,7 @@ function RegisterModal({
                 <select
                   value={salespersonId}
                   onChange={(e) => setSalespersonId(e.target.value)}
-                  className="w-full appearance-none bg-neutral-50 border border-neutral-200 hover:border-red-300 rounded-lg pl-3.5 pr-9 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50 focus:ring-2 focus:ring-red-100 transition-colors cursor-pointer"
+                  className="w-full appearance-none bg-neutral-50 border border-neutral-200 hover:border-red-300 rounded-xl pl-3.5 pr-9 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50 focus:ring-2 focus:ring-red-100 transition-colors cursor-pointer"
                 >
                   {branchMechanics.map((m) => (
                     <option key={m.id} value={m.id}>
@@ -480,7 +480,7 @@ function EditModal({
                 <select
                   value={salespersonId}
                   onChange={(e) => handleMechanicChange(e.target.value)}
-                  className="w-full appearance-none bg-neutral-50 border border-neutral-200 hover:border-red-300 rounded-lg pl-3.5 pr-9 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50 focus:ring-2 focus:ring-red-100 transition-colors cursor-pointer"
+                  className="w-full appearance-none bg-neutral-50 border border-neutral-200 hover:border-red-300 rounded-xl pl-3.5 pr-9 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50 focus:ring-2 focus:ring-red-100 transition-colors cursor-pointer"
                 >
                   {branchMechanics.map((m) => (
                     <option key={m.id} value={m.id}>
