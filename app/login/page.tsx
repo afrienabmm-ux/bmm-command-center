@@ -6,8 +6,14 @@ import LoginForm from "./LoginForm";
 export default async function LoginPage({ searchParams }: { searchParams: Promise<{ next?: string }> }) {
   const { next } = await searchParams;
   return (
-    <div className="min-h-screen w-full flex items-center justify-center px-4">
-      <div className="w-full max-w-sm">
+    <div className="relative min-h-screen w-full flex items-center justify-center px-4 overflow-hidden">
+      <img
+        src="/login-background.jpg"
+        alt=""
+        aria-hidden="true"
+        className="absolute inset-0 w-full h-full object-cover opacity-10"
+      />
+      <div className="relative w-full max-w-sm">
         <div className="flex flex-col items-center mb-8">
           <img src="/bmm-logo.png" alt="Berjaya Mega Motors" className="w-16 h-16 rounded-full object-cover mb-3" />
           <p className="text-base font-semibold text-neutral-900">After-Sales</p>
