@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Plus, Download, Pencil, Search, Trash2, Check, Printer, ArrowUpDown, ChevronDown, ImageIcon } from "lucide-react";
+import { Plus, Download, Pencil, Search, Trash2, Check, Printer, ArrowUpDown, ChevronDown, ImageIcon, Link2 } from "lucide-react";
 import { setWalkInEndDateAction, deleteRepairJobAction, getJobsheetPhotoUrlAction } from "@/lib/repairs-actions";
 import { isHeavyRepairJob, type RepairStatus, type RepairJob } from "@/lib/types";
 import type { Mechanic } from "@/lib/types";
@@ -42,6 +42,21 @@ export default function WalkInClient({
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
   const [bulkDeleting, setBulkDeleting] = useState(false);
+  const [linkCopied, setLinkCopied] = useState(false);
+
+  // Copies the standalone phone scanner's own URL (not this dashboard
+  // page) so a PIC can hand it to their admin — that link needs no login
+  // and only ever does jobsheet scanning, see middleware.ts.
+  async function handleCopyPhoneLink() {
+    try {
+      await navigator.clipboard.writeText(`${window.location.origin}/scan`);
+      setLinkCopied(true);
+      setTimeout(() => setLinkCopied(false), 2500);
+    } catch {
+      // Clipboard access can fail (permissions, non-HTTPS) — nothing
+      // meaningful to recover, just leave the button as-is.
+    }
+  }
 
   // Deep-linked from a dashboard alert (e.g. "due for their next
   // service") — jump to whichever tab the job is actually in and clear
@@ -218,6 +233,13 @@ export default function WalkInClient({
             title="Sort by date"
           >
             <ArrowUpDown size={14} /> {sortDir === "desc" ? "Newest" : "Oldest"}
+          </button>
+          <button
+            onClick={handleCopyPhoneLink}
+            className="flex items-center gap-1.5 bg-white border border-neutral-200 hover:border-red-300 text-neutral-700 text-sm font-medium px-3 py-2 rounded-lg transition-colors whitespace-nowrap"
+            title="Copy the phone jobsheet scanner link to send to an admin"
+          >
+            <Link2 size={14} /> {linkCopied ? "Copied!" : "Copy Phone Link"}
           </button>
           <button
             onClick={handleExport}

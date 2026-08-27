@@ -101,7 +101,13 @@ export async function getActiveBranch(user: CurrentUser): Promise<Branch> {
 // For pages that know how to render a combined "All Branches" view.
 export async function getActiveBranchSelection(user: CurrentUser): Promise<BranchSelection> {
   if (!canViewAllBranchesAtOnce(user)) return getActiveBranch(user);
-  return getRawBranchSelection(user.homeBranch === "all" ? "kapar" : user.homeBranch);
+  // Management should land on the combined "All Branches" view by
+  // default, not a single branch — only used as a fallback when there's
+  // no saved cookie yet (a fresh browser, or right after logging in for
+  // the first time); switching branches afterward is still remembered as
+  // before.
+  const fallback = user.role === "Management" ? "all" : user.homeBranch === "all" ? "kapar" : user.homeBranch;
+  return getRawBranchSelection(fallback);
 }
 
 export function assertCanEditBranch(user: CurrentUser, branch: Branch) {

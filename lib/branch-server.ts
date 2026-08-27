@@ -13,7 +13,7 @@ export async function getSelectedBranch(fallback: Branch): Promise<Branch> {
 // render every branch at once (Command Center, Reports). Everything else
 // should keep using getSelectedBranch, which safely collapses "all" back to
 // a single real branch.
-export async function getRawBranchSelection(fallback: Branch): Promise<BranchSelection> {
+export async function getRawBranchSelection(fallback: BranchSelection): Promise<BranchSelection> {
   const cookieStore = await cookies();
   const value = cookieStore.get(BRANCH_COOKIE_NAME)?.value;
   if (value === "all") return "all";
