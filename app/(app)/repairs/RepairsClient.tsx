@@ -82,6 +82,17 @@ export default function RepairsClient({
   const [exportRestoreModalOpen, setExportRestoreModalOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [sortDir, setSortDir] = useState<"desc" | "asc">("desc");
+  const [exportMenuOpen, setExportMenuOpen] = useState(false);
+  const exportMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!exportMenuOpen) return;
+    function handleClick(e: MouseEvent) {
+      if (exportMenuRef.current && !exportMenuRef.current.contains(e.target as Node)) setExportMenuOpen(false);
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [exportMenuOpen]);
   const tabJobs = tab === "active" ? active : tab === "qc" ? qc : completed;
   const jobs = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -255,20 +266,39 @@ export default function RepairsClient({
           >
             <ArrowUpDown size={14} /> {sortDir === "desc" ? "Newest" : "Oldest"}
           </button>
-          <button
-            onClick={() => setExportJobModalOpen(true)}
-            className="flex items-center gap-1.5 bg-neutral-100 hover:bg-neutral-200 text-neutral-800 text-sm font-medium px-4 py-2 rounded-lg transition-colors whitespace-nowrap"
-          >
-            <Search size={15} /> Export One Job (with items)
-          </button>
-          {allJobs.length > 0 && (
+          <div className="relative" ref={exportMenuRef}>
             <button
-              onClick={() => setExportRestoreModalOpen(true)}
+              onClick={() => setExportMenuOpen((v) => !v)}
               className="flex items-center gap-1.5 bg-neutral-100 hover:bg-neutral-200 text-neutral-800 text-sm font-medium px-4 py-2 rounded-lg transition-colors whitespace-nowrap"
             >
-              <Download size={15} /> Export Filtered…
+              <Download size={15} /> Export
+              <ChevronDown size={14} className={`transition-transform ${exportMenuOpen ? "rotate-180" : ""}`} />
             </button>
-          )}
+            {exportMenuOpen && (
+              <div className="absolute z-20 top-full mt-1 left-0 bg-white border border-neutral-200 rounded-xl shadow-lg py-1.5 w-56">
+                {allJobs.length > 0 && (
+                  <button
+                    onClick={() => {
+                      setExportMenuOpen(false);
+                      setExportRestoreModalOpen(true);
+                    }}
+                    className="w-full flex items-center gap-2 px-3.5 py-2 text-sm text-neutral-700 hover:bg-neutral-50 hover:text-neutral-900 transition-colors"
+                  >
+                    <Download size={14} /> Export All / Filtered…
+                  </button>
+                )}
+                <button
+                  onClick={() => {
+                    setExportMenuOpen(false);
+                    setExportJobModalOpen(true);
+                  }}
+                  className="w-full flex items-center gap-2 px-3.5 py-2 text-sm text-neutral-700 hover:bg-neutral-50 hover:text-neutral-900 transition-colors"
+                >
+                  <Search size={14} /> Export One Job (with items)
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 

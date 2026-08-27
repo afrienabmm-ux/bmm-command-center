@@ -43,6 +43,17 @@ export default function WalkInClient({
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
   const [bulkDeleting, setBulkDeleting] = useState(false);
   const [linkCopied, setLinkCopied] = useState(false);
+  const [exportMenuOpen, setExportMenuOpen] = useState(false);
+  const exportMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!exportMenuOpen) return;
+    function handleClick(e: MouseEvent) {
+      if (exportMenuRef.current && !exportMenuRef.current.contains(e.target as Node)) setExportMenuOpen(false);
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [exportMenuOpen]);
 
   // Copies the standalone phone scanner's own URL (not this dashboard
   // page) so a PIC can hand it to their admin — that link needs no login
@@ -241,28 +252,50 @@ export default function WalkInClient({
           >
             <Link2 size={14} /> {linkCopied ? "Copied!" : "Copy Phone Link"}
           </button>
-          <button
-            onClick={handleExport}
-            disabled={exporting}
-            className="flex items-center gap-1.5 bg-neutral-100 hover:bg-neutral-200 disabled:opacity-50 text-neutral-800 text-sm font-medium px-4 py-2 rounded-lg transition-colors whitespace-nowrap"
-          >
-            <Download size={15} />
-            {exporting ? "Exporting…" : "Export to Excel / CSV"}
-          </button>
-          <button
-            onClick={() => setExportJobModalOpen(true)}
-            className="flex items-center gap-1.5 bg-neutral-100 hover:bg-neutral-200 text-neutral-800 text-sm font-medium px-4 py-2 rounded-lg transition-colors whitespace-nowrap"
-          >
-            <Search size={15} /> Export One Job (with items)
-          </button>
-          {allJobs.length > 0 && (
+          <div className="relative" ref={exportMenuRef}>
             <button
-              onClick={() => setExportFilteredModalOpen(true)}
-              className="flex items-center gap-1.5 bg-neutral-100 hover:bg-neutral-200 text-neutral-800 text-sm font-medium px-4 py-2 rounded-lg transition-colors whitespace-nowrap"
+              onClick={() => setExportMenuOpen((v) => !v)}
+              disabled={exporting}
+              className="flex items-center gap-1.5 bg-neutral-100 hover:bg-neutral-200 disabled:opacity-50 text-neutral-800 text-sm font-medium px-4 py-2 rounded-lg transition-colors whitespace-nowrap"
             >
-              <Download size={15} /> Export Filtered…
+              <Download size={15} />
+              {exporting ? "Exporting…" : "Export"}
+              <ChevronDown size={14} className={`transition-transform ${exportMenuOpen ? "rotate-180" : ""}`} />
             </button>
-          )}
+            {exportMenuOpen && (
+              <div className="absolute z-20 top-full mt-1 left-0 bg-white border border-neutral-200 rounded-xl shadow-lg py-1.5 w-56">
+                <button
+                  onClick={() => {
+                    setExportMenuOpen(false);
+                    handleExport();
+                  }}
+                  className="w-full flex items-center gap-2 px-3.5 py-2 text-sm text-neutral-700 hover:bg-neutral-50 hover:text-neutral-900 transition-colors"
+                >
+                  <Download size={14} /> Export All (CSV)
+                </button>
+                {allJobs.length > 0 && (
+                  <button
+                    onClick={() => {
+                      setExportMenuOpen(false);
+                      setExportFilteredModalOpen(true);
+                    }}
+                    className="w-full flex items-center gap-2 px-3.5 py-2 text-sm text-neutral-700 hover:bg-neutral-50 hover:text-neutral-900 transition-colors"
+                  >
+                    <Download size={14} /> Export Filtered…
+                  </button>
+                )}
+                <button
+                  onClick={() => {
+                    setExportMenuOpen(false);
+                    setExportJobModalOpen(true);
+                  }}
+                  className="w-full flex items-center gap-2 px-3.5 py-2 text-sm text-neutral-700 hover:bg-neutral-50 hover:text-neutral-900 transition-colors"
+                >
+                  <Search size={14} /> Export One Job (with items)
+                </button>
+              </div>
+            )}
+          </div>
           {selectedIds.size > 0 && (
             <button
               onClick={() => setBulkDeleteOpen(true)}
