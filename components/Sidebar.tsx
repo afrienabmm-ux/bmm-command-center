@@ -21,6 +21,7 @@ import {
   ChevronDown,
   Eye,
   EyeOff,
+  FileBarChart,
 } from "lucide-react";
 import { signOutAction, changeOwnPasswordAction } from "@/lib/auth-actions";
 import type { Role } from "@/lib/current-user";
@@ -40,6 +41,7 @@ const mainLinks: NavLink[] = [
   { href: "/genblu", label: "GenBlu Tracker", icon: Smartphone, page: "genblu", color: "text-pink-500" },
   { href: "/warranty-claims", label: "Claims", icon: ShieldCheck, page: "warranty-claims", color: "text-amber-500" },
   { href: "/customers", label: "Services Card", icon: Users, page: "customers", color: "text-rose-600" },
+  { href: "/reports", label: "Reports", icon: FileBarChart, page: "reports", color: "text-indigo-500" },
 ];
 
 const trailingLinks: NavLink[] = [{ href: "/mechanics", label: "Mechanics", icon: MechanicIcon, page: "mechanics", color: "text-emerald-500" }];
