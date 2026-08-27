@@ -280,7 +280,11 @@ function parseJobsheetText(text: string): ScannedJobsheet {
   const colour = f.colour ?? "";
   const engineNo = f.engineNo ?? "";
   const chassisNo = f.chassisNo ?? "";
-  const mechanicCode = f.mechanicCode ?? "";
+  // Mechanic Code is always one short word (e.g. "NJ", "T") — the raw
+  // capture sometimes bleeds into whatever comes right after it on the
+  // same merged two-column row ("NJ OR ..."), so only the first word is
+  // kept rather than the whole captured value.
+  const mechanicCode = f.mechanicCode?.match(/^[A-Za-z0-9]+/)?.[0] ?? "";
   const startedDate = f.jobDate ? toIsoDate(f.jobDate) : null;
 
   const jobsheetNo = f.jobsheetNo ?? "";

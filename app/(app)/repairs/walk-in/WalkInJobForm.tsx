@@ -389,10 +389,14 @@ export default function WalkInJobForm({
       // every mechanic belongs to exactly one branch anyway. Falls back to
       // the header-detected branch only when no mechanic code matched.
       const mechanicCandidates = locked ? mechanics.filter((m) => m.branch === locationBranch) : mechanics;
-      // Compared with punctuation/whitespace stripped on both sides —
-      // an exact match missed real reads like "T." or "T " (a trailing
-      // OCR artifact) even though the code itself was read correctly.
-      const normalizeCode = (s: string) => s.replace(/[^a-z0-9]/gi, "").toLowerCase();
+      // Only the first word is compared (trailing punctuation like "T."
+      // stripped too) — a real mechanic code is always one short word, and
+      // the raw scan sometimes has extra merged text right after it
+      // ("NJ OR ..."). Stripping all non-alphanumeric characters instead of
+      // just taking the first word would glue that extra text onto the
+      // code ("NJ OR" -> "njor"), which is exactly why this missed reads
+      // that had genuinely read the code correctly.
+      const normalizeCode = (s: string) => (s.match(/^[a-z0-9]+/i)?.[0] ?? "").toLowerCase();
       const scannedCodeNormalized = normalizeCode(scanned.mechanicCode ?? "");
       const matchedMechanic = scannedCodeNormalized
         ? mechanicCandidates.find((m) => normalizeCode(m.shortCode) === scannedCodeNormalized)
