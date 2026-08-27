@@ -38,23 +38,23 @@ export default async function ReportsPage() {
     <div className="flex flex-col h-full">
       <PageHeader title="Reports" subtitle="Search, filter, and export any of these records." />
       <div className="flex-1 overflow-y-auto p-8">
-        <div className="grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-5">
           {CARDS.map((card) => {
             const Icon = card.icon;
             return (
               <Link
                 key={card.slug}
                 href={`/reports/${card.slug}`}
-                className="bg-white border border-neutral-200 rounded-xl p-5 hover:border-red-300 hover:shadow-sm transition-all"
+                className="bg-white border border-neutral-200 rounded-xl p-6 hover:border-red-300 hover:shadow-sm transition-all"
               >
-                <div className="flex items-start justify-between mb-3">
-                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${card.color}`}>
-                    <Icon size={18} />
+                <div className="flex items-start justify-between mb-4">
+                  <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${card.color}`}>
+                    <Icon size={22} />
                   </div>
-                  <span className="text-[10px] font-semibold text-neutral-400 uppercase tracking-wide mt-1">{card.category}</span>
+                  <span className="text-[10px] font-semibold text-neutral-400 uppercase tracking-wide mt-1.5">{card.category}</span>
                 </div>
-                <p className="text-sm font-semibold text-neutral-900">{card.title}</p>
-                <p className="text-xs text-neutral-500 mt-1 leading-relaxed">{card.description}</p>
+                <p className="text-base font-semibold text-neutral-900">{card.title}</p>
+                <p className="text-sm text-neutral-500 mt-1.5 leading-relaxed">{card.description}</p>
               </Link>
             );
           })}
