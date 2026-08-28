@@ -6,6 +6,7 @@ import { requireApproved, assertCanEditBranch } from "./current-user";
 import type { GenbluRegistration, GenbluTransaction } from "./types";
 import { BRANCHES, type Branch } from "./branch";
 import { extractTextFromImage } from "./vision";
+import { logActivity } from "./activity-log";
 
 const BUCKET = "genblu-screenshots";
 
@@ -172,6 +173,7 @@ export async function addGenbluRegistrationAction(formData: FormData): Promise<{
     points_accrued: pointsAccrued,
   });
   if (error) return { error: error.message };
+  await logActivity(user, "Added GenBlu registration", `${customerName} (${branch})`);
   revalidatePath("/genblu");
 }
 
@@ -222,14 +224,17 @@ export async function updateGenbluRegistrationAction(
 
   const { error } = await supabaseAdmin.from("cc_genblu_registrations").update(update).eq("id", id);
   if (error) return { error: error.message };
+  await logActivity(user, "Updated GenBlu registration", `${input.customerName.trim()} (${branch})`);
   revalidatePath("/genblu");
 }
 
 export async function deleteGenbluRegistrationAction(id: string, branch: Branch): Promise<void> {
   const user = await requireApproved();
   assertCanEditBranch(user, branch);
+  const { data: reg } = await supabaseAdmin.from("cc_genblu_registrations").select("customer_name").eq("id", id).single();
   const { error } = await supabaseAdmin.from("cc_genblu_registrations").delete().eq("id", id);
   if (error) throw new Error(error.message);
+  await logActivity(user, "Deleted GenBlu registration", `${reg?.customer_name ?? id} (${branch})`);
   revalidatePath("/genblu");
 }
 
@@ -316,6 +321,7 @@ export async function ensureGenbluRegistrationAction(input: {
     points_accrued: pointsAccrued,
   });
   if (error) return { error: error.message };
+  await logActivity(user, "Registered GenBlu (from jobsheet)", `${customerName} (${input.branch})`);
   revalidatePath("/genblu");
   return { created: true };
 }
@@ -396,6 +402,7 @@ export async function attachGenbluScreenshotAction(input: {
     if (error) return { error: error.message };
   }
 
+  await logActivity(user, "Uploaded GenBlu screenshot", `${customerName} (${input.branch})`);
   revalidatePath("/genblu");
   return { updated: true };
 }
@@ -552,6 +559,7 @@ export async function addGenbluTransactionAction(input: {
     .single();
   if (error) return { error: error.message };
 
+  await logActivity(user, "Logged GenBlu point allocation", `${customerName} — ${points} pts (${input.branch})`);
   revalidatePath("/genblu");
   return { transaction: toTransaction(data as TransactionRow) };
 }
@@ -575,8 +583,10 @@ export async function getAllBranchesGenbluTransactions(): Promise<GenbluTransact
 export async function deleteGenbluTransactionAction(id: string, branch: Branch): Promise<void> {
   const user = await requireApproved();
   assertCanEditBranch(user, branch);
+  const { data: txn } = await supabaseAdmin.from("cc_genblu_transactions").select("customer_name, points").eq("id", id).single();
   const { error } = await supabaseAdmin.from("cc_genblu_transactions").delete().eq("id", id);
   if (error) throw new Error(error.message);
+  await logActivity(user, "Deleted GenBlu point allocation", `${txn?.customer_name ?? id} — ${txn?.points ?? ""} pts (${branch})`);
   revalidatePath("/genblu");
 }
 

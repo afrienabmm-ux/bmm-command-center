@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { Download, Search } from "lucide-react";
 import { toCsv } from "@/lib/format";
+import { logClientActivityAction } from "@/lib/activity-log";
 
 export type ReportColumn = { key: string; label: string };
 
@@ -79,6 +80,7 @@ export default function ReportTable({
     a.download = `${filename}.csv`;
     a.click();
     URL.revokeObjectURL(url);
+    logClientActivityAction("Exported report", `${filename} (${filtered.length} rows)`);
   }
 
   return (

@@ -5,6 +5,7 @@ import { supabaseAdmin } from "./supabase-server";
 import { requireApproved, assertCanEditBranch } from "./current-user";
 import { BRANCHES, type Branch } from "./branch";
 import type { CustomerCard } from "./types";
+import { logActivity } from "./activity-log";
 
 type CardRow = {
   id: string;
@@ -100,6 +101,7 @@ export async function addCustomerCardAction(input: {
     notes: input.notes.trim(),
   });
   if (error) return { error: error.message };
+  await logActivity(user, "Added services card", `${customerName} (${input.branch})`);
   revalidatePath("/customers");
 }
 
@@ -162,14 +164,17 @@ export async function updateCustomerCardAction(
     })
     .eq("id", id);
   if (error) return { error: error.message };
+  await logActivity(user, "Updated services card", `${customerName} (${branch})`);
   revalidatePath("/customers");
 }
 
 export async function deleteCustomerCardAction(id: string, branch: Branch): Promise<void> {
   const user = await requireApproved();
   assertCanEditBranch(user, branch);
+  const { data: card } = await supabaseAdmin.from("cc_customer_cards").select("customer_name").eq("id", id).single();
   const { error } = await supabaseAdmin.from("cc_customer_cards").delete().eq("id", id);
   if (error) throw new Error(error.message);
+  await logActivity(user, "Deleted services card", `${card?.customer_name ?? id} (${branch})`);
   revalidatePath("/customers");
 }
 
@@ -180,5 +185,6 @@ export async function setCardStampsAction(id: string, branch: Branch, stamps: nu
   const clean = Array.from(new Set(stamps.filter((n) => Number.isInteger(n) && n >= 1 && n <= 10))).sort((a, b) => a - b);
   const { error } = await supabaseAdmin.from("cc_customer_cards").update({ stamps: clean }).eq("id", id);
   if (error) return { error: error.message };
+  await logActivity(user, "Set services card stamps", `card ${id} → ${clean.length}/10`);
   revalidatePath("/customers");
 }

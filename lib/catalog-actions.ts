@@ -6,6 +6,7 @@ import { requireApproved } from "./current-user";
 import type { CatalogProduct, CatalogBrand, LabourCharge } from "./types";
 import type { Branch } from "./branch";
 import { LOW_STOCK_THRESHOLD } from "./types";
+import { logActivity } from "./activity-log";
 
 type Row = { id: string; brand: CatalogBrand; category: string; product_name: string; spec: string; price: number; code: string };
 
@@ -52,7 +53,7 @@ export async function addCatalogProductAction(input: {
   branch: Branch;
   quantity: number;
 }): Promise<void> {
-  await requireApproved();
+  const user = await requireApproved();
   const { data, error } = await supabaseAdmin
     .from("cc_catalog_products")
     .insert({
@@ -72,24 +73,29 @@ export async function addCatalogProductAction(input: {
     .insert({ product_id: data.id, branch: input.branch, quantity: input.quantity });
   if (stockError) throw new Error(stockError.message);
 
+  await logActivity(user, "Added catalog product", `${input.productName} (${input.brand})`);
   revalidatePath("/catalog");
   revalidatePath("/");
 }
 
 export async function updateCatalogPriceAction(id: string, price: number): Promise<void> {
-  await requireApproved();
+  const user = await requireApproved();
+  const { data: product } = await supabaseAdmin.from("cc_catalog_products").select("product_name").eq("id", id).single();
   const { error } = await supabaseAdmin
     .from("cc_catalog_products")
     .update({ price: Math.max(0, price) })
     .eq("id", id);
   if (error) throw new Error(error.message);
+  await logActivity(user, "Updated catalog price", `${product?.product_name ?? id} → RM${price.toFixed(2)}`);
   revalidatePath("/catalog");
 }
 
 export async function deleteCatalogProductAction(id: string): Promise<void> {
-  await requireApproved();
+  const user = await requireApproved();
+  const { data: product } = await supabaseAdmin.from("cc_catalog_products").select("product_name").eq("id", id).single();
   const { error } = await supabaseAdmin.from("cc_catalog_products").delete().eq("id", id);
   if (error) throw new Error(error.message);
+  await logActivity(user, "Deleted catalog product", product?.product_name ?? id);
   revalidatePath("/catalog");
   revalidatePath("/");
 }

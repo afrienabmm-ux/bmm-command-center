@@ -4,6 +4,7 @@ import { cache } from "react";
 import { revalidatePath } from "next/cache";
 import { supabaseAdmin } from "./supabase-server";
 import { requireApproved, requireManagement, assertCanEditBranch } from "./current-user";
+import { logActivity } from "./activity-log";
 import type { RepairJob, RepairJobItem, RepairStatus, JobType, ApprovalStatus, QcResult } from "./types";
 import { DEAL_TYPES } from "./types";
 import { BRANCHES, type Branch } from "./branch";
@@ -502,6 +503,7 @@ export async function quickAddRestoreBikeArrivalAction(branch: Branch): Promise<
     .single();
   if (error) throw new Error(error.message);
 
+  await logActivity(user, "Added Restore Bike arrival", `${jobNo} (${branch})`);
   revalidatePath("/repairs");
   return { id: data.id };
 }
@@ -633,6 +635,7 @@ export async function addRepairJobAction(input: {
     await replaceJobItems(data.id, items);
     await deductCatalogStockForNewItems(input.branch, [], items);
   }
+  await logActivity(user, `Added ${input.jobType} job`, `${jobNo} — ${input.customerName || input.plateNo} (${input.branch})`);
   revalidatePath("/repairs");
   revalidatePath("/repairs/walk-in");
   revalidatePath("/catalog");
@@ -770,6 +773,7 @@ export async function updateRepairJobAction(
 
   await replaceJobItems(id, items);
   await deductCatalogStockForNewItems(branch, (existingItems as ItemInput[] | null) ?? [], items);
+  await logActivity(user, `Updated ${input.jobType} job`, `${input.customerName || input.plateNo} (${branch})`);
   revalidatePath("/repairs");
   revalidatePath("/repairs/walk-in");
   revalidatePath("/catalog");
@@ -782,9 +786,11 @@ export async function updateRepairJobAction(
 // like most other actions here — a Management approval isn't scoped to
 // one branch.
 export async function updateRepairApprovalAction(id: string, approvalStatus: ApprovalStatus): Promise<void> {
-  await requireManagement();
+  const approver = await requireManagement();
+  const { data: job } = await supabaseAdmin.from("cc_repair_jobs").select("job_no").eq("id", id).single();
   const { error } = await supabaseAdmin.from("cc_repair_jobs").update({ approval_status: approvalStatus }).eq("id", id);
   if (error) throw new Error(error.message);
+  await logActivity(approver, "Set Restore Bike approval", `${job?.job_no ?? id} → ${approvalStatus}`);
   revalidatePath("/repairs");
   revalidatePath("/repairs/walk-in");
   revalidatePath("/");
@@ -871,6 +877,7 @@ export async function setRestoreBikeWorkflowDateAction(
 
   const { error } = await supabaseAdmin.from("cc_repair_jobs").update(update).eq("id", id);
   if (error) return { error: error.message };
+  await logActivity(user, `Set Restore Bike ${stage}`, `${id} → ${value ?? "cleared"}`);
   revalidatePath("/repairs");
   revalidatePath("/");
 }
@@ -892,6 +899,7 @@ export async function assignMechanicAction(id: string, branch: Branch, mechanicI
 
   const { error } = await supabaseAdmin.from("cc_repair_jobs").update({ mechanic_id: mechanicId }).eq("id", id);
   if (error) return { error: error.message };
+  await logActivity(user, "Assigned mechanic", `job ${id} (${branch})`);
   revalidatePath("/repairs");
   revalidatePath("/");
 }
@@ -931,6 +939,7 @@ export async function setQcResultAction(
 
   const { error } = await supabaseAdmin.from("cc_repair_jobs").update(update).eq("id", id);
   if (error) return { error: error.message };
+  await logActivity(user, "Set QC result", `job ${id} → ${result}${failReason ? `: ${failReason.trim()}` : ""}`);
   revalidatePath("/repairs");
   revalidatePath("/");
 }
@@ -945,6 +954,7 @@ export async function setQcFailFollowupAction(id: string, branch: Branch, value:
   assertCanEditBranch(user, branch);
   const { error } = await supabaseAdmin.from("cc_repair_jobs").update({ qc_fail_followup_date: value }).eq("id", id);
   if (error) return { error: error.message };
+  await logActivity(user, "Set QC fail follow-up", `job ${id} → ${value ?? "cleared"}`);
   revalidatePath("/repairs");
   revalidatePath("/");
 }
@@ -960,6 +970,7 @@ export async function setWalkInEndDateAction(id: string, branch: Branch, date: s
     .update({ completed_date: date, status: date ? "Completed" : "Pending" })
     .eq("id", id);
   if (error) throw new Error(error.message);
+  await logActivity(user, "Set Walk-in End Date", `job ${id} → ${date ?? "cleared"}`);
   revalidatePath("/repairs/walk-in");
   revalidatePath("/");
 }
@@ -967,8 +978,10 @@ export async function setWalkInEndDateAction(id: string, branch: Branch, date: s
 export async function deleteRepairJobAction(id: string, branch: Branch): Promise<void> {
   const user = await requireApproved();
   assertCanEditBranch(user, branch);
+  const { data: job } = await supabaseAdmin.from("cc_repair_jobs").select("job_no, customer_name, plate_no").eq("id", id).single();
   const { error } = await supabaseAdmin.from("cc_repair_jobs").delete().eq("id", id);
   if (error) throw new Error(error.message);
+  await logActivity(user, "Deleted job", `${job?.job_no ?? id} — ${job?.customer_name || job?.plate_no || ""} (${branch})`);
   revalidatePath("/repairs");
   revalidatePath("/repairs/walk-in");
   revalidatePath("/");
@@ -1022,6 +1035,7 @@ export async function uploadRestoreBikeImagesAction(
     .update({ image_paths: [...existingPaths, ...newPaths] })
     .eq("id", jobId);
   if (error) return { error: error.message };
+  await logActivity(user, "Uploaded Restore Bike photos", `job ${jobId} (${newPaths.length} photo${newPaths.length === 1 ? "" : "s"})`);
   revalidatePath("/repairs");
   revalidatePath("/repairs/walk-in");
 }
@@ -1040,6 +1054,7 @@ export async function removeRestoreBikeImageAction(jobId: string, branch: Branch
   const nextPaths = ((existing.image_paths as string[]) ?? []).filter((p) => p !== path);
   const { error } = await supabaseAdmin.from("cc_repair_jobs").update({ image_paths: nextPaths }).eq("id", jobId);
   if (error) return { error: error.message };
+  await logActivity(user, "Removed Restore Bike photo", `job ${jobId}`);
   await supabaseAdmin.storage.from(RESTORE_BIKE_PHOTO_BUCKET).remove([path]);
   revalidatePath("/repairs");
   revalidatePath("/repairs/walk-in");

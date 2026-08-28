@@ -5,6 +5,7 @@ import { supabaseAdmin } from "./supabase-server";
 import { requireApproved, assertCanEditBranch } from "./current-user";
 import type { DeliveryClaim, ClaimStatus, StockStatus } from "./types";
 import { BRANCHES, type Branch } from "./branch";
+import { logActivity } from "./activity-log";
 
 type Row = {
   id: string;
@@ -106,6 +107,7 @@ export async function addDeliveryClaimAction(input: {
     submitted_date: input.submittedDate,
   });
   if (error) return { error: error.message };
+  await logActivity(user, "Added delivery claim", `${input.ticketId.trim()} — ${input.plateNo.trim()} (${input.branch})`);
   revalidatePath("/warranty-claims");
   revalidatePath("/");
 }
@@ -127,6 +129,7 @@ export async function updateDeliveryClaimNotesAction(
   if (input.pic !== undefined) update.pic = input.pic.trim();
   const { error } = await supabaseAdmin.from("cc_delivery_claims").update(update).eq("id", id);
   if (error) throw new Error(error.message);
+  await logActivity(user, "Updated delivery claim notes", `claim ${id}`);
   revalidatePath("/warranty-claims");
 }
 
@@ -139,6 +142,7 @@ export async function updateDeliveryClaimStatusAction(
   assertCanEditBranch(user, branch);
   const { error } = await supabaseAdmin.from("cc_delivery_claims").update({ status }).eq("id", id);
   if (error) return { error: error.message };
+  await logActivity(user, "Set delivery claim status", `claim ${id} → ${status}`);
   revalidatePath("/warranty-claims");
   revalidatePath("/");
 }
@@ -152,14 +156,17 @@ export async function updateDeliveryClaimStockStatusAction(
   assertCanEditBranch(user, branch);
   const { error } = await supabaseAdmin.from("cc_delivery_claims").update({ stock_status: stockStatus }).eq("id", id);
   if (error) return { error: error.message };
+  await logActivity(user, "Set delivery claim stock status", `claim ${id} → ${stockStatus}`);
   revalidatePath("/warranty-claims");
 }
 
 export async function deleteDeliveryClaimAction(id: string, branch: Branch): Promise<void> {
   const user = await requireApproved();
   assertCanEditBranch(user, branch);
+  const { data: claim } = await supabaseAdmin.from("cc_delivery_claims").select("ticket_id, plate_no").eq("id", id).single();
   const { error } = await supabaseAdmin.from("cc_delivery_claims").delete().eq("id", id);
   if (error) throw new Error(error.message);
+  await logActivity(user, "Deleted delivery claim", `${claim?.ticket_id ?? id} — ${claim?.plate_no ?? ""} (${branch})`);
   revalidatePath("/warranty-claims");
   revalidatePath("/");
 }

@@ -36,7 +36,7 @@ export default function TeamClient({ members, currentUserId }: { members: TeamMe
   }, [others, query, sortDir]);
 
   return (
-    <div className="space-y-8 max-w-6xl">
+    <div className="space-y-8">
       <div className="flex justify-end">
         <button
           onClick={() => setAddUserOpen(true)}

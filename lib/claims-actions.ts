@@ -5,6 +5,7 @@ import { supabaseAdmin } from "./supabase-server";
 import { requireApproved, assertCanEditBranch } from "./current-user";
 import type { WarrantyClaim, ClaimStatus, StockStatus, BikeMake } from "./types";
 import { BRANCHES, type Branch } from "./branch";
+import { logActivity } from "./activity-log";
 
 type Row = {
   id: string;
@@ -113,6 +114,7 @@ export async function addWarrantyClaimAction(input: {
     reason: input.reason?.trim() ?? "",
   });
   if (error) return { error: error.message };
+  await logActivity(user, "Added warranty claim", `${input.ticketId.trim()} — ${input.customerName.trim()} (${input.branch})`);
   revalidatePath("/warranty-claims");
   revalidatePath("/");
 }
@@ -135,6 +137,7 @@ export async function updateClaimNotesAction(
     })
     .eq("id", id);
   if (error) throw new Error(error.message);
+  await logActivity(user, "Updated warranty claim notes", `claim ${id}`);
   revalidatePath("/warranty-claims");
 }
 
@@ -147,6 +150,7 @@ export async function updateClaimStatusAction(
   assertCanEditBranch(user, branch);
   const { error } = await supabaseAdmin.from("cc_warranty_claims").update({ status }).eq("id", id);
   if (error) return { error: error.message };
+  await logActivity(user, "Set warranty claim status", `claim ${id} → ${status}`);
   revalidatePath("/warranty-claims");
   revalidatePath("/");
 }
@@ -160,14 +164,17 @@ export async function updateClaimStockStatusAction(
   assertCanEditBranch(user, branch);
   const { error } = await supabaseAdmin.from("cc_warranty_claims").update({ stock_status: stockStatus }).eq("id", id);
   if (error) return { error: error.message };
+  await logActivity(user, "Set warranty claim stock status", `claim ${id} → ${stockStatus}`);
   revalidatePath("/warranty-claims");
 }
 
 export async function deleteClaimAction(id: string, branch: Branch): Promise<void> {
   const user = await requireApproved();
   assertCanEditBranch(user, branch);
+  const { data: claim } = await supabaseAdmin.from("cc_warranty_claims").select("claim_no, customer_name").eq("id", id).single();
   const { error } = await supabaseAdmin.from("cc_warranty_claims").delete().eq("id", id);
   if (error) throw new Error(error.message);
+  await logActivity(user, "Deleted warranty claim", `${claim?.claim_no ?? id} — ${claim?.customer_name ?? ""} (${branch})`);
   revalidatePath("/warranty-claims");
   revalidatePath("/");
 }

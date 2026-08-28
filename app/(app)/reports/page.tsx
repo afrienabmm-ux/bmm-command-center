@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { ClipboardList, Wrench, Users, Smartphone, ShieldCheck, Truck, Wrench as MechanicIcon, TrendingUp, History } from "lucide-react";
 import { requirePage, requireApproved } from "@/lib/current-user";
-import { canViewLogs } from "@/lib/activity-log";
+import { canViewLogs } from "@/lib/logs-access";
 import PageHeader from "@/components/PageHeader";
 
 export const dynamic = "force-dynamic";

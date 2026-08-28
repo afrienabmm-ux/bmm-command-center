@@ -2,7 +2,8 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { requirePage, requireApproved } from "@/lib/current-user";
-import { getActivityLogs, canViewLogs } from "@/lib/activity-log";
+import { getActivityLogs } from "@/lib/activity-log";
+import { canViewLogs } from "@/lib/logs-access";
 import PageHeader from "@/components/PageHeader";
 import ReportTable, { type ReportColumn } from "@/components/ReportTable";
 
@@ -10,10 +11,12 @@ export const dynamic = "force-dynamic";
 
 const COLUMNS: ReportColumn[] = [
   { key: "date", label: "Date" },
+  { key: "time", label: "Time" },
   { key: "userName", label: "User" },
   { key: "userEmail", label: "Email" },
   { key: "action", label: "Action" },
   { key: "detail", label: "Detail" },
+  { key: "ipAddress", label: "IP Address" },
 ];
 
 // Gated to two specific people (see canViewLogs), not a role — Administrator
@@ -27,15 +30,13 @@ export default async function LogsPage() {
 
   const logs = await getActivityLogs();
   const rows = logs.map((l) => ({
-    date: l.createdAt.slice(0, 16).replace("T", " "),
-    // Filtering uses just the date portion — the "date" column above also
-    // carries the time, which would make the "to" side of a date-range
-    // filter exclude same-day entries (e.g. "28 Aug 14:03" > "28 Aug").
-    dateOnly: l.createdAt.slice(0, 10),
+    date: l.createdAt.slice(0, 10),
+    time: l.createdAt.slice(11, 16),
     userName: l.userName || "—",
     userEmail: l.userEmail || "—",
     action: l.action,
     detail: l.detail || "—",
+    ipAddress: l.ipAddress || "—",
   }));
 
   return (
@@ -53,7 +54,7 @@ export default async function LogsPage() {
         <ReportTable
           columns={COLUMNS}
           rows={rows}
-          dateField="dateOnly"
+          dateField="date"
           searchFields={["userName", "userEmail", "action", "detail"]}
           searchPlaceholder="Search user, action, or detail…"
           filename="bmm-activity-logs"

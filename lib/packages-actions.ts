@@ -5,6 +5,7 @@ import { supabaseAdmin } from "./supabase-server";
 import { requireApproved, assertCanEditBranch } from "./current-user";
 import { BRANCHES, type Branch } from "./branch";
 import type { Package } from "./types";
+import { logActivity } from "./activity-log";
 
 type PackageRow = { id: string; name: string; price: number; spec: string; description: string; created_at: string };
 
@@ -25,7 +26,7 @@ export async function addPackageAction(input: {
   spec: string;
   description: string;
 }): Promise<void> {
-  await requireApproved();
+  const user = await requireApproved();
   const { error } = await supabaseAdmin.from("cc_packages").insert({
     name: input.name,
     price: input.price,
@@ -33,13 +34,16 @@ export async function addPackageAction(input: {
     description: input.description,
   });
   if (error) throw new Error(error.message);
+  await logActivity(user, "Added Services Combo", input.name);
   revalidatePath("/packages");
 }
 
 export async function deletePackageAction(id: string): Promise<void> {
-  await requireApproved();
+  const user = await requireApproved();
+  const { data: pkg } = await supabaseAdmin.from("cc_packages").select("name").eq("id", id).single();
   const { error } = await supabaseAdmin.from("cc_packages").delete().eq("id", id);
   if (error) throw new Error(error.message);
+  await logActivity(user, "Deleted Services Combo", pkg?.name ?? id);
   revalidatePath("/packages");
 }
 
@@ -145,6 +149,7 @@ export async function addPackageSaleAction(input: {
     customer_plate_no: input.customerPlateNo?.trim() ?? "",
   });
   if (error) throw new Error(error.message);
+  await logActivity(user, "Added Services Combo sale", `receipt ${input.receiptId} (${input.branch})`);
   revalidatePath("/packages");
   revalidatePath("/customers");
 }
@@ -154,5 +159,6 @@ export async function deletePackageSaleAction(id: string, branch: Branch): Promi
   assertCanEditBranch(user, branch);
   const { error } = await supabaseAdmin.from("cc_package_sales").delete().eq("id", id);
   if (error) throw new Error(error.message);
+  await logActivity(user, "Deleted Services Combo sale", `sale ${id} (${branch})`);
   revalidatePath("/packages");
 }
