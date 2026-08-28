@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation";
 import { requireApproved, getActiveBranchSelection } from "@/lib/current-user";
 import { branchLabel } from "@/lib/branch";
 import PageHeader from "@/components/PageHeader";
@@ -15,6 +16,10 @@ export default async function CommandCenterPage({
   searchParams: Promise<{ year?: string; month?: string }>;
 }) {
   const user = await requireApproved();
+  // Mechanic is jobsheet-scanning only — this page has no page-key gate of
+  // its own (it's every other role's default landing page), so it needs
+  // its own explicit redirect instead of relying on requirePage().
+  if (user.role === "Mechanic") redirect("/repairs/walk-in");
   const branchSelection = await getActiveBranchSelection(user);
   const params = await searchParams;
   const now = new Date();

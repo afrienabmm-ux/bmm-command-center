@@ -33,7 +33,7 @@ type NavLink = { href: string; label: string; icon: typeof LayoutDashboard; page
 // then the trailing links — kept as two groups so Manage Team can be
 // spliced in between them rather than always landing at the very end.
 const mainLinks: NavLink[] = [
-  { href: "/", label: "Dashboard", icon: LayoutDashboard, page: null, color: "text-red-500" },
+  { href: "/", label: "Dashboard", icon: LayoutDashboard, page: "dashboard", color: "text-red-500" },
   { href: "/repairs/walk-in", label: "Jobsheet", icon: ClipboardList, page: "walk-in", color: "text-red-600" },
   { href: "/sales-performance", label: "Sales Performance", icon: TrendingUp, page: "sales-performance", color: "text-sky-500" },
   { href: "/repairs", label: "Restore Bike", icon: Wrench, page: "repairs", color: "text-sky-500" },

@@ -7,7 +7,10 @@ import type { Branch, BranchSelection } from "./branch";
 import { getSelectedBranch, getRawBranchSelection } from "./branch-server";
 import { resolveAllowedPages, type PageKey } from "./permissions";
 
-export type Role = "Branch PIC" | "Management";
+// Mechanic is a narrower access level than Branch PIC — see
+// resolveAllowedPages in permissions.ts for exactly what it can see
+// (jobsheet scanning only, nothing else).
+export type Role = "Branch PIC" | "Management" | "Mechanic";
 export type ProfileStatus = "pending" | "approved" | "revoked";
 
 export type CurrentUser = {
