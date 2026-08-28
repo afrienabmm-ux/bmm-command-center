@@ -474,6 +474,7 @@ type TransactionRow = {
   points: number;
   transaction_date: string | null;
   transaction_time: string | null;
+  service_coupon: boolean;
   screenshot_path: string | null;
   uploaded_by: string | null;
   created_at: string;
@@ -489,6 +490,7 @@ function toTransaction(r: TransactionRow): GenbluTransaction {
     points: r.points,
     transactionDate: r.transaction_date,
     transactionTime: r.transaction_time,
+    serviceCoupon: r.service_coupon,
     screenshotPath: r.screenshot_path,
     uploadedBy: r.uploaded_by,
     createdAt: r.created_at,
@@ -502,6 +504,7 @@ function toTransaction(r: TransactionRow): GenbluTransaction {
 export async function addGenbluTransactionAction(input: {
   branch: Branch;
   screenshot: File;
+  serviceCoupon: boolean;
 }): Promise<{ error: string } | { transaction: GenbluTransaction }> {
   const user = await requireApproved();
   assertCanEditBranch(user, input.branch);
@@ -541,6 +544,7 @@ export async function addGenbluTransactionAction(input: {
       points,
       transaction_date: extractTransactionDate(text),
       transaction_time: extractTransactionTime(text),
+      service_coupon: input.serviceCoupon,
       screenshot_path: path,
       uploaded_by: user.name,
     })

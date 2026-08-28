@@ -14,6 +14,7 @@ import type { GenbluTransaction } from "@/lib/types";
 export default function GenbluTransactionForm({ branchSelection }: { branchSelection: BranchSelection }) {
   const [branch, setBranch] = useState<Branch>(branchSelection === "all" ? "kapar" : branchSelection);
   const [screenshot, setScreenshot] = useState<File | null>(null);
+  const [serviceCoupon, setServiceCoupon] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<GenbluTransaction | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -26,13 +27,14 @@ export default function GenbluTransactionForm({ branchSelection }: { branchSelec
     }
     setError(null);
     startTransition(async () => {
-      const res = await addGenbluTransactionAction({ branch, screenshot });
+      const res = await addGenbluTransactionAction({ branch, screenshot, serviceCoupon });
       if ("error" in res) {
         setError(res.error);
         return;
       }
       setResult(res.transaction);
       setScreenshot(null);
+      setServiceCoupon(false);
     });
   }
 
@@ -49,6 +51,7 @@ export default function GenbluTransactionForm({ branchSelection }: { branchSelec
           <Field label="Points" value={String(result.points)} />
           <Field label="Date" value={result.transactionDate ? formatDate(result.transactionDate) : "—"} />
           <Field label="Time" value={result.transactionTime ?? "—"} />
+          <Field label="Service Coupon" value={result.serviceCoupon ? "Yes" : "No"} />
         </div>
         <button
           type="button"
@@ -96,6 +99,15 @@ export default function GenbluTransactionForm({ branchSelection }: { branchSelec
             className="w-full text-sm text-neutral-700 file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:bg-neutral-100 file:text-neutral-800 file:text-xs"
           />
         </div>
+        <label className="flex items-start gap-2 bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-3 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={serviceCoupon}
+            onChange={(e) => setServiceCoupon(e.target.checked)}
+            className="accent-red-500 mt-0.5"
+          />
+          <span className="text-xs text-neutral-700">Customer used a service coupon</span>
+        </label>
 
         {error && <p className="text-sm text-red-700">{error}</p>}
 

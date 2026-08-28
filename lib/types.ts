@@ -241,6 +241,9 @@ export type GenbluTransaction = {
   points: number;
   transactionDate: string | null;
   transactionTime: string | null;
+  // The one field admin picks by hand — whether a service coupon was
+  // applied isn't shown on the GenBlu screenshot itself.
+  serviceCoupon: boolean;
   screenshotPath: string | null;
   uploadedBy: string | null;
   createdAt: string;
