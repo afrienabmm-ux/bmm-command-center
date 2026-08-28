@@ -82,10 +82,14 @@ export default async function AllBranchesOverview({
     branchMechanicRows,
   ] = await Promise.all([
     getBranchBreakdown(year, month),
-    getAllBranchesOverdueRestoreBikeJobs(onlyBranch),
-    getAllBranchesOverdueQcJobs(onlyBranch),
-    getAllBranchesQcReminderJobs(onlyBranch),
-    getUpcomingServiceReminders(onlyBranch),
+    // These five only ever get rendered for Management (see the isManagement
+    // && gates below) — skipping the query entirely for everyone else saves
+    // a real database round-trip on every dashboard load, not just a hidden
+    // render.
+    isManagement ? getAllBranchesOverdueRestoreBikeJobs(onlyBranch) : Promise.resolve([]),
+    isManagement ? getAllBranchesOverdueQcJobs(onlyBranch) : Promise.resolve([]),
+    isManagement ? getAllBranchesQcReminderJobs(onlyBranch) : Promise.resolve([]),
+    isManagement ? getUpcomingServiceReminders(onlyBranch) : Promise.resolve([]),
     isManagement ? getAllBranchesPendingApprovalJobs(onlyBranch) : Promise.resolve([]),
     isManagement ? Promise.resolve([]) : getAllBranchesApprovedReadyToStartJobs(onlyBranch),
     onlyBranch
@@ -97,7 +101,7 @@ export default async function AllBranchesOverview({
     getDeliveryClaimStatusBreakdown(year, month, onlyBranch),
     getPackageSalesBreakdown(year, month),
     onlyBranch ? getActiveRepairJobs(onlyBranch) : getAllBranchesActiveRepairJobs(),
-    getMechanicsNotActiveToday(onlyBranch),
+    isManagement ? getMechanicsNotActiveToday(onlyBranch) : Promise.resolve([]),
     getTodayActivity(onlyBranch),
     getAllMechanics(),
     onlyBranch ? getBranchPerformance(onlyBranch, year, month) : Promise.resolve([]),

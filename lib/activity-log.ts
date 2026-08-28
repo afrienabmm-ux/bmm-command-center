@@ -1,6 +1,7 @@
 "use server";
 
 import { headers } from "next/headers";
+import { after } from "next/server";
 import { supabaseAdmin } from "./supabase-server";
 import { requireApproved } from "./current-user";
 
@@ -26,25 +27,33 @@ async function currentIp(): Promise<string | null> {
   }
 }
 
-// Never lets a logging failure block the real action it's attached to —
-// worst case something goes unrecorded, not broken.
+// Every action that saves something also calls this and awaits it — so the
+// actual database write happens via after(), scheduled to run once the
+// response has already gone back to the browser. Awaiting logActivity()
+// itself still only costs reading the request's IP (fast, no network
+// round-trip), not the insert — the save the user is waiting on was never
+// blocked by writing this log.
 export async function logActivity(
   user: { id: string; name: string; email: string },
   action: string,
   detail?: string
 ): Promise<void> {
-  try {
-    await supabaseAdmin.from("cc_activity_logs").insert({
-      user_id: user.id,
-      user_name: user.name,
-      user_email: user.email,
-      action,
-      detail: detail ?? null,
-      ip_address: await currentIp(),
-    });
-  } catch {
-    // See above.
-  }
+  const ip = await currentIp();
+  after(async () => {
+    try {
+      await supabaseAdmin.from("cc_activity_logs").insert({
+        user_id: user.id,
+        user_name: user.name,
+        user_email: user.email,
+        action,
+        detail: detail ?? null,
+        ip_address: ip,
+      });
+    } catch {
+      // Never lets a logging failure surface anywhere — worst case
+      // something goes unrecorded, not broken.
+    }
+  });
 }
 
 // The one client-callable entry point — for actions that happen entirely in
