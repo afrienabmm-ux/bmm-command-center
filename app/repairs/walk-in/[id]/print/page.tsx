@@ -60,6 +60,9 @@ export default async function PrintWalkInJobPage({ params }: { params: Promise<{
             <span className="font-semibold">Customer Code :</span> {job.customerCode || "—"}
           </p>
           <p>
+            <span className="font-semibold">Phone Number :</span> {job.customerPhone || "—"}
+          </p>
+          <p>
             <span className="font-semibold">Colour :</span> {job.colour || "—"}
           </p>
           <p>

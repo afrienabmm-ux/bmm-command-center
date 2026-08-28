@@ -390,16 +390,40 @@ async function detectSignature(buffer: Buffer, words: PositionedWord[], imageWid
   const left = Math.max(0, Math.min(label.x - boxWidth * 0.3, imageWidth - boxWidth));
   if (boxWidth < 10) return { result: null, debug: "label found but box too narrow to check" };
 
-  // Kept tight against the label on purpose — a wider region (previously
-  // 4x label height) reached far enough up to catch the defect-checklist
-  // grid printed above the Customer Signature line on a real jobsheet,
-  // misreading its text/checkbox borders as ink and reporting "signed" on
-  // a blank line. The actual blank signing line is only about as tall as
-  // the label text itself, not several lines of it.
-  const regionHeight = Math.max(label.height * 1.5, 20);
+  // How tall the signature box actually is varies by jobsheet template —
+  // some have a short blank line right against the label, others (like a
+  // real one that came back "not detected" in production) leave several
+  // times that much room for a full cursive signature. A fixed multiplier
+  // can't fit both: too short misses a real signature on the tall-box
+  // template, too tall (previously 4x, uncapped) reaches into the
+  // defect-checklist grid some templates print just above the label and
+  // misreads its borders/text as ink on a blank line.
+  //
+  // Fix: let the "above" region grow generously (up to 4x label height),
+  // but clamp it at whichever OCR word sits closest above, in roughly the
+  // same horizontal band — that's the actual printed content the box
+  // needs to stop before, on whichever template has one. No such word
+  // (plenty of templates don't) just means the full generous height is
+  // used.
+  const belowRegionHeight = Math.max(label.height * 1.5, 20);
+  const maxAboveHeight = label.height * 4;
+  const aboveBottom = label.yCenter - label.height / 2;
+  const nearestWordAbove = words.reduce<PositionedWord | null>((nearest, w) => {
+    if (w === label) return nearest;
+    if (w.x < left - label.height || w.x > left + boxWidth) return nearest;
+    const wordBottom = w.yCenter + w.height / 2;
+    if (wordBottom >= aboveBottom) return nearest;
+    if (!nearest || wordBottom > nearest.yCenter + nearest.height / 2) return w;
+    return nearest;
+  }, null);
+  const aboveMargin = label.height * 0.3;
+  const aboveHeight = nearestWordAbove
+    ? Math.min(maxAboveHeight, aboveBottom - (nearestWordAbove.yCenter + nearestWordAbove.height / 2) - aboveMargin)
+    : maxAboveHeight;
+
   const candidates: { name: string; top: number; height: number }[] = [
-    { name: "above", top: label.yCenter - label.height / 2 - regionHeight, height: regionHeight },
-    { name: "below", top: label.yCenter + label.height / 2, height: regionHeight },
+    { name: "above", top: aboveBottom - Math.max(aboveHeight, 20), height: Math.max(aboveHeight, 20) },
+    { name: "below", top: label.yCenter + label.height / 2, height: belowRegionHeight },
   ];
 
   let maxScore = 0;
@@ -421,7 +445,7 @@ async function detectSignature(buffer: Buffer, words: PositionedWord[], imageWid
     maxScore = Math.max(maxScore, score);
     checkedAny = true;
   }
-  const debug = `label@(${Math.round(label.x)},${Math.round(label.yCenter)}) box=${Math.round(boxWidth)}x${Math.round(regionHeight)} scores: ${scoreLog.join(", ")} threshold=${INK_RESIDUAL_THRESHOLD}`;
+  const debug = `label@(${Math.round(label.x)},${Math.round(label.yCenter)}) box=${Math.round(boxWidth)}w above=${Math.round(candidates[0].height)}h below=${Math.round(belowRegionHeight)}h scores: ${scoreLog.join(", ")} threshold=${INK_RESIDUAL_THRESHOLD}`;
   if (!checkedAny) return { result: null, debug };
   return { result: maxScore > INK_RESIDUAL_THRESHOLD, debug };
 }
