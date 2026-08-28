@@ -18,6 +18,8 @@ import GenbluQuickForm, { type RecentJobsheetCustomer } from "./GenbluQuickForm"
 import JobsheetPicker from "./JobsheetPicker";
 import ScanTabs from "./ScanTabs";
 import SavedToast from "./SavedToast";
+import { signOutAction } from "@/lib/auth-actions";
+import { LogOut } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 // The GenBlu screenshot check runs an OCR call (with retries) inside this
@@ -105,10 +107,19 @@ export default async function ScanPage({ searchParams }: { searchParams: Promise
       <div className="sticky top-0 z-10 bg-white/90 backdrop-blur border-b border-neutral-200 px-4 py-3 flex items-center gap-2.5">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/bmm-logo.png" alt="Berjaya Mega Motors" className="w-7 h-7 rounded-full object-cover shrink-0" />
-        <div className="leading-none min-w-0">
+        <div className="leading-none min-w-0 flex-1">
           <p className="text-sm font-semibold text-neutral-900">BMM Field Upload</p>
-          <p className="text-[11px] text-neutral-500 truncate">Berjaya Mega Motors — After-Sales</p>
+          <p className="text-[11px] text-neutral-500 truncate">Signed in as {currentUser.name} ({currentUser.email})</p>
         </div>
+        <form action={signOutAction}>
+          <button
+            type="submit"
+            className="flex items-center gap-1 text-[11px] font-medium text-neutral-600 hover:text-red-600 border border-neutral-200 rounded-full px-2.5 py-1 shrink-0"
+          >
+            <LogOut className="w-3 h-3" />
+            Sign out
+          </button>
+        </form>
       </div>
       <div className="p-4">
         {canUploadGenblu ? (
