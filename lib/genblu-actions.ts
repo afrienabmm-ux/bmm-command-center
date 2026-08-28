@@ -568,6 +568,14 @@ export async function getAllBranchesGenbluTransactions(): Promise<GenbluTransact
   return perBranch.flat().sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
 }
 
+export async function deleteGenbluTransactionAction(id: string, branch: Branch): Promise<void> {
+  const user = await requireApproved();
+  assertCanEditBranch(user, branch);
+  const { error } = await supabaseAdmin.from("cc_genblu_transactions").delete().eq("id", id);
+  if (error) throw new Error(error.message);
+  revalidatePath("/genblu");
+}
+
 export type GenbluMonthlySummaryRow = { branch: Branch | "unknown"; label: string; counts: number; points: number };
 
 // Matches the admin's own spreadsheet "Finding" table: how many awards and
