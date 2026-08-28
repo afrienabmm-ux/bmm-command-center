@@ -421,6 +421,18 @@ function extractTransactionDate(text: string): string | null {
   return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
 }
 
+// The transaction time sits right next to the date ("28 Aug 26  09:41") —
+// searching from the date match onward, not the whole text, is what keeps
+// this from grabbing the phone's own status-bar clock at the very top of
+// the screenshot instead.
+function extractTransactionTime(text: string): string | null {
+  const dateMatch = text.match(/\b\d{1,2}\s+[A-Za-z]{3,9}\s+\d{2,4}\b/);
+  if (!dateMatch || dateMatch.index === undefined) return null;
+  const after = text.slice(dateMatch.index + dateMatch[0].length, dateMatch.index + dateMatch[0].length + 30);
+  const timeMatch = after.match(/(\d{1,2}:\d{2})/);
+  return timeMatch ? timeMatch[1] : null;
+}
+
 // The customer's name is the large header text above "Membership number" —
 // no label of its own, so it's found by position rather than a keyword.
 // Skips the phone status bar (pure digits/time) and keeps the longest
@@ -461,6 +473,7 @@ type TransactionRow = {
   product_category: string | null;
   points: number;
   transaction_date: string | null;
+  transaction_time: string | null;
   screenshot_path: string | null;
   uploaded_by: string | null;
   created_at: string;
@@ -475,6 +488,7 @@ function toTransaction(r: TransactionRow): GenbluTransaction {
     productCategory: r.product_category,
     points: r.points,
     transactionDate: r.transaction_date,
+    transactionTime: r.transaction_time,
     screenshotPath: r.screenshot_path,
     uploadedBy: r.uploaded_by,
     createdAt: r.created_at,
@@ -526,6 +540,7 @@ export async function addGenbluTransactionAction(input: {
       product_category: extractProductCategory(text),
       points,
       transaction_date: extractTransactionDate(text),
+      transaction_time: extractTransactionTime(text),
       screenshot_path: path,
       uploaded_by: user.name,
     })

@@ -240,6 +240,7 @@ export type GenbluTransaction = {
   productCategory: string | null;
   points: number;
   transactionDate: string | null;
+  transactionTime: string | null;
   screenshotPath: string | null;
   uploadedBy: string | null;
   createdAt: string;

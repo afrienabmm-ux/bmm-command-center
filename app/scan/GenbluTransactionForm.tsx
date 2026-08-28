@@ -48,6 +48,7 @@ export default function GenbluTransactionForm({ branchSelection }: { branchSelec
           <Field label="Category" value={result.productCategory ?? "—"} />
           <Field label="Points" value={String(result.points)} />
           <Field label="Date" value={result.transactionDate ? formatDate(result.transactionDate) : "—"} />
+          <Field label="Time" value={result.transactionTime ?? "—"} />
         </div>
         <button
           type="button"

@@ -5,6 +5,8 @@ import {
   getScreenshotUrl,
   getGenbluPointsByName,
   getGenbluMonthlySummary,
+  getGenbluTransactions,
+  getAllBranchesGenbluTransactions,
 } from "@/lib/genblu-actions";
 import { getAllMechanics } from "@/lib/mechanics-actions";
 import { branchLabel } from "@/lib/branch";
@@ -12,6 +14,8 @@ import PageHeader from "@/components/PageHeader";
 import MonthPicker from "@/components/MonthPicker";
 import GenbluClient from "./GenbluClient";
 import GenbluMonthlySummary from "./GenbluMonthlySummary";
+import GenbluTransactionsList from "./GenbluTransactionsList";
+import GenbluTabs from "./GenbluTabs";
 
 export const dynamic = "force-dynamic";
 
@@ -29,12 +33,15 @@ export default async function GenbluPage({
   const year = params.year ? Number(params.year) : now.getFullYear();
   const month = params.month ? Number(params.month) : now.getMonth() + 1;
 
-  const [registrations, mechanics, pointsByName, monthlySummary] = await Promise.all([
+  const [registrations, mechanics, pointsByName, monthlySummary, allTransactions] = await Promise.all([
     showAllBranches ? getAllBranchesGenbluRegistrations() : getGenbluRegistrations(branch),
     getAllMechanics(),
     getGenbluPointsByName(),
     getGenbluMonthlySummary(year, month),
+    showAllBranches ? getAllBranchesGenbluTransactions() : getGenbluTransactions(branch),
   ]);
+  const monthPrefix = `${year}-${String(month).padStart(2, "0")}`;
+  const transactions = allTransactions.filter((t) => (t.transactionDate ?? "").startsWith(monthPrefix));
   const withUrls = await Promise.all(
     registrations.map(async (r) => ({
       ...r,
@@ -50,18 +57,31 @@ export default async function GenbluPage({
   return (
     <div className="flex flex-col h-full">
       <PageHeader
-        title="GenBlu Tracker"
-        subtitle={`${showAllBranches ? "All Branches" : branchLabel(branch)} — ${registrations.length} registered`}
-        action={<MonthPicker year={year} month={month} basePath="/genblu" />}
+        title="GenBlu"
+        subtitle={`${showAllBranches ? "All Branches" : branchLabel(branch)} — ${registrations.length} registered, ${transactions.length} allocations this month`}
       />
-      <div className="p-8 space-y-8">
-        <GenbluMonthlySummary summary={monthlySummary} />
-        <GenbluClient
-          registrations={withUrls}
-          mechanics={mechanics}
-          branch={branch}
-          branchSelection={branchSelection}
-          locked={!canViewAllBranches(user)}
+      <div className="p-8">
+        <GenbluTabs
+          registeredCount={registrations.length}
+          allocationCount={transactions.length}
+          tracker={
+            <GenbluClient
+              registrations={withUrls}
+              mechanics={mechanics}
+              branch={branch}
+              branchSelection={branchSelection}
+              locked={!canViewAllBranches(user)}
+            />
+          }
+          allocations={
+            <div className="space-y-8">
+              <div className="flex justify-end">
+                <MonthPicker year={year} month={month} basePath="/genblu" />
+              </div>
+              <GenbluMonthlySummary summary={monthlySummary} />
+              <GenbluTransactionsList transactions={transactions} showBranch={showAllBranches} />
+            </div>
+          }
         />
       </div>
     </div>

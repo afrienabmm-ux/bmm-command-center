@@ -15,7 +15,7 @@ import {
 } from "@/lib/repairs-actions";
 import { getMechanics, getAllMechanics } from "@/lib/mechanics-actions";
 import { getCustomers, getAllBranchesCustomers } from "@/lib/customers-actions";
-import { getGenbluRegistrations, getAllBranchesGenbluRegistrations } from "@/lib/genblu-actions";
+import { getGenbluRegistrations, getAllBranchesGenbluRegistrations, getGenbluTransactions, getAllBranchesGenbluTransactions } from "@/lib/genblu-actions";
 import { getWarrantyClaims, getAllBranchesWarrantyClaims } from "@/lib/claims-actions";
 import { getDeliveryClaims, getAllBranchesDeliveryClaims } from "@/lib/delivery-claims-actions";
 import { getAllBranchesPerformance, getBranchPerformance } from "@/lib/reports-actions";
@@ -28,6 +28,7 @@ const TITLES: Record<string, string> = {
   "restore-bike": "Restore Bike",
   "services-card": "Services Card",
   genblu: "GenBlu Tracker",
+  "point-allocation": "Point Allocation",
   "warranty-claims": "Warranty Claims",
   "delivery-claims": "Delivery Claims",
   mechanics: "Mechanics",
@@ -135,6 +136,28 @@ export default async function ReportDetailPage({ params }: { params: Promise<{ t
       salespersonName: r.salespersonName,
       pointsAccrued: r.pointsAccrued ?? "—",
       createdAt: r.createdAt.slice(0, 10),
+    }));
+  } else if (type === "point-allocation") {
+    const txns = allBranches ? await getAllBranchesGenbluTransactions() : await getGenbluTransactions(selection);
+    columns = [
+      { key: "transactionDate", label: "Transaction Date" },
+      { key: "transactionTime", label: "Time" },
+      { key: "points", label: "Points" },
+      { key: "productCategory", label: "Category" },
+      { key: "customerName", label: "Customer Name" },
+      { key: "membershipNumber", label: "Membership No" },
+      { key: "branch", label: "Branch" },
+    ];
+    dateField = "transactionDate";
+    searchFields = ["customerName", "membershipNumber"];
+    rows = txns.map((t) => ({
+      transactionDate: t.transactionDate ?? "",
+      transactionTime: t.transactionTime ?? "—",
+      points: t.points,
+      productCategory: t.productCategory ?? "—",
+      customerName: t.customerName,
+      membershipNumber: t.membershipNumber ?? "—",
+      branch: branchLabel(t.branch),
     }));
   } else if (type === "warranty-claims" || type === "delivery-claims") {
     const isWarranty = type === "warranty-claims";
