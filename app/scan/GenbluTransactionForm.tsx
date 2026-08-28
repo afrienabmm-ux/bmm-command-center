@@ -94,7 +94,6 @@ export default function GenbluTransactionForm({ branchSelection }: { branchSelec
           <input
             type="file"
             accept="image/*"
-            capture="environment"
             onChange={(e) => setScreenshot(e.target.files?.[0] ?? null)}
             className="w-full text-sm text-neutral-700 file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:bg-neutral-100 file:text-neutral-800 file:text-xs"
           />

@@ -78,7 +78,6 @@ export default async function ScanPage({ searchParams }: { searchParams: Promise
         allActiveJobs={allActiveJobs}
         catalogProducts={catalogProducts}
         packages={packages}
-        preferCamera
         redirectTo="/scan"
         variant="scan"
       />

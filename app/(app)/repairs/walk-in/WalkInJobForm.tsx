@@ -159,7 +159,6 @@ export default function WalkInJobForm({
   allActiveJobs,
   catalogProducts,
   packages,
-  preferCamera = false,
   redirectTo = "/repairs/walk-in",
   variant = "full",
 }: {
@@ -170,10 +169,6 @@ export default function WalkInJobForm({
   allActiveJobs: RepairJob[];
   catalogProducts: CatalogProduct[];
   packages: Package[];
-  // Jumps the scan input straight to the camera instead of a file/gallery
-  // picker — only set from the standalone phone scan page (/scan), where
-  // "take a photo of the jobsheet" is the whole point of the page.
-  preferCamera?: boolean;
   // Where Save/Cancel send the browser afterward — the dashboard's full
   // Jobsheet list by default, but the standalone /scan page points this
   // back at itself so saving a job never drags a phone visitor into the
@@ -707,11 +702,10 @@ export default function WalkInJobForm({
                 ref={fileInputRef}
                 type="file"
                 accept="image/*,application/pdf"
-                // On some mobile browsers "capture" skips straight to the
-                // camera app, with no way back to pick an existing photo
-                // or PDF — only worth that trade-off on the dedicated
-                // phone scan page, not here where desktop is common too.
-                {...(preferCamera ? { capture: "environment" as const } : {})}
+                // No "capture" attribute here on purpose — it used to force
+                // mobile straight into the camera app with no way back to
+                // pick an existing photo from the gallery, which admin
+                // needed for jobsheets photographed earlier.
                 className="hidden"
                 onChange={(e) => {
                   const file = e.target.files?.[0];
