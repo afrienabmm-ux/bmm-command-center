@@ -34,32 +34,22 @@ export async function middleware(request: NextRequest) {
   const isJoinPage = PUBLIC_PREFIXES.some((p) => pathname.startsWith(p));
   const isPublic = PUBLIC_PATHS.includes(pathname) || isJoinPage;
 
-  // /scan is the phone jobsheet-scanner link, handed out to field staff —
-  // no login screen. Anyone opening it is silently signed in as a shared
-  // "Field Scanner" account instead, so the save/upload actions underneath
-  // (which all require a real session) still work.
-  const isScanPage = pathname === "/scan" || pathname.startsWith("/scan/");
-  if (isScanPage) {
-    if (!user) {
-      const email = process.env.FIELD_SCANNER_EMAIL;
-      const password = process.env.FIELD_SCANNER_PASSWORD;
-      if (email && password) {
-        await supabase.auth.signInWithPassword({ email, password });
-      }
-    }
-    return response;
-  }
-
-  // The Field Scanner account only ever exists to drive /scan — whoever
-  // has that link should never be able to reach anything else just by
-  // typing a different URL, even though the account itself is a real,
-  // approved session that would otherwise pass every check below.
-  if (user?.email === process.env.FIELD_SCANNER_EMAIL) {
+  // The old shared "Field Scanner" account (no-login /scan link) is no
+  // longer auto-signed-in — mechanics now get their own individual login
+  // (Mechanic role, see lib/permissions.ts), so each phone/session is
+  // actually tied to a real person instead of everyone sharing one
+  // account's session (which was also the likely cause of unexpected
+  // logouts — multiple devices rotating the same refresh token fight each
+  // other). Left in place only as a defense-in-depth: if that account is
+  // ever signed into directly, it's still locked to /scan and nothing else.
+  if (user?.email === process.env.FIELD_SCANNER_EMAIL && pathname !== "/scan" && !pathname.startsWith("/scan/")) {
     return NextResponse.redirect(new URL("/scan", request.url));
   }
 
   if (!user && !isPublic) {
-    return NextResponse.redirect(new URL("/login", request.url));
+    const loginUrl = new URL("/login", request.url);
+    loginUrl.searchParams.set("next", pathname + request.nextUrl.search);
+    return NextResponse.redirect(loginUrl);
   }
 
   // /login and /signup bounce a signed-in user straight to the dashboard,

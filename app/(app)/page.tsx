@@ -16,10 +16,12 @@ export default async function CommandCenterPage({
   searchParams: Promise<{ year?: string; month?: string }>;
 }) {
   const user = await requireApproved();
-  // Mechanic is jobsheet-scanning only — this page has no page-key gate of
-  // its own (it's every other role's default landing page), so it needs
-  // its own explicit redirect instead of relying on requirePage().
-  if (user.role === "Mechanic") redirect("/repairs/walk-in");
+  // Mechanic is jobsheet-scanning only — sent to the phone-optimized /scan
+  // page (not the desktop Jobsheet list) since that's what this role is
+  // for. This page has no page-key gate of its own (it's every other
+  // role's default landing page), so it needs its own explicit redirect
+  // instead of relying on requirePage().
+  if (user.role === "Mechanic") redirect("/scan");
   const branchSelection = await getActiveBranchSelection(user);
   const params = await searchParams;
   const now = new Date();
