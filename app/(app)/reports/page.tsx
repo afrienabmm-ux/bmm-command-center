@@ -1,6 +1,7 @@
 import Link from "next/link";
-import { ClipboardList, Wrench, Users, Smartphone, ShieldCheck, Truck, Wrench as MechanicIcon, TrendingUp } from "lucide-react";
-import { requirePage } from "@/lib/current-user";
+import { ClipboardList, Wrench, Users, Smartphone, ShieldCheck, Truck, Wrench as MechanicIcon, TrendingUp, History } from "lucide-react";
+import { requirePage, requireApproved } from "@/lib/current-user";
+import { canViewLogs } from "@/lib/activity-log";
 import PageHeader from "@/components/PageHeader";
 
 export const dynamic = "force-dynamic";
@@ -34,12 +35,29 @@ const CARDS: ReportCard[] = [
 
 export default async function ReportsPage() {
   await requirePage("reports");
+  const user = await requireApproved();
+  const showLogs = canViewLogs(user.email);
 
   return (
     <div className="flex flex-col h-full">
       <PageHeader title="Reports" subtitle="Search, filter, and export any of these records." />
       <div className="flex-1 overflow-y-auto p-8">
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-5">
+          {showLogs && (
+            <Link
+              href="/reports/logs"
+              className="bg-white border border-neutral-200 rounded-xl p-6 hover:border-red-300 hover:shadow-sm transition-all"
+            >
+              <div className="flex items-start justify-between mb-4">
+                <div className="w-12 h-12 rounded-lg flex items-center justify-center text-neutral-700 bg-neutral-500/10">
+                  <History size={22} />
+                </div>
+                <span className="text-[10px] font-semibold text-neutral-400 uppercase tracking-wide mt-1.5">Admin</span>
+              </div>
+              <p className="text-base font-semibold text-neutral-900">Logs</p>
+              <p className="text-sm text-neutral-500 mt-1.5 leading-relaxed">Who logged in and every team-management action.</p>
+            </Link>
+          )}
           {CARDS.map((card) => {
             const Icon = card.icon;
             return (

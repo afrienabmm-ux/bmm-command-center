@@ -249,7 +249,7 @@ export default async function AllBranchesOverview({
         </Link>
       )}
 
-      {overdueJobs.length > 0 && (
+      {isManagement && overdueJobs.length > 0 && (
         <Link
           href="/repairs"
           className="block bg-red-50 border border-red-200 rounded-xl p-5 hover:border-red-300 transition-colors"
@@ -275,7 +275,7 @@ export default async function AllBranchesOverview({
         </Link>
       )}
 
-      {overdueQcJobs.length > 0 && (
+      {isManagement && overdueQcJobs.length > 0 && (
         <Link
           href="/repairs"
           className="block bg-red-50 border border-red-200 rounded-xl p-5 hover:border-red-300 transition-colors"
@@ -301,7 +301,7 @@ export default async function AllBranchesOverview({
         </Link>
       )}
 
-      {qcReminderJobs.length > 0 && (
+      {isManagement && qcReminderJobs.length > 0 && (
         <Link
           href="/repairs"
           className="block bg-amber-50 border border-amber-200 rounded-xl p-5 hover:border-amber-300 transition-colors"
@@ -327,9 +327,9 @@ export default async function AllBranchesOverview({
         </Link>
       )}
 
-      <ServiceReminderBanner reminders={serviceReminders} />
+      {isManagement && <ServiceReminderBanner reminders={serviceReminders} />}
 
-      <IdleMechanicsNotice mechanics={idleMechanics} />
+      {isManagement && <IdleMechanicsNotice mechanics={idleMechanics} />}
 
       {/* Today, at a glance. */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">

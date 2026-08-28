@@ -5,6 +5,7 @@ import { supabaseAdmin } from "./supabase-server";
 import { requireManagement } from "./current-user";
 import type { Role, ProfileStatus } from "./current-user";
 import type { BranchSelection } from "./branch";
+import { logActivity } from "./activity-log";
 
 export type TeamMember = {
   id: string;
@@ -58,6 +59,7 @@ export async function approveUserAction(
   positionTitle: string | null = null
 ): Promise<void> {
   const approver = await requireManagement();
+  const { data: target } = await supabaseAdmin.from("cc_user_profiles").select("name, email").eq("id", userId).single();
   const { error } = await supabaseAdmin
     .from("cc_user_profiles")
     .update({
@@ -70,6 +72,7 @@ export async function approveUserAction(
     })
     .eq("id", userId);
   if (error) throw new Error(error.message);
+  await logActivity(approver, "Approved user", `${target?.name ?? target?.email ?? userId} as ${role}`);
   revalidatePath("/team");
 }
 
@@ -110,6 +113,7 @@ export async function createUserAction(
     .eq("id", data.user.id);
   if (profileError) return { error: profileError.message };
 
+  await logActivity(manager, "Created user", `${name.trim()} (${email.trim()}) as ${role}`);
   revalidatePath("/team");
 }
 
@@ -119,35 +123,41 @@ export async function updateMemberAction(
   homeBranch: BranchSelection,
   positionTitle: string | null = null
 ): Promise<void> {
-  await requireManagement();
+  const actor = await requireManagement();
+  const { data: target } = await supabaseAdmin.from("cc_user_profiles").select("name, email").eq("id", userId).single();
   const { error } = await supabaseAdmin
     .from("cc_user_profiles")
     .update({ role, home_branch: homeBranch, position_title: positionTitle })
     .eq("id", userId);
   if (error) throw new Error(error.message);
+  await logActivity(actor, "Changed access level", `${target?.name ?? target?.email ?? userId} to ${role}`);
   revalidatePath("/team");
 }
 
 export async function revokeUserAction(userId: string): Promise<void> {
   const manager = await requireManagement();
   if (manager.id === userId) throw new Error("You can't deactivate your own access.");
+  const { data: target } = await supabaseAdmin.from("cc_user_profiles").select("name, email").eq("id", userId).single();
   const { error } = await supabaseAdmin
     .from("cc_user_profiles")
     .update({ status: "revoked" })
     .eq("id", userId);
   if (error) throw new Error(error.message);
+  await logActivity(manager, "Deactivated user", target?.name ?? target?.email ?? userId);
   revalidatePath("/team");
 }
 
 // Brings a deactivated person back to approved, keeping their previous
 // access level and branch — no need to re-pick everything from scratch.
 export async function reactivateUserAction(userId: string): Promise<void> {
-  await requireManagement();
+  const manager = await requireManagement();
+  const { data: target } = await supabaseAdmin.from("cc_user_profiles").select("name, email").eq("id", userId).single();
   const { error } = await supabaseAdmin
     .from("cc_user_profiles")
     .update({ status: "approved" })
     .eq("id", userId);
   if (error) throw new Error(error.message);
+  await logActivity(manager, "Reactivated user", target?.name ?? target?.email ?? userId);
   revalidatePath("/team");
 }
 
@@ -156,8 +166,10 @@ export async function reactivateUserAction(userId: string): Promise<void> {
 export async function deleteUserAction(userId: string): Promise<void> {
   const manager = await requireManagement();
   if (manager.id === userId) throw new Error("You can't delete your own account.");
+  const { data: target } = await supabaseAdmin.from("cc_user_profiles").select("name, email").eq("id", userId).single();
   const { error } = await supabaseAdmin.auth.admin.deleteUser(userId);
   if (error) throw new Error(error.message);
+  await logActivity(manager, "Deleted user", target?.name ?? target?.email ?? userId);
   revalidatePath("/team");
 }
 
@@ -165,10 +177,12 @@ export async function deleteUserAction(userId: string): Promise<void> {
 // sets a brand new password for someone who's locked out. Nothing else
 // about the account changes.
 export async function resetPasswordAction(userId: string, newPassword: string): Promise<{ error: string } | void> {
-  await requireManagement();
+  const manager = await requireManagement();
   if (newPassword.length < 8) {
     return { error: "New password must be at least 8 characters." };
   }
+  const { data: target } = await supabaseAdmin.from("cc_user_profiles").select("name, email").eq("id", userId).single();
   const { error } = await supabaseAdmin.auth.admin.updateUserById(userId, { password: newPassword });
   if (error) return { error: error.message };
+  await logActivity(manager, "Reset password", target?.name ?? target?.email ?? userId);
 }

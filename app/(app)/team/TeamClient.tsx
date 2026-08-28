@@ -82,17 +82,17 @@ export default function TeamClient({ members, currentUserId }: { members: TeamMe
             </button>
           </div>
         </div>
-        <div className="bg-white border border-neutral-200 rounded-xl overflow-hidden w-fit max-w-full">
+        <div className="bg-white border border-neutral-200 rounded-xl overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="text-sm">
+            <table className="w-full text-sm table-fixed min-w-[860px]">
               <thead>
                 <tr className="text-left text-xs text-neutral-500 border-b border-neutral-200">
-                  <th className="font-medium px-5 py-3 whitespace-nowrap">Name / Email</th>
-                  <th className="font-medium px-5 py-3 whitespace-nowrap">Access Level</th>
-                  <th className="font-medium px-5 py-3 whitespace-nowrap text-center">Branch</th>
-                  <th className="font-medium px-5 py-3 whitespace-nowrap text-center">Status</th>
-                  <th className="font-medium px-5 py-3 whitespace-nowrap">Joined</th>
-                  <th className="px-5 py-3" />
+                  <th className="font-medium px-5 py-3 whitespace-nowrap w-[20%]">Name / Email</th>
+                  <th className="font-medium px-5 py-3 whitespace-nowrap w-[32%]">Access Level</th>
+                  <th className="font-medium px-5 py-3 whitespace-nowrap text-center w-[14%]">Branch</th>
+                  <th className="font-medium px-5 py-3 whitespace-nowrap text-center w-[10%]">Status</th>
+                  <th className="font-medium px-5 py-3 whitespace-nowrap w-[12%]">Joined</th>
+                  <th className="px-5 py-3 w-[12%]" />
                 </tr>
               </thead>
               <tbody>

@@ -2,6 +2,8 @@
 
 import { redirect } from "next/navigation";
 import { createAuthClient } from "./supabase-auth-server";
+import { supabaseAdmin } from "./supabase-server";
+import { logActivity } from "./activity-log";
 
 export type AuthResult = { error: string } | { needsEmailConfirmation: true } | void;
 
@@ -37,9 +39,18 @@ export async function signInAction(formData: FormData): Promise<AuthResult> {
   if (!email || !password) return { error: "Enter your email and password." };
 
   const supabase = await createAuthClient();
-  const { error } = await supabase.auth.signInWithPassword({ email, password });
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
 
   if (error) return { error: "Incorrect email or password." };
+
+  if (data.user) {
+    const { data: profile } = await supabaseAdmin
+      .from("cc_user_profiles")
+      .select("name")
+      .eq("id", data.user.id)
+      .single();
+    await logActivity({ id: data.user.id, name: profile?.name ?? "", email }, "Logged in");
+  }
 
   // Only ever redirect to a path within this app (starts with a single
   // "/", not "//") — a "next" value is attacker-controllable via the URL,
