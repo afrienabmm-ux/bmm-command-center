@@ -4,28 +4,30 @@ import { useMemo, useState, useTransition } from "react";
 import { Plus, Search, Pencil, Trash2, CreditCard, X, Link2, Check, ArrowUpDown, ChevronDown, Wrench } from "lucide-react";
 import { addCustomerCardAction, updateCustomerCardAction, deleteCustomerCardAction, setCardStampsAction } from "@/lib/customers-actions";
 import { BRANCHES, branchLabel, type Branch, type BranchSelection } from "@/lib/branch";
-import { formatDate, formatCurrency } from "@/lib/format";
+import { formatDate } from "@/lib/format";
 import { stampCardSize, rewardForStamp, nextReward } from "@/lib/membership";
-import type { CustomerSummary, CustomerCard } from "@/lib/types";
+import type { CustomerCard } from "@/lib/types";
 
 export default function CustomersClient({
   customers,
   branch,
   branchSelection,
   locked,
+  canManageCards,
 }: {
-  customers: CustomerSummary[];
+  customers: CustomerCard[];
   branch: Branch;
   branchSelection: BranchSelection;
   locked: boolean;
+  canManageCards: boolean;
 }) {
   const [query, setQuery] = useState("");
-  const [cardModalFor, setCardModalFor] = useState<CustomerSummary | "new" | null>(null);
+  const [cardModalFor, setCardModalFor] = useState<CustomerCard | "new" | null>(null);
   const [deleting, setDeleting] = useState<CustomerCard | null>(null);
   const [isPending, startTransition] = useTransition();
   const [linkCopied, setLinkCopied] = useState(false);
-  const [stampModalFor, setStampModalFor] = useState<CustomerSummary | null>(null);
-  const [sortBy, setSortBy] = useState<"spend" | "visit">("spend");
+  const [stampModalFor, setStampModalFor] = useState<CustomerCard | null>(null);
+  const [sortBy, setSortBy] = useState<"name" | "issued">("issued");
   const [sortDir, setSortDir] = useState<"desc" | "asc">("desc");
   const showAllBranches = branchSelection === "all";
 
@@ -42,13 +44,13 @@ export default function CustomersClient({
     const filtered = q
       ? customers.filter(
           (c) =>
-            c.name.toLowerCase().includes(q) ||
-            c.plates.some((p) => p.toLowerCase().includes(q)) ||
-            (c.card?.customerPhone ?? "").toLowerCase().includes(q)
+            c.customerName.toLowerCase().includes(q) ||
+            c.plateNo.toLowerCase().includes(q) ||
+            c.customerPhone.toLowerCase().includes(q)
         )
       : customers;
     return [...filtered].sort((a, b) => {
-      const cmp = sortBy === "spend" ? a.totalSpend - b.totalSpend : a.lastVisit.localeCompare(b.lastVisit);
+      const cmp = sortBy === "name" ? a.customerName.localeCompare(b.customerName) : a.issuedDate.localeCompare(b.issuedDate);
       return sortDir === "desc" ? -cmp : cmp;
     });
   }, [customers, query, sortBy, sortDir]);
@@ -78,11 +80,11 @@ export default function CustomersClient({
           <div className="relative">
             <select
               value={sortBy}
-              onChange={(e) => setSortBy(e.target.value as "spend" | "visit")}
+              onChange={(e) => setSortBy(e.target.value as "name" | "issued")}
               className="appearance-none bg-white border border-neutral-200 hover:border-red-300 rounded-xl pl-3 pr-8 py-2 text-sm text-neutral-700 font-medium focus:outline-none focus:border-red-500/50 focus:ring-2 focus:ring-red-100 transition-colors cursor-pointer"
             >
-              <option value="spend">Sort: Total Spend</option>
-              <option value="visit">Sort: Last Visit</option>
+              <option value="issued">Sort: Issued Date</option>
+              <option value="name">Sort: Name</option>
             </select>
             <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none" />
           </div>
@@ -91,7 +93,7 @@ export default function CustomersClient({
             className="flex items-center gap-1.5 bg-white border border-neutral-200 hover:border-red-300 text-neutral-700 text-sm font-medium px-3 py-2 rounded-lg transition-colors whitespace-nowrap"
             title="Toggle sort direction"
           >
-            <ArrowUpDown size={14} /> {sortDir === "desc" ? "Highest" : "Lowest"}
+            <ArrowUpDown size={14} /> {sortDir === "desc" ? "Newest" : "Oldest"}
           </button>
         </div>
         <div className="flex items-center gap-3">
@@ -102,12 +104,14 @@ export default function CustomersClient({
             {linkCopied ? <Check size={15} className="text-emerald-600" /> : <Link2 size={15} />}
             {linkCopied ? "Link copied" : "Copy Sign-Up Link"}
           </button>
-          <button
-            onClick={() => setCardModalFor("new")}
-            className="flex items-center gap-1.5 bg-red-500 hover:bg-red-400 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors whitespace-nowrap"
-          >
-            <Plus size={15} /> New Services Card
-          </button>
+          {canManageCards && (
+            <button
+              onClick={() => setCardModalFor("new")}
+              className="flex items-center gap-1.5 bg-red-500 hover:bg-red-400 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors whitespace-nowrap"
+            >
+              <Plus size={15} /> New Services Card
+            </button>
+          )}
         </div>
       </div>
       <p className="text-xs text-neutral-500 mb-4 -mt-2">
@@ -120,84 +124,67 @@ export default function CustomersClient({
             <tr className="bg-neutral-50 text-left text-xs font-medium text-neutral-500 uppercase tracking-wide">
               <th className="px-4 py-3">Customer</th>
               <th className="px-4 py-3">Phone</th>
-              <th className="px-4 py-3">Plates</th>
-              <th className="px-4 py-3 text-center">Visits</th>
-              <th className="px-4 py-3 text-center">Total Spend</th>
-              <th className="px-4 py-3">Packages Bought</th>
+              <th className="px-4 py-3">Plate No.</th>
+              <th className="px-4 py-3">Model</th>
               <th className="px-4 py-3">Services Card</th>
-              <th className="px-4 py-3">Last Visit</th>
-              <th className="px-4 py-3 w-20"></th>
+              <th className="px-4 py-3">Issued</th>
+              {canManageCards && <th className="px-4 py-3 w-20"></th>}
             </tr>
           </thead>
           <tbody>
-            {visible.map((c) => {
-              const rowKey = `${c.branch}-${c.name.toLowerCase()}`;
-              return (
-              <tr key={rowKey} className="border-t border-neutral-100">
+            {visible.map((c) => (
+              <tr key={c.id} className="border-t border-neutral-100">
                 <td className="px-4 py-3 font-medium text-neutral-800">
-                  {c.name}
+                  {c.customerName}
                   {showAllBranches && (
                     <span className="ml-2 text-[10px] font-medium text-neutral-500 bg-neutral-100 rounded-full px-1.5 py-0.5 align-middle">
                       {branchLabel(c.branch)}
                     </span>
                   )}
                 </td>
-                <td className="px-4 py-3 text-neutral-600">{c.card?.customerPhone || "—"}</td>
-                <td className="px-4 py-3 text-neutral-600">{c.plates.join(", ") || "—"}</td>
-                <td className="px-4 py-3 text-neutral-600 text-center">{c.jobCount}</td>
-                <td className="px-4 py-3 text-neutral-800 font-medium text-center">{formatCurrency(c.totalSpend)}</td>
-                <td className="px-4 py-3 text-neutral-600">
-                  {c.packagesBought.length > 0
-                    ? c.packagesBought.map((p) => `${p.name} ×${p.count}`).join(", ")
-                    : "—"}
-                </td>
+                <td className="px-4 py-3 text-neutral-600">{c.customerPhone || "—"}</td>
+                <td className="px-4 py-3 text-neutral-600">{c.plateNo || "—"}</td>
+                <td className="px-4 py-3 text-neutral-600">{c.model || "—"}</td>
                 <td className="px-4 py-3">
-                  {c.card ? (
-                    <button
-                      type="button"
-                      onClick={() => setStampModalFor(c)}
-                      title="Click to tick stamps"
-                      className="inline-flex items-center gap-1 text-xs font-medium text-red-700 bg-red-500/10 border border-red-500/20 rounded-full px-2 py-0.5 hover:bg-red-500/20 transition-colors"
-                    >
-                      <CreditCard size={11} />{" "}
-                      {`Stamp ${c.card.stamps.length}/10${
-                        nextReward(c.card.stamps.length) ? ` — next: ${nextReward(c.card.stamps.length)!.label}` : ""
-                      }`}
-                    </button>
-                  ) : (
-                    <span className="text-xs text-neutral-400">No card</span>
-                  )}
+                  <button
+                    type="button"
+                    onClick={() => setStampModalFor(c)}
+                    title="Click to tick stamps"
+                    className="inline-flex items-center gap-1 text-xs font-medium text-red-700 bg-red-500/10 border border-red-500/20 rounded-full px-2 py-0.5 hover:bg-red-500/20 transition-colors"
+                  >
+                    <CreditCard size={11} />{" "}
+                    {`Stamp ${c.stamps.length}/10${nextReward(c.stamps.length) ? ` — next: ${nextReward(c.stamps.length)!.label}` : ""}`}
+                  </button>
                 </td>
-                <td className="px-4 py-3 text-neutral-500">{c.lastVisit ? formatDate(c.lastVisit) : "—"}</td>
-                <td className="px-4 py-3">
-                  <div className="flex items-center gap-1 justify-end">
-                    <button
-                      onClick={() => setCardModalFor(c)}
-                      className="text-neutral-400 hover:text-red-600 transition-colors p-1"
-                      title={c.card ? "Edit services card" : "Add services card"}
-                      aria-label={c.card ? "Edit services card" : "Add services card"}
-                    >
-                      <Pencil size={14} />
-                    </button>
-                    {c.card && (
+                <td className="px-4 py-3 text-neutral-500">{c.issuedDate ? formatDate(c.issuedDate) : "—"}</td>
+                {canManageCards && (
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-1 justify-end">
                       <button
-                        onClick={() => setDeleting(c.card)}
+                        onClick={() => setCardModalFor(c)}
+                        className="text-neutral-400 hover:text-red-600 transition-colors p-1"
+                        title="Edit services card"
+                        aria-label="Edit services card"
+                      >
+                        <Pencil size={14} />
+                      </button>
+                      <button
+                        onClick={() => setDeleting(c)}
                         className="text-neutral-400 hover:text-red-600 transition-colors p-1"
                         title="Delete services card"
                         aria-label="Delete services card"
                       >
                         <Trash2 size={14} />
                       </button>
-                    )}
-                  </div>
-                </td>
+                    </div>
+                  </td>
+                )}
               </tr>
-              );
-            })}
+            ))}
             {visible.length === 0 && (
               <tr>
-                <td colSpan={9} className="px-4 py-10 text-center text-neutral-500">
-                  {customers.length === 0 ? "No customers yet." : "No customers match your search."}
+                <td colSpan={7} className="px-4 py-10 text-center text-neutral-500">
+                  {customers.length === 0 ? "No services cards yet." : "No customers match your search."}
                 </td>
               </tr>
             )}
@@ -214,13 +201,7 @@ export default function CustomersClient({
         />
       )}
 
-      {stampModalFor?.card && (
-        <StampModal
-          customer={stampModalFor}
-          card={stampModalFor.card}
-          onClose={() => setStampModalFor(null)}
-        />
-      )}
+      {stampModalFor && <StampModal card={stampModalFor} onClose={() => setStampModalFor(null)} />}
 
       {deleting && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 px-4">
@@ -258,14 +239,14 @@ function CardModal({
   locked,
   onClose,
 }: {
-  customer: CustomerSummary | null;
+  customer: CustomerCard | null;
   branch: Branch;
   locked: boolean;
   onClose: () => void;
 }) {
-  const existing = customer?.card ?? null;
+  const existing = customer;
   const [cardBranch, setCardBranch] = useState<Branch>(customer?.branch ?? branch);
-  const [customerName, setCustomerName] = useState(customer?.name ?? "");
+  const [customerName, setCustomerName] = useState(existing?.customerName ?? "");
   const [customerPhone, setCustomerPhone] = useState(existing?.customerPhone ?? "");
   const [cardNumber, setCardNumber] = useState(existing?.cardNumber ?? "");
   const [plateNo, setPlateNo] = useState(existing?.plateNo ?? "");
@@ -275,8 +256,6 @@ function CardModal({
   const [expiryDate, setExpiryDate] = useState(existing?.expiryDate ?? "");
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
-
-  const nameLocked = customer !== null;
 
   function handleSave() {
     const input = {
@@ -315,31 +294,28 @@ function CardModal({
           </button>
         </div>
         <div className="space-y-4">
-          {!nameLocked && (
-            <div>
-              <label className="block text-xs font-medium text-neutral-600 mb-1.5">Branch</label>
-              <select
-                value={cardBranch}
-                onChange={(e) => setCardBranch(e.target.value as Branch)}
-                disabled={locked}
-                className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50 disabled:opacity-60"
-              >
-                {BRANCHES.map((b) => (
-                  <option key={b.value} value={b.value}>
-                    {b.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
+          <div>
+            <label className="block text-xs font-medium text-neutral-600 mb-1.5">Branch</label>
+            <select
+              value={cardBranch}
+              onChange={(e) => setCardBranch(e.target.value as Branch)}
+              disabled={locked}
+              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50 disabled:opacity-60"
+            >
+              {BRANCHES.map((b) => (
+                <option key={b.value} value={b.value}>
+                  {b.label}
+                </option>
+              ))}
+            </select>
+          </div>
           <div>
             <label className="block text-xs font-medium text-neutral-600 mb-1.5">Customer Name *</label>
             <input
               type="text"
               value={customerName}
               onChange={(e) => setCustomerName(e.target.value)}
-              disabled={nameLocked}
-              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50 disabled:opacity-60"
+              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
             />
           </div>
           <div>
@@ -448,15 +424,7 @@ function CardModal({
 
 // Stamps are ticked by hand here, one click at a time — completely
 // independent of jobsheet/visit counts.
-function StampModal({
-  customer,
-  card,
-  onClose,
-}: {
-  customer: CustomerSummary;
-  card: CustomerCard;
-  onClose: () => void;
-}) {
+function StampModal({ card, onClose }: { card: CustomerCard; onClose: () => void }) {
   const [stamps, setStamps] = useState<number[]>(card.stamps);
   const [isPending, startTransition] = useTransition();
   const size = stampCardSize();
@@ -479,7 +447,7 @@ function StampModal({
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 px-4">
       <div className="bg-white border border-neutral-200 rounded-xl w-full max-w-sm p-6">
         <div className="flex items-center justify-between mb-1">
-          <h2 className="text-sm font-semibold text-neutral-900">{customer.name}&apos;s Stamp Card</h2>
+          <h2 className="text-sm font-semibold text-neutral-900">{card.customerName}&apos;s Stamp Card</h2>
           <button onClick={onClose} className="text-neutral-400 hover:text-neutral-700" aria-label="Close">
             <X size={16} />
           </button>

@@ -1,4 +1,4 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { requirePageContext, requirePage, getActiveBranchSelection, canViewAllBranches } from "@/lib/current-user";
 import { getRepairJobById, getAllBranchesActiveRepairJobs } from "@/lib/repairs-actions";
 import { getAllMechanics } from "@/lib/mechanics-actions";
@@ -14,6 +14,8 @@ export default async function EditWalkInJobPage({ params }: { params: Promise<{ 
   await requirePage("walk-in");
   const { id } = await params;
   const { user } = await requirePageContext();
+  // Front Desk can see Jobsheet for context but never add/edit one.
+  if (user.role === "Front Desk") redirect("/repairs/walk-in");
   const [job, branchSelection, allActiveJobs, mechanics, catalogProducts, packages] = await Promise.all([
     getRepairJobById(id),
     getActiveBranchSelection(user),

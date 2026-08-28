@@ -4,16 +4,7 @@ import { revalidatePath } from "next/cache";
 import { supabaseAdmin } from "./supabase-server";
 import { requireApproved, assertCanEditBranch } from "./current-user";
 import { BRANCHES, type Branch } from "./branch";
-import type { CustomerCard, CustomerSummary } from "./types";
-import { getPackageSales, type PackageSaleWithNames } from "./packages-actions";
-
-function normalizeName(name: string): string {
-  return name.trim().toLowerCase();
-}
-
-function normalizePhone(phone: string): string {
-  return phone.replace(/\D/g, "");
-}
+import type { CustomerCard } from "./types";
 
 type CardRow = {
   id: string;
@@ -49,7 +40,9 @@ function toCard(r: CardRow): CustomerCard {
   };
 }
 
-async function getCustomerCards(branch: Branch): Promise<CustomerCard[]> {
+// Services Cards are a plain manual database now — added and ticked by
+// admin only, never aggregated from jobsheet or Services Combo history.
+export async function getCustomers(branch: Branch): Promise<CustomerCard[]> {
   await requireApproved();
   const { data, error } = await supabaseAdmin
     .from("cc_customer_cards")
@@ -60,130 +53,11 @@ async function getCustomerCards(branch: Branch): Promise<CustomerCard[]> {
   return (data as CardRow[]).map(toCard);
 }
 
-type JobRow = {
-  customer_name: string;
-  customer_phone: string;
-  plate_no: string;
-  revenue_amount: number;
-  completed_date: string | null;
-  started_date: string | null;
-  created_at: string;
-};
-
-// Customers aren't stored — they're aggregated from Walk-in job spending
-// and Services Combo purchases, matched to a loyalty card (if one exists)
-// by phone first and name second, since names can be spelled differently
-// visit to visit but phone numbers don't change.
-function buildSummaries(
-  branch: Branch,
-  jobs: JobRow[],
-  sales: PackageSaleWithNames[],
-  cards: CustomerCard[]
-): CustomerSummary[] {
-  const byKey = new Map<
-    string,
-    {
-      name: string;
-      totalSpend: number;
-      jobCount: number;
-      plates: Set<string>;
-      lastVisit: string;
-      packagesBought: Map<string, number>;
-    }
-  >();
-
-  const cardByPhone = new Map(cards.filter((c) => c.customerPhone).map((c) => [normalizePhone(c.customerPhone), c]));
-  const cardByName = new Map(cards.map((c) => [normalizeName(c.customerName), c]));
-
-  function resolveCard(rawName: string, rawPhone?: string): CustomerCard | null {
-    const phone = rawPhone ? normalizePhone(rawPhone) : "";
-    if (phone && cardByPhone.has(phone)) return cardByPhone.get(phone)!;
-    const name = normalizeName(rawName);
-    return name ? cardByName.get(name) ?? null : null;
-  }
-
-  function entryFor(rawName: string, rawPhone?: string) {
-    const card = resolveCard(rawName, rawPhone);
-    const key = card ? `card:${card.id}` : `name:${normalizeName(rawName)}`;
-    if (key === "name:") return null;
-    let entry = byKey.get(key);
-    if (!entry) {
-      entry = {
-        name: card ? card.customerName : rawName.trim(),
-        totalSpend: 0,
-        jobCount: 0,
-        plates: new Set(),
-        lastVisit: "",
-        packagesBought: new Map(),
-      };
-      byKey.set(key, entry);
-    }
-    return entry;
-  }
-
-  for (const job of jobs) {
-    const entry = entryFor(job.customer_name ?? "", job.customer_phone);
-    if (!entry) continue;
-    entry.totalSpend += Number(job.revenue_amount);
-    entry.jobCount += 1;
-    if (job.plate_no) entry.plates.add(job.plate_no);
-    const visitDate = job.completed_date || job.started_date || job.created_at;
-    if (visitDate && visitDate > entry.lastVisit) entry.lastVisit = visitDate;
-  }
-
-  for (const sale of sales) {
-    const entry = entryFor(sale.customerName ?? "");
-    if (!entry) continue;
-    entry.packagesBought.set(sale.packageName, (entry.packagesBought.get(sale.packageName) ?? 0) + 1);
-    if (sale.customerPlateNo) entry.plates.add(sale.customerPlateNo);
-    if (sale.saleDate > entry.lastVisit) entry.lastVisit = sale.saleDate;
-  }
-
-  // Make sure a customer who only has a loyalty card so far (no spend on
-  // file yet) still shows up in the list.
-  for (const card of cards) {
-    entryFor(card.customerName, card.customerPhone);
-  }
-
-  const cardById = new Map(cards.map((c) => [c.id, c]));
-
-  return Array.from(byKey.entries())
-    .map(([key, entry]) => {
-      const card = key.startsWith("card:") ? cardById.get(key.slice(5)) ?? null : null;
-      return {
-        name: entry.name,
-        branch,
-        totalSpend: entry.totalSpend,
-        jobCount: entry.jobCount,
-        plates: Array.from(entry.plates),
-        lastVisit: entry.lastVisit,
-        packagesBought: Array.from(entry.packagesBought.entries()).map(([name, count]) => ({ name, count })),
-        card,
-      };
-    })
-    .sort((a, b) => b.totalSpend - a.totalSpend);
-}
-
-export async function getCustomers(branch: Branch): Promise<CustomerSummary[]> {
-  await requireApproved();
-  const [{ data: jobs, error: jobsError }, sales, cards] = await Promise.all([
-    supabaseAdmin
-      .from("cc_repair_jobs")
-      .select("customer_name, customer_phone, plate_no, revenue_amount, completed_date, started_date, created_at")
-      .eq("branch", branch)
-      .eq("job_type", "Walk-in"),
-    getPackageSales(branch),
-    getCustomerCards(branch),
-  ]);
-  if (jobsError) throw new Error(jobsError.message);
-  return buildSummaries(branch, (jobs as JobRow[]) ?? [], sales, cards);
-}
-
 // Same as getCustomers, but merged across all 3 branches for the "All
 // Branches" combined view.
-export async function getAllBranchesCustomers(): Promise<CustomerSummary[]> {
+export async function getAllBranchesCustomers(): Promise<CustomerCard[]> {
   const perBranch = await Promise.all(BRANCHES.map(({ value }) => getCustomers(value)));
-  return perBranch.flat().sort((a, b) => b.totalSpend - a.totalSpend);
+  return perBranch.flat().sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
 
 export async function addCustomerCardAction(input: {

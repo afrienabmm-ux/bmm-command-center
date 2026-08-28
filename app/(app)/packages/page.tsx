@@ -1,4 +1,4 @@
-import { requirePageContext, requirePage, getActiveBranchSelection } from "@/lib/current-user";
+import { requirePageContext, requirePage, getActiveBranchSelection, isManagementLevel } from "@/lib/current-user";
 import {
   getPackages,
   getPackageSales,
@@ -37,7 +37,7 @@ export default async function PackagesPage() {
           soldCounts={soldCounts}
           branch={branch}
           branchSelection={branchSelection}
-          isAdmin={user.role === "Management"}
+          isAdmin={isManagementLevel(user.role)}
         />
       </div>
     </div>

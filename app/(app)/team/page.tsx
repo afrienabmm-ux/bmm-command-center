@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { getCurrentUser } from "@/lib/current-user";
+import { getCurrentUser, isManagementLevel } from "@/lib/current-user";
 import { getTeamMembers } from "@/lib/user-actions";
 import PageHeader from "@/components/PageHeader";
 import TeamClient from "./TeamClient";
@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 
 export default async function TeamPage() {
   const user = await getCurrentUser();
-  if (!user || user.role !== "Management") {
+  if (!user || !isManagementLevel(user.role)) {
     redirect("/");
   }
 

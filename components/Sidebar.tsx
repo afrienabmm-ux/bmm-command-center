@@ -73,7 +73,7 @@ export default function Sidebar({
   onToggle: () => void;
 }) {
   const pathname = usePathname();
-  const canSeeTeam = role === "Management";
+  const canSeeTeam = role === "Management" || role === "Administrator";
   const [changePasswordOpen, setChangePasswordOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const profileRef = useRef<HTMLDivElement>(null);

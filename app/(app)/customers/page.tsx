@@ -18,7 +18,7 @@ export default async function CustomersPage() {
     <div className="flex flex-col h-full">
       <PageHeader
         title="Services Card"
-        subtitle={`${showAllBranches ? "All Branches" : branchLabel(branch)} — ${customers.length} customers`}
+        subtitle={`${showAllBranches ? "All Branches" : branchLabel(branch)} — ${customers.length} cards`}
       />
       <div className="p-8">
         <CustomersClient
@@ -26,6 +26,7 @@ export default async function CustomersPage() {
           branch={branch}
           branchSelection={branchSelection}
           locked={!canViewAllBranches(user)}
+          canManageCards={user.role !== "Front Desk"}
         />
       </div>
     </div>

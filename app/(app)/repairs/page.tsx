@@ -1,4 +1,4 @@
-import { requirePageContext, requirePage, getActiveBranchSelection } from "@/lib/current-user";
+import { requirePageContext, requirePage, getActiveBranchSelection, isManagementLevel } from "@/lib/current-user";
 import {
   getActiveRepairJobs,
   getQcRepairJobs,
@@ -63,7 +63,7 @@ export default async function RepairsPage({
               completed={completed}
               mechanics={mechanics}
               branchSelection={branchSelection}
-              isManagement={user.role === "Management"}
+              isManagement={isManagementLevel(user.role)}
               highlightId={highlight}
             />
           }

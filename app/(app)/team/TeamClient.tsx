@@ -16,7 +16,7 @@ import type { Role } from "@/lib/current-user";
 import { BRANCHES, type BranchSelection } from "@/lib/branch";
 import { formatDate } from "@/lib/format";
 
-const ROLES: Role[] = ["Branch PIC", "Management", "Mechanic"];
+const ROLES: Role[] = ["Branch PIC", "Management", "Administrator", "Mechanic", "Front Desk"];
 
 export default function TeamClient({ members, currentUserId }: { members: TeamMember[]; currentUserId: string }) {
   const pending = members.filter((m) => m.status === "pending");

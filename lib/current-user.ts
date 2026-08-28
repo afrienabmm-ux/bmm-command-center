@@ -7,10 +7,16 @@ import type { Branch, BranchSelection } from "./branch";
 import { getSelectedBranch, getRawBranchSelection } from "./branch-server";
 import { resolveAllowedPages, type PageKey } from "./permissions";
 
-// Mechanic is a narrower access level than Branch PIC — see
-// resolveAllowedPages in permissions.ts for exactly what it can see
-// (jobsheet scanning only, nothing else).
-export type Role = "Branch PIC" | "Management" | "Mechanic";
+// Mechanic and Front Desk are narrower access levels than Branch PIC — see
+// resolveAllowedPages in permissions.ts for exactly what each can see
+// (jobsheet scanning only; Services Card stamps only). Administrator is a
+// separate label with the exact same full access as Management — see
+// isManagementLevel below.
+export type Role = "Branch PIC" | "Management" | "Administrator" | "Mechanic" | "Front Desk";
+
+export function isManagementLevel(role: Role | null): boolean {
+  return role === "Management" || role === "Administrator";
+}
 export type ProfileStatus = "pending" | "approved" | "revoked";
 
 export type CurrentUser = {
@@ -67,7 +73,7 @@ export async function requireApproved(): Promise<CurrentUser> {
 // data, approve accounts, manage the team. Branch PIC gets none of it.
 export async function requireManagement(): Promise<CurrentUser> {
   const user = await requireApproved();
-  if (user.role !== "Management") {
+  if (!isManagementLevel(user.role)) {
     throw new Error("Only Management can do this.");
   }
   return user;
@@ -89,7 +95,7 @@ export async function requirePage(page: PageKey): Promise<CurrentUser> {
 // has explicitly set their individual branch to "All Branches" on the Team
 // page — independent of access level.
 export function canViewAllBranches(user: CurrentUser): boolean {
-  return user.role === "Management" || user.homeBranch === "all";
+  return isManagementLevel(user.role) || user.homeBranch === "all";
 }
 
 export function canViewAllBranchesAtOnce(user: CurrentUser): boolean {
@@ -109,7 +115,7 @@ export async function getActiveBranchSelection(user: CurrentUser): Promise<Branc
   // no saved cookie yet (a fresh browser, or right after logging in for
   // the first time); switching branches afterward is still remembered as
   // before.
-  const fallback = user.role === "Management" ? "all" : user.homeBranch === "all" ? "kapar" : user.homeBranch;
+  const fallback = isManagementLevel(user.role) ? "all" : user.homeBranch === "all" ? "kapar" : user.homeBranch;
   return getRawBranchSelection(fallback);
 }
 

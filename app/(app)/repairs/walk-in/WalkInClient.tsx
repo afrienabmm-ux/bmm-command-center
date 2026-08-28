@@ -26,12 +26,14 @@ export default function WalkInClient({
   mechanics,
   branchSelection,
   highlightId,
+  canEdit,
 }: {
   active: RepairJob[];
   completed: RepairJob[];
   mechanics: Mechanic[];
   branchSelection: BranchSelection;
   highlightId?: string;
+  canEdit: boolean;
 }) {
   const [tab, setTab] = useState<"active" | "completed">("active");
   const [exporting, setExporting] = useState(false);
@@ -296,7 +298,7 @@ export default function WalkInClient({
               </div>
             )}
           </div>
-          {selectedIds.size > 0 && (
+          {canEdit && selectedIds.size > 0 && (
             <button
               onClick={() => setBulkDeleteOpen(true)}
               className="flex items-center gap-1.5 bg-red-50 hover:bg-red-100 border border-red-200 text-red-700 text-sm font-medium px-4 py-2 rounded-lg transition-colors whitespace-nowrap"
@@ -304,12 +306,14 @@ export default function WalkInClient({
               <Trash2 size={15} /> Delete Selected ({selectedIds.size})
             </button>
           )}
-          <Link
-            href="/repairs/walk-in/new"
-            className="flex items-center gap-1.5 bg-red-500 hover:bg-red-400 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
-          >
-            <Plus size={15} /> Add Job
-          </Link>
+          {canEdit && (
+            <Link
+              href="/repairs/walk-in/new"
+              className="flex items-center gap-1.5 bg-red-500 hover:bg-red-400 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+            >
+              <Plus size={15} /> Add Job
+            </Link>
+          )}
         </div>
       </div>
 
@@ -318,16 +322,18 @@ export default function WalkInClient({
           <table className="w-full text-sm">
             <thead>
               <tr className="text-left text-xs text-neutral-500 border-b border-neutral-200">
-                <th className="px-5 py-3 w-10">
-                  <input
-                    type="checkbox"
-                    checked={allVisibleSelected}
-                    onChange={toggleSelectAll}
-                    disabled={visible.length === 0}
-                    aria-label="Select all"
-                    className="accent-red-500"
-                  />
-                </th>
+                {canEdit && (
+                  <th className="px-5 py-3 w-10">
+                    <input
+                      type="checkbox"
+                      checked={allVisibleSelected}
+                      onChange={toggleSelectAll}
+                      disabled={visible.length === 0}
+                      aria-label="Select all"
+                      className="accent-red-500"
+                    />
+                  </th>
+                )}
                 <th className="font-medium px-5 py-3 whitespace-nowrap">Job No.</th>
                 {showBranchColumn && <th className="font-medium px-5 py-3 whitespace-nowrap">Branch</th>}
                 <th className="font-medium px-5 py-3 whitespace-nowrap">Customer</th>
@@ -350,7 +356,8 @@ export default function WalkInClient({
                   job={job}
                   showBranch={showBranchColumn}
                   mechanicLabel={mechanicLabel(job.mechanicId)}
-                  editable={tab === "active"}
+                  editable={canEdit && tab === "active"}
+                  canEdit={canEdit}
                   highlight={job.id === highlightId}
                   selected={selectedIds.has(job.id)}
                   onToggleSelect={() => toggleSelectOne(job.id)}
@@ -358,7 +365,10 @@ export default function WalkInClient({
               ))}
               {visible.length === 0 && (
                 <tr>
-                  <td colSpan={showBranchColumn ? 14 : 13} className="px-5 py-10 text-center text-neutral-500 text-sm">
+                  <td
+                    colSpan={(showBranchColumn ? 13 : 12) + (canEdit ? 1 : 0)}
+                    className="px-5 py-10 text-center text-neutral-500 text-sm"
+                  >
                     {jobs.length === 0
                       ? `${tab === "active" ? "No active" : "No completed"} Jobsheet jobs.`
                       : "No jobs match your search."}
@@ -648,6 +658,7 @@ function WalkInRow({
   showBranch,
   mechanicLabel,
   editable,
+  canEdit,
   highlight,
   selected,
   onToggleSelect,
@@ -656,6 +667,7 @@ function WalkInRow({
   showBranch: boolean;
   mechanicLabel: string;
   editable: boolean;
+  canEdit: boolean;
   highlight?: boolean;
   selected: boolean;
   onToggleSelect: () => void;
@@ -682,6 +694,7 @@ function WalkInRow({
   // Double-click anywhere on the row (except an actual link/button, which
   // already has its own action) opens the jobsheet's full details.
   function handleRowDoubleClick(e: React.MouseEvent<HTMLTableRowElement>) {
+    if (!canEdit) return;
     if ((e.target as HTMLElement).closest("a, button, input")) return;
     router.push(`/repairs/walk-in/${job.id}/edit`);
   }
@@ -715,15 +728,17 @@ function WalkInRow({
         flashed ? "bg-sky-50" : ""
       }`}
     >
-      <td className="px-5 py-3.5" onClick={(e) => e.stopPropagation()}>
-        <input
-          type="checkbox"
-          checked={selected}
-          onChange={onToggleSelect}
-          aria-label={`Select job ${job.jobNo}`}
-          className="accent-red-500"
-        />
-      </td>
+      {canEdit && (
+        <td className="px-5 py-3.5" onClick={(e) => e.stopPropagation()}>
+          <input
+            type="checkbox"
+            checked={selected}
+            onChange={onToggleSelect}
+            aria-label={`Select job ${job.jobNo}`}
+            className="accent-red-500"
+          />
+        </td>
+      )}
       <td className="px-5 py-3.5 text-neutral-800 font-medium whitespace-nowrap">{job.jobNo}</td>
       {showBranch && <td className="px-5 py-3.5 text-neutral-600 whitespace-nowrap">{branchLabel(job.branch)}</td>}
       <td className="px-5 py-3.5 text-neutral-700 whitespace-nowrap">{job.customerName || "—"}</td>
@@ -767,14 +782,16 @@ function WalkInRow({
               <ImageIcon size={14} />
             </button>
           )}
-          <Link
-            href={`/repairs/walk-in/${job.id}/edit`}
-            className="text-neutral-400 hover:text-red-600 transition-colors p-1 inline-block"
-            title="Edit job"
-            aria-label="Edit job"
-          >
-            <Pencil size={14} />
-          </Link>
+          {canEdit && (
+            <Link
+              href={`/repairs/walk-in/${job.id}/edit`}
+              className="text-neutral-400 hover:text-red-600 transition-colors p-1 inline-block"
+              title="Edit job"
+              aria-label="Edit job"
+            >
+              <Pencil size={14} />
+            </Link>
+          )}
           <Link
             href={`/repairs/walk-in/${job.id}/print`}
             target="_blank"
@@ -784,14 +801,16 @@ function WalkInRow({
           >
             <Printer size={14} />
           </Link>
-          <button
-            onClick={() => setConfirmOpen(true)}
-            className="text-neutral-400 hover:text-red-600 transition-colors p-1"
-            title="Delete job"
-            aria-label="Delete job"
-          >
-            <Trash2 size={14} />
-          </button>
+          {canEdit && (
+            <button
+              onClick={() => setConfirmOpen(true)}
+              className="text-neutral-400 hover:text-red-600 transition-colors p-1"
+              title="Delete job"
+              aria-label="Delete job"
+            >
+              <Trash2 size={14} />
+            </button>
+          )}
         </div>
 
         {confirmOpen && (

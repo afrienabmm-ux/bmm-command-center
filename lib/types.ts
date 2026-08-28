@@ -278,21 +278,6 @@ export type CustomerCard = {
   stamps: number[];
 };
 
-// One row per customer, aggregated from their Walk-in job history (spend,
-// visit count, plates used) plus their Services Combo purchases and, if
-// they have one, their loyalty card — computed on the fly rather than
-// stored, same approach as GenBlu points.
-export type CustomerSummary = {
-  name: string;
-  branch: Branch;
-  totalSpend: number;
-  jobCount: number;
-  plates: string[];
-  lastVisit: string;
-  packagesBought: { name: string; count: number }[];
-  card: CustomerCard | null;
-};
-
 export type LabourCharge = {
   id: string;
   description: string;

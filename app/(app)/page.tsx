@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { requireApproved, getActiveBranchSelection } from "@/lib/current-user";
+import { requireApproved, getActiveBranchSelection, isManagementLevel } from "@/lib/current-user";
 import { branchLabel } from "@/lib/branch";
 import PageHeader from "@/components/PageHeader";
 import MonthPicker from "@/components/MonthPicker";
@@ -18,10 +18,12 @@ export default async function CommandCenterPage({
   const user = await requireApproved();
   // Mechanic is jobsheet-scanning only — sent to the phone-optimized /scan
   // page (not the desktop Jobsheet list) since that's what this role is
-  // for. This page has no page-key gate of its own (it's every other
-  // role's default landing page), so it needs its own explicit redirect
-  // instead of relying on requirePage().
+  // for. Front Desk only ticks Services Card stamps — sent straight there.
+  // This page has no page-key gate of its own (it's every other role's
+  // default landing page), so it needs its own explicit redirect instead
+  // of relying on requirePage().
   if (user.role === "Mechanic") redirect("/scan");
+  if (user.role === "Front Desk") redirect("/customers");
   const branchSelection = await getActiveBranchSelection(user);
   const params = await searchParams;
   const now = new Date();
@@ -39,7 +41,7 @@ export default async function CommandCenterPage({
         <AllBranchesOverview
           year={year}
           month={month}
-          isManagement={user.role === "Management"}
+          isManagement={isManagementLevel(user.role)}
           branchSelection={branchSelection}
         />
       </div>

@@ -95,26 +95,26 @@ export default async function ReportDetailPage({ params }: { params: Promise<{ t
       status: j.status,
     }));
   } else if (type === "services-card") {
-    const customers = allBranches ? await getAllBranchesCustomers() : await getCustomers(selection);
+    const cards = allBranches ? await getAllBranchesCustomers() : await getCustomers(selection);
     columns = [
       { key: "name", label: "Customer" },
       { key: "branch", label: "Branch" },
-      { key: "plates", label: "Plates" },
-      { key: "jobCount", label: "Visits" },
-      { key: "totalSpend", label: "Total Spend (RM)" },
-      { key: "lastVisit", label: "Last Visit" },
+      { key: "phone", label: "Phone" },
+      { key: "plate", label: "Plate No" },
+      { key: "stamps", label: "Stamps" },
       { key: "cardNumber", label: "Card No" },
+      { key: "issuedDate", label: "Issued" },
     ];
-    dateField = "lastVisit";
-    searchFields = ["name", "plates", "cardNumber"];
-    rows = customers.map((c) => ({
-      name: c.name,
+    dateField = "issuedDate";
+    searchFields = ["name", "plate", "cardNumber"];
+    rows = cards.map((c) => ({
+      name: c.customerName,
       branch: branchLabel(c.branch),
-      plates: c.plates.join(", "),
-      jobCount: c.jobCount,
-      totalSpend: c.totalSpend.toFixed(2),
-      lastVisit: c.lastVisit || "",
-      cardNumber: c.card?.cardNumber ?? "—",
+      phone: c.customerPhone,
+      plate: c.plateNo,
+      stamps: `${c.stamps.length}/10`,
+      cardNumber: c.cardNumber,
+      issuedDate: c.issuedDate || "",
     }));
   } else if (type === "genblu") {
     const regs = allBranches ? await getAllBranchesGenbluRegistrations() : await getGenbluRegistrations(selection);

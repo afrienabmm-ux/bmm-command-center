@@ -35,6 +35,7 @@ export default async function WalkInPage({ searchParams }: { searchParams: Promi
           mechanics={mechanics}
           branchSelection={branchSelection}
           highlightId={highlight}
+          canEdit={user.role !== "Front Desk"}
         />
       </div>
     </div>
