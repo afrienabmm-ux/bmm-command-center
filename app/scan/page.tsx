@@ -14,7 +14,8 @@ import { getAllMechanics } from "@/lib/mechanics-actions";
 import { getAllCatalogProducts } from "@/lib/catalog-actions";
 import { getPackages } from "@/lib/packages-actions";
 import WalkInJobForm from "../(app)/repairs/walk-in/WalkInJobForm";
-import GenbluQuickForm, { type RecentJobsheetCustomer } from "./GenbluQuickForm";
+import { type RecentJobsheetCustomer } from "./GenbluQuickForm";
+import GenbluPanel from "./GenbluPanel";
 import JobsheetPicker from "./JobsheetPicker";
 import ScanTabs from "./ScanTabs";
 import SavedToast from "./SavedToast";
@@ -89,6 +90,10 @@ export default async function ScanPage({ searchParams }: { searchParams: Promise
   // one thing they can do here. Staff on their own account still get both.
   const isFieldScanner = currentUser.email === process.env.FIELD_SCANNER_EMAIL;
   const canUploadGenblu = !isFieldScanner && hasPageAccess(currentUser, "genblu");
+  // Front Desk can see Jobsheet on desktop but never add/edit one — so the
+  // phone page skips straight to GenBlu (their actual task) instead of
+  // offering the jobsheet-scanning tab at all.
+  const canScanJobsheet = currentUser.role !== "Front Desk";
 
   // Most recent Walk-in jobs (active or completed) are what a GenBlu
   // screenshot actually gets attached to — the whole point of this tab is
@@ -122,8 +127,23 @@ export default async function ScanPage({ searchParams }: { searchParams: Promise
         </form>
       </div>
       <div className="p-4">
-        {canUploadGenblu ? (
-          <ScanTabs jobsheet={jobsheetForm} genblu={<GenbluQuickForm recentJobs={recentJobs} />} />
+        {canScanJobsheet && canUploadGenblu ? (
+          <ScanTabs
+            jobsheet={jobsheetForm}
+            genblu={
+              <GenbluPanel
+                recentJobs={recentJobs}
+                branchSelection={branchSelection}
+                defaultMode={currentUser.role === "Mechanic" ? "link" : "log"}
+              />
+            }
+          />
+        ) : canUploadGenblu ? (
+          <GenbluPanel
+            recentJobs={recentJobs}
+            branchSelection={branchSelection}
+            defaultMode={currentUser.role === "Mechanic" ? "link" : "log"}
+          />
         ) : (
           jobsheetForm
         )}

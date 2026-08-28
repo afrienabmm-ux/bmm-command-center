@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { supabaseAdmin } from "./supabase-server";
 import { requireApproved, assertCanEditBranch } from "./current-user";
-import type { GenbluRegistration } from "./types";
+import type { GenbluRegistration, GenbluTransaction } from "./types";
 import { BRANCHES, type Branch } from "./branch";
 import { extractTextFromImage } from "./vision";
 
@@ -398,4 +398,193 @@ export async function attachGenbluScreenshotAction(input: {
 
   revalidatePath("/genblu");
   return { updated: true };
+}
+
+const TRANSACTIONS_BUCKET = "genblu-screenshots";
+
+const MONTHS: Record<string, number> = {
+  jan: 1, feb: 2, mar: 3, apr: 4, may: 5, jun: 6,
+  jul: 7, aug: 8, sep: 9, oct: 10, nov: 11, dec: 12,
+};
+
+// "28 Aug 26" / "28 August 2026" -> "2026-08-28". Only trusts an actual
+// day-month-year token cluster (never a bare time like the phone's status
+// bar clock), so it can search the whole OCR text safely.
+function extractTransactionDate(text: string): string | null {
+  const match = text.match(/\b(\d{1,2})\s+([A-Za-z]{3,9})\s+(\d{2,4})\b/);
+  if (!match) return null;
+  const day = Number(match[1]);
+  const month = MONTHS[match[2].slice(0, 3).toLowerCase()];
+  if (!month || day < 1 || day > 31) return null;
+  let year = Number(match[3]);
+  if (year < 100) year += 2000;
+  return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+}
+
+// The customer's name is the large header text above "Membership number" —
+// no label of its own, so it's found by position rather than a keyword.
+// Skips the phone status bar (pure digits/time) and keeps the longest
+// letters-only line in that region, since that's reliably the name.
+function extractTransactionCustomerName(text: string): string {
+  const membershipIdx = text.search(/membership\s*number/i);
+  const head = membershipIdx > 0 ? text.slice(0, membershipIdx) : text;
+  const candidates = head
+    .split("\n")
+    .map((l) => l.trim())
+    .filter((l) => /^[A-Za-z][A-Za-z .'/@-]{3,}$/.test(l));
+  if (candidates.length === 0) return "";
+  return candidates.reduce((a, b) => (b.length > a.length ? b : a), "");
+}
+
+function extractMembershipNumber(text: string): string | null {
+  const match = text.match(/membership\s*number\D{0,15}(\d[\d-]{4,20})/i);
+  return match ? match[1] : null;
+}
+
+function extractProductCategory(text: string): string | null {
+  const match = text.match(/product\s*category\W{0,15}([A-Za-z]{2,20})/i);
+  return match ? match[1].toUpperCase() : null;
+}
+
+function extractTransactionPoints(text: string): number | null {
+  const match = text.match(/points[^\d]{0,20}(\d[\d,]{0,6})/i);
+  if (!match) return null;
+  const num = Number(match[1].replace(/,/g, ""));
+  return Number.isNaN(num) ? null : num;
+}
+
+type TransactionRow = {
+  id: string;
+  branch: Branch;
+  customer_name: string;
+  membership_number: string | null;
+  product_category: string | null;
+  points: number;
+  transaction_date: string | null;
+  screenshot_path: string | null;
+  uploaded_by: string | null;
+  created_at: string;
+};
+
+function toTransaction(r: TransactionRow): GenbluTransaction {
+  return {
+    id: r.id,
+    branch: r.branch,
+    customerName: r.customer_name,
+    membershipNumber: r.membership_number,
+    productCategory: r.product_category,
+    points: r.points,
+    transactionDate: r.transaction_date,
+    screenshotPath: r.screenshot_path,
+    uploadedBy: r.uploaded_by,
+    createdAt: r.created_at,
+  };
+}
+
+// Every field here is read straight off the screenshot — the phone form
+// has no manual inputs for these, by design (photo evidence, not typed
+// numbers someone could fat-finger or fudge). Branch is the one exception,
+// since it never appears on the GenBlu app screen itself.
+export async function addGenbluTransactionAction(input: {
+  branch: Branch;
+  screenshot: File;
+}): Promise<{ error: string } | { transaction: GenbluTransaction }> {
+  const user = await requireApproved();
+  assertCanEditBranch(user, input.branch);
+  if (input.screenshot.size === 0) return { error: "Pick a screenshot to upload." };
+
+  const buffer = Buffer.from(await input.screenshot.arrayBuffer());
+  const base64 = buffer.toString("base64");
+  let text = "";
+  try {
+    text = await extractTextFromImage(base64);
+  } catch {
+    return { error: "Couldn't read the screenshot — please try again with a clearer photo." };
+  }
+
+  const customerName = extractTransactionCustomerName(text);
+  const points = extractTransactionPoints(text);
+  if (!customerName || points === null) {
+    return {
+      error: "Couldn't read the customer name and points off that screenshot — please try again with a clearer, uncropped photo of the full screen.",
+    };
+  }
+
+  const ext = input.screenshot.name.split(".").pop() || "jpg";
+  const path = `${input.branch}/txn-${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+  const { error: uploadError } = await supabaseAdmin.storage.from(TRANSACTIONS_BUCKET).upload(path, input.screenshot, {
+    contentType: input.screenshot.type || "image/jpeg",
+  });
+  if (uploadError) return { error: `Couldn't upload the screenshot: ${uploadError.message}` };
+
+  const { data, error } = await supabaseAdmin
+    .from("cc_genblu_transactions")
+    .insert({
+      branch: input.branch,
+      customer_name: customerName,
+      membership_number: extractMembershipNumber(text),
+      product_category: extractProductCategory(text),
+      points,
+      transaction_date: extractTransactionDate(text),
+      screenshot_path: path,
+      uploaded_by: user.name,
+    })
+    .select("*")
+    .single();
+  if (error) return { error: error.message };
+
+  revalidatePath("/genblu");
+  return { transaction: toTransaction(data as TransactionRow) };
+}
+
+export async function getGenbluTransactions(branch: Branch): Promise<GenbluTransaction[]> {
+  await requireApproved();
+  const { data, error } = await supabaseAdmin
+    .from("cc_genblu_transactions")
+    .select("*")
+    .eq("branch", branch)
+    .order("created_at", { ascending: false });
+  if (error) throw new Error(error.message);
+  return (data as TransactionRow[]).map(toTransaction);
+}
+
+export async function getAllBranchesGenbluTransactions(): Promise<GenbluTransaction[]> {
+  const perBranch = await Promise.all(BRANCHES.map(({ value }) => getGenbluTransactions(value)));
+  return perBranch.flat().sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
+}
+
+export type GenbluMonthlySummaryRow = { branch: Branch | "unknown"; label: string; counts: number; points: number };
+
+// Matches the admin's own spreadsheet "Finding" table: how many awards and
+// how many total points were given this month, split by branch.
+export async function getGenbluMonthlySummary(year: number, month: number): Promise<{ rows: GenbluMonthlySummaryRow[]; total: GenbluMonthlySummaryRow }> {
+  await requireApproved();
+  const prefix = `${year}-${String(month).padStart(2, "0")}`;
+  const { data, error } = await supabaseAdmin
+    .from("cc_genblu_transactions")
+    .select("branch, points, transaction_date")
+    .gte("transaction_date", `${prefix}-01`)
+    .lt("transaction_date", month === 12 ? `${year + 1}-01-01` : `${year}-${String(month + 1).padStart(2, "0")}-01`);
+  if (error) throw new Error(error.message);
+
+  const byBranch = new Map<Branch, { counts: number; points: number }>();
+  for (const b of BRANCHES) byBranch.set(b.value, { counts: 0, points: 0 });
+  let total = { counts: 0, points: 0 };
+  for (const row of data ?? []) {
+    const entry = byBranch.get(row.branch as Branch);
+    if (entry) {
+      entry.counts += 1;
+      entry.points += Number(row.points);
+    }
+    total.counts += 1;
+    total.points += Number(row.points);
+  }
+
+  const rows: GenbluMonthlySummaryRow[] = BRANCHES.map((b) => ({
+    branch: b.value,
+    label: b.label,
+    counts: byBranch.get(b.value)!.counts,
+    points: byBranch.get(b.value)!.points,
+  }));
+  return { rows, total: { branch: "unknown", label: "Total", counts: total.counts, points: total.points } };
 }

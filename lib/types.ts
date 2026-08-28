@@ -229,6 +229,22 @@ export type GenbluRegistration = {
   createdAt: string;
 };
 
+// One row per GenBlu points award, read from the app screenshot via OCR —
+// separate from GenbluRegistration (customer enrollment). This is what the
+// monthly Counts/Points-by-branch summary is built from.
+export type GenbluTransaction = {
+  id: string;
+  branch: Branch;
+  customerName: string;
+  membershipNumber: string | null;
+  productCategory: string | null;
+  points: number;
+  transactionDate: string | null;
+  screenshotPath: string | null;
+  uploadedBy: string | null;
+  createdAt: string;
+};
+
 export type Package = {
   id: string;
   name: string;

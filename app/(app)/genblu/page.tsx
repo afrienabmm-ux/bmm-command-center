@@ -4,24 +4,36 @@ import {
   getAllBranchesGenbluRegistrations,
   getScreenshotUrl,
   getGenbluPointsByName,
+  getGenbluMonthlySummary,
 } from "@/lib/genblu-actions";
 import { getAllMechanics } from "@/lib/mechanics-actions";
 import { branchLabel } from "@/lib/branch";
 import PageHeader from "@/components/PageHeader";
+import MonthPicker from "@/components/MonthPicker";
 import GenbluClient from "./GenbluClient";
+import GenbluMonthlySummary from "./GenbluMonthlySummary";
 
 export const dynamic = "force-dynamic";
 
-export default async function GenbluPage() {
+export default async function GenbluPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ year?: string; month?: string }>;
+}) {
   await requirePage("genblu");
   const { user, branch } = await requirePageContext();
   const branchSelection = await getActiveBranchSelection(user);
   const showAllBranches = branchSelection === "all";
+  const params = await searchParams;
+  const now = new Date();
+  const year = params.year ? Number(params.year) : now.getFullYear();
+  const month = params.month ? Number(params.month) : now.getMonth() + 1;
 
-  const [registrations, mechanics, pointsByName] = await Promise.all([
+  const [registrations, mechanics, pointsByName, monthlySummary] = await Promise.all([
     showAllBranches ? getAllBranchesGenbluRegistrations() : getGenbluRegistrations(branch),
     getAllMechanics(),
     getGenbluPointsByName(),
+    getGenbluMonthlySummary(year, month),
   ]);
   const withUrls = await Promise.all(
     registrations.map(async (r) => ({
@@ -40,8 +52,10 @@ export default async function GenbluPage() {
       <PageHeader
         title="GenBlu Tracker"
         subtitle={`${showAllBranches ? "All Branches" : branchLabel(branch)} — ${registrations.length} registered`}
+        action={<MonthPicker year={year} month={month} basePath="/genblu" />}
       />
-      <div className="p-8">
+      <div className="p-8 space-y-8">
+        <GenbluMonthlySummary summary={monthlySummary} />
         <GenbluClient
           registrations={withUrls}
           mechanics={mechanics}
