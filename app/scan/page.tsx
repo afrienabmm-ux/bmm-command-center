@@ -9,8 +9,15 @@ import {
   canViewAllBranches,
   hasPageAccess,
 } from "@/lib/current-user";
-import { getAllBranchesActiveRepairJobs, getAllBranchesCompletedRepairJobs, getRepairJobById } from "@/lib/repairs-actions";
-import { getAllMechanics } from "@/lib/mechanics-actions";
+import {
+  getAllBranchesActiveRepairJobs,
+  getAllBranchesCompletedRepairJobs,
+  getActiveRepairJobs,
+  getCompletedRepairJobs,
+  getRepairJobById,
+} from "@/lib/repairs-actions";
+import { getAllMechanics, getMechanics } from "@/lib/mechanics-actions";
+import type { Branch } from "@/lib/branch";
 import { getAllCatalogProducts } from "@/lib/catalog-actions";
 import { getPackages } from "@/lib/packages-actions";
 import WalkInJobForm from "../(app)/repairs/walk-in/WalkInJobForm";
@@ -47,11 +54,17 @@ export default async function ScanPage({ searchParams }: { searchParams: Promise
   const { user: currentUser } = await requirePageContext();
   const { job: jobId } = await searchParams;
   const locked = !canViewAllBranches(currentUser);
+  // Locked to one branch (true for basically every Mechanic/Front Desk/
+  // Branch PIC login) — fetching every branch's jobs and mechanics just to
+  // filter it back down to one on the very next lines was real, unnecessary
+  // database load on every single phone-page visit. Only Management/
+  // Administrator opening this page still needs the all-branches version.
+  const ownBranch = locked ? (currentUser.homeBranch as Branch) : null;
   const [branchSelection, allActiveJobs, completedJobs, mechanics, catalogProducts, packages, editingJob] = await Promise.all([
     getActiveBranchSelection(currentUser),
-    getAllBranchesActiveRepairJobs(),
-    getAllBranchesCompletedRepairJobs(),
-    getAllMechanics(),
+    ownBranch ? getActiveRepairJobs(ownBranch) : getAllBranchesActiveRepairJobs(),
+    ownBranch ? getCompletedRepairJobs(ownBranch) : getAllBranchesCompletedRepairJobs(),
+    ownBranch ? getMechanics(ownBranch) : getAllMechanics(),
     getAllCatalogProducts(),
     getPackages(),
     jobId ? getRepairJobById(jobId) : null,
