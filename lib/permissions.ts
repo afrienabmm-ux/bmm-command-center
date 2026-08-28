@@ -21,9 +21,10 @@ export const ALL_PAGE_KEYS: PageKey[] = PAGE_DEFS.map((p) => p.key);
 // Every approved person sees every page — access is controlled by branch
 // scope (Branch PIC vs Management), not by per-page permissions. Mechanic
 // is the one exception: a narrow, fixed access level for staff who only
-// ever need to scan and save jobsheets from their phone, nothing else.
+// ever need to scan/save jobsheets and upload GenBlu screenshots from
+// their phone, nothing else.
 export function resolveAllowedPages(role: Role | null): PageKey[] {
   if (!role) return [];
-  if (role === "Mechanic") return ["walk-in"];
+  if (role === "Mechanic") return ["walk-in", "genblu"];
   return ALL_PAGE_KEYS;
 }
