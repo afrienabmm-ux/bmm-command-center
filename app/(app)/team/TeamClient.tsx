@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { Fragment, useMemo, useState, useTransition } from "react";
 import { UserCheck, ShieldOff, RefreshCcw, Trash2, KeyRound, UserPlus, Search, ArrowUpDown, ChevronDown } from "lucide-react";
 import {
   approveUserAction,
@@ -34,6 +34,20 @@ export default function TeamClient({ members, currentUserId }: { members: TeamMe
       sortDir === "desc" ? b.createdAt.localeCompare(a.createdAt) : a.createdAt.localeCompare(b.createdAt)
     );
   }, [others, query, sortDir]);
+
+  // Grouped by access level (in ROLES order) rather than one flat list —
+  // makes it obvious at a glance how many people are at each level instead
+  // of scanning every row.
+  const grouped = useMemo(() => {
+    const groups = new Map<string, TeamMember[]>();
+    for (const role of ROLES) groups.set(role, []);
+    groups.set("No access level", []);
+    for (const m of visibleOthers) {
+      const key = m.role && groups.has(m.role) ? m.role : "No access level";
+      groups.get(key)!.push(m);
+    }
+    return Array.from(groups.entries()).filter(([, members]) => members.length > 0);
+  }, [visibleOthers]);
 
   return (
     <div className="space-y-8">
@@ -96,8 +110,17 @@ export default function TeamClient({ members, currentUserId }: { members: TeamMe
                 </tr>
               </thead>
               <tbody>
-                {visibleOthers.map((m) => (
-                  <MemberRow key={m.id} member={m} isSelf={m.id === currentUserId} />
+                {grouped.map(([role, members]) => (
+                  <Fragment key={role}>
+                    <tr className="bg-neutral-50">
+                      <td colSpan={6} className="px-5 py-2 text-xs font-semibold text-neutral-600 uppercase tracking-wide">
+                        {role} ({members.length})
+                      </td>
+                    </tr>
+                    {members.map((m) => (
+                      <MemberRow key={m.id} member={m} isSelf={m.id === currentUserId} />
+                    ))}
+                  </Fragment>
                 ))}
                 {visibleOthers.length === 0 && (
                   <tr>

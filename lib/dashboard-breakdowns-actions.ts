@@ -56,35 +56,41 @@ export async function getDeliveryClaimStatusBreakdown(
   return claimStatusBreakdown("cc_delivery_claims", year, month, onlyBranch);
 }
 
-export type PackageBreakdownRow = { name: string; count: number };
+// Which mechanic sold which package, not just a count — a plain list is
+// more useful to check than a pie chart when you actually want to know who
+// sold what.
+export type PackageBreakdownRow = { packageName: string; mechanicLabel: string; customerName: string; saleDate: string };
 
-type PackageSaleRow = { branch: Branch; cc_packages: { name: string } | null };
+type PackageSaleRow = {
+  branch: Branch;
+  sale_date: string;
+  customer_name: string | null;
+  cc_packages: { name: string } | null;
+  cc_mechanics: { short_code: string; short_name: string } | null;
+};
 
-// Which Services Combo package actually sold, not just how many total —
-// grouped by package name, broken out per branch (not combined) so each
-// branch's own mix is visible, same month as the rest of the dashboard.
 export async function getPackageSalesBreakdown(year: number, month: number): Promise<Record<Branch, PackageBreakdownRow[]>> {
   await requireApproved();
   const { from, to } = monthRange(year, month);
   const { data, error } = await supabaseAdmin
     .from("cc_package_sales")
-    .select("branch, cc_packages(name)")
+    .select("branch, sale_date, customer_name, cc_packages(name), cc_mechanics(short_code, short_name)")
     .gte("sale_date", from)
-    .lte("sale_date", to);
+    .lte("sale_date", to)
+    .order("sale_date", { ascending: false });
   if (error) throw new Error(error.message);
 
   const typedRows = (data ?? []) as unknown as PackageSaleRow[];
   return BRANCHES.reduce(
     (acc, { value: branch }) => {
-      const counts = new Map<string, number>();
-      for (const row of typedRows) {
-        if (row.branch !== branch) continue;
-        const name = row.cc_packages?.name ?? "Unknown";
-        counts.set(name, (counts.get(name) ?? 0) + 1);
-      }
-      acc[branch] = Array.from(counts.entries())
-        .map(([name, count]) => ({ name, count }))
-        .sort((a, b) => b.count - a.count);
+      acc[branch] = typedRows
+        .filter((row) => row.branch === branch)
+        .map((row) => ({
+          packageName: row.cc_packages?.name ?? "Unknown",
+          mechanicLabel: row.cc_mechanics ? `${row.cc_mechanics.short_name} (${row.cc_mechanics.short_code})` : "—",
+          customerName: row.customer_name || "—",
+          saleDate: row.sale_date,
+        }));
       return acc;
     },
     {} as Record<Branch, PackageBreakdownRow[]>
