@@ -92,7 +92,7 @@ export default function TeamClient({ members, currentUserId }: { members: TeamMe
                   <th className="font-medium px-5 py-3 whitespace-nowrap text-center">Branch</th>
                   <th className="font-medium px-5 py-3 whitespace-nowrap text-center">Status</th>
                   <th className="font-medium px-5 py-3 whitespace-nowrap">Joined</th>
-                  <th className="px-5 py-3" />
+                  <th className="px-5 py-3 w-full" />
                 </tr>
               </thead>
               <tbody>
