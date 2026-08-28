@@ -26,13 +26,6 @@ export default async function SalesPerformancePage({
   const locked = !canViewAllBranches(user);
   const onlyBranch = branchSelection === "all" ? undefined : branchSelection;
 
-  // How many days of the selected month to divide by for each mechanic's
-  // daily pace — the full month once it's over, or just the days elapsed
-  // so far when looking at the current month.
-  const daysInMonth = new Date(year, month, 0).getDate();
-  const isCurrentMonth = year === now.getFullYear() && month === now.getMonth() + 1;
-  const daysElapsed = isCurrentMonth ? now.getDate() : daysInMonth;
-
   // Rolls (year, month) back one month, correctly crossing a year boundary
   // — same previous-month comparison the Dashboard's target banner uses.
   const prevYear = month === 1 ? year - 1 : year;
@@ -68,7 +61,6 @@ export default async function SalesPerformancePage({
           rows={rows}
           branchSelection={branchSelection}
           locked={locked}
-          daysElapsed={daysElapsed}
           prevRevenueByMechanicId={prevRevenueByMechanicId}
         />
         <PackageBreakdownCharts packageBreakdown={packageBreakdown} onlyBranch={onlyBranch} />

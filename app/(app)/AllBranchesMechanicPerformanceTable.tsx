@@ -6,13 +6,11 @@ export default function AllBranchesMechanicPerformanceTable({
   rows,
   branchSelection,
   locked,
-  daysElapsed,
   prevRevenueByMechanicId,
 }: {
   rows: MechanicPerformanceRowWithBranch[];
   branchSelection?: BranchSelection;
   locked?: boolean;
-  daysElapsed: number;
   prevRevenueByMechanicId: Record<string, number>;
 }) {
   return (
@@ -20,7 +18,6 @@ export default function AllBranchesMechanicPerformanceTable({
       rows={rows}
       branchSelection={branchSelection}
       locked={locked}
-      daysElapsed={daysElapsed}
       prevRevenueByMechanicId={prevRevenueByMechanicId}
     />
   );

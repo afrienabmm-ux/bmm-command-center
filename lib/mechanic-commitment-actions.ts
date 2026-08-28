@@ -3,7 +3,7 @@
 import { supabaseAdmin } from "./supabase-server";
 import { requireApproved } from "./current-user";
 import type { Branch } from "./branch";
-import { MECHANIC_WEEKLY_REVENUE_TARGET } from "./types";
+import { MECHANIC_KPI_DAILY_TARGET } from "./types";
 
 const WORKING_DAYS_PER_WEEK = 6;
 
@@ -25,38 +25,35 @@ export type MechanicCommitmentRow = {
   fullName: string;
   shortCode: string;
   branch: Branch;
+  // Today only — the GM wants an up-to-date daily read, not a running
+  // weekly total that only looks right by Saturday.
   revenue: number;
   jobCount: number;
   restoreBikeCount: number;
-  // Consecutive working days from Monday with at least one job started —
-  // resets fresh each week, not a running best-ever streak.
+  // Consecutive working days up to and including today with at least one
+  // job started — still resets each week (Monday), same streak concept as
+  // before, just no longer tied to the weekly revenue total.
   streakDays: number;
   onTrack: boolean;
 };
 
 export type MechanicCommitmentSummary = {
-  weekStart: string;
-  weekEnd: string;
-  daysElapsed: number;
+  date: string;
   revenueTarget: number;
   rows: MechanicCommitmentRow[];
 };
 
-// Weekly version of getMechanicAchievements (reports-actions.ts) — same
-// started_date attribution (credit follows when the job started, not when
-// it's finished), scoped to the current Monday-through-today window
-// instead of a calendar month. Pass a branch to scope to one branch, or
-// omit for every branch at once.
+// Daily version — revenue/job counts are today's only, compared against
+// the RM400/day pace reference (MECHANIC_KPI_DAILY_TARGET), so the numbers
+// are accurate as of right now instead of accumulating all week and only
+// reading correctly by Saturday.
 export async function getMechanicCommitment(branch?: Branch): Promise<MechanicCommitmentSummary> {
   await requireApproved();
 
   const now = new Date();
   const monday = startOfWeek(now);
   const weekStart = toIso(monday);
-  const weekEnd = toIso(now);
-  // How many working days into the week so far — Sunday doesn't add a new
-  // working day toward the pace reference (day 0 means the week just
-  // reset, so everything still compares against the prior Saturday's 6).
+  const today = toIso(now);
   const daysElapsed = Math.min(now.getDay() === 0 ? 6 : now.getDay(), WORKING_DAYS_PER_WEEK);
 
   let mechanicsQuery = supabaseAdmin.from("cc_mechanics").select("id, full_name, short_code, branch").eq("status", "Active");
@@ -68,27 +65,25 @@ export async function getMechanicCommitment(branch?: Branch): Promise<MechanicCo
       .from("cc_repair_jobs")
       .select("mechanic_id, job_type, revenue_amount, started_date")
       .gte("started_date", weekStart)
-      .lte("started_date", weekEnd),
+      .lte("started_date", today),
   ]);
   if (mErr) throw new Error(mErr.message);
   if (jErr) throw new Error(jErr.message);
 
   const rows: MechanicCommitmentRow[] = (mechanics ?? []).map((m) => {
-    const own = (jobs ?? []).filter((j) => j.mechanic_id === m.id);
-    const revenue = own.reduce((s, j) => s + Number(j.revenue_amount), 0);
-    const restoreBikeCount = own.filter((j) => j.job_type === "Restore Bike").length;
+    const weekOwn = (jobs ?? []).filter((j) => j.mechanic_id === m.id);
+    const todayOwn = weekOwn.filter((j) => j.started_date === today);
+    const revenue = todayOwn.reduce((s, j) => s + Number(j.revenue_amount), 0);
+    const restoreBikeCount = todayOwn.filter((j) => j.job_type === "Restore Bike").length;
 
     let streakDays = 0;
     for (let i = 0; i < daysElapsed; i++) {
       const day = new Date(monday);
       day.setDate(monday.getDate() + i);
       const dayIso = toIso(day);
-      if (!own.some((j) => j.started_date === dayIso)) break;
+      if (!weekOwn.some((j) => j.started_date === dayIso)) break;
       streakDays++;
     }
-
-    const expectedSoFar = (MECHANIC_WEEKLY_REVENUE_TARGET / WORKING_DAYS_PER_WEEK) * daysElapsed;
-    const onTrack = revenue >= expectedSoFar;
 
     return {
       mechanicId: m.id,
@@ -96,14 +91,14 @@ export async function getMechanicCommitment(branch?: Branch): Promise<MechanicCo
       shortCode: m.short_code,
       branch: m.branch as Branch,
       revenue,
-      jobCount: own.length,
+      jobCount: todayOwn.length,
       restoreBikeCount,
       streakDays,
-      onTrack,
+      onTrack: revenue >= MECHANIC_KPI_DAILY_TARGET,
     };
   });
 
   rows.sort((a, b) => b.revenue - a.revenue);
 
-  return { weekStart, weekEnd, daysElapsed, revenueTarget: MECHANIC_WEEKLY_REVENUE_TARGET, rows };
+  return { date: today, revenueTarget: MECHANIC_KPI_DAILY_TARGET, rows };
 }

@@ -63,7 +63,7 @@ export default function MechanicCommitmentTracker({
   summary: MechanicCommitmentSummary;
   branchSelection: BranchSelection;
 }) {
-  const { rows, revenueTarget, daysElapsed, weekStart, weekEnd } = summary;
+  const { rows, revenueTarget, date } = summary;
   const showBranch = branchSelection === "all";
   const onTrackCount = rows.filter((r) => r.onTrack).length;
   const behindCount = rows.length - onTrackCount;
@@ -85,11 +85,10 @@ export default function MechanicCommitmentTracker({
       <div className="px-5 py-4 border-b border-neutral-200 flex items-center justify-between flex-wrap gap-3">
         <div>
           <p className="text-sm font-semibold text-neutral-900 flex items-center gap-1.5">
-            <Target size={15} className="text-red-500" /> Mechanic Performance — this week
+            <Target size={15} className="text-red-500" /> Mechanic Performance — today
           </p>
           <p className="text-xs text-neutral-500 mt-0.5">
-            Weekly target: {formatCurrency(revenueTarget)} in revenue per mechanic · {formatDate(weekStart)} –{" "}
-            {formatDate(weekEnd)}
+            Daily target: {formatCurrency(revenueTarget)} in revenue per mechanic · {formatDate(date)}
           </p>
         </div>
         {rows.length > 0 && (
@@ -110,21 +109,16 @@ export default function MechanicCommitmentTracker({
         <p className="text-sm text-neutral-500 text-center py-10">No active mechanics yet.</p>
       ) : (
         <>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 p-5 border-b border-neutral-200">
+          <div className="grid grid-cols-2 gap-3 p-5 border-b border-neutral-200">
             <div className="bg-neutral-50 border border-neutral-200 rounded-lg p-3.5">
-              <p className="text-[11px] font-medium text-neutral-500 tracking-wide">TEAM REVENUE THIS WEEK</p>
+              <p className="text-[11px] font-medium text-neutral-500 tracking-wide">TEAM REVENUE TODAY</p>
               <p className="text-xl font-semibold text-neutral-900 mt-1">{formatCurrency(teamRevenue)}</p>
               <p className="text-xs text-neutral-400 mt-0.5">target {formatCurrency(teamTarget)}</p>
             </div>
             <div className="bg-neutral-50 border border-neutral-200 rounded-lg p-3.5">
-              <p className="text-[11px] font-medium text-neutral-500 tracking-wide">JOBS THIS WEEK</p>
+              <p className="text-[11px] font-medium text-neutral-500 tracking-wide">JOBS TODAY</p>
               <p className="text-xl font-semibold text-neutral-900 mt-1">{teamJobs}</p>
               <p className="text-xs text-neutral-400 mt-0.5">across {rows.length} mechanics</p>
-            </div>
-            <div className="bg-neutral-50 border border-neutral-200 rounded-lg p-3.5 hidden sm:block">
-              <p className="text-[11px] font-medium text-neutral-500 tracking-wide">DAYS INTO THE WEEK</p>
-              <p className="text-xl font-semibold text-neutral-900 mt-1">{daysElapsed} / 6</p>
-              <p className="text-xs text-neutral-400 mt-0.5">working days so far</p>
             </div>
           </div>
 
@@ -135,8 +129,8 @@ export default function MechanicCommitmentTracker({
                   <th className="font-medium px-5 py-3 whitespace-nowrap">Mechanic</th>
                   {showBranch && <th className="font-medium px-5 py-3 whitespace-nowrap">Branch</th>}
                   <th className="font-medium px-5 py-3 whitespace-nowrap text-center">Streak</th>
-                  <th className="font-medium px-5 py-3 whitespace-nowrap">Revenue (wk)</th>
-                  <th className="font-medium px-5 py-3 whitespace-nowrap text-center">Jobs (wk)</th>
+                  <th className="font-medium px-5 py-3 whitespace-nowrap">Revenue (today)</th>
+                  <th className="font-medium px-5 py-3 whitespace-nowrap text-center">Jobs (today)</th>
                   <th className="font-medium px-5 py-3 whitespace-nowrap text-center">Status</th>
                 </tr>
               </thead>

@@ -24,23 +24,6 @@ function PackageRow({ r, isTop }: { r: MechanicPerformanceRowWithBranch; isTop: 
   );
 }
 
-// How much revenue and how many jobs a mechanic averages per day so far
-// this month — the actual pace behind the RM400/day KPI reference, not
-// just the target. Divides by daysElapsed (today's date-of-month, or the
-// full month once it's over) rather than a fixed 25 working days, so it
-// reflects real progress rather than an idealized denominator.
-function DailyPaceCell({ r, daysElapsed }: { r: MechanicPerformanceRowWithBranch; daysElapsed: number }) {
-  const totalJobs = r.restoreBikeCount + r.walkInCount;
-  const revenuePerDay = daysElapsed > 0 ? r.totalRevenue / daysElapsed : 0;
-  const jobsPerDay = daysElapsed > 0 ? totalJobs / daysElapsed : 0;
-  return (
-    <div className="flex flex-col gap-0.5">
-      <span className="text-sm font-medium text-neutral-800">{formatCurrency(revenuePerDay)}/day</span>
-      <span className="text-xs text-neutral-500">{jobsPerDay.toFixed(2)} jobs/day</span>
-    </div>
-  );
-}
-
 // This month's total revenue vs the same mechanic's total last month — a
 // flat green/red/neutral badge, same read as the Dashboard's target-banner
 // trend badge. No badge when there's nothing to compare against (e.g. the
@@ -71,13 +54,11 @@ function RevenueRow({
   r,
   isTop,
   isTopRestoreBike,
-  daysElapsed,
   prevRevenue,
 }: {
   r: MechanicPerformanceRowWithBranch;
   isTop: boolean;
   isTopRestoreBike: boolean;
-  daysElapsed: number;
   prevRevenue: number | undefined;
 }) {
   return (
@@ -113,9 +94,6 @@ function RevenueRow({
           <TrendBadge current={r.totalRevenue} previous={prevRevenue} />
         </div>
       </td>
-      <td className="px-5 py-3.5">
-        <DailyPaceCell r={r} daysElapsed={daysElapsed} />
-      </td>
     </tr>
   );
 }
@@ -126,13 +104,11 @@ export default function AllBranchesMechanicPerformanceClient({
   rows,
   branchSelection,
   locked,
-  daysElapsed,
   prevRevenueByMechanicId,
 }: {
   rows: MechanicPerformanceRowWithBranch[];
   branchSelection?: BranchSelection;
   locked?: boolean;
-  daysElapsed: number;
   prevRevenueByMechanicId: Record<string, number>;
 }) {
   const [branchFilter, setBranchFilter] = useState<BranchSelection>(branchSelection ?? "all");
@@ -347,7 +323,6 @@ export default function AllBranchesMechanicPerformanceClient({
                   <th className="font-medium px-5 py-3 whitespace-nowrap">Packages</th>
                   <th className="font-medium px-5 py-3 whitespace-nowrap">GenBlu</th>
                   <th className="font-medium px-5 py-3 whitespace-nowrap">Total Revenue</th>
-                  <th className="font-medium px-5 py-3 whitespace-nowrap">Daily Pace</th>
                 </tr>
               </thead>
               <tbody>
@@ -362,7 +337,6 @@ export default function AllBranchesMechanicPerformanceClient({
                           <td className="px-5 py-2.5 text-emerald-800 font-semibold text-sm whitespace-nowrap">
                             {formatCurrency(g.rows.reduce((sum, r) => sum + r.totalRevenue, 0))}
                           </td>
-                          <td />
                         </tr>
                         {g.rows.map((r) => (
                           <RevenueRow
@@ -370,7 +344,6 @@ export default function AllBranchesMechanicPerformanceClient({
                             r={r}
                             isTop={r.mechanicId === topOverallId}
                             isTopRestoreBike={r.mechanicId === topRestoreBikeId}
-                            daysElapsed={daysElapsed}
                             prevRevenue={prevRevenueByMechanicId[r.mechanicId]}
                           />
                         ))}
@@ -382,13 +355,12 @@ export default function AllBranchesMechanicPerformanceClient({
                         r={r}
                         isTop={r.mechanicId === topOverallId}
                         isTopRestoreBike={r.mechanicId === topRestoreBikeId}
-                        daysElapsed={daysElapsed}
                         prevRevenue={prevRevenueByMechanicId[r.mechanicId]}
                       />
                     ))}
                 {filtered.length === 0 && (
                   <tr>
-                    <td colSpan={7} className="px-5 py-10 text-center text-neutral-500 text-sm">
+                    <td colSpan={6} className="px-5 py-10 text-center text-neutral-500 text-sm">
                       No mechanics {branchFilter === "all" ? "yet" : `at ${branchLabel(branchFilter)} yet`}.
                     </td>
                   </tr>
