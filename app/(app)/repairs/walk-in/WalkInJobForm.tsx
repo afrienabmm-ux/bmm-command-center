@@ -530,8 +530,8 @@ export default function WalkInJobForm({
       showError("Upload the customer's GenBlu screenshot before saving, or switch \"Customer has GenBlu?\" to No.");
       return;
     }
-    if (wantsCombo && (!comboPackageId || comboReceiptId.trim() === "")) {
-      showError("Pick a package and enter the receipt ID, or switch \"Services Combo sold?\" to No.");
+    if (wantsCombo && !comboPackageId) {
+      showError("Pick a package, or switch \"Services Combo sold?\" to No.");
       return;
     }
     const cleanItems = items
@@ -634,7 +634,7 @@ export default function WalkInJobForm({
             branch: effectiveBranch,
             packageId: comboPackageId,
             mechanicId: mechanicId || null,
-            receiptId: comboReceiptId.trim(),
+            receiptId: comboReceiptId.trim() || null,
             saleDate: startedDate,
             customerName: customerName.trim(),
             customerPlateNo: plateNo.trim(),
@@ -1223,12 +1223,12 @@ export default function WalkInJobForm({
                 {packages.length === 0 && <p className="text-xs text-neutral-500 mt-1">No packages set up yet.</p>}
               </div>
               <div>
-                <label className="block text-xs font-medium text-neutral-600 mb-1.5">Receipt ID *</label>
+                <label className="block text-xs font-medium text-neutral-600 mb-1.5">Receipt ID</label>
                 <input
                   type="text"
                   value={comboReceiptId}
                   onChange={(e) => setComboReceiptId(e.target.value)}
-                  placeholder="e.g. CSA030927"
+                  placeholder="e.g. CSA030927 (optional)"
                   className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
                 />
               </div>

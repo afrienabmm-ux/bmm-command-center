@@ -34,7 +34,7 @@ export default function PackagesClient({
   const visibleSales = useMemo(() => {
     const q = query.trim().toLowerCase();
     const filtered = q
-      ? sales.filter((s) => [s.receiptId, s.packageName, s.mechanicCode].some((f) => f.toLowerCase().includes(q)))
+      ? sales.filter((s) => [s.receiptId ?? "", s.packageName, s.mechanicCode].some((f) => f.toLowerCase().includes(q)))
       : sales;
     return [...filtered].sort((a, b) =>
       sortDir === "desc" ? b.saleDate.localeCompare(a.saleDate) : a.saleDate.localeCompare(b.saleDate)
@@ -212,7 +212,7 @@ function SaleRow({ sale }: { sale: PackageSaleWithNames }) {
   const [isPending, startTransition] = useTransition();
   return (
     <tr className="border-b border-neutral-100 last:border-0 hover:bg-neutral-50">
-      <td className="px-5 py-3.5 text-neutral-900 font-semibold whitespace-nowrap">{sale.receiptId}</td>
+      <td className="px-5 py-3.5 text-neutral-900 font-semibold whitespace-nowrap">{sale.receiptId || "—"}</td>
       <td className="px-5 py-3.5 text-red-600 font-medium whitespace-nowrap">{sale.packageName}</td>
       <td className="px-5 py-3.5 text-neutral-800 font-semibold whitespace-nowrap">{sale.mechanicCode}</td>
       <td className="px-5 py-3.5 text-neutral-500 whitespace-nowrap">{branchLabel(sale.branch)}</td>

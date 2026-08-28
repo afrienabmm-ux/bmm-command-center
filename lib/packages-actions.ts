@@ -52,7 +52,7 @@ type SaleRow = {
   branch: Branch;
   package_id: string;
   mechanic_id: string | null;
-  receipt_id: string;
+  receipt_id: string | null;
   sale_date: string;
   customer_name: string;
   customer_plate_no: string;
@@ -67,7 +67,7 @@ export type PackageSaleWithNames = {
   packageName: string;
   mechanicId: string | null;
   mechanicCode: string;
-  receiptId: string;
+  receiptId: string | null;
   saleDate: string;
   customerName: string;
   customerPlateNo: string;
@@ -132,7 +132,7 @@ export async function addPackageSaleAction(input: {
   branch: Branch;
   packageId: string;
   mechanicId: string | null;
-  receiptId: string;
+  receiptId: string | null;
   saleDate: string;
   customerName?: string;
   customerPlateNo?: string;
@@ -149,7 +149,7 @@ export async function addPackageSaleAction(input: {
     customer_plate_no: input.customerPlateNo?.trim() ?? "",
   });
   if (error) throw new Error(error.message);
-  await logActivity(user, "Added Services Combo sale", `receipt ${input.receiptId} (${input.branch})`);
+  await logActivity(user, "Added Services Combo sale", `receipt ${input.receiptId || "—"} (${input.branch})`);
   revalidatePath("/packages");
   revalidatePath("/customers");
 }
