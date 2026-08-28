@@ -28,6 +28,7 @@ type CardRow = {
   expiry_date: string | null;
   notes: string;
   created_at: string;
+  stamps: number[] | null;
 };
 
 function toCard(r: CardRow): CustomerCard {
@@ -44,6 +45,7 @@ function toCard(r: CardRow): CustomerCard {
     expiryDate: r.expiry_date,
     notes: r.notes,
     createdAt: r.created_at,
+    stamps: r.stamps ?? [],
   };
 }
 
@@ -294,5 +296,15 @@ export async function deleteCustomerCardAction(id: string, branch: Branch): Prom
   assertCanEditBranch(user, branch);
   const { error } = await supabaseAdmin.from("cc_customer_cards").delete().eq("id", id);
   if (error) throw new Error(error.message);
+  revalidatePath("/customers");
+}
+
+// Admin ticks/unticks stamps by hand — never derived from jobsheet visits.
+export async function setCardStampsAction(id: string, branch: Branch, stamps: number[]): Promise<{ error: string } | void> {
+  const user = await requireApproved();
+  assertCanEditBranch(user, branch);
+  const clean = Array.from(new Set(stamps.filter((n) => Number.isInteger(n) && n >= 1 && n <= 10))).sort((a, b) => a - b);
+  const { error } = await supabaseAdmin.from("cc_customer_cards").update({ stamps: clean }).eq("id", id);
+  if (error) return { error: error.message };
   revalidatePath("/customers");
 }

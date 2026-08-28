@@ -56,7 +56,7 @@ export async function registerCustomerCardAction(input: {
   plateNo: string;
   model: string;
   boughtBikeHere: boolean;
-}): Promise<{ error: string } | { cardNumber: string; visitCount: number; plateNo: string }> {
+}): Promise<{ error: string } | { cardNumber: string; visitCount: number; stamps: number[]; plateNo: string }> {
   const customerName = input.customerName.trim();
   const customerPhone = input.customerPhone.trim();
   if (!customerName) return { error: "Please enter your name." };
@@ -84,7 +84,9 @@ export async function registerCustomerCardAction(input: {
   });
   if (error) return { error: error.message };
   revalidatePath("/customers");
-  return { cardNumber, visitCount: visits, plateNo };
+  // A brand new card always starts with zero stamps ticked — stamps are set
+  // by admin from here on, not derived from visit history.
+  return { cardNumber, visitCount: visits, stamps: [], plateNo };
 }
 
 export type MembershipLookup = {
@@ -95,6 +97,7 @@ export type MembershipLookup = {
   expiryDate: string | null;
   totalSpend: number;
   visitCount: number;
+  stamps: number[];
 };
 
 async function buildLookupResult(card: {
@@ -104,6 +107,7 @@ async function buildLookupResult(card: {
   plate_no: string;
   issued_date: string;
   expiry_date: string | null;
+  stamps: number[] | null;
 }): Promise<MembershipLookup> {
   const { data: jobs, error: jobsError } = await supabaseAdmin
     .from("cc_repair_jobs")
@@ -134,6 +138,7 @@ async function buildLookupResult(card: {
     expiryDate: card.expiry_date,
     totalSpend,
     visitCount,
+    stamps: card.stamps ?? [],
   };
 }
 
@@ -141,7 +146,7 @@ async function buildLookupResult(card: {
 // plate number — handy for a customer who doesn't remember which number
 // they used but definitely knows their own plate.
 async function findCardByPhoneOrPlate(query: string) {
-  const cols = "customer_name, customer_phone, card_number, plate_no, issued_date, expiry_date";
+  const cols = "customer_name, customer_phone, card_number, plate_no, issued_date, expiry_date, stamps";
   const { data: byPhone, error: phoneError } = await supabaseAdmin
     .from("cc_customer_cards")
     .select(cols)

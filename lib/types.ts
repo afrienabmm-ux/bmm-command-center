@@ -273,6 +273,9 @@ export type CustomerCard = {
   expiryDate: string | null;
   notes: string;
   createdAt: string;
+  // Which of the 10 stamps on the current card are ticked — set by admin
+  // only, never derived from jobsheet/visit counts.
+  stamps: number[];
 };
 
 // One row per customer, aggregated from their Walk-in job history (spend,

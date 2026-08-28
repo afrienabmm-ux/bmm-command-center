@@ -1,11 +1,11 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
-import { Plus, Search, Pencil, Trash2, CreditCard, X, Link2, Check, ArrowUpDown, ChevronDown } from "lucide-react";
-import { addCustomerCardAction, updateCustomerCardAction, deleteCustomerCardAction } from "@/lib/customers-actions";
+import { Plus, Search, Pencil, Trash2, CreditCard, X, Link2, Check, ArrowUpDown, ChevronDown, Wrench } from "lucide-react";
+import { addCustomerCardAction, updateCustomerCardAction, deleteCustomerCardAction, setCardStampsAction } from "@/lib/customers-actions";
 import { BRANCHES, branchLabel, type Branch, type BranchSelection } from "@/lib/branch";
 import { formatDate, formatCurrency } from "@/lib/format";
-import { stampsOnCurrentCard, nextReward } from "@/lib/membership";
+import { stampCardSize, rewardForStamp, nextReward } from "@/lib/membership";
 import type { CustomerSummary, CustomerCard } from "@/lib/types";
 
 export default function CustomersClient({
@@ -24,7 +24,7 @@ export default function CustomersClient({
   const [deleting, setDeleting] = useState<CustomerCard | null>(null);
   const [isPending, startTransition] = useTransition();
   const [linkCopied, setLinkCopied] = useState(false);
-  const [revealedKey, setRevealedKey] = useState<string | null>(null);
+  const [stampModalFor, setStampModalFor] = useState<CustomerSummary | null>(null);
   const [sortBy, setSortBy] = useState<"spend" | "visit">("spend");
   const [sortDir, setSortDir] = useState<"desc" | "asc">("desc");
   const showAllBranches = branchSelection === "all";
@@ -132,7 +132,6 @@ export default function CustomersClient({
           <tbody>
             {visible.map((c) => {
               const rowKey = `${c.branch}-${c.name.toLowerCase()}`;
-              const revealed = revealedKey === rowKey;
               return (
               <tr key={rowKey} className="border-t border-neutral-100">
                 <td className="px-4 py-3 font-medium text-neutral-800">
@@ -156,17 +155,14 @@ export default function CustomersClient({
                   {c.card ? (
                     <button
                       type="button"
-                      onClick={() => setRevealedKey(revealed ? null : rowKey)}
-                      title="Click to show the card code"
+                      onClick={() => setStampModalFor(c)}
+                      title="Click to tick stamps"
                       className="inline-flex items-center gap-1 text-xs font-medium text-red-700 bg-red-500/10 border border-red-500/20 rounded-full px-2 py-0.5 hover:bg-red-500/20 transition-colors"
                     >
                       <CreditCard size={11} />{" "}
-                      {revealed
-                        ? c.card.cardNumber || "No code"
-                        : `Stamp ${stampsOnCurrentCard(c.jobCount)}/10${
-                            nextReward(stampsOnCurrentCard(c.jobCount)) ? ` — next: ${nextReward(stampsOnCurrentCard(c.jobCount))!.label}` : ""
-                          }`}
-                      {!revealed && c.card.expiryDate ? ` · exp ${formatDate(c.card.expiryDate)}` : ""}
+                      {`Stamp ${c.card.stamps.length}/10${
+                        nextReward(c.card.stamps.length) ? ` — next: ${nextReward(c.card.stamps.length)!.label}` : ""
+                      }`}
                     </button>
                   ) : (
                     <span className="text-xs text-neutral-400">No card</span>
@@ -215,6 +211,14 @@ export default function CustomersClient({
           branch={branch}
           locked={locked}
           onClose={() => setCardModalFor(null)}
+        />
+      )}
+
+      {stampModalFor?.card && (
+        <StampModal
+          customer={stampModalFor}
+          card={stampModalFor.card}
+          onClose={() => setStampModalFor(null)}
         />
       )}
 
@@ -435,6 +439,103 @@ function CardModal({
             className="bg-red-500 hover:bg-red-400 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
           >
             {isPending ? "Saving…" : "Save"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Stamps are ticked by hand here, one click at a time — completely
+// independent of jobsheet/visit counts.
+function StampModal({
+  customer,
+  card,
+  onClose,
+}: {
+  customer: CustomerSummary;
+  card: CustomerCard;
+  onClose: () => void;
+}) {
+  const [stamps, setStamps] = useState<number[]>(card.stamps);
+  const [isPending, startTransition] = useTransition();
+  const size = stampCardSize();
+  const complete = stamps.length >= size;
+  const upcoming = nextReward(stamps.length);
+
+  function save(next: number[]) {
+    setStamps(next);
+    startTransition(async () => {
+      await setCardStampsAction(card.id, card.branch, next);
+    });
+  }
+
+  function toggle(stampNo: number) {
+    const next = stamps.includes(stampNo) ? stamps.filter((n) => n !== stampNo) : [...stamps, stampNo];
+    save(next);
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 px-4">
+      <div className="bg-white border border-neutral-200 rounded-xl w-full max-w-sm p-6">
+        <div className="flex items-center justify-between mb-1">
+          <h2 className="text-sm font-semibold text-neutral-900">{customer.name}&apos;s Stamp Card</h2>
+          <button onClick={onClose} className="text-neutral-400 hover:text-neutral-700" aria-label="Close">
+            <X size={16} />
+          </button>
+        </div>
+        <p className="text-xs text-neutral-500 mb-4">{card.cardNumber || "No card number"}</p>
+
+        <div className="grid grid-cols-5 gap-2.5">
+          {Array.from({ length: size }).map((_, i) => {
+            const stampNo = i + 1;
+            const reward = rewardForStamp(stampNo);
+            const filled = stamps.includes(stampNo);
+            return (
+              <button
+                key={stampNo}
+                type="button"
+                onClick={() => toggle(stampNo)}
+                disabled={isPending}
+                className={`flex flex-col items-center gap-1 py-2 rounded-lg border transition-colors ${
+                  filled
+                    ? "bg-gradient-to-br from-red-500 to-rose-600 border-red-500 text-white"
+                    : "bg-neutral-50 border-neutral-200 text-neutral-400 hover:border-red-300"
+                }`}
+                title={reward ?? `Stamp ${stampNo}`}
+              >
+                {filled ? <Wrench size={14} /> : <span className="text-xs font-semibold">{stampNo}</span>}
+                {reward && <span className="text-[8px] leading-tight text-center px-0.5">{reward}</span>}
+              </button>
+            );
+          })}
+        </div>
+
+        <p className="text-xs text-neutral-500 mt-4 text-center">
+          {complete
+            ? "Card complete — reset it once the reward's been redeemed."
+            : upcoming
+              ? `Next reward: ${upcoming.label} at stamp ${upcoming.stamp}.`
+              : ""}
+        </p>
+
+        <div className="flex items-center justify-between gap-3 mt-5">
+          {complete ? (
+            <button
+              onClick={() => save([])}
+              disabled={isPending}
+              className="text-sm font-medium text-red-600 hover:text-red-700 transition-colors"
+            >
+              Start New Card
+            </button>
+          ) : (
+            <span />
+          )}
+          <button
+            onClick={onClose}
+            className="bg-neutral-100 hover:bg-neutral-200 text-neutral-800 text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+          >
+            Done
           </button>
         </div>
       </div>

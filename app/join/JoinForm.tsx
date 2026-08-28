@@ -9,7 +9,7 @@ import {
 } from "@/lib/customer-registration-actions";
 import { BRANCHES, type Branch } from "@/lib/branch";
 import { formatCurrency, formatDate } from "@/lib/format";
-import { stampsOnCurrentCard, stampCardSize, rewardForStamp, nextReward } from "@/lib/membership";
+import { stampCardSize, rewardForStamp, nextReward } from "@/lib/membership";
 
 // How long a "check my card" / "just registered" screen survives a page
 // refresh before the customer has to type their phone number again.
@@ -17,7 +17,7 @@ const SESSION_TTL_MS = 3 * 60 * 60 * 1000;
 const JOIN_STORAGE_KEY = "bmm_join_session";
 const LOOKUP_STORAGE_KEY = "bmm_lookup_session";
 
-type StoredJoin = { name: string; cardNumber: string; visitCount: number; plateNo: string; savedAt: number };
+type StoredJoin = { name: string; cardNumber: string; stamps: number[]; plateNo: string; savedAt: number };
 type StoredLookup = { result: MembershipLookup; savedAt: number };
 
 function readSession<T extends { savedAt: number }>(key: string): T | null {
@@ -77,26 +77,26 @@ function TierCard({
 }
 
 // Mirrors the physical Yamaha Cares punch card exactly — specific rewards
-// at stamps 1/4/7/10 within each 10-visit cycle, not a flat "10 visits =
-// 1 free service" count.
-function StampProgress({ visitCount }: { visitCount: number }) {
-  const stamps = stampsOnCurrentCard(visitCount);
+// at stamps 1/4/7/10. Ticked entirely by admin from the Services Card page,
+// not derived from visit count.
+function StampProgress({ stamps }: { stamps: number[] }) {
   const size = stampCardSize();
-  const upcoming = nextReward(stamps);
-  const justEarned = rewardForStamp(stamps);
+  const count = stamps.length;
+  const upcoming = nextReward(count);
+  const justEarned = rewardForStamp(count);
   return (
     <div className="bg-white border border-neutral-200 rounded-xl p-4 mt-4">
       <div className="flex items-center justify-between mb-3">
         <p className="text-[11px] font-semibold text-neutral-700 uppercase tracking-wide">Your Stamp Card</p>
         <p className="text-xs font-bold text-red-600">
-          {stamps}/{size}
+          {count}/{size}
         </p>
       </div>
       <div className="flex items-center gap-1.5 flex-wrap">
         {Array.from({ length: size }).map((_, i) => {
           const stampNo = i + 1;
           const reward = rewardForStamp(stampNo);
-          const filled = stampNo <= stamps;
+          const filled = stamps.includes(stampNo);
           return (
             <div key={i} className="flex flex-col items-center gap-1 w-[18%]">
               <div
@@ -189,15 +189,15 @@ function JoinTab({ restored, onClear }: { restored: StoredJoin | null; onClear: 
   const [model, setModel] = useState("");
   const [boughtBikeHere, setBoughtBikeHere] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [result, setResult] = useState<{ cardNumber: string; visitCount: number; plateNo: string } | null>(
-    restored ? { cardNumber: restored.cardNumber, visitCount: restored.visitCount, plateNo: restored.plateNo } : null
+  const [result, setResult] = useState<{ cardNumber: string; stamps: number[]; plateNo: string } | null>(
+    restored ? { cardNumber: restored.cardNumber, stamps: restored.stamps, plateNo: restored.plateNo } : null
   );
   const [isPending, startTransition] = useTransition();
 
   useEffect(() => {
     if (restored) {
       setName(restored.name);
-      setResult({ cardNumber: restored.cardNumber, visitCount: restored.visitCount, plateNo: restored.plateNo });
+      setResult({ cardNumber: restored.cardNumber, stamps: restored.stamps, plateNo: restored.plateNo });
     }
   }, [restored]);
 
@@ -217,7 +217,7 @@ function JoinTab({ restored, onClear }: { restored: StoredJoin | null; onClear: 
         return;
       }
       setResult(res);
-      writeSession(JOIN_STORAGE_KEY, { name: name.trim(), cardNumber: res.cardNumber, visitCount: res.visitCount, plateNo: res.plateNo });
+      writeSession(JOIN_STORAGE_KEY, { name: name.trim(), cardNumber: res.cardNumber, stamps: res.stamps, plateNo: res.plateNo });
     });
   }
 
@@ -228,7 +228,7 @@ function JoinTab({ restored, onClear }: { restored: StoredJoin | null; onClear: 
           Hi <span className="font-semibold text-neutral-900">{name.trim()}</span>! You&apos;re in.
         </p>
         <TierCard cardNumber={result.cardNumber} name={name} plateNo={result.plateNo} />
-        <StampProgress visitCount={result.visitCount} />
+        <StampProgress stamps={result.stamps} />
         <p className="text-xs text-neutral-400 text-center mt-4">Show this screen at the counter</p>
         <button
           onClick={() => {
@@ -381,7 +381,7 @@ function LookupTab({ restored, onClear }: { restored: StoredLookup | null; onCle
             <p className="text-[11px] text-neutral-500">Total Spend</p>
           </div>
         </div>
-        <StampProgress visitCount={result.visitCount} />
+        <StampProgress stamps={result.stamps} />
         <button onClick={handleReset} className="text-xs font-medium text-neutral-500 hover:text-neutral-700 mt-4 w-full text-center">
           Check another number
         </button>
