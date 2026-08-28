@@ -5,6 +5,7 @@ import { supabaseAdmin } from "./supabase-server";
 import { requireApproved, assertCanEditBranch } from "./current-user";
 import type { Mechanic, MechanicStatus, MechanicCategory } from "./types";
 import type { Branch } from "./branch";
+import { logActivity } from "./activity-log";
 
 type Row = {
   id: string;
@@ -69,22 +70,27 @@ export async function addMechanicAction(input: {
     category: input.category ?? "Normal Repair",
   });
   if (error) throw new Error(error.message);
+  await logActivity(user, "Added mechanic", `${input.fullName} (${input.shortCode.toUpperCase()}) — ${input.branch}`);
   revalidatePath("/mechanics");
 }
 
 export async function toggleMechanicStatusAction(id: string, branch: Branch, status: MechanicStatus): Promise<void> {
   const user = await requireApproved();
   assertCanEditBranch(user, branch);
+  const { data: mech } = await supabaseAdmin.from("cc_mechanics").select("full_name").eq("id", id).single();
   const { error } = await supabaseAdmin.from("cc_mechanics").update({ status }).eq("id", id);
   if (error) throw new Error(error.message);
+  await logActivity(user, "Set mechanic status", `${mech?.full_name ?? id} → ${status}`);
   revalidatePath("/mechanics");
 }
 
 export async function updateMechanicCategoryAction(id: string, branch: Branch, category: MechanicCategory): Promise<void> {
   const user = await requireApproved();
   assertCanEditBranch(user, branch);
+  const { data: mech } = await supabaseAdmin.from("cc_mechanics").select("full_name").eq("id", id).single();
   const { error } = await supabaseAdmin.from("cc_mechanics").update({ category }).eq("id", id);
   if (error) throw new Error(error.message);
+  await logActivity(user, "Set mechanic category", `${mech?.full_name ?? id} → ${category}`);
   revalidatePath("/mechanics");
   revalidatePath("/repairs");
   revalidatePath("/repairs/walk-in");
@@ -93,7 +99,9 @@ export async function updateMechanicCategoryAction(id: string, branch: Branch, c
 export async function deleteMechanicAction(id: string, branch: Branch): Promise<void> {
   const user = await requireApproved();
   assertCanEditBranch(user, branch);
+  const { data: mech } = await supabaseAdmin.from("cc_mechanics").select("full_name").eq("id", id).single();
   const { error } = await supabaseAdmin.from("cc_mechanics").delete().eq("id", id);
   if (error) throw new Error(error.message);
+  await logActivity(user, "Deleted mechanic", `${mech?.full_name ?? id} (${branch})`);
   revalidatePath("/mechanics");
 }

@@ -26,6 +26,7 @@ export async function signUpAction(formData: FormData): Promise<AuthResult> {
   });
 
   if (error) return { error: error.message };
+  if (data.user) await logActivity({ id: data.user.id, name, email }, "Signed up");
   if (!data.session) return { needsEmailConfirmation: true };
 
   redirect("/");
@@ -64,6 +65,13 @@ export async function signInAction(formData: FormData): Promise<AuthResult> {
 
 export async function signOutAction(): Promise<void> {
   const supabase = await createAuthClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (user?.email) {
+    const { data: profile } = await supabaseAdmin.from("cc_user_profiles").select("name").eq("id", user.id).single();
+    await logActivity({ id: user.id, name: profile?.name ?? "", email: user.email }, "Logged out");
+  }
   await supabase.auth.signOut();
   redirect("/login");
 }
@@ -91,4 +99,7 @@ export async function changeOwnPasswordAction(
 
   const { error } = await supabase.auth.updateUser({ password: newPassword });
   if (error) return { error: error.message };
+
+  const { data: profile } = await supabaseAdmin.from("cc_user_profiles").select("name").eq("id", user.id).single();
+  await logActivity({ id: user.id, name: profile?.name ?? "", email: user.email }, "Changed own password");
 }

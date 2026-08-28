@@ -2,6 +2,7 @@
 
 import { supabaseAdmin } from "./supabase-server";
 import { sendEmail } from "./email";
+import { logActivity } from "./activity-log";
 
 const OTP_TTL_MINUTES = 10;
 
@@ -63,12 +64,16 @@ export async function resetPasswordWithCodeAction(
   if (new Date(row.expires_at) < new Date()) return { error: "This code has expired. Request a new one." };
   if (row.code !== enteredCode) return { error: "Incorrect code — please try again." };
 
-  const { data: profile } = await supabaseAdmin.from("cc_user_profiles").select("id").eq("email", trimmed).maybeSingle();
+  const { data: profile } = await supabaseAdmin.from("cc_user_profiles").select("id, name").eq("email", trimmed).maybeSingle();
   if (!profile) return { error: "No account found for that email." };
 
   const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(profile.id, { password: newPassword });
   if (updateError) return { error: updateError.message };
 
   await supabaseAdmin.from("cc_email_otps").update({ verified: true }).eq("id", row.id);
+  await logActivity(
+    { id: profile.id, name: profile.name ?? "", email: trimmed },
+    "Reset own password (forgot password)"
+  );
   return { success: true };
 }

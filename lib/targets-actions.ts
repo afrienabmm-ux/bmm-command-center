@@ -5,6 +5,7 @@ import { supabaseAdmin } from "./supabase-server";
 import { requireApproved, requireManagement, assertCanEditBranch } from "./current-user";
 import type { MonthlyTarget } from "./types";
 import { BRANCHES, type Branch } from "./branch";
+import { logActivity } from "./activity-log";
 
 type Row = { id: string; branch: Branch; year: number; month: number; target_amount: number };
 
@@ -52,6 +53,7 @@ export async function setMonthlyTargetAction(
       { onConflict: "branch,year,month" }
     );
   if (error) throw new Error(error.message);
+  await logActivity(user, "Set monthly target", `${branch} ${year}-${month} → RM${targetAmount.toFixed(2)}`);
   revalidatePath("/");
 }
 
@@ -59,7 +61,7 @@ export async function setMonthlyTargetAction(
 // overwrites each branch's individual target for that month — use
 // setMonthlyTargetAction instead if you want to fine-tune just one branch.
 export async function setCombinedMonthlyTargetAction(year: number, month: number, overallAmount: number): Promise<void> {
-  await requireManagement();
+  const user = await requireManagement();
   // Split in whole cents and hand any leftover cents to the first few
   // branches, so the 3 per-branch targets always sum back to exactly the
   // overall amount (splitting 170000 evenly by rounding each share to
@@ -76,5 +78,6 @@ export async function setCombinedMonthlyTargetAction(year: number, month: number
   }));
   const { error } = await supabaseAdmin.from("cc_monthly_targets").upsert(rows, { onConflict: "branch,year,month" });
   if (error) throw new Error(error.message);
+  await logActivity(user, "Set combined monthly target", `${year}-${month} → RM${overallAmount.toFixed(2)}`);
   revalidatePath("/");
 }
