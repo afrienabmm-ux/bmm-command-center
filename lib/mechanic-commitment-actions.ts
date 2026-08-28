@@ -61,9 +61,12 @@ export async function getMechanicCommitment(branch?: Branch): Promise<MechanicCo
 
   const [{ data: mechanics, error: mErr }, { data: jobs, error: jErr }] = await Promise.all([
     mechanicsQuery,
+    // Jobsheet (Walk-in) revenue only — Restore Bike jobs don't count
+    // toward the daily pace.
     supabaseAdmin
       .from("cc_repair_jobs")
       .select("mechanic_id, job_type, revenue_amount, started_date")
+      .eq("job_type", "Walk-in")
       .gte("started_date", weekStart)
       .lte("started_date", today),
   ]);

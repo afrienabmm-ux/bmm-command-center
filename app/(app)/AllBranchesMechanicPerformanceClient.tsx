@@ -1,13 +1,26 @@
 "use client";
 
 import { Fragment, useEffect, useMemo, useState } from "react";
-import { Crown, Wrench, Smartphone, Download, ChevronDown, ChevronUp, ArrowUp, ArrowDown, Minus, Search } from "lucide-react";
+import { Crown, Wrench, Smartphone, Download, ChevronDown, ChevronUp, ArrowUp, ArrowDown, Minus, Search, Flame, Target } from "lucide-react";
 import { formatCurrency, toCsv } from "@/lib/format";
 import { BRANCHES, branchLabel, type BranchSelection } from "@/lib/branch";
 import type { MechanicPerformanceRowWithBranch } from "@/lib/reports-actions";
+import type { MechanicCommitmentRow } from "@/lib/mechanic-commitment-actions";
 import { MECHANIC_KPI_REVENUE, MECHANIC_KPI_RESTORE_BIKE_COUNT, MECHANIC_KPI_DAILY_TARGET, MECHANIC_KPI_WORKING_DAYS } from "@/lib/types";
 
 const COLLAPSED_COUNT = 5;
+
+function TodayProgressBar({ value, target }: { value: number; target: number }) {
+  const pct = target > 0 ? Math.min(100, Math.round((value / target) * 100)) : 0;
+  return (
+    <div className="w-24 h-1.5 bg-neutral-100 rounded-full overflow-hidden">
+      <div
+        className={`h-full rounded-full ${pct >= 100 ? "bg-emerald-500" : pct >= 60 ? "bg-amber-500" : "bg-red-400"}`}
+        style={{ width: `${pct}%` }}
+      />
+    </div>
+  );
+}
 
 function PackageRow({ r, isTop }: { r: MechanicPerformanceRowWithBranch; isTop: boolean }) {
   return (
@@ -55,11 +68,15 @@ function RevenueRow({
   isTop,
   isTopRestoreBike,
   prevRevenue,
+  today,
+  dailyTarget,
 }: {
   r: MechanicPerformanceRowWithBranch;
   isTop: boolean;
   isTopRestoreBike: boolean;
   prevRevenue: number | undefined;
+  today: MechanicCommitmentRow | undefined;
+  dailyTarget: number;
 }) {
   return (
     <tr className="border-b border-neutral-100 last:border-0 hover:bg-neutral-50">
@@ -74,9 +91,33 @@ function RevenueRow({
           )}
         </span>
       </td>
-      <td className="px-5 py-3.5 text-neutral-600 whitespace-nowrap">
-        {r.restoreBikeCount} jobs · {formatCurrency(r.restoreBikeRevenue)}
+      <td className="px-5 py-3.5 text-center whitespace-nowrap">
+        {today && today.streakDays > 0 ? (
+          <span className="inline-flex items-center gap-1 text-sm font-medium text-orange-600">
+            <Flame size={14} className="fill-orange-500 text-orange-500" /> {today.streakDays}
+          </span>
+        ) : (
+          <span className="text-neutral-300">—</span>
+        )}
       </td>
+      <td className="px-5 py-3.5 whitespace-nowrap">
+        <div className="flex items-center gap-2">
+          <span className="text-neutral-800 font-medium">{formatCurrency(today?.revenue ?? 0)}</span>
+          <TodayProgressBar value={today?.revenue ?? 0} target={dailyTarget} />
+        </div>
+      </td>
+      <td className="px-5 py-3.5 text-center">
+        <span
+          className={`text-xs font-medium px-2.5 py-1 rounded-full border ${
+            today?.onTrack
+              ? "bg-emerald-500/10 text-emerald-700 border-emerald-500/20"
+              : "bg-amber-500/10 text-amber-700 border-amber-500/20"
+          }`}
+        >
+          {today?.onTrack ? "On track" : "Behind"}
+        </span>
+      </td>
+      <td className="px-5 py-3.5 text-neutral-600 whitespace-nowrap">{r.restoreBikeCount} jobs</td>
       <td className="px-5 py-3.5 text-neutral-600 whitespace-nowrap">
         {r.walkInCount} jobs · {formatCurrency(r.walkInRevenue)}
       </td>
@@ -105,11 +146,15 @@ export default function AllBranchesMechanicPerformanceClient({
   branchSelection,
   locked,
   prevRevenueByMechanicId,
+  commitmentByMechanicId,
+  dailyTarget,
 }: {
   rows: MechanicPerformanceRowWithBranch[];
   branchSelection?: BranchSelection;
   locked?: boolean;
   prevRevenueByMechanicId: Record<string, number>;
+  commitmentByMechanicId: Record<string, MechanicCommitmentRow>;
+  dailyTarget: number;
 }) {
   const [branchFilter, setBranchFilter] = useState<BranchSelection>(branchSelection ?? "all");
   const [view, setView] = useState<View>("revenue");
@@ -169,11 +214,22 @@ export default function AllBranchesMechanicPerformanceClient({
   // necessarily index 0 of the overall list.
   const topOverallId = filtered[0]?.mechanicId;
 
+  // Today's team snapshot, scoped to whatever's currently filtered — same
+  // on-track/behind read that used to live in its own separate section.
+  const todayRows = filtered.map((r) => commitmentByMechanicId[r.mechanicId]).filter((c): c is MechanicCommitmentRow => !!c);
+  const onTrackCount = todayRows.filter((c) => c.onTrack).length;
+  const behindCount = todayRows.length - onTrackCount;
+  const teamRevenueToday = todayRows.reduce((s, c) => s + c.revenue, 0);
+  const teamJobsToday = todayRows.reduce((s, c) => s + c.jobCount, 0);
+
   function handleExport() {
     const csv = toCsv(
       [
         "Mechanic",
         "Code",
+        "Streak (days)",
+        "Revenue Today (RM)",
+        "Today's Status",
         "Restore Bike Jobs",
         "Restore Bike Revenue (RM)",
         "Jobsheet Jobs",
@@ -185,20 +241,26 @@ export default function AllBranchesMechanicPerformanceClient({
         "Revenue KPI Met (RM10k)",
         "Bike Count KPI Met (2 bikes)",
       ],
-      filtered.map((r) => [
-        r.fullName,
-        r.shortCode,
-        r.restoreBikeCount,
-        r.restoreBikeRevenue.toFixed(2),
-        r.walkInCount,
-        r.walkInRevenue.toFixed(2),
-        r.packageSetsSold,
-        r.packageRevenue.toFixed(2),
-        r.genbluCount,
-        r.totalRevenue.toFixed(2),
-        r.restoreBikeRevenue >= MECHANIC_KPI_REVENUE ? "Yes" : "No",
-        r.restoreBikeCount >= MECHANIC_KPI_RESTORE_BIKE_COUNT ? "Yes" : "No",
-      ])
+      filtered.map((r) => {
+        const today = commitmentByMechanicId[r.mechanicId];
+        return [
+          r.fullName,
+          r.shortCode,
+          today?.streakDays ?? 0,
+          (today?.revenue ?? 0).toFixed(2),
+          today?.onTrack ? "On track" : "Behind",
+          r.restoreBikeCount,
+          r.restoreBikeRevenue.toFixed(2),
+          r.walkInCount,
+          r.walkInRevenue.toFixed(2),
+          r.packageSetsSold,
+          r.packageRevenue.toFixed(2),
+          r.genbluCount,
+          r.totalRevenue.toFixed(2),
+          r.restoreBikeRevenue >= MECHANIC_KPI_REVENUE ? "Yes" : "No",
+          r.restoreBikeCount >= MECHANIC_KPI_RESTORE_BIKE_COUNT ? "Yes" : "No",
+        ];
+      })
     );
     const blob = new Blob([csv], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
@@ -213,13 +275,27 @@ export default function AllBranchesMechanicPerformanceClient({
     <div className="bg-white border border-neutral-200 rounded-xl overflow-hidden">
       <div className="px-5 py-4 border-b border-neutral-200 flex items-center justify-between flex-wrap gap-3">
         <div>
-          <p className="text-sm font-semibold text-neutral-900">Individual Mechanic Performance</p>
+          <p className="text-sm font-semibold text-neutral-900 flex items-center gap-1.5">
+            <Target size={15} className="text-red-500" /> Mechanic Performance
+          </p>
           <p className="text-xs text-neutral-500 mt-0.5">
             {view === "packages"
               ? "Total packages sold per mechanic this month"
-              : `Total revenue per mechanic this month · KPI is ${formatCurrency(MECHANIC_KPI_REVENUE)} Restore Bike revenue over ${MECHANIC_KPI_WORKING_DAYS} working days (${formatCurrency(MECHANIC_KPI_DAILY_TARGET)}/day minimum)`}
+              : `Today's pace (${formatCurrency(dailyTarget)}/day target) plus this month's revenue by source · KPI is ${formatCurrency(MECHANIC_KPI_REVENUE)} Restore Bike revenue over ${MECHANIC_KPI_WORKING_DAYS} working days`}
           </p>
         </div>
+        {view === "revenue" && todayRows.length > 0 && (
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-700 border border-emerald-500/20">
+              {onTrackCount} on track today
+            </span>
+            {behindCount > 0 && (
+              <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-red-500/10 text-red-700 border border-red-500/20">
+                {behindCount} behind
+              </span>
+            )}
+          </div>
+        )}
         <div className="flex items-center gap-2">
           <div className="relative">
             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
@@ -274,6 +350,20 @@ export default function AllBranchesMechanicPerformanceClient({
           </button>
         </div>
       </div>
+      {view === "revenue" && todayRows.length > 0 && (
+        <div className="grid grid-cols-2 gap-3 p-5 border-b border-neutral-200">
+          <div className="bg-neutral-50 border border-neutral-200 rounded-lg p-3.5">
+            <p className="text-[11px] font-medium text-neutral-500 tracking-wide">TEAM REVENUE TODAY</p>
+            <p className="text-xl font-semibold text-neutral-900 mt-1">{formatCurrency(teamRevenueToday)}</p>
+            <p className="text-xs text-neutral-400 mt-0.5">target {formatCurrency(dailyTarget * todayRows.length)}</p>
+          </div>
+          <div className="bg-neutral-50 border border-neutral-200 rounded-lg p-3.5">
+            <p className="text-[11px] font-medium text-neutral-500 tracking-wide">JOBS TODAY</p>
+            <p className="text-xl font-semibold text-neutral-900 mt-1">{teamJobsToday}</p>
+            <p className="text-xs text-neutral-400 mt-0.5">across {todayRows.length} mechanics</p>
+          </div>
+        </div>
+      )}
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           {view === "packages" ? (
@@ -318,6 +408,9 @@ export default function AllBranchesMechanicPerformanceClient({
               <thead>
                 <tr className="text-left text-xs text-neutral-500 border-b border-neutral-200">
                   <th className="font-medium px-5 py-3 whitespace-nowrap">Mechanic</th>
+                  <th className="font-medium px-5 py-3 whitespace-nowrap text-center">Streak</th>
+                  <th className="font-medium px-5 py-3 whitespace-nowrap">Revenue Today</th>
+                  <th className="font-medium px-5 py-3 whitespace-nowrap text-center">Today's Status</th>
                   <th className="font-medium px-5 py-3 whitespace-nowrap">Restore Bike</th>
                   <th className="font-medium px-5 py-3 whitespace-nowrap">Jobsheet</th>
                   <th className="font-medium px-5 py-3 whitespace-nowrap">Packages</th>
@@ -333,7 +426,7 @@ export default function AllBranchesMechanicPerformanceClient({
                           <td className="px-5 py-2.5 text-emerald-800 font-semibold text-xs uppercase tracking-wide whitespace-nowrap">
                             {branchLabel(g.branch)} — Branch Total
                           </td>
-                          <td colSpan={4} />
+                          <td colSpan={7} />
                           <td className="px-5 py-2.5 text-emerald-800 font-semibold text-sm whitespace-nowrap">
                             {formatCurrency(g.rows.reduce((sum, r) => sum + r.totalRevenue, 0))}
                           </td>
@@ -345,6 +438,8 @@ export default function AllBranchesMechanicPerformanceClient({
                             isTop={r.mechanicId === topOverallId}
                             isTopRestoreBike={r.mechanicId === topRestoreBikeId}
                             prevRevenue={prevRevenueByMechanicId[r.mechanicId]}
+                            today={commitmentByMechanicId[r.mechanicId]}
+                            dailyTarget={dailyTarget}
                           />
                         ))}
                       </Fragment>
@@ -356,11 +451,13 @@ export default function AllBranchesMechanicPerformanceClient({
                         isTop={r.mechanicId === topOverallId}
                         isTopRestoreBike={r.mechanicId === topRestoreBikeId}
                         prevRevenue={prevRevenueByMechanicId[r.mechanicId]}
+                        today={commitmentByMechanicId[r.mechanicId]}
+                        dailyTarget={dailyTarget}
                       />
                     ))}
                 {filtered.length === 0 && (
                   <tr>
-                    <td colSpan={6} className="px-5 py-10 text-center text-neutral-500 text-sm">
+                    <td colSpan={9} className="px-5 py-10 text-center text-neutral-500 text-sm">
                       No mechanics {branchFilter === "all" ? "yet" : `at ${branchLabel(branchFilter)} yet`}.
                     </td>
                   </tr>

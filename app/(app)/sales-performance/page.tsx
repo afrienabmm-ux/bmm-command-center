@@ -7,7 +7,6 @@ import PageHeader from "@/components/PageHeader";
 import MonthPicker from "@/components/MonthPicker";
 import AllBranchesMechanicPerformanceTable from "../AllBranchesMechanicPerformanceTable";
 import PackageBreakdownCharts from "../PackageBreakdownCharts";
-import MechanicCommitmentTracker from "../MechanicCommitmentTracker";
 
 export const dynamic = "force-dynamic";
 
@@ -42,11 +41,12 @@ export default async function SalesPerformancePage({
     getMechanicCommitment(onlyBranch),
   ]);
 
-  // A plain object, not a Map — Map instances can't cross the Server/Client
+  // Plain objects, not Maps — Map instances can't cross the Server/Client
   // Component boundary as props.
   const prevRevenueByMechanicId: Record<string, number> = Object.fromEntries(
     prevRows.map((r) => [r.mechanicId, r.totalRevenue])
   );
+  const commitmentByMechanicId = Object.fromEntries(commitment.rows.map((r) => [r.mechanicId, r]));
 
   return (
     <div className="flex flex-col h-full">
@@ -56,12 +56,13 @@ export default async function SalesPerformancePage({
         action={<MonthPicker year={year} month={month} basePath="/sales-performance" />}
       />
       <div className="p-8 space-y-8">
-        <MechanicCommitmentTracker summary={commitment} branchSelection={branchSelection} />
         <AllBranchesMechanicPerformanceTable
           rows={rows}
           branchSelection={branchSelection}
           locked={locked}
           prevRevenueByMechanicId={prevRevenueByMechanicId}
+          commitmentByMechanicId={commitmentByMechanicId}
+          dailyTarget={commitment.revenueTarget}
         />
         <PackageBreakdownCharts packageBreakdown={packageBreakdown} onlyBranch={onlyBranch} />
       </div>
