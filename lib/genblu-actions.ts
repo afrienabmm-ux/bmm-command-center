@@ -546,7 +546,7 @@ export async function addGenbluTransactionAction(input: {
   // on OCR to read the name off the screenshot — wins over whatever OCR
   // finds, since a jobsheet name is known-correct.
   customerNameOverride?: string;
-}): Promise<{ error: string } | { transaction: GenbluTransaction }> {
+}): Promise<{ error: string; rawText?: string } | { transaction: GenbluTransaction; rawText: string }> {
   const user = await requireApproved();
   assertCanEditBranch(user, input.branch);
   if (input.screenshot.size === 0) return { error: "Pick a screenshot to upload." };
@@ -586,6 +586,7 @@ export async function addGenbluTransactionAction(input: {
   if (!customerName || points === null) {
     return {
       error: "Couldn't read the customer name and points off that screenshot — please try again with a clearer, uncropped photo of the full screen.",
+      rawText: text,
     };
   }
 
@@ -616,7 +617,7 @@ export async function addGenbluTransactionAction(input: {
 
   await logActivity(user, "Logged GenBlu point allocation", `${customerName} — ${points} pts (${input.branch})`);
   revalidatePath("/genblu");
-  return { transaction: toTransaction(data as TransactionRow) };
+  return { transaction: toTransaction(data as TransactionRow), rawText: text };
 }
 
 export async function getGenbluTransactions(branch: Branch): Promise<GenbluTransaction[]> {

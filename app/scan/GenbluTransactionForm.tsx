@@ -26,6 +26,7 @@ export default function GenbluTransactionForm({
   const [serviceCoupon, setServiceCoupon] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<GenbluTransaction | null>(null);
+  const [rawText, setRawText] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const locked = branchSelection !== "all";
   const selectedJobsheet = recentJobs.find((j) => j.jobId === jobsheetId) ?? null;
@@ -49,6 +50,7 @@ export default function GenbluTransactionForm({
         serviceCoupon,
         customerNameOverride: selectedJobsheet?.customerName,
       });
+      setRawText(res.rawText ?? null);
       if ("error" in res) {
         setError(res.error);
         return;
@@ -74,9 +76,18 @@ export default function GenbluTransactionForm({
           <Field label="Time" value={result.transactionTime ?? "—"} />
           <Field label="Service Coupon" value={result.serviceCoupon ? "Yes" : "No"} />
         </div>
+        {rawText && (
+          <details className="mt-3">
+            <summary className="text-xs text-neutral-500 cursor-pointer">What Google read from the photo (for troubleshooting)</summary>
+            <pre className="mt-2 bg-neutral-50 border border-neutral-200 rounded-lg p-3 text-xs text-neutral-700 whitespace-pre-wrap max-h-64 overflow-y-auto">{rawText}</pre>
+          </details>
+        )}
         <button
           type="button"
-          onClick={() => setResult(null)}
+          onClick={() => {
+            setResult(null);
+            setRawText(null);
+          }}
           className="w-full mt-5 bg-neutral-100 hover:bg-neutral-200 text-neutral-800 text-sm font-medium px-4 py-2.5 rounded-lg transition-colors"
         >
           Log Another
@@ -149,6 +160,12 @@ export default function GenbluTransactionForm({
         </label>
 
         {error && <p className="text-sm text-red-700">{error}</p>}
+        {error && rawText && (
+          <details>
+            <summary className="text-xs text-red-700 cursor-pointer">What Google read from the photo (for troubleshooting)</summary>
+            <pre className="mt-2 bg-white border border-neutral-200 rounded-lg p-3 text-xs text-neutral-700 whitespace-pre-wrap max-h-64 overflow-y-auto">{rawText}</pre>
+          </details>
+        )}
 
         <button
           type="button"
