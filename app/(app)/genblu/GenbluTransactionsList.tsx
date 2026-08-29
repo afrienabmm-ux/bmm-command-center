@@ -8,6 +8,8 @@ import { formatDate, toCsv } from "@/lib/format";
 import type { GenbluTransaction } from "@/lib/types";
 import ModalPortal from "@/components/ModalPortal";
 
+type TransactionWithUrl = GenbluTransaction & { screenshotUrl: string | null };
+
 // Same column order as the admin's own spreadsheet (No, Transaction Date,
 // Time, Points, Categories, Remark, Customer Name, Service Coupon, Branch)
 // — Remark isn't captured from the screenshot, so it exports blank rather
@@ -19,10 +21,11 @@ export default function GenbluTransactionsList({
   transactions,
   showBranch,
 }: {
-  transactions: GenbluTransaction[];
+  transactions: TransactionWithUrl[];
   showBranch: boolean;
 }) {
   const [deleting, setDeleting] = useState<GenbluTransaction | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
   function handleExport() {
@@ -86,7 +89,12 @@ export default function GenbluTransactionsList({
             </thead>
             <tbody>
               {transactions.map((t, i) => (
-                <tr key={t.id} className="border-t border-neutral-100">
+                <tr
+                  key={t.id}
+                  onDoubleClick={t.screenshotUrl ? () => setPreviewUrl(t.screenshotUrl) : undefined}
+                  title={t.screenshotUrl ? "Double-click to view the uploaded screenshot" : undefined}
+                  className={`border-t border-neutral-100 ${t.screenshotUrl ? "cursor-pointer hover:bg-neutral-50" : ""}`}
+                >
                   <td className="px-4 py-2.5 text-neutral-500">{i + 1}</td>
                   <td className="px-4 py-2.5 text-neutral-700">{t.transactionDate ? formatDate(t.transactionDate) : "—"}</td>
                   <td className="px-4 py-2.5 text-neutral-700">{t.transactionTime ?? "—"}</td>
@@ -150,6 +158,29 @@ export default function GenbluTransactionsList({
                 {isPending ? "Deleting…" : "Delete"}
               </button>
             </div>
+          </div>
+        </div></ModalPortal>
+      )}
+
+      {previewUrl && (
+        <ModalPortal><div
+          className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 px-4 py-8"
+          onClick={() => setPreviewUrl(null)}
+        >
+          <div className="relative max-w-lg w-full max-h-full" onClick={(e) => e.stopPropagation()}>
+            <button
+              onClick={() => setPreviewUrl(null)}
+              className="absolute -top-3 -right-3 bg-white text-neutral-700 rounded-full p-1.5 shadow-lg hover:text-red-600"
+              aria-label="Close"
+            >
+              <XIcon size={16} />
+            </button>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={previewUrl}
+              alt="Uploaded screenshot"
+              className="w-full max-h-[85vh] object-contain rounded-xl shadow-2xl bg-white"
+            />
           </div>
         </div></ModalPortal>
       )}

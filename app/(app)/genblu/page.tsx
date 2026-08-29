@@ -42,6 +42,12 @@ export default async function GenbluPage({
   ]);
   const monthPrefix = `${year}-${String(month).padStart(2, "0")}`;
   const transactions = allTransactions.filter((t) => (t.transactionDate ?? "").startsWith(monthPrefix));
+  const transactionsWithUrls = await Promise.all(
+    transactions.map(async (t) => ({
+      ...t,
+      screenshotUrl: t.screenshotPath ? await getScreenshotUrl(t.screenshotPath) : null,
+    }))
+  );
   const withUrls = await Promise.all(
     registrations.map(async (r) => ({
       ...r,
@@ -79,7 +85,7 @@ export default async function GenbluPage({
                 <MonthPicker year={year} month={month} basePath="/genblu" />
               </div>
               <GenbluMonthlySummary summary={monthlySummary} />
-              <GenbluTransactionsList transactions={transactions} showBranch={showAllBranches} />
+              <GenbluTransactionsList transactions={transactionsWithUrls} showBranch={showAllBranches} />
             </div>
           }
         />
