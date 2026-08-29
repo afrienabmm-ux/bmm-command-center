@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { supabaseAdmin } from "./supabase-server";
 import { requireApproved, requireManagement, assertCanEditBranch } from "./current-user";
 import { logActivity } from "./activity-log";
-import { todayInMalaysia } from "./malaysia-time";
+import { todayInMalaysia, daysSinceInMalaysia } from "./malaysia-time";
 import type { RepairJob, RepairJobItem, RepairStatus, JobType, ApprovalStatus, QcResult } from "./types";
 import { DEAL_TYPES } from "./types";
 import { BRANCHES, type Branch } from "./branch";
@@ -270,12 +270,9 @@ export async function getRepairJobById(id: string): Promise<RepairJob | null> {
 // they started — surfaced as an in-app alert, no external notification.
 export async function getOverdueRestoreBikeJobs(branch: Branch): Promise<RepairJob[]> {
   const active = await getActiveRepairJobs(branch);
-  const today = new Date();
   return active.filter((j) => {
     if (j.jobType !== "Restore Bike" || !j.startedDate) return false;
-    const started = new Date(j.startedDate);
-    const days = Math.floor((today.getTime() - started.getTime()) / 86400000);
-    return days > 5;
+    return daysSinceInMalaysia(j.startedDate) > 5;
   });
 }
 
@@ -286,12 +283,11 @@ export type OverdueRestoreBikeJob = RepairJob & { daysRunning: number };
 export async function getAllBranchesOverdueRestoreBikeJobs(onlyBranch?: Branch): Promise<OverdueRestoreBikeJob[]> {
   const branches = onlyBranch ? [onlyBranch] : BRANCHES.map((b) => b.value);
   const perBranch = await Promise.all(branches.map((value) => getOverdueRestoreBikeJobs(value)));
-  const today = new Date();
   return perBranch
     .flat()
     .map((j) => ({
       ...j,
-      daysRunning: j.startedDate ? Math.floor((today.getTime() - new Date(j.startedDate).getTime()) / 86400000) : 0,
+      daysRunning: j.startedDate ? daysSinceInMalaysia(j.startedDate) : 0,
     }))
     .sort((a, b) => b.daysRunning - a.daysRunning);
 }
@@ -319,12 +315,9 @@ export async function getAllBranchesApprovedReadyToStartJobs(onlyBranch?: Branch
 // 5-day one above.
 export async function getOverdueQcJobs(branch: Branch): Promise<RepairJob[]> {
   const qc = await getQcRepairJobs(branch);
-  const today = new Date();
   return qc.filter((j) => {
     if (!j.completedDate) return false;
-    const finished = new Date(j.completedDate);
-    const days = Math.floor((today.getTime() - finished.getTime()) / 86400000);
-    return days > 3;
+    return daysSinceInMalaysia(j.completedDate) > 3;
   });
 }
 
@@ -335,12 +328,11 @@ export type OverdueQcJob = RepairJob & { daysWaiting: number };
 export async function getAllBranchesOverdueQcJobs(onlyBranch?: Branch): Promise<OverdueQcJob[]> {
   const branches = onlyBranch ? [onlyBranch] : BRANCHES.map((b) => b.value);
   const perBranch = await Promise.all(branches.map((value) => getOverdueQcJobs(value)));
-  const today = new Date();
   return perBranch
     .flat()
     .map((j) => ({
       ...j,
-      daysWaiting: j.completedDate ? Math.floor((today.getTime() - new Date(j.completedDate).getTime()) / 86400000) : 0,
+      daysWaiting: j.completedDate ? daysSinceInMalaysia(j.completedDate) : 0,
     }))
     .sort((a, b) => b.daysWaiting - a.daysWaiting);
 }
@@ -355,15 +347,16 @@ export type QcReminderJob = RepairJob & { daysWaiting: number; dueDate: string }
 export async function getAllBranchesQcReminderJobs(onlyBranch?: Branch): Promise<QcReminderJob[]> {
   const branches = onlyBranch ? [onlyBranch] : BRANCHES.map((b) => b.value);
   const perBranch = await Promise.all(branches.map((value) => getQcRepairJobs(value)));
-  const today = new Date();
   return perBranch
     .flat()
     .filter((j) => j.completedDate)
     .map((j) => {
-      const finished = new Date(j.completedDate as string);
-      const daysWaiting = Math.floor((today.getTime() - finished.getTime()) / 86400000);
-      const due = new Date(finished);
-      due.setDate(due.getDate() + 3);
+      const completedDate = j.completedDate as string;
+      const daysWaiting = daysSinceInMalaysia(completedDate);
+      // Due 3 days after the job finished — stepped in UTC so the date
+      // string can't drift a day, same reason as daysSinceInMalaysia.
+      const due = new Date(`${completedDate.slice(0, 10)}T00:00:00Z`);
+      due.setUTCDate(due.getUTCDate() + 3);
       return { ...j, daysWaiting, dueDate: due.toISOString().slice(0, 10) };
     })
     .filter((j) => j.daysWaiting <= 3)
@@ -396,15 +389,11 @@ export async function getUpcomingServiceReminders(onlyBranch?: Branch): Promise<
     .neq("next_service_date", "");
   if (error) throw new Error(error.message);
 
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const cutoff = new Date(today);
-  cutoff.setDate(cutoff.getDate() + 7);
+  const today = todayInMalaysia();
 
   return (data ?? [])
     .map((r) => {
-      const due = new Date(r.next_service_date as string);
-      const daysUntil = Math.round((due.getTime() - today.getTime()) / 86400000);
+      const nextServiceDate = r.next_service_date as string;
       return {
         id: r.id as string,
         branch: r.branch as Branch,
@@ -412,11 +401,13 @@ export async function getUpcomingServiceReminders(onlyBranch?: Branch): Promise<
         customerPhone: r.customer_phone as string,
         plateNo: r.plate_no as string,
         model: r.model as string,
-        nextServiceDate: r.next_service_date as string,
-        daysUntil,
+        nextServiceDate,
+        // Negative once the service is overdue — those stay in the list
+        // (they need chasing most), which the <= 7 cutoff below preserves.
+        daysUntil: daysSinceInMalaysia(today, nextServiceDate),
       };
     })
-    .filter((j) => !Number.isNaN(j.daysUntil) && new Date(j.nextServiceDate) <= cutoff)
+    .filter((j) => Number.isFinite(Date.parse(`${j.nextServiceDate.slice(0, 10)}T00:00:00Z`)) && j.daysUntil <= 7)
     .sort((a, b) => a.daysUntil - b.daysUntil);
 }
 

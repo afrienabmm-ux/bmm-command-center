@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { AlertTriangle, Clock, ShieldCheck, CheckCircle2, ClipboardList, Wrench, Wallet, Layers, PackageCheck, ArrowUp, ArrowDown } from "lucide-react";
 import { formatCurrency, formatDate, monthLabel } from "@/lib/format";
+import { daysSinceInMalaysia } from "@/lib/malaysia-time";
 import { branchLabel, type Branch, type BranchSelection } from "@/lib/branch";
 import StatCard from "@/components/StatCard";
 import CombinedTargetEditor from "./CombinedTargetEditor";
@@ -134,7 +135,7 @@ export default async function AllBranchesOverview({
     .filter((j) => j.jobType === "Restore Bike")
     .reduce(
       (acc, j) => {
-        const days = j.startedDate ? Math.floor((Date.now() - new Date(j.startedDate).getTime()) / 86400000) : null;
+        const days = j.startedDate ? daysSinceInMalaysia(j.startedDate) : null;
         if (days === null || days <= 5) acc.green += 1;
         else acc.red += 1;
         return acc;

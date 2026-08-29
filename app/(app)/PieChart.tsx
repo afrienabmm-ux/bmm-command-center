@@ -41,15 +41,20 @@ function PieChart({ slices, size = 148 }: { slices: PieSlice[]; size?: number })
     );
   }
 
-  let angle = -90;
+  // Each wedge's start angle is derived from the slices before it rather
+  // than from a running total carried between iterations, so rendering
+  // stays free of any mutation. Re-summing the preceding slices is O(n²),
+  // which is nothing at the handful of slices a pie chart ever holds.
+  const visible = slices.filter((s) => s.value !== 0);
+  const wedges = visible.map((s, i) => {
+    const fraction = s.value / total;
+    const startAngle = visible.slice(0, i).reduce((deg, prev) => deg + (prev.value / total) * 360, -90);
+    return { slice: s, fraction, startAngle, endAngle: startAngle + fraction * 360 };
+  });
+
   return (
     <svg width={size} height={size}>
-      {slices.map((s) => {
-        if (s.value === 0) return null;
-        const fraction = s.value / total;
-        const startAngle = angle;
-        const endAngle = angle + fraction * 360;
-        angle = endAngle;
+      {wedges.map(({ slice: s, fraction, startAngle, endAngle }) => {
         const large = endAngle - startAngle > 180 ? 1 : 0;
         const [sx, sy] = pointOnCircle(cx, cy, radius - 2, startAngle);
         const [ex, ey] = pointOnCircle(cx, cy, radius - 2, endAngle);

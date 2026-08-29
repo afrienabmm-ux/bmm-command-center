@@ -6,7 +6,7 @@ import { formatCurrency, formatShortDate, toCsv } from "@/lib/format";
 import { BRANCHES, branchLabel, type BranchSelection } from "@/lib/branch";
 import type { MechanicPerformanceRowWithBranch } from "@/lib/reports-actions";
 import type { MechanicCommitmentRow } from "@/lib/mechanic-commitment-actions";
-import { MECHANIC_KPI_REVENUE, MECHANIC_KPI_RESTORE_BIKE_COUNT, MECHANIC_KPI_DAILY_TARGET, MECHANIC_KPI_WORKING_DAYS } from "@/lib/types";
+import { MECHANIC_KPI_REVENUE, MECHANIC_KPI_RESTORE_BIKE_COUNT, MECHANIC_KPI_WORKING_DAYS } from "@/lib/types";
 
 const COLLAPSED_COUNT = 5;
 

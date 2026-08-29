@@ -714,7 +714,7 @@ export async function getGenbluMonthlySummary(year: number, month: number): Prom
 
   const byBranch = new Map<Branch, { counts: number; points: number }>();
   for (const b of BRANCHES) byBranch.set(b.value, { counts: 0, points: 0 });
-  let total = { counts: 0, points: 0 };
+  const total = { counts: 0, points: 0 };
   for (const row of data ?? []) {
     const entry = byBranch.get(row.branch as Branch);
     if (entry) {

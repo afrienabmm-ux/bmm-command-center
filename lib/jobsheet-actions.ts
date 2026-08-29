@@ -345,7 +345,7 @@ function parseJobsheetText(text: string): ScannedJobsheet {
     // follows it, and — unlike a product code — never runs more than two
     // digits, so a genuinely numeric code (e.g. "9000000013") doesn't get
     // mistaken for one and swallowed.
-    let i = /^\d{1,2}$/.test(tokens[0]) ? 1 : 0;
+    const i = /^\d{1,2}$/.test(tokens[0]) ? 1 : 0;
     let code = tokens[i];
     let descStart = i + 1;
 
