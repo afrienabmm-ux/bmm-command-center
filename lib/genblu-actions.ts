@@ -415,26 +415,37 @@ const MONTHS: Record<string, number> = {
   jul: 7, aug: 8, sep: 9, oct: 10, nov: 11, dec: 12,
 };
 
-// "28 Aug 26" / "28 August 2026" -> "2026-08-28". Only trusts an actual
-// day-month-year token cluster (never a bare time like the phone's status
-// bar clock), so it can search the whole OCR text safely.
+// "28 Aug 26" / "28 August 2026" -> "2026-08-28". The naive version of this
+// (first "number word number" match anywhere) can accidentally grab the
+// phone's own status bar — "12:04" + a misread signal-strength icon + a
+// battery "85 %" reads as "04 tall 85", which shape-matches just fine
+// until the middle token is checked against real month names. So every
+// candidate match is validated in order and the first one with an actual
+// month name wins, instead of trusting whichever comes first in the text.
+function findDateMatch(text: string): RegExpMatchArray | null {
+  for (const match of text.matchAll(/\b(\d{1,2})\s+([A-Za-z]{3,9})\s+(\d{2,4})\b/g)) {
+    const month = MONTHS[match[2].slice(0, 3).toLowerCase()];
+    const day = Number(match[1]);
+    if (month && day >= 1 && day <= 31) return match;
+  }
+  return null;
+}
+
 function extractTransactionDate(text: string): string | null {
-  const match = text.match(/\b(\d{1,2})\s+([A-Za-z]{3,9})\s+(\d{2,4})\b/);
+  const match = findDateMatch(text);
   if (!match) return null;
   const day = Number(match[1]);
   const month = MONTHS[match[2].slice(0, 3).toLowerCase()];
-  if (!month || day < 1 || day > 31) return null;
   let year = Number(match[3]);
   if (year < 100) year += 2000;
   return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
 }
 
-// The transaction time sits right next to the date ("28 Aug 26  09:41") —
-// searching from the date match onward, not the whole text, is what keeps
-// this from grabbing the phone's own status-bar clock at the very top of
-// the screenshot instead.
+// The transaction time sits right next to the (validated) date — searching
+// from there onward, not the whole text, is what keeps this from grabbing
+// the phone's own status-bar clock at the very top of the screenshot.
 function extractTransactionTime(text: string): string | null {
-  const dateMatch = text.match(/\b\d{1,2}\s+[A-Za-z]{3,9}\s+\d{2,4}\b/);
+  const dateMatch = findDateMatch(text);
   if (!dateMatch || dateMatch.index === undefined) return null;
   const after = text.slice(dateMatch.index + dateMatch[0].length, dateMatch.index + dateMatch[0].length + 30);
   const timeMatch = after.match(/(\d{1,2}:\d{2})/);
