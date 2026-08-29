@@ -488,12 +488,22 @@ function extractTransactionDate(text: string): string | null {
 // The transaction time sits right next to the (validated) date — searching
 // from there onward, not the whole text, is what keeps this from grabbing
 // the phone's own status-bar clock at the very top of the screenshot.
+// The screen prints 12-hour time with an AM/PM suffix ("01:32 PM") — the
+// old version only captured the "01:32" and silently dropped the suffix,
+// which reads as 1:32 in the morning instead of the afternoon it actually
+// was. Stored as 24-hour from here on, so there's no AM/PM to lose later.
 function extractTransactionTime(text: string): string | null {
   const dateMatch = findDateMatch(text);
   if (!dateMatch || dateMatch.index === undefined) return null;
   const after = text.slice(dateMatch.index + dateMatch[0].length, dateMatch.index + dateMatch[0].length + 30);
-  const timeMatch = after.match(/(\d{1,2}:\d{2})/);
-  return timeMatch ? timeMatch[1] : null;
+  const timeMatch = after.match(/(\d{1,2}):(\d{2})\s*(AM|PM)?/i);
+  if (!timeMatch) return null;
+  let hour = Number(timeMatch[1]);
+  const minute = timeMatch[2];
+  const meridiem = timeMatch[3]?.toUpperCase();
+  if (meridiem === "PM" && hour !== 12) hour += 12;
+  if (meridiem === "AM" && hour === 12) hour = 0;
+  return `${String(hour).padStart(2, "0")}:${minute}`;
 }
 
 // Two different GenBlu screens land here: the instant confirmation right
