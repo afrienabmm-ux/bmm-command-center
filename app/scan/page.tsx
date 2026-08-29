@@ -22,7 +22,7 @@ import { getAllCatalogProducts } from "@/lib/catalog-actions";
 import { getPackages } from "@/lib/packages-actions";
 import WalkInJobForm from "../(app)/repairs/walk-in/WalkInJobForm";
 import GenbluPanel from "./GenbluPanel";
-import type { RecentJobsheetCustomer } from "./GenbluTransactionForm";
+import type { RecentJobsheetCustomer } from "./GenbluQuickForm";
 import JobsheetPicker from "./JobsheetPicker";
 import ScanTabs from "./ScanTabs";
 import SavedToast from "./SavedToast";
@@ -142,10 +142,20 @@ export default async function ScanPage({ searchParams }: { searchParams: Promise
         {canScanJobsheet && canUploadGenblu ? (
           <ScanTabs
             jobsheet={jobsheetForm}
-            genblu={<GenbluPanel branchSelection={branchSelection} recentJobs={recentJobs} />}
+            genblu={
+              <GenbluPanel
+                recentJobs={recentJobs}
+                branchSelection={branchSelection}
+                defaultMode={currentUser.role === "Mechanic" ? "link" : "log"}
+              />
+            }
           />
         ) : canUploadGenblu ? (
-          <GenbluPanel branchSelection={branchSelection} recentJobs={recentJobs} />
+          <GenbluPanel
+            recentJobs={recentJobs}
+            branchSelection={branchSelection}
+            defaultMode={currentUser.role === "Mechanic" ? "link" : "log"}
+          />
         ) : (
           jobsheetForm
         )}

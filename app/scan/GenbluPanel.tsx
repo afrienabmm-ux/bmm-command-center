@@ -1,17 +1,51 @@
 "use client";
 
-import GenbluTransactionForm, { type RecentJobsheetCustomer } from "./GenbluTransactionForm";
+import { useState } from "react";
+import GenbluQuickForm, { type RecentJobsheetCustomer } from "./GenbluQuickForm";
+import GenbluTransactionForm from "./GenbluTransactionForm";
 import type { BranchSelection } from "@/lib/branch";
 
-// One upload, one form — the screenshot itself now both logs the points
-// award and updates (or creates) the customer's Tracker registration, so
-// there's no separate "GenBlu Register" step to keep in sync by hand.
+// Two different GenBlu tasks share this tab: linking a screenshot to an
+// existing jobsheet customer (enrollment), and logging a points award read
+// straight off the app (for the monthly counts/points totals) — separate
+// enough purposes, with separate effects on the Tracker, that they get
+// their own sub-toggle rather than one form trying to do both.
 export default function GenbluPanel({
-  branchSelection,
   recentJobs,
+  branchSelection,
+  defaultMode = "log",
 }: {
-  branchSelection: BranchSelection;
   recentJobs: RecentJobsheetCustomer[];
+  branchSelection: BranchSelection;
+  defaultMode?: "link" | "log";
 }) {
-  return <GenbluTransactionForm branchSelection={branchSelection} recentJobs={recentJobs} />;
+  const [mode, setMode] = useState<"link" | "log">(defaultMode);
+
+  return (
+    <div>
+      <div className="flex gap-1 bg-neutral-100 border border-neutral-200 rounded-lg p-1 mb-4">
+        <button
+          onClick={() => setMode("link")}
+          className={`flex-1 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+            mode === "link" ? "bg-white text-red-700 shadow-sm" : "text-neutral-600"
+          }`}
+        >
+          GenBlu Register
+        </button>
+        <button
+          onClick={() => setMode("log")}
+          className={`flex-1 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+            mode === "log" ? "bg-white text-red-700 shadow-sm" : "text-neutral-600"
+          }`}
+        >
+          Point Allocation
+        </button>
+      </div>
+      {mode === "log" ? (
+        <GenbluTransactionForm branchSelection={branchSelection} recentJobs={recentJobs} />
+      ) : (
+        <GenbluQuickForm recentJobs={recentJobs} />
+      )}
+    </div>
+  );
 }

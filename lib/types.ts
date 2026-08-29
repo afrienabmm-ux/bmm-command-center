@@ -247,11 +247,6 @@ export type GenbluTransaction = {
   screenshotPath: string | null;
   uploadedBy: string | null;
   createdAt: string;
-  // Which Tracker registration this award was applied to — set
-  // automatically by matching customer name within the branch, creating a
-  // new registration if none matched yet. Lets the two GenBlu views (award
-  // log, enrollment tracker) come from a single upload instead of two.
-  registrationId: string | null;
 };
 
 export type Package = {
