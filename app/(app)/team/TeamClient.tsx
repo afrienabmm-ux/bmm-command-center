@@ -1,7 +1,7 @@
 "use client";
 
 import { Fragment, useMemo, useState, useTransition } from "react";
-import { UserCheck, ShieldOff, RefreshCcw, Trash2, KeyRound, UserPlus, Search, ArrowUpDown, ChevronDown } from "lucide-react";
+import { UserCheck, ShieldOff, RefreshCcw, Trash2, KeyRound, UserPlus, Search, ArrowUpDown, ChevronDown, X, Mail } from "lucide-react";
 import {
   approveUserAction,
   createUserAction,
@@ -207,6 +207,7 @@ function MemberRow({ member, isSelf }: { member: TeamMember; isSelf: boolean }) 
   const [isPending, startTransition] = useTransition();
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [showResetPassword, setShowResetPassword] = useState(false);
+  const [showDetails, setShowDetails] = useState(false);
   const [role, setRole] = useState<Role>(member.role ?? "Branch PIC");
   const [title, setTitle] = useState(member.positionTitle ?? "");
 
@@ -225,7 +226,11 @@ function MemberRow({ member, isSelf }: { member: TeamMember; isSelf: boolean }) 
 
   return (
     <>
-      <tr className="border-b border-neutral-100 last:border-0">
+      <tr
+        onDoubleClick={() => setShowDetails(true)}
+        title="Double-click for full details"
+        className="border-b border-neutral-100 last:border-0 cursor-pointer"
+      >
         <td className="px-5 py-3.5 text-neutral-800 font-medium whitespace-nowrap">
           {member.name || member.email} {isSelf && <span className="text-neutral-500 font-normal">(you)</span>}
         </td>
@@ -377,7 +382,97 @@ function MemberRow({ member, isSelf }: { member: TeamMember; isSelf: boolean }) 
           </td>
         </tr>
       )}
+      {showDetails && (
+        <tr>
+          <td colSpan={6} className="p-0">
+            <DetailModal
+              member={member}
+              role={role}
+              title={title}
+              onClose={() => setShowDetails(false)}
+              onResetPassword={
+                !isSelf
+                  ? () => {
+                      setShowDetails(false);
+                      setShowResetPassword(true);
+                    }
+                  : undefined
+              }
+            />
+          </td>
+        </tr>
+      )}
     </>
+  );
+}
+
+// Passwords are never shown here (or anywhere) — Supabase Auth stores
+// them as one-way hashes, so there's no real password to retrieve, not
+// even for us. Resetting (setting a new one) is the actual equivalent,
+// via the same action the key icon uses.
+function DetailModal({
+  member,
+  role,
+  title,
+  onClose,
+  onResetPassword,
+}: {
+  member: TeamMember;
+  role: Role;
+  title: string;
+  onClose: () => void;
+  onResetPassword?: () => void;
+}) {
+  return (
+    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 px-4">
+      <div className="bg-white border border-neutral-200 rounded-xl w-full max-w-sm p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-sm font-semibold text-neutral-900">{member.name || member.email}</h2>
+          <button onClick={onClose} className="text-neutral-400 hover:text-neutral-700" aria-label="Close">
+            <X size={16} />
+          </button>
+        </div>
+        <div className="space-y-2.5 text-sm">
+          <DetailRow label="Email" value={member.email} />
+          <DetailRow label="Access Level" value={role} />
+          <DetailRow label="Title" value={title || "—"} />
+          <DetailRow label="Branch" value={member.homeBranch === "all" ? "All Branches" : member.homeBranch} />
+          <DetailRow label="Status" value={member.status === "approved" ? "Active" : "Deactivated"} />
+          <DetailRow label="Joined" value={formatDate(member.createdAt)} />
+        </div>
+        <p className="text-[11px] text-neutral-400 mt-4">
+          Passwords can&apos;t be viewed — they&apos;re stored as one-way hashes, not even we can read them back. Use
+          Reset Password to set a new one instead.
+        </p>
+        <div className="flex items-center justify-end gap-3 mt-5">
+          {onResetPassword && (
+            <button
+              onClick={onResetPassword}
+              className="flex items-center gap-1.5 text-sm font-medium text-red-600 hover:text-red-700 transition-colors"
+            >
+              <KeyRound size={14} /> Reset Password
+            </button>
+          )}
+          <button
+            onClick={onClose}
+            className="text-sm font-medium text-neutral-600 hover:text-neutral-800 px-4 py-2 transition-colors"
+          >
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function DetailRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-center justify-between bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5">
+      <span className="text-xs text-neutral-500 flex items-center gap-1">
+        {label === "Email" && <Mail size={11} />} {label}
+      </span>
+      <span className="text-neutral-800 font-medium">{value}</span>
+    </div>
   );
 }
 
