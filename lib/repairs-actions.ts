@@ -17,6 +17,21 @@ type ItemRow = { id: string; code: string; description: string; quantity: number
 // the branch value itself.
 const JOB_NO_BRANCH_CODE: Record<Branch, string> = { kapar: "HQ", puncak_alam: "PA", setia_alam: "ST" };
 
+// A Walk-in job number comes straight off the printed jobsheet, so two rows
+// with the same number at the same branch means the same physical jobsheet
+// got saved twice — most often a re-scan after the page seemed to hang.
+async function findDuplicateJobNo(branch: Branch, jobNo: string, excludeId?: string): Promise<boolean> {
+  let query = supabaseAdmin
+    .from("cc_repair_jobs")
+    .select("id", { count: "exact", head: true })
+    .eq("branch", branch)
+    .eq("job_no", jobNo);
+  if (excludeId) query = query.neq("id", excludeId);
+  const { count, error } = await query;
+  if (error) throw new Error(error.message);
+  return (count ?? 0) > 0;
+}
+
 type Row = {
   id: string;
   branch: Branch;
@@ -574,6 +589,11 @@ export async function addRepairJobAction(input: {
   // everywhere in the app matches the physical job card. Restore Bike has
   // no such source, so it always gets the auto-generated RJ-{code}-#### one.
   const scannedJobNo = input.jobType === "Walk-in" ? input.jobsheetNo?.trim() : undefined;
+  if (scannedJobNo && (await findDuplicateJobNo(input.branch, scannedJobNo))) {
+    return {
+      error: `Job number ${scannedJobNo} is already saved at this branch — check whether this jobsheet was already added before saving it again.`,
+    };
+  }
   let jobNo = scannedJobNo;
   if (!jobNo) {
     const { count } = await supabaseAdmin
@@ -746,7 +766,11 @@ export async function updateRepairJobAction(
   // Keep the displayed job number in sync if the PIC edits/re-scans the
   // jobsheet's own Job No. field after the job was created.
   if (input.jobType === "Walk-in" && input.jobsheetNo?.trim()) {
-    update.job_no = input.jobsheetNo.trim();
+    const newJobNo = input.jobsheetNo.trim();
+    if (await findDuplicateJobNo(branch, newJobNo, id)) {
+      return { error: `Job number ${newJobNo} is already saved at this branch — check whether this jobsheet was already added before saving it again.` };
+    }
+    update.job_no = newJobNo;
   }
   if (input.quotationDate !== undefined) update.quotation_date = input.quotationDate;
   if (input.signatureStatus !== undefined) update.signature_status = input.signatureStatus;
