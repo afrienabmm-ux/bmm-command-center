@@ -75,16 +75,38 @@ function condensedName(name: string): string {
   return name.toLowerCase().replace(/[^a-z0-9]/g, "");
 }
 
-// Pulls the number after "Points Accrued" out of the screenshot's OCR text
-// — that's the real, current balance from the GenBlu app itself, as opposed
-// to the points estimate this dashboard computes from job spending. Only
-// the label "points" is required (not the full word "accrued") since OCR
-// misreads it inconsistently.
-function extractPointsAccrued(text: string): number | null {
-  const match = text.match(/points[^\d]{0,20}(\d[\d,]{0,6})/i);
-  if (!match) return null;
-  const num = Number(match[1].replace(/,/g, ""));
-  return Number.isNaN(num) ? null : num;
+// Two different GenBlu screens can carry a points number, and they mean
+// opposite things:
+//  - A "Points Accrued" confirmation screen is proof of one award (points
+//    given this visit) — that ADDS to whatever's on file.
+//  - The app's own home screen — "517 / My Reward Points" (number *before*
+//    the label, the large figure above the caption) — is the customer's
+//    whole current balance. That REPLACES whatever's on file; adding it
+//    would double-count everything earned before this upload.
+// The home-screen form requires the fuller "reward points" phrase, not
+// just "points", so it doesn't grab an unrelated number (phone number,
+// expiry year) sitting near a stray mention of the word "points".
+type PointsReading = { value: number; isBalance: boolean };
+
+function extractPointsAccrued(text: string): PointsReading | null {
+  const labeled = text.match(/points[^\d]{0,20}(\d[\d,]{0,6})/i);
+  if (labeled) {
+    const num = Number(labeled[1].replace(/,/g, ""));
+    if (!Number.isNaN(num)) return { value: num, isBalance: false };
+  }
+  const homeScreen = text.match(/(\d[\d,]{0,6})[^\d]{0,20}reward\s+points/i);
+  if (homeScreen) {
+    const num = Number(homeScreen[1].replace(/,/g, ""));
+    if (!Number.isNaN(num)) return { value: num, isBalance: true };
+  }
+  return null;
+}
+
+// Applies a reading the way its kind requires — set the DB directly to a
+// balance reading, or add an award reading on top of whatever's there.
+function applyPointsReading(current: number | null, reading: PointsReading | null): number | null {
+  if (!reading) return current;
+  return reading.isBalance ? reading.value : (current ?? 0) + reading.value;
 }
 
 // The GenBlu app screenshot should show the same customer's name — read it
@@ -94,13 +116,13 @@ function extractPointsAccrued(text: string): number | null {
 async function analyzeGenbluScreenshot(
   screenshot: File,
   customerName: string
-): Promise<{ nameMatches: boolean; pointsAccrued: number | null }> {
+): Promise<{ nameMatches: boolean; pointsReading: PointsReading | null }> {
   const buffer = Buffer.from(await screenshot.arrayBuffer());
   const base64 = buffer.toString("base64");
   const text = await extractTextFromImage(base64);
   const condensed = condensedName(customerName);
   const nameMatches = !condensed || condensedName(text).includes(condensed);
-  return { nameMatches, pointsAccrued: extractPointsAccrued(text) };
+  return { nameMatches, pointsReading: extractPointsAccrued(text) };
 }
 
 export async function getGenbluRegistrations(branch: Branch): Promise<GenbluRegistration[]> {
@@ -167,7 +189,8 @@ export async function addGenbluRegistrationAction(formData: FormData): Promise<{
   let pointsAccrued: number | null = null;
   if (screenshot && screenshot.size > 0) {
     try {
-      pointsAccrued = (await analyzeGenbluScreenshot(screenshot, customerName)).pointsAccrued;
+      const reading = (await analyzeGenbluScreenshot(screenshot, customerName)).pointsReading;
+      pointsAccrued = applyPointsReading(null, reading);
     } catch {
       // Points extraction is a bonus, not a requirement — don't block the
       // registration if OCR hiccups.
@@ -227,7 +250,9 @@ export async function updateGenbluRegistrationAction(
 
   if (input.screenshot && input.screenshot.size > 0) {
     try {
-      update.points_accrued = (await analyzeGenbluScreenshot(input.screenshot, input.customerName)).pointsAccrued;
+      const reading = (await analyzeGenbluScreenshot(input.screenshot, input.customerName)).pointsReading;
+      const { data: existing } = await supabaseAdmin.from("cc_genblu_registrations").select("points_accrued").eq("id", id).single();
+      update.points_accrued = applyPointsReading(existing?.points_accrued ?? null, reading);
     } catch {
       // Points extraction is a bonus, not a requirement — don't block the save.
     }
@@ -308,7 +333,7 @@ export async function ensureGenbluRegistrationAction(input: {
     try {
       const analysis = await analyzeGenbluScreenshot(screenshot, customerName);
       nameMatches = analysis.nameMatches;
-      pointsAccrued = analysis.pointsAccrued;
+      pointsAccrued = applyPointsReading(null, analysis.pointsReading);
     } catch {
       // If the OCR check itself fails (e.g. Vision hiccup), don't block
       // the registration over it — just skip the verification.
@@ -365,11 +390,11 @@ export async function attachGenbluScreenshotAction(input: {
   if (input.screenshot.size === 0) return { error: "Pick a screenshot to upload." };
 
   let nameMatches = true;
-  let pointsAccrued: number | null = null;
+  let pointsReading: PointsReading | null = null;
   try {
     const analysis = await analyzeGenbluScreenshot(input.screenshot, customerName);
     nameMatches = analysis.nameMatches;
-    pointsAccrued = analysis.pointsAccrued;
+    pointsReading = analysis.pointsReading;
   } catch {
     nameMatches = true;
   }
@@ -394,14 +419,16 @@ export async function attachGenbluScreenshotAction(input: {
   const match = (existing ?? []).find((r) => normalizeName(r.customer_name) === normalizeName(customerName));
 
   if (match) {
-    // Each screenshot is proof of one award (points the admin gave the
-    // customer on that visit — the "deducted" wording on it is from the
-    // admin's own account, not the customer's), not a snapshot of their
-    // whole balance. A repeat upload adds to the running total on file
-    // instead of replacing it, so points from earlier visits aren't lost.
-    // If this screenshot's amount couldn't be read, the total is left as
+    // A "Points Accrued" award screenshot adds to the running total (proof
+    // of one award, not a snapshot of the whole balance) — repeat uploads
+    // of that kind shouldn't lose earlier visits' points. A home-screen
+    // "My Reward Points" screenshot is the opposite: it's already the
+    // customer's whole current balance, straight from the app, so it
+    // replaces whatever's on file instead of stacking on top of it — the
+    // right way to sync to a customer who already had points before this
+    // dashboard existed. If nothing could be read, the total is left as
     // it was rather than being reset to null.
-    const newTotal = pointsAccrued === null ? match.points_accrued : (match.points_accrued ?? 0) + pointsAccrued;
+    const newTotal = applyPointsReading(match.points_accrued, pointsReading);
     const { error } = await supabaseAdmin
       .from("cc_genblu_registrations")
       .update({ screenshot_path: path, points_accrued: newTotal })
@@ -415,7 +442,7 @@ export async function attachGenbluScreenshotAction(input: {
       customer_name: customerName,
       customer_plate_no: input.customerPlateNo.trim(),
       screenshot_path: path,
-      points_accrued: pointsAccrued,
+      points_accrued: applyPointsReading(null, pointsReading),
     });
     if (error) return { error: error.message };
   }
