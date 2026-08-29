@@ -89,9 +89,7 @@ export default function GenbluTransactionsList({
                   <td className="px-4 py-2.5 text-neutral-500">{i + 1}</td>
                   <td className="px-4 py-2.5 text-neutral-700">{t.transactionDate ? formatDate(t.transactionDate) : "—"}</td>
                   <td className="px-4 py-2.5 text-neutral-700">{t.transactionTime ?? "—"}</td>
-                  <td className={`px-4 py-2.5 text-center font-medium ${t.points < 0 ? "text-red-600" : "text-neutral-800"}`}>
-                    {t.points > 0 ? `+${t.points}` : t.points}
-                  </td>
+                  <td className="px-4 py-2.5 text-center text-neutral-800 font-medium">{t.points}</td>
                   <td className="px-4 py-2.5 text-neutral-700">{t.productCategory ?? "—"}</td>
                   <td className="px-4 py-2.5 text-neutral-800 font-medium">{t.customerName}</td>
                   <td className="px-4 py-2.5 text-neutral-500">{t.membershipNumber ?? "—"}</td>

@@ -515,12 +515,11 @@ function extractTransactionPoints(text: string): number | null {
   const match = text.match(/points[^\d]{0,20}(\d[\d,]{0,6})/i);
   if (!match) return null;
   const num = Number(match[1].replace(/,/g, ""));
-  if (Number.isNaN(num)) return null;
-  // Transaction Details shows redemptions as "Points deducted" — those
-  // reduce the customer's running total instead of adding to it, so they
-  // need to come back negative here for the registration update to net out
-  // correctly (added, not subtracted, by mistake).
-  return /points\s*deducted/i.test(text) ? -num : num;
+  // "Points deducted" on this screen means deducted from the store's own
+  // allocation budget and given to the customer, not taken away from
+  // them — Point Allocation tracks points given out, always positive,
+  // regardless of which of the app's screens/wording produced the photo.
+  return Number.isNaN(num) ? null : num;
 }
 
 type TransactionRow = {

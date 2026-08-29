@@ -29,11 +29,11 @@ export async function extractGenbluEventWithAi(rawText: string): Promise<AiExtra
 
   const model = process.env.GEMINI_MODEL || DEFAULT_MODEL;
   const prompt =
-    "This is raw OCR text from a screenshot of the GenBlu loyalty points app on a phone. It could be any one of several different screens the app shows (an instant award confirmation, a transaction history detail page, a redemption/deduction detail page, etc.) — figure out which fields apply from context, not from fixed labels. " +
-    "Find: the customer's full name (may follow a label like \"Awarded to\", or just be the largest name-like text near the top), the points amount (as a plain positive number — if the screen is clearly about points being spent/deducted/redeemed rather than earned/awarded, still return the number as positive but set a note), the membership number (digits and dashes, sometimes in parentheses next to the name), the product/spend category, and the transaction date and time. " +
+    "This is raw OCR text from a screenshot of the GenBlu loyalty points app on a phone. It could be any one of several different screens the app shows (an instant award confirmation, a transaction history detail page, etc.) — figure out which fields apply from context, not from fixed labels. Point Allocation here tracks points given to customers, so the points amount is always a plain positive number even if the screen's own wording says something like \"deducted\" (that refers to the store's allocation budget, not the customer being charged). " +
+    "Find: the customer's full name (may follow a label like \"Awarded to\", or just be the largest name-like text near the top), the points amount (as a positive number), the membership number (digits and dashes, sometimes in parentheses next to the name), the product/spend category, and the transaction date and time. " +
     "Respond with ONLY JSON (no prose, no markdown fences) in this exact shape: " +
-    '{"customerName": string, "points": number, "isDeduction": boolean, "membershipNumber": string | null, "productCategory": string | null, "transactionDate": string | null (as YYYY-MM-DD if found), "transactionTime": string | null (as HH:MM 24-hour if found)}. ' +
-    'If you genuinely cannot find a customer name AND a points number, respond with {"customerName": "", "points": 0, "isDeduction": false, "membershipNumber": null, "productCategory": null, "transactionDate": null, "transactionTime": null}.\n\nOCR TEXT:\n' +
+    '{"customerName": string, "points": number, "membershipNumber": string | null, "productCategory": string | null, "transactionDate": string | null (as YYYY-MM-DD if found), "transactionTime": string | null (as HH:MM 24-hour if found)}. ' +
+    'If you genuinely cannot find a customer name AND a points number, respond with {"customerName": "", "points": 0, "membershipNumber": null, "productCategory": null, "transactionDate": null, "transactionTime": null}.\n\nOCR TEXT:\n' +
     rawText;
 
   const controller = new AbortController();
@@ -66,7 +66,7 @@ export async function extractGenbluEventWithAi(rawText: string): Promise<AiExtra
 
     return {
       customerName,
-      points: parsed.isDeduction === true ? -pointsRaw : pointsRaw,
+      points: pointsRaw,
       membershipNumber: typeof parsed.membershipNumber === "string" ? parsed.membershipNumber : null,
       productCategory: typeof parsed.productCategory === "string" ? parsed.productCategory.toUpperCase() : null,
       transactionDate: typeof parsed.transactionDate === "string" ? parsed.transactionDate : null,
