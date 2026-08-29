@@ -10,9 +10,9 @@ export default function JoinPage() {
         src="/bmm-storefront.jpg"
         alt=""
         aria-hidden="true"
-        className="absolute inset-0 w-full h-full object-cover opacity-45"
+        className="absolute inset-0 w-full h-full object-cover opacity-55"
       />
-      <div className="absolute inset-0 bg-gradient-to-br from-red-800/70 via-red-600/60 to-rose-500/60" />
+      <div className="absolute inset-0 bg-gradient-to-br from-red-800/45 via-red-600/35 to-rose-500/35" />
       <div className="absolute -top-24 -left-20 w-72 h-72 bg-rose-400/30 rounded-full blur-3xl" />
       <div className="absolute -bottom-28 -right-20 w-80 h-80 bg-red-900/30 rounded-full blur-3xl" />
       <div className="absolute top-1/3 -right-10 w-48 h-48 bg-orange-300/20 rounded-full blur-3xl" />
