@@ -440,6 +440,10 @@ export async function addGenbluTransactionAction(input: {
   branch: Branch;
   screenshot: File;
   serviceCoupon: boolean;
+  // Set when the admin picked a known jobsheet customer instead of relying
+  // on OCR to read the name off the screenshot — wins over whatever OCR
+  // finds, since a jobsheet name is known-correct.
+  customerNameOverride?: string;
 }): Promise<{ error: string } | { transaction: GenbluTransaction; registrationCreated: boolean }> {
   const user = await requireApproved();
   assertCanEditBranch(user, input.branch);
@@ -454,7 +458,7 @@ export async function addGenbluTransactionAction(input: {
     return { error: "Couldn't read the screenshot — please try again with a clearer photo." };
   }
 
-  const customerName = extractTransactionCustomerName(text);
+  const customerName = input.customerNameOverride?.trim() || extractTransactionCustomerName(text);
   const points = extractTransactionPoints(text);
   if (!customerName || points === null) {
     return {
@@ -554,9 +558,29 @@ export async function getAllBranchesGenbluTransactions(): Promise<GenbluTransact
 export async function deleteGenbluTransactionAction(id: string, branch: Branch): Promise<void> {
   const user = await requireApproved();
   assertCanEditBranch(user, branch);
-  const { data: txn } = await supabaseAdmin.from("cc_genblu_transactions").select("customer_name, points").eq("id", id).single();
+  const { data: txn } = await supabaseAdmin
+    .from("cc_genblu_transactions")
+    .select("customer_name, points, registration_id")
+    .eq("id", id)
+    .single();
   const { error } = await supabaseAdmin.from("cc_genblu_transactions").delete().eq("id", id);
   if (error) throw new Error(error.message);
+
+  // Reverses the points this award added to the Tracker registration when
+  // it was logged, so deleting an allocation keeps both views in sync
+  // instead of leaving the registration's total overstated.
+  if (txn?.registration_id) {
+    const { data: reg } = await supabaseAdmin
+      .from("cc_genblu_registrations")
+      .select("points_accrued")
+      .eq("id", txn.registration_id)
+      .single();
+    if (reg) {
+      const newTotal = Math.max(0, (reg.points_accrued ?? 0) - txn.points);
+      await supabaseAdmin.from("cc_genblu_registrations").update({ points_accrued: newTotal }).eq("id", txn.registration_id);
+    }
+  }
+
   await logActivity(user, "Deleted GenBlu point allocation", `${txn?.customer_name ?? id} — ${txn?.points ?? ""} pts (${branch})`);
   revalidatePath("/genblu");
 }

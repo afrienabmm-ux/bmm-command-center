@@ -3,22 +3,45 @@
 import { useState, useTransition } from "react";
 import { CheckCircle2, ChevronDown } from "lucide-react";
 import { addGenbluTransactionAction } from "@/lib/genblu-actions";
-import { BRANCHES, type Branch, type BranchSelection } from "@/lib/branch";
+import { BRANCHES, branchLabel, type Branch, type BranchSelection } from "@/lib/branch";
 import { formatDate } from "@/lib/format";
 import type { GenbluTransaction } from "@/lib/types";
 
-// Every field here is read straight off the screenshot by OCR — none of
-// them are editable, on purpose (photo evidence, not typed numbers). Branch
-// is the one field admin still picks, since it's never shown on the GenBlu
-// app screen itself.
-export default function GenbluTransactionForm({ branchSelection }: { branchSelection: BranchSelection }) {
+export type RecentJobsheetCustomer = {
+  jobId: string;
+  branch: Branch;
+  customerName: string;
+  customerPlateNo: string;
+  date: string;
+};
+
+// Points, date, membership number, and category are always read straight
+// off the screenshot by OCR — none of those are editable, on purpose
+// (photo evidence, not typed numbers). Customer name is the one exception:
+// OCR can misread a name, so picking it from a known jobsheet instead is
+// offered as a more reliable alternative to trusting the screenshot's read.
+export default function GenbluTransactionForm({
+  branchSelection,
+  recentJobs,
+}: {
+  branchSelection: BranchSelection;
+  recentJobs: RecentJobsheetCustomer[];
+}) {
   const [branch, setBranch] = useState<Branch>(branchSelection === "all" ? "kapar" : branchSelection);
+  const [jobsheetId, setJobsheetId] = useState<string>("");
   const [screenshot, setScreenshot] = useState<File | null>(null);
   const [serviceCoupon, setServiceCoupon] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<{ transaction: GenbluTransaction; registrationCreated: boolean } | null>(null);
   const [isPending, startTransition] = useTransition();
   const locked = branchSelection !== "all";
+  const selectedJobsheet = recentJobs.find((j) => j.jobId === jobsheetId) ?? null;
+
+  function handleJobsheetChange(id: string) {
+    setJobsheetId(id);
+    const job = recentJobs.find((j) => j.jobId === id);
+    if (job && !locked) setBranch(job.branch);
+  }
 
   function handleSubmit() {
     if (!screenshot) {
@@ -27,7 +50,12 @@ export default function GenbluTransactionForm({ branchSelection }: { branchSelec
     }
     setError(null);
     startTransition(async () => {
-      const res = await addGenbluTransactionAction({ branch, screenshot, serviceCoupon });
+      const res = await addGenbluTransactionAction({
+        branch,
+        screenshot,
+        serviceCoupon,
+        customerNameOverride: selectedJobsheet?.customerName,
+      });
       if ("error" in res) {
         setError(res.error);
         return;
@@ -74,9 +102,28 @@ export default function GenbluTransactionForm({ branchSelection }: { branchSelec
     <div className="bg-white border border-neutral-200 rounded-xl p-5">
       <p className="text-sm font-semibold text-neutral-900">Log Points Transaction</p>
       <p className="text-xs text-neutral-500 mt-0.5 mb-4">
-        Photo the GenBlu app's transaction screen — customer, points, and date fill in automatically, nothing to type.
+        Photo the GenBlu app's transaction screen — points and date fill in automatically. Pick the customer below if
+        they're on a recent jobsheet, or leave it to read their name off the screenshot.
       </p>
       <div className="space-y-4">
+        <div>
+          <label className="block text-xs font-medium text-neutral-600 mb-1.5">Customer / Jobsheet</label>
+          <div className="relative">
+            <select
+              value={jobsheetId}
+              onChange={(e) => handleJobsheetChange(e.target.value)}
+              className="w-full appearance-none bg-neutral-50 border border-neutral-200 hover:border-red-300 rounded-xl pl-3.5 pr-9 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50 focus:ring-2 focus:ring-red-100 transition-colors cursor-pointer"
+            >
+              <option value="">Auto-detect from screenshot</option>
+              {recentJobs.map((j) => (
+                <option key={j.jobId} value={j.jobId}>
+                  {j.customerName || "—"} · {j.customerPlateNo} · {branchLabel(j.branch)} · {formatDate(j.date)}
+                </option>
+              ))}
+            </select>
+            <ChevronDown size={15} className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none" />
+          </div>
+        </div>
         <div>
           <label className="block text-xs font-medium text-neutral-600 mb-1.5">Branch</label>
           <div className="relative">

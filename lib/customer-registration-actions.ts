@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { supabaseAdmin } from "./supabase-server";
 import { todayInMalaysia } from "./malaysia-time";
+import { generateUniqueCardNumber } from "./card-number";
 import type { Branch } from "./branch";
 
 function normalizePhone(phone: string): string {
@@ -31,12 +32,6 @@ async function countVisits(customerName: string, customerPhone?: string): Promis
 // Public — called from /join, which has no staff login. Every other
 // customers-actions.ts function requires an approved staff session; this
 // one deliberately doesn't, since it's the customer registering themselves.
-const BRANCH_PREFIX: Record<Branch, string> = { kapar: "HQ", setia_alam: "ST", puncak_alam: "PA" };
-
-function generateCardNumber(branch: Branch): string {
-  const rand = Math.random().toString(36).slice(2, 6).toUpperCase();
-  return `MC-${BRANCH_PREFIX[branch]}-${rand}`;
-}
 
 // Shared by registration — a phone already used on another card can't be
 // reused for a new one.
@@ -70,7 +65,7 @@ export async function registerCustomerCardAction(input: {
   const dupError = await findRegistrationDuplicate(customerPhone);
   if (dupError) return dupError;
 
-  const cardNumber = generateCardNumber(input.branch);
+  const cardNumber = await generateUniqueCardNumber(input.branch);
   const visits = await countVisits(customerName, customerPhone);
   const plateNo = input.plateNo.trim();
   const { error } = await supabaseAdmin.from("cc_customer_cards").insert({

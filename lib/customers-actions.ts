@@ -6,6 +6,7 @@ import { requireApproved, assertCanEditBranch } from "./current-user";
 import { BRANCHES, type Branch } from "./branch";
 import type { CustomerCard } from "./types";
 import { logActivity } from "./activity-log";
+import { generateUniqueCardNumber } from "./card-number";
 
 type CardRow = {
   id: string;
@@ -65,14 +66,13 @@ export async function addCustomerCardAction(input: {
   branch: Branch;
   customerName: string;
   customerPhone: string;
-  cardNumber: string;
   plateNo: string;
   model: string;
   boughtBikeHere: boolean;
   issuedDate: string;
   expiryDate: string | null;
   notes: string;
-}): Promise<{ error: string } | void> {
+}): Promise<{ error: string } | { cardNumber: string }> {
   const user = await requireApproved();
   assertCanEditBranch(user, input.branch);
   const customerName = input.customerName.trim();
@@ -88,11 +88,15 @@ export async function addCustomerCardAction(input: {
   const dupError = await checkCustomerCardDuplicate(customerPhone);
   if (dupError) return dupError;
 
+  // Card numbers are generated here, same as the customer-facing /join
+  // self-signup — staff never type one in by hand, so there's no typo or
+  // accidental duplicate to worry about.
+  const cardNumber = await generateUniqueCardNumber(input.branch);
   const { error } = await supabaseAdmin.from("cc_customer_cards").insert({
     branch: input.branch,
     customer_name: customerName,
     customer_phone: customerPhone,
-    card_number: input.cardNumber.trim(),
+    card_number: cardNumber,
     plate_no: input.plateNo.trim(),
     model: input.model.trim(),
     bought_bike_here: input.boughtBikeHere,
@@ -101,8 +105,9 @@ export async function addCustomerCardAction(input: {
     notes: input.notes.trim(),
   });
   if (error) return { error: error.message };
-  await logActivity(user, "Added services card", `${customerName} (${input.branch})`);
+  await logActivity(user, "Added services card", `${customerName} — ${cardNumber} (${input.branch})`);
   revalidatePath("/customers");
+  return { cardNumber };
 }
 
 // Same phone uniqueness check the public /join sign-up enforces — staff

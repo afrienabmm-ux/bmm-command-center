@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
-import { Plus, Search, Pencil, Trash2, CreditCard, X, Link2, Check, ArrowUpDown, ChevronDown, Wrench } from "lucide-react";
+import { Plus, Search, Pencil, Trash2, CreditCard, X, Link2, Check, ArrowUpDown, ChevronDown, Wrench, ArrowLeftRight } from "lucide-react";
 import { addCustomerCardAction, updateCustomerCardAction, deleteCustomerCardAction, setCardStampsAction } from "@/lib/customers-actions";
 import { BRANCHES, branchLabel, type Branch, type BranchSelection } from "@/lib/branch";
 import { formatDate } from "@/lib/format";
@@ -29,6 +29,7 @@ export default function CustomersClient({
   const [stampModalFor, setStampModalFor] = useState<CustomerCard | null>(null);
   const [sortBy, setSortBy] = useState<"name" | "issued">("issued");
   const [sortDir, setSortDir] = useState<"desc" | "asc">("desc");
+  const [showCardNumber, setShowCardNumber] = useState(false);
   const showAllBranches = branchSelection === "all";
 
   function handleCopyLink() {
@@ -126,7 +127,17 @@ export default function CustomersClient({
               <th className="px-4 py-3">Phone</th>
               <th className="px-4 py-3">Plate No.</th>
               <th className="px-4 py-3">Model</th>
-              <th className="px-4 py-3">Services Card</th>
+              <th className="px-4 py-3">
+                <button
+                  type="button"
+                  onClick={() => setShowCardNumber((v) => !v)}
+                  title="Switch between stamp progress and card number"
+                  className="flex items-center gap-1 uppercase tracking-wide text-neutral-500 hover:text-red-600 transition-colors"
+                >
+                  {showCardNumber ? "Card No." : "Services Card"}
+                  <ArrowLeftRight size={11} />
+                </button>
+              </th>
               <th className="px-4 py-3">Issued</th>
               {canManageCards && <th className="px-4 py-3 w-20"></th>}
             </tr>
@@ -146,15 +157,19 @@ export default function CustomersClient({
                 <td className="px-4 py-3 text-neutral-600">{c.plateNo || "—"}</td>
                 <td className="px-4 py-3 text-neutral-600">{c.model || "—"}</td>
                 <td className="px-4 py-3">
-                  <button
-                    type="button"
-                    onClick={() => setStampModalFor(c)}
-                    title="Click to tick stamps"
-                    className="inline-flex items-center gap-1 text-xs font-medium text-red-700 bg-red-500/10 border border-red-500/20 rounded-full px-2 py-0.5 hover:bg-red-500/20 transition-colors"
-                  >
-                    <CreditCard size={11} />{" "}
-                    {`Stamp ${c.stamps.length}/10${nextReward(c.stamps.length) ? ` — next: ${nextReward(c.stamps.length)!.label}` : ""}`}
-                  </button>
+                  {showCardNumber ? (
+                    <span className="text-xs font-medium text-neutral-700">{c.cardNumber || "—"}</span>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setStampModalFor(c)}
+                      title="Click to tick stamps"
+                      className="inline-flex items-center gap-1 text-xs font-medium text-red-700 bg-red-500/10 border border-red-500/20 rounded-full px-2 py-0.5 hover:bg-red-500/20 transition-colors"
+                    >
+                      <CreditCard size={11} />{" "}
+                      {`Stamp ${c.stamps.length}/10${nextReward(c.stamps.length) ? ` — next: ${nextReward(c.stamps.length)!.label}` : ""}`}
+                    </button>
+                  )}
                 </td>
                 <td className="px-4 py-3 text-neutral-500">{c.issuedDate ? formatDate(c.issuedDate) : "—"}</td>
                 {canManageCards && (
@@ -258,11 +273,9 @@ function CardModal({
   const [isPending, startTransition] = useTransition();
 
   function handleSave() {
-    const input = {
-      branch: cardBranch,
+    const base = {
       customerName,
       customerPhone,
-      cardNumber,
       plateNo,
       model,
       boughtBikeHere,
@@ -271,9 +284,11 @@ function CardModal({
       notes: existing?.notes ?? "",
     };
     startTransition(async () => {
+      // Card numbers are auto-generated on add — only editing an existing
+      // card carries one along (so a typo can still be fixed by hand).
       const result = existing
-        ? await updateCustomerCardAction(existing.id, existing.branch, input)
-        : await addCustomerCardAction(input);
+        ? await updateCustomerCardAction(existing.id, existing.branch, { ...base, cardNumber })
+        : await addCustomerCardAction({ ...base, branch: cardBranch });
       if (result && "error" in result) {
         setError(result.error);
         return;
@@ -355,15 +370,19 @@ function CardModal({
               />
             </div>
           </div>
-          <div>
-            <label className="block text-xs font-medium text-neutral-600 mb-1.5">Card No.</label>
-            <input
-              type="text"
-              value={cardNumber}
-              onChange={(e) => setCardNumber(e.target.value)}
-              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
-            />
-          </div>
+          {existing ? (
+            <div>
+              <label className="block text-xs font-medium text-neutral-600 mb-1.5">Card No.</label>
+              <input
+                type="text"
+                value={cardNumber}
+                onChange={(e) => setCardNumber(e.target.value)}
+                className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
+              />
+            </div>
+          ) : (
+            <p className="text-xs text-neutral-500 -mt-1">A card number is generated automatically when you save.</p>
+          )}
           <div className="flex items-start gap-2 bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-3">
             <input
               id="bought-bike-here"
