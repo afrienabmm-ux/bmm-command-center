@@ -15,7 +15,15 @@ import {
 } from "@/lib/repairs-actions";
 import { getMechanics, getAllMechanics } from "@/lib/mechanics-actions";
 import { getCustomers, getAllBranchesCustomers } from "@/lib/customers-actions";
-import { getGenbluRegistrations, getAllBranchesGenbluRegistrations, getGenbluTransactions, getAllBranchesGenbluTransactions } from "@/lib/genblu-actions";
+import {
+  getGenbluRegistrations,
+  getAllBranchesGenbluRegistrations,
+  getGenbluTransactions,
+  getAllBranchesGenbluTransactions,
+  getGenbluMonthlySummary,
+} from "@/lib/genblu-actions";
+import { todayInMalaysia } from "@/lib/malaysia-time";
+import GenbluMonthlySummary from "../../genblu/GenbluMonthlySummary";
 import { getWarrantyClaims, getAllBranchesWarrantyClaims } from "@/lib/claims-actions";
 import { getDeliveryClaims, getAllBranchesDeliveryClaims } from "@/lib/delivery-claims-actions";
 import { getAllBranchesPerformance, getBranchPerformance } from "@/lib/reports-actions";
@@ -58,6 +66,10 @@ export default async function ReportDetailPage({ params }: { params: Promise<{ t
   let dateField: string | undefined;
   let monthField: string | undefined;
   let searchFields: string[] = [];
+  // Point Allocation only — this month's counts/points by branch, kept in
+  // its own table next to the full transaction list rather than folded
+  // into the same rows, same split the GenBlu page itself uses.
+  let monthlySummary: Awaited<ReturnType<typeof getGenbluMonthlySummary>> | undefined;
 
   if (type === "jobsheet" || type === "restore-bike") {
     const jobType = type === "jobsheet" ? "Walk-in" : "Restore Bike";
@@ -138,6 +150,8 @@ export default async function ReportDetailPage({ params }: { params: Promise<{ t
       createdAt: r.createdAt.slice(0, 10),
     }));
   } else if (type === "point-allocation") {
+    const [todayYear, todayMonth] = todayInMalaysia().split("-").map(Number);
+    monthlySummary = await getGenbluMonthlySummary(todayYear, todayMonth);
     const txns = allBranches ? await getAllBranchesGenbluTransactions() : await getGenbluTransactions(selection);
     columns = [
       { key: "transactionDate", label: "Transaction Date" },
@@ -259,15 +273,34 @@ export default async function ReportDetailPage({ params }: { params: Promise<{ t
         }
       />
       <div className="flex-1 overflow-y-auto p-8">
-        <ReportTable
-          columns={columns}
-          rows={rows}
-          dateField={dateField}
-          monthField={monthField}
-          searchFields={searchFields}
-          searchPlaceholder="Search…"
-          filename={`bmm-report-${type}`}
-        />
+        {monthlySummary ? (
+          <div className="flex flex-col lg:flex-row gap-6 items-start">
+            <div className="shrink-0 w-full lg:w-auto">
+              <GenbluMonthlySummary summary={monthlySummary} />
+            </div>
+            <div className="flex-1 min-w-0 w-full">
+              <ReportTable
+                columns={columns}
+                rows={rows}
+                dateField={dateField}
+                monthField={monthField}
+                searchFields={searchFields}
+                searchPlaceholder="Search…"
+                filename={`bmm-report-${type}`}
+              />
+            </div>
+          </div>
+        ) : (
+          <ReportTable
+            columns={columns}
+            rows={rows}
+            dateField={dateField}
+            monthField={monthField}
+            searchFields={searchFields}
+            searchPlaceholder="Search…"
+            filename={`bmm-report-${type}`}
+          />
+        )}
       </div>
     </div>
   );

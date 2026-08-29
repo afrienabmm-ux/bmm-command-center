@@ -2,8 +2,11 @@ import { requirePage, getActiveBranchSelection, canViewAllBranches } from "@/lib
 import { getAllBranchesPerformance, getBranchPerformance, type MechanicPerformanceRowWithBranch } from "@/lib/reports-actions";
 import { getPackageSalesBreakdown } from "@/lib/dashboard-breakdowns-actions";
 import { getMechanicCommitment } from "@/lib/mechanic-commitment-actions";
+import { getMonthlyTarget } from "@/lib/targets-actions";
 import { todayInMalaysia } from "@/lib/malaysia-time";
-import { branchLabel } from "@/lib/branch";
+import { BRANCHES, branchLabel, type Branch } from "@/lib/branch";
+import { formatCurrency } from "@/lib/format";
+import { Target, BarChart3 } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
 import MonthPicker from "@/components/MonthPicker";
 import DaySelect from "./DaySelect";
@@ -50,7 +53,7 @@ export default async function SalesPerformancePage({
   const prevYear = month === 1 ? year - 1 : year;
   const prevMonth = month === 1 ? 12 : month - 1;
 
-  const [rows, prevRows, packageBreakdown, commitment] = await Promise.all([
+  const [rows, prevRows, packageBreakdown, commitment, targetList] = await Promise.all([
     onlyBranch
       ? getBranchPerformance(onlyBranch, year, month).then(
           (r): MechanicPerformanceRowWithBranch[] => r.map((row) => ({ ...row, branch: onlyBranch }))
@@ -59,7 +62,15 @@ export default async function SalesPerformancePage({
     onlyBranch ? getBranchPerformance(onlyBranch, prevYear, prevMonth) : getAllBranchesPerformance(prevYear, prevMonth),
     getPackageSalesBreakdown(year, month),
     getMechanicCommitment(onlyBranch, selectedDate),
+    // Every branch's target is fetched even on a single-branch view, since
+    // the table's own branch dropdown re-scopes client-side without a
+    // round trip — the matching target has to already be on hand.
+    Promise.all(BRANCHES.map(({ value }) => getMonthlyTarget(value, year, month))),
   ]);
+
+  const targetByBranch = Object.fromEntries(
+    BRANCHES.map(({ value }, i) => [value, targetList[i]?.targetAmount ?? 0])
+  ) as Record<Branch, number>;
 
   // Plain objects, not Maps — Map instances can't cross the Server/Client
   // Component boundary as props.
@@ -67,6 +78,15 @@ export default async function SalesPerformancePage({
     prevRows.map((r) => [r.mechanicId, r.totalRevenue])
   );
   const commitmentByMechanicId = Object.fromEntries(commitment.rows.map((r) => [r.mechanicId, r]));
+
+  // Target and achieved are both scoped to whatever branch(es) the page is
+  // currently showing — "all branches" sums every branch's own target, a
+  // single branch just reads its own.
+  const totalTargetAmount = onlyBranch
+    ? targetByBranch[onlyBranch]
+    : BRANCHES.reduce((sum, b) => sum + targetByBranch[b.value], 0);
+  const achievedAmount = rows.reduce((sum, r) => sum + r.totalRevenue, 0);
+  const targetPct = totalTargetAmount > 0 ? Math.round((achievedAmount / totalTargetAmount) * 100) : 0;
 
   return (
     <div className="flex flex-col h-full">
@@ -81,6 +101,26 @@ export default async function SalesPerformancePage({
         }
       />
       <div className="p-8 space-y-8">
+        <div className="grid grid-cols-2 gap-4 max-w-xl">
+          <div className="bg-white border border-neutral-200 rounded-xl p-4">
+            <div className="flex items-center justify-between">
+              <p className="text-sm text-neutral-500">Target</p>
+              <Target size={16} className="text-red-500" />
+            </div>
+            <p className="text-2xl font-semibold text-neutral-900 mt-1">{formatCurrency(totalTargetAmount)}</p>
+            <p className="text-xs text-neutral-400 mt-0.5">{onlyBranch ? branchLabel(onlyBranch) : "all branches"}</p>
+          </div>
+          <div className="bg-white border border-neutral-200 rounded-xl p-4">
+            <div className="flex items-center justify-between">
+              <p className="text-sm text-neutral-500">% of Target</p>
+              <BarChart3 size={16} className="text-indigo-500" />
+            </div>
+            <p className="text-2xl font-semibold text-neutral-900 mt-1">{targetPct}%</p>
+            <p className="text-xs text-neutral-400 mt-0.5">
+              {formatCurrency(achievedAmount)} / {formatCurrency(totalTargetAmount)}
+            </p>
+          </div>
+        </div>
         <AllBranchesMechanicPerformanceTable
           rows={rows}
           branchSelection={branchSelection}
