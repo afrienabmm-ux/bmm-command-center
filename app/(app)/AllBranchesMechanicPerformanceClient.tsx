@@ -1,9 +1,9 @@
 "use client";
 
 import { Fragment, useEffect, useMemo, useState } from "react";
-import { Crown, Wrench, Smartphone, Download, ChevronDown, ChevronUp, ArrowUp, ArrowDown, Minus, Search, Target } from "lucide-react";
+import { Crown, Wrench, Smartphone, Download, ChevronDown, ChevronUp, ArrowUp, ArrowDown, Minus, Search, Target, BarChart3 } from "lucide-react";
 import { formatCurrency, formatShortDate, toCsv } from "@/lib/format";
-import { BRANCHES, branchLabel, type BranchSelection } from "@/lib/branch";
+import { BRANCHES, branchLabel, type Branch, type BranchSelection } from "@/lib/branch";
 import type { MechanicPerformanceRowWithBranch } from "@/lib/reports-actions";
 import type { MechanicCommitmentRow } from "@/lib/mechanic-commitment-actions";
 import { MECHANIC_KPI_REVENUE, MECHANIC_KPI_RESTORE_BIKE_COUNT, MECHANIC_KPI_WORKING_DAYS } from "@/lib/types";
@@ -126,6 +126,8 @@ export default function AllBranchesMechanicPerformanceClient({
   prevRevenueByMechanicId,
   commitmentByMechanicId,
   dailyTarget,
+  targetByBranch,
+  weekAchievedByBranch,
   selectedDate,
   isToday = true,
 }: {
@@ -135,6 +137,8 @@ export default function AllBranchesMechanicPerformanceClient({
   prevRevenueByMechanicId: Record<string, number>;
   commitmentByMechanicId: Record<string, MechanicCommitmentRow>;
   dailyTarget: number;
+  targetByBranch: Record<Branch, number>;
+  weekAchievedByBranch: Record<Branch, number>;
   selectedDate?: string;
   isToday?: boolean;
 }) {
@@ -208,6 +212,18 @@ export default function AllBranchesMechanicPerformanceClient({
   const behindCount = todayRows.length - onTrackCount;
   const teamRevenueToday = todayRows.reduce((s, c) => s + c.revenue, 0);
   const teamJobsToday = todayRows.reduce((s, c) => s + c.jobCount, 0);
+
+  // This week's target/achieved (not the month's) — the working week the
+  // currently selected day falls in — scoped to the same branch filter as
+  // everything else in this card. Both numbers are already on hand
+  // per-branch, so switching the dropdown re-scopes with no round trip.
+  const scopedTarget =
+    branchFilter === "all" ? BRANCHES.reduce((s, b) => s + targetByBranch[b.value], 0) : targetByBranch[branchFilter];
+  const achievedAmount =
+    branchFilter === "all"
+      ? BRANCHES.reduce((s, b) => s + weekAchievedByBranch[b.value], 0)
+      : weekAchievedByBranch[branchFilter];
+  const targetPct = scopedTarget > 0 ? Math.round((achievedAmount / scopedTarget) * 100) : 0;
 
   function handleExport() {
     const csv = toCsv(
@@ -334,7 +350,27 @@ export default function AllBranchesMechanicPerformanceClient({
         </div>
       </div>
       {view === "revenue" && todayRows.length > 0 && (
-        <div className="grid grid-cols-2 gap-3 p-5 border-b border-neutral-200">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 p-5 border-b border-neutral-200">
+          <div className="bg-white border border-neutral-200 rounded-lg p-3.5">
+            <div className="flex items-center justify-between">
+              <p className="text-[11px] font-medium text-neutral-500 tracking-wide">WEEKLY TARGET</p>
+              <Target size={14} className="text-red-500" />
+            </div>
+            <p className="text-xl font-semibold text-neutral-900 mt-1">{formatCurrency(scopedTarget)}</p>
+            <p className="text-xs text-neutral-400 mt-0.5">
+              {branchFilter === "all" ? "all branches" : branchLabel(branchFilter)}
+            </p>
+          </div>
+          <div className="bg-white border border-neutral-200 rounded-lg p-3.5">
+            <div className="flex items-center justify-between">
+              <p className="text-[11px] font-medium text-neutral-500 tracking-wide">% OF WEEKLY TARGET</p>
+              <BarChart3 size={14} className="text-indigo-500" />
+            </div>
+            <p className="text-xl font-semibold text-neutral-900 mt-1">{targetPct}%</p>
+            <p className="text-xs text-neutral-400 mt-0.5">
+              {formatCurrency(achievedAmount)} / {formatCurrency(scopedTarget)}
+            </p>
+          </div>
           <div className="bg-neutral-50 border border-neutral-200 rounded-lg p-3.5">
             <p className="text-[11px] font-medium text-neutral-500 tracking-wide">TEAM REVENUE {dayLabel.toUpperCase()}</p>
             <p className="text-xl font-semibold text-neutral-900 mt-1">{formatCurrency(teamRevenueToday)}</p>

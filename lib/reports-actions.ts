@@ -74,6 +74,39 @@ export async function getBranchMonthSummary(branch: Branch, year: number, month:
   return cachedBranchMonthSummary(branch, year, month);
 }
 
+// Same "achieved" definition as the month summary above (completed repair
+// job revenue plus Services Combo sales), just over an arbitrary date
+// range instead of a calendar month — used for the weekly target card on
+// Sales Performance.
+export async function getBranchAchievedInRange(branch: Branch, from: string, to: string): Promise<number> {
+  await requireApproved();
+  const [{ data: jobs, error: jobsError }, { data: sales, error: salesError }] = await Promise.all([
+    supabaseAdmin
+      .from("cc_repair_jobs")
+      .select("revenue_amount")
+      .eq("branch", branch)
+      .eq("status", "Completed")
+      .gte("completed_date", from)
+      .lte("completed_date", to),
+    supabaseAdmin
+      .from("cc_package_sales")
+      .select("cc_packages(price)")
+      .eq("branch", branch)
+      .gte("sale_date", from)
+      .lte("sale_date", to),
+  ]);
+  if (jobsError) throw new Error(jobsError.message);
+  if (salesError) throw new Error(salesError.message);
+
+  type SaleWithPrice = { cc_packages: { price: number } | null };
+  const repairRevenue = (jobs ?? []).reduce((sum, j) => sum + Number(j.revenue_amount), 0);
+  const packageRevenue = ((sales ?? []) as unknown as SaleWithPrice[]).reduce(
+    (sum, s) => sum + Number(s.cc_packages?.price ?? 0),
+    0
+  );
+  return repairRevenue + packageRevenue;
+}
+
 export type MechanicAchievement = {
   mechanicId: string;
   fullName: string;

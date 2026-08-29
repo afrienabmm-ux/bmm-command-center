@@ -37,3 +37,35 @@ export function daysSinceInMalaysia(fromIsoDate: string, toIsoDate?: string): nu
   if (Number.isNaN(from) || Number.isNaN(to)) return 0;
   return Math.round(to - from);
 }
+
+// A working week here runs Monday–Saturday (6 working days — the branches
+// are closed Sundays), matching WORKING_DAYS_PER_WEEK in
+// mechanic-commitment-actions.ts. Anchored to UTC midnight, same reasoning
+// as calendarDayNumber above, so this never depends on the host's own
+// timezone either.
+export function startOfWeekInMalaysia(dateIso?: string): string {
+  const d = new Date(`${(dateIso ?? todayInMalaysia()).slice(0, 10)}T00:00:00Z`);
+  const day = d.getUTCDay(); // 0 = Sunday .. 6 = Saturday
+  const diffToMonday = day === 0 ? -6 : 1 - day;
+  d.setUTCDate(d.getUTCDate() + diffToMonday);
+  return d.toISOString().slice(0, 10);
+}
+
+export function endOfWeekInMalaysia(dateIso?: string): string {
+  const d = new Date(`${startOfWeekInMalaysia(dateIso)}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + 5); // Monday + 5 = Saturday
+  return d.toISOString().slice(0, 10);
+}
+
+export const WORKING_DAYS_PER_WEEK = 6;
+
+// Every day except Sunday counts, same definition the Dashboard's own
+// revenue pace chart already uses.
+export function countWorkingDaysInMonth(year: number, month: number): number {
+  const daysInMonth = new Date(year, month, 0).getDate();
+  let count = 0;
+  for (let d = 1; d <= daysInMonth; d++) {
+    if (new Date(year, month - 1, d).getDay() !== 0) count++;
+  }
+  return count;
+}

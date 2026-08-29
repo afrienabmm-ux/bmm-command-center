@@ -1,6 +1,6 @@
 import type { MechanicPerformanceRowWithBranch } from "@/lib/reports-actions";
 import type { MechanicCommitmentRow } from "@/lib/mechanic-commitment-actions";
-import type { BranchSelection } from "@/lib/branch";
+import type { Branch, BranchSelection } from "@/lib/branch";
 import AllBranchesMechanicPerformanceClient from "./AllBranchesMechanicPerformanceClient";
 
 export default function AllBranchesMechanicPerformanceTable({
@@ -10,6 +10,8 @@ export default function AllBranchesMechanicPerformanceTable({
   prevRevenueByMechanicId,
   commitmentByMechanicId,
   dailyTarget,
+  targetByBranch,
+  weekAchievedByBranch,
   selectedDate,
   isToday,
 }: {
@@ -19,6 +21,8 @@ export default function AllBranchesMechanicPerformanceTable({
   prevRevenueByMechanicId: Record<string, number>;
   commitmentByMechanicId: Record<string, MechanicCommitmentRow>;
   dailyTarget: number;
+  targetByBranch: Record<Branch, number>;
+  weekAchievedByBranch: Record<Branch, number>;
   selectedDate?: string;
   isToday?: boolean;
 }) {
@@ -30,6 +34,8 @@ export default function AllBranchesMechanicPerformanceTable({
       prevRevenueByMechanicId={prevRevenueByMechanicId}
       commitmentByMechanicId={commitmentByMechanicId}
       dailyTarget={dailyTarget}
+      targetByBranch={targetByBranch}
+      weekAchievedByBranch={weekAchievedByBranch}
       selectedDate={selectedDate}
       isToday={isToday}
     />

@@ -1,12 +1,21 @@
 import { requirePage, getActiveBranchSelection, canViewAllBranches } from "@/lib/current-user";
-import { getAllBranchesPerformance, getBranchPerformance, type MechanicPerformanceRowWithBranch } from "@/lib/reports-actions";
+import {
+  getAllBranchesPerformance,
+  getBranchPerformance,
+  getBranchAchievedInRange,
+  type MechanicPerformanceRowWithBranch,
+} from "@/lib/reports-actions";
 import { getPackageSalesBreakdown } from "@/lib/dashboard-breakdowns-actions";
 import { getMechanicCommitment } from "@/lib/mechanic-commitment-actions";
 import { getMonthlyTarget } from "@/lib/targets-actions";
-import { todayInMalaysia } from "@/lib/malaysia-time";
+import {
+  todayInMalaysia,
+  startOfWeekInMalaysia,
+  endOfWeekInMalaysia,
+  countWorkingDaysInMonth,
+  WORKING_DAYS_PER_WEEK,
+} from "@/lib/malaysia-time";
 import { BRANCHES, branchLabel, type Branch } from "@/lib/branch";
-import { formatCurrency } from "@/lib/format";
-import { Target, BarChart3 } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
 import MonthPicker from "@/components/MonthPicker";
 import DaySelect from "./DaySelect";
@@ -53,7 +62,13 @@ export default async function SalesPerformancePage({
   const prevYear = month === 1 ? year - 1 : year;
   const prevMonth = month === 1 ? 12 : month - 1;
 
-  const [rows, prevRows, packageBreakdown, commitment, targetList] = await Promise.all([
+  // The Target card shows this working week's pace, not the whole month's
+  // — the week the currently-selected day falls in (Monday–Saturday, 6
+  // working days, same week the mechanics' own daily-pace streak uses).
+  const weekStart = startOfWeekInMalaysia(selectedDate);
+  const weekEnd = endOfWeekInMalaysia(selectedDate);
+
+  const [rows, prevRows, packageBreakdown, commitment, targetList, weekAchievedList] = await Promise.all([
     onlyBranch
       ? getBranchPerformance(onlyBranch, year, month).then(
           (r): MechanicPerformanceRowWithBranch[] => r.map((row) => ({ ...row, branch: onlyBranch }))
@@ -66,10 +81,22 @@ export default async function SalesPerformancePage({
     // the table's own branch dropdown re-scopes client-side without a
     // round trip — the matching target has to already be on hand.
     Promise.all(BRANCHES.map(({ value }) => getMonthlyTarget(value, year, month))),
+    Promise.all(BRANCHES.map(({ value }) => getBranchAchievedInRange(value, weekStart, weekEnd))),
   ]);
 
+  // A monthly target prorated down to a week by working days (Sundays
+  // excluded), not just divided by ~4.3 — matches the same working-day
+  // pace the Dashboard's own revenue run-rate chart already uses.
+  const workingDaysInMonth = countWorkingDaysInMonth(year, month);
   const targetByBranch = Object.fromEntries(
-    BRANCHES.map(({ value }, i) => [value, targetList[i]?.targetAmount ?? 0])
+    BRANCHES.map(({ value }, i) => {
+      const monthlyTarget = targetList[i]?.targetAmount ?? 0;
+      const weeklyTarget = workingDaysInMonth > 0 ? Math.round((monthlyTarget / workingDaysInMonth) * WORKING_DAYS_PER_WEEK) : 0;
+      return [value, weeklyTarget];
+    })
+  ) as Record<Branch, number>;
+  const weekAchievedByBranch = Object.fromEntries(
+    BRANCHES.map(({ value }, i) => [value, weekAchievedList[i]])
   ) as Record<Branch, number>;
 
   // Plain objects, not Maps — Map instances can't cross the Server/Client
@@ -78,15 +105,6 @@ export default async function SalesPerformancePage({
     prevRows.map((r) => [r.mechanicId, r.totalRevenue])
   );
   const commitmentByMechanicId = Object.fromEntries(commitment.rows.map((r) => [r.mechanicId, r]));
-
-  // Target and achieved are both scoped to whatever branch(es) the page is
-  // currently showing — "all branches" sums every branch's own target, a
-  // single branch just reads its own.
-  const totalTargetAmount = onlyBranch
-    ? targetByBranch[onlyBranch]
-    : BRANCHES.reduce((sum, b) => sum + targetByBranch[b.value], 0);
-  const achievedAmount = rows.reduce((sum, r) => sum + r.totalRevenue, 0);
-  const targetPct = totalTargetAmount > 0 ? Math.round((achievedAmount / totalTargetAmount) * 100) : 0;
 
   return (
     <div className="flex flex-col h-full">
@@ -101,26 +119,6 @@ export default async function SalesPerformancePage({
         }
       />
       <div className="p-8 space-y-8">
-        <div className="grid grid-cols-2 gap-4 max-w-xl">
-          <div className="bg-white border border-neutral-200 rounded-xl p-4">
-            <div className="flex items-center justify-between">
-              <p className="text-sm text-neutral-500">Target</p>
-              <Target size={16} className="text-red-500" />
-            </div>
-            <p className="text-2xl font-semibold text-neutral-900 mt-1">{formatCurrency(totalTargetAmount)}</p>
-            <p className="text-xs text-neutral-400 mt-0.5">{onlyBranch ? branchLabel(onlyBranch) : "all branches"}</p>
-          </div>
-          <div className="bg-white border border-neutral-200 rounded-xl p-4">
-            <div className="flex items-center justify-between">
-              <p className="text-sm text-neutral-500">% of Target</p>
-              <BarChart3 size={16} className="text-indigo-500" />
-            </div>
-            <p className="text-2xl font-semibold text-neutral-900 mt-1">{targetPct}%</p>
-            <p className="text-xs text-neutral-400 mt-0.5">
-              {formatCurrency(achievedAmount)} / {formatCurrency(totalTargetAmount)}
-            </p>
-          </div>
-        </div>
         <AllBranchesMechanicPerformanceTable
           rows={rows}
           branchSelection={branchSelection}
@@ -128,6 +126,8 @@ export default async function SalesPerformancePage({
           prevRevenueByMechanicId={prevRevenueByMechanicId}
           commitmentByMechanicId={commitmentByMechanicId}
           dailyTarget={commitment.revenueTarget}
+          targetByBranch={targetByBranch}
+          weekAchievedByBranch={weekAchievedByBranch}
           selectedDate={selectedDate}
           isToday={selectedDate === todayIso}
         />
