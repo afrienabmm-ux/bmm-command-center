@@ -1,7 +1,7 @@
 "use client";
 
 import { Fragment, useEffect, useMemo, useState } from "react";
-import { Crown, Wrench, Smartphone, Download, ChevronDown, ChevronUp, ArrowUp, ArrowDown, Minus, Search, Flame, Target } from "lucide-react";
+import { Crown, Wrench, Smartphone, Download, ChevronDown, ChevronUp, ArrowUp, ArrowDown, Minus, Search, Target } from "lucide-react";
 import { formatCurrency, formatShortDate, toCsv } from "@/lib/format";
 import { BRANCHES, branchLabel, type BranchSelection } from "@/lib/branch";
 import type { MechanicPerformanceRowWithBranch } from "@/lib/reports-actions";
@@ -91,14 +91,8 @@ function RevenueRow({
           )}
         </span>
       </td>
-      <td className="px-5 py-3.5 text-center whitespace-nowrap">
-        {today && today.streakDays > 0 ? (
-          <span className="inline-flex items-center gap-1 text-sm font-medium text-orange-600">
-            <Flame size={14} className="fill-orange-500 text-orange-500" /> {today.streakDays}
-          </span>
-        ) : (
-          <span className="text-neutral-300">—</span>
-        )}
+      <td className="px-5 py-3.5 text-neutral-600 whitespace-nowrap">
+        {r.walkInCount} jobs · {formatCurrency(r.walkInRevenue)}
       </td>
       <td className="px-5 py-3.5 whitespace-nowrap">
         <div className="flex items-center gap-2">
@@ -106,21 +100,7 @@ function RevenueRow({
           <TodayProgressBar value={today?.revenue ?? 0} target={dailyTarget} />
         </div>
       </td>
-      <td className="px-5 py-3.5 text-center">
-        <span
-          className={`text-xs font-medium px-2.5 py-1 rounded-full border ${
-            today?.onTrack
-              ? "bg-emerald-500/10 text-emerald-700 border-emerald-500/20"
-              : "bg-amber-500/10 text-amber-700 border-amber-500/20"
-          }`}
-        >
-          {today?.onTrack ? "On track" : "Behind"}
-        </span>
-      </td>
       <td className="px-5 py-3.5 text-neutral-600 whitespace-nowrap">{r.restoreBikeCount} jobs</td>
-      <td className="px-5 py-3.5 text-neutral-600 whitespace-nowrap">
-        {r.walkInCount} jobs · {formatCurrency(r.walkInRevenue)}
-      </td>
       <td className="px-5 py-3.5 text-neutral-600 whitespace-nowrap">
         {r.packageSetsSold} sets · {formatCurrency(r.packageRevenue)}
       </td>
@@ -236,13 +216,11 @@ export default function AllBranchesMechanicPerformanceClient({
       [
         "Mechanic",
         "Code",
-        "Streak (days)",
-        `Revenue ${dayLabel} (RM)`,
-        `${isToday ? "Today's" : dayLabel} Status`,
-        "Restore Bike Jobs",
-        "Restore Bike Revenue (RM)",
         "Jobsheet Jobs",
         "Jobsheet Revenue (RM)",
+        `Revenue ${dayLabel} (RM)`,
+        "Restore Bike Jobs",
+        "Restore Bike Revenue (RM)",
         "Package Sets",
         "Package Revenue (RM)",
         "New GenBlu Users",
@@ -255,13 +233,11 @@ export default function AllBranchesMechanicPerformanceClient({
         return [
           r.fullName,
           r.shortCode,
-          today?.streakDays ?? 0,
-          (today?.revenue ?? 0).toFixed(2),
-          today?.onTrack ? "On track" : "Behind",
-          r.restoreBikeCount,
-          r.restoreBikeRevenue.toFixed(2),
           r.walkInCount,
           r.walkInRevenue.toFixed(2),
+          (today?.revenue ?? 0).toFixed(2),
+          r.restoreBikeCount,
+          r.restoreBikeRevenue.toFixed(2),
           r.packageSetsSold,
           r.packageRevenue.toFixed(2),
           r.genbluCount,
@@ -417,11 +393,9 @@ export default function AllBranchesMechanicPerformanceClient({
               <thead>
                 <tr className="text-left text-xs text-neutral-500 border-b border-neutral-200">
                   <th className="font-medium px-5 py-3 whitespace-nowrap">Mechanic</th>
-                  <th className="font-medium px-5 py-3 whitespace-nowrap text-center">Streak</th>
-                  <th className="font-medium px-5 py-3 whitespace-nowrap">Revenue {dayLabel}</th>
-                  <th className="font-medium px-5 py-3 whitespace-nowrap text-center">{isToday ? "Today's" : dayLabel} Status</th>
-                  <th className="font-medium px-5 py-3 whitespace-nowrap">Restore Bike</th>
                   <th className="font-medium px-5 py-3 whitespace-nowrap">Jobsheet</th>
+                  <th className="font-medium px-5 py-3 whitespace-nowrap">Revenue {dayLabel}</th>
+                  <th className="font-medium px-5 py-3 whitespace-nowrap">Restore Bike</th>
                   <th className="font-medium px-5 py-3 whitespace-nowrap">Packages</th>
                   <th className="font-medium px-5 py-3 whitespace-nowrap">GenBlu</th>
                   <th className="font-medium px-5 py-3 whitespace-nowrap">Total Revenue</th>
@@ -435,7 +409,7 @@ export default function AllBranchesMechanicPerformanceClient({
                           <td className="px-5 py-2.5 text-emerald-800 font-semibold text-xs uppercase tracking-wide whitespace-nowrap">
                             {branchLabel(g.branch)} — Branch Total
                           </td>
-                          <td colSpan={7} />
+                          <td colSpan={5} />
                           <td className="px-5 py-2.5 text-emerald-800 font-semibold text-sm whitespace-nowrap">
                             {formatCurrency(g.rows.reduce((sum, r) => sum + r.totalRevenue, 0))}
                           </td>
@@ -466,7 +440,7 @@ export default function AllBranchesMechanicPerformanceClient({
                     ))}
                 {filtered.length === 0 && (
                   <tr>
-                    <td colSpan={9} className="px-5 py-10 text-center text-neutral-500 text-sm">
+                    <td colSpan={7} className="px-5 py-10 text-center text-neutral-500 text-sm">
                       No mechanics {branchFilter === "all" ? "yet" : `at ${branchLabel(branchFilter)} yet`}.
                     </td>
                   </tr>
