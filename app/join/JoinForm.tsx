@@ -1,32 +1,25 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
-import { Search, User, Phone, Building2, Sparkles, Wrench, Bike, ChevronDown } from "lucide-react";
-import {
-  registerCustomerCardAction,
-  lookupCustomerCardAction,
-  type MembershipLookup,
-} from "@/lib/customer-registration-actions";
-import { BRANCHES, type Branch } from "@/lib/branch";
+import { Search, Phone, Sparkles, Wrench } from "lucide-react";
+import { lookupCustomerCardAction, type MembershipLookup } from "@/lib/customer-registration-actions";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { stampCardSize, rewardForStamp, nextReward } from "@/lib/membership";
 
-// How long a "check my card" / "just registered" screen survives a page
-// refresh before the customer has to type their phone number again.
+// How long a "check my card" screen survives a page refresh before the
+// customer has to type their phone number again.
 const SESSION_TTL_MS = 3 * 60 * 60 * 1000;
-const JOIN_STORAGE_KEY = "bmm_join_session";
 const LOOKUP_STORAGE_KEY = "bmm_lookup_session";
 
-type StoredJoin = { name: string; cardNumber: string; stamps: number[]; plateNo: string; savedAt: number };
 type StoredLookup = { result: MembershipLookup; savedAt: number };
 
-function readSession<T extends { savedAt: number }>(key: string): T | null {
+function readSession(): StoredLookup | null {
   try {
-    const raw = localStorage.getItem(key);
+    const raw = localStorage.getItem(LOOKUP_STORAGE_KEY);
     if (!raw) return null;
-    const parsed = JSON.parse(raw) as T;
+    const parsed = JSON.parse(raw) as StoredLookup;
     if (Date.now() - parsed.savedAt > SESSION_TTL_MS) {
-      localStorage.removeItem(key);
+      localStorage.removeItem(LOOKUP_STORAGE_KEY);
       return null;
     }
     return parsed;
@@ -35,9 +28,9 @@ function readSession<T extends { savedAt: number }>(key: string): T | null {
   }
 }
 
-function writeSession(key: string, data: object) {
+function writeSession(data: { result: MembershipLookup }) {
   try {
-    localStorage.setItem(key, JSON.stringify({ ...data, savedAt: Date.now() }));
+    localStorage.setItem(LOOKUP_STORAGE_KEY, JSON.stringify({ ...data, savedAt: Date.now() }));
   } catch {
     // Private browsing / storage disabled — the customer just re-enters
     // their number next time, no need to block on it.
@@ -133,208 +126,17 @@ const primaryButtonClass =
   "w-full flex items-center justify-center gap-1.5 bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-semibold px-4 py-3 rounded-xl transition-all shadow-lg shadow-red-500/20 active:scale-[0.98]";
 
 export default function JoinForm() {
-  const [mode, setMode] = useState<"join" | "lookup">("join");
-  const [restoredJoin, setRestoredJoin] = useState<StoredJoin | null>(null);
-  const [restoredLookup, setRestoredLookup] = useState<StoredLookup | null>(null);
+  const [phone, setPhone] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [result, setResult] = useState<MembershipLookup | null>(null);
+  const [isPending, startTransition] = useTransition();
 
-  // On load, whichever session (join or lookup) is still within its
-  // 3-hour window wins and the page opens straight to that result — the
-  // customer only re-types their number once it's actually expired.
+  // A still-fresh lookup survives a page refresh — the customer only has
+  // to type their number once every 3 hours.
   useEffect(() => {
-    const join = readSession<StoredJoin>(JOIN_STORAGE_KEY);
-    const lookup = readSession<StoredLookup>(LOOKUP_STORAGE_KEY);
-    if (lookup && (!join || lookup.savedAt >= join.savedAt)) {
-      setRestoredLookup(lookup);
-      setMode("lookup");
-    } else if (join) {
-      setRestoredJoin(join);
-      setMode("join");
-    }
+    const stored = readSession();
+    if (stored) setResult(stored.result);
   }, []);
-
-  return (
-    <div>
-      <div className="flex items-center gap-1 bg-neutral-100 rounded-full p-1 mb-5">
-        <button
-          onClick={() => setMode("join")}
-          className={`flex-1 text-xs font-semibold py-2 rounded-full transition-all ${
-            mode === "join" ? "bg-gradient-to-r from-red-600 to-rose-600 text-white shadow-sm" : "text-neutral-500"
-          }`}
-        >
-          New Member
-        </button>
-        <button
-          onClick={() => setMode("lookup")}
-          className={`flex-1 text-xs font-semibold py-2 rounded-full transition-all ${
-            mode === "lookup" ? "bg-gradient-to-r from-red-600 to-rose-600 text-white shadow-sm" : "text-neutral-500"
-          }`}
-        >
-          Check My Card
-        </button>
-      </div>
-      {mode === "join" ? (
-        <JoinTab restored={restoredJoin} onClear={() => setRestoredJoin(null)} />
-      ) : (
-        <LookupTab restored={restoredLookup} onClear={() => setRestoredLookup(null)} />
-      )}
-    </div>
-  );
-}
-
-function JoinTab({ restored, onClear }: { restored: StoredJoin | null; onClear: () => void }) {
-  const [branch, setBranch] = useState<Branch>("kapar");
-  const [name, setName] = useState(restored?.name ?? "");
-  const [phone, setPhone] = useState("");
-  const [plateNo, setPlateNo] = useState("");
-  const [model, setModel] = useState("");
-  const [boughtBikeHere, setBoughtBikeHere] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [result, setResult] = useState<{ cardNumber: string; stamps: number[]; plateNo: string } | null>(
-    restored ? { cardNumber: restored.cardNumber, stamps: restored.stamps, plateNo: restored.plateNo } : null
-  );
-  const [isPending, startTransition] = useTransition();
-
-  useEffect(() => {
-    if (restored) {
-      setName(restored.name);
-      setResult({ cardNumber: restored.cardNumber, stamps: restored.stamps, plateNo: restored.plateNo });
-    }
-  }, [restored]);
-
-  function handleRegister() {
-    setError(null);
-    startTransition(async () => {
-      const res = await registerCustomerCardAction({
-        branch,
-        customerName: name,
-        customerPhone: phone,
-        plateNo,
-        model,
-        boughtBikeHere,
-      });
-      if ("error" in res) {
-        setError(res.error);
-        return;
-      }
-      setResult(res);
-      writeSession(JOIN_STORAGE_KEY, { name: name.trim(), cardNumber: res.cardNumber, stamps: res.stamps, plateNo: res.plateNo });
-    });
-  }
-
-  if (result) {
-    return (
-      <div className="py-2">
-        <p className="text-sm text-neutral-600 text-center mb-4">
-          Hi <span className="font-semibold text-neutral-900">{name.trim()}</span>! You&apos;re in.
-        </p>
-        <TierCard cardNumber={result.cardNumber} name={name} plateNo={result.plateNo} />
-        <StampProgress stamps={result.stamps} />
-        <p className="text-xs text-neutral-400 text-center mt-4">Show this screen at the counter</p>
-        <button
-          onClick={() => {
-            localStorage.removeItem(JOIN_STORAGE_KEY);
-            onClear();
-            setResult(null);
-            setName("");
-          }}
-          className="text-xs font-medium text-neutral-500 hover:text-neutral-700 mt-4 w-full text-center"
-        >
-          Not you? Start over
-        </button>
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-3.5">
-      <div className="relative">
-        <Building2 size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-400" />
-        <select
-          value={branch}
-          onChange={(e) => setBranch(e.target.value as Branch)}
-          className="w-full appearance-none bg-neutral-50 border border-neutral-200 hover:border-red-300 rounded-xl pl-10 pr-9 py-3 text-sm text-neutral-800 focus:outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100 transition-colors cursor-pointer"
-        >
-          {BRANCHES.map((b) => (
-            <option key={b.value} value={b.value}>
-              {b.label}
-            </option>
-          ))}
-        </select>
-        <ChevronDown size={15} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none" />
-      </div>
-      <div className="relative">
-        <User size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-400" />
-        <input
-          type="text"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          placeholder="Full Name"
-          className={inputClass}
-        />
-      </div>
-      <div className="relative">
-        <Phone size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-400" />
-        <input
-          type="tel"
-          value={phone}
-          onChange={(e) => setPhone(e.target.value)}
-          placeholder="e.g. 012-3456789"
-          className={inputClass}
-        />
-      </div>
-      <div className="grid grid-cols-2 gap-3">
-        <div className="relative">
-          <Bike size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-400" />
-          <input
-            type="text"
-            value={plateNo}
-            onChange={(e) => setPlateNo(e.target.value)}
-            placeholder="Plate No."
-            className={inputClass}
-          />
-        </div>
-        <input
-          type="text"
-          value={model}
-          onChange={(e) => setModel(e.target.value)}
-          placeholder="Model (optional)"
-          className="w-full bg-neutral-50 border border-neutral-200 rounded-xl px-3.5 py-3 text-sm text-neutral-800 focus:outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100 transition-colors"
-        />
-      </div>
-      <label className="flex items-start gap-2.5 bg-red-50 border border-red-100 rounded-xl px-3.5 py-3">
-        <input
-          type="checkbox"
-          checked={boughtBikeHere}
-          onChange={(e) => setBoughtBikeHere(e.target.checked)}
-          className="accent-red-500 mt-0.5"
-        />
-        <span className="text-xs text-neutral-700">
-          I bought my bike from Berjaya Mega Motors — this services card is only for bike-buyers.
-        </span>
-      </label>
-
-      {error && <p className="text-sm text-red-700">{error}</p>}
-
-      <button
-        onClick={handleRegister}
-        disabled={isPending || !name.trim() || !phone.trim() || !plateNo.trim() || !boughtBikeHere}
-        className={primaryButtonClass}
-      >
-        {isPending ? "Getting your card…" : "Get My Services Card"}
-      </button>
-    </div>
-  );
-}
-
-function LookupTab({ restored, onClear }: { restored: StoredLookup | null; onClear: () => void }) {
-  const [phone, setPhone] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [result, setResult] = useState<MembershipLookup | null>(restored?.result ?? null);
-  const [isPending, startTransition] = useTransition();
-
-  useEffect(() => {
-    if (restored) setResult(restored.result);
-  }, [restored]);
 
   function handleLookup() {
     setError(null);
@@ -345,13 +147,12 @@ function LookupTab({ restored, onClear }: { restored: StoredLookup | null; onCle
         return;
       }
       setResult(res);
-      writeSession(LOOKUP_STORAGE_KEY, { result: res });
+      writeSession({ result: res });
     });
   }
 
   function handleReset() {
     localStorage.removeItem(LOOKUP_STORAGE_KEY);
-    onClear();
     setResult(null);
     setPhone("");
   }
@@ -382,6 +183,7 @@ function LookupTab({ restored, onClear }: { restored: StoredLookup | null; onCle
           </div>
         </div>
         <StampProgress stamps={result.stamps} />
+        <p className="text-xs text-neutral-400 text-center mt-4">Show this screen at the counter</p>
         <button onClick={handleReset} className="text-xs font-medium text-neutral-500 hover:text-neutral-700 mt-4 w-full text-center">
           Check another number
         </button>

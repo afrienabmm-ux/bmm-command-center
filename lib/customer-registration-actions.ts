@@ -1,88 +1,9 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
 import { supabaseAdmin } from "./supabase-server";
-import { todayInMalaysia } from "./malaysia-time";
-import { generateUniqueCardNumber } from "./card-number";
-import type { Branch } from "./branch";
 
 function normalizePhone(phone: string): string {
   return phone.replace(/\D/g, "");
-}
-
-// Visits (and therefore stamp progress) are counted from Walk-in job history matched
-// by phone first, name second — same approach as the staff Memberships
-// page. Phone survives name typos/spelling variants between visits.
-async function countVisits(customerName: string, customerPhone?: string): Promise<number> {
-  const normalizedName = customerName.trim().toLowerCase();
-  const normalizedPhone = customerPhone ? normalizePhone(customerPhone) : "";
-  if (!normalizedName && !normalizedPhone) return 0;
-  const { data: jobs, error } = await supabaseAdmin
-    .from("cc_repair_jobs")
-    .select("customer_name, customer_phone")
-    .eq("job_type", "Walk-in");
-  if (error) throw new Error(error.message);
-  return (jobs ?? []).filter((j) => {
-    const jobPhone = normalizePhone(j.customer_phone ?? "");
-    if (normalizedPhone && jobPhone && jobPhone === normalizedPhone) return true;
-    return (j.customer_name ?? "").trim().toLowerCase() === normalizedName;
-  }).length;
-}
-
-// Public — called from /join, which has no staff login. Every other
-// customers-actions.ts function requires an approved staff session; this
-// one deliberately doesn't, since it's the customer registering themselves.
-
-// Shared by registration — a phone already used on another card can't be
-// reused for a new one.
-async function findRegistrationDuplicate(phone: string): Promise<{ error: string } | null> {
-  if (!phone) return null;
-  const { data, error } = await supabaseAdmin.from("cc_customer_cards").select("id").eq("customer_phone", phone).limit(1);
-  if (error) return { error: error.message };
-  if (data && data.length > 0) {
-    return { error: "This phone number is already registered. Use \"Check My Card\" above to view your services card instead." };
-  }
-  return null;
-}
-
-export async function registerCustomerCardAction(input: {
-  branch: Branch;
-  customerName: string;
-  customerPhone: string;
-  plateNo: string;
-  model: string;
-  boughtBikeHere: boolean;
-}): Promise<{ error: string } | { cardNumber: string; visitCount: number; stamps: number[]; plateNo: string }> {
-  const customerName = input.customerName.trim();
-  const customerPhone = input.customerPhone.trim();
-  if (!customerName) return { error: "Please enter your name." };
-  if (!customerPhone) return { error: "Please enter your phone number." };
-  if (!input.plateNo.trim()) return { error: "Please enter your bike's plate number." };
-  if (!input.boughtBikeHere) {
-    return { error: "This services card is only for customers who bought their bike from us." };
-  }
-
-  const dupError = await findRegistrationDuplicate(customerPhone);
-  if (dupError) return dupError;
-
-  const cardNumber = await generateUniqueCardNumber(input.branch);
-  const visits = await countVisits(customerName, customerPhone);
-  const plateNo = input.plateNo.trim();
-  const { error } = await supabaseAdmin.from("cc_customer_cards").insert({
-    branch: input.branch,
-    customer_name: customerName,
-    customer_phone: customerPhone,
-    card_number: cardNumber,
-    plate_no: plateNo,
-    model: input.model.trim(),
-    bought_bike_here: true,
-    issued_date: todayInMalaysia(),
-  });
-  if (error) return { error: error.message };
-  revalidatePath("/customers");
-  // A brand new card always starts with zero stamps ticked — stamps are set
-  // by admin from here on, not derived from visit history.
-  return { cardNumber, visitCount: visits, stamps: [], plateNo };
 }
 
 export type MembershipLookup = {
@@ -156,15 +77,16 @@ async function findCardByPhoneOrPlate(query: string) {
   return byPlate && byPlate.length > 0 ? byPlate[0] : null;
 }
 
-// "Check my card" — no OTP, since this is just a stamp-reward card, not an
-// account with anything sensitive on it. Looked up straight away by phone
-// or, failing that, plate number.
+// Public — called from /join, which has no staff login. Every card is now
+// issued by staff from the Services Card page, so this is the only thing
+// /join does: a no-OTP lookup by phone or plate, since it's just a
+// stamp-reward card, not an account with anything sensitive on it.
 export async function lookupCustomerCardAction(phoneOrPlate: string): Promise<{ error: string } | MembershipLookup> {
   const query = phoneOrPlate.trim();
-  if (!query) return { error: "Enter the phone number you signed up with, or your plate number." };
+  if (!query) return { error: "Enter your phone number or plate number." };
 
   const card = await findCardByPhoneOrPlate(query);
-  if (!card) return { error: "No services card found for that phone number or plate number. Sign up above to get one." };
+  if (!card) return { error: "No services card found for that phone number or plate number. Please check with staff." };
 
   return buildLookupResult(card);
 }

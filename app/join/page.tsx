@@ -21,9 +21,9 @@ export default function JoinPage() {
         </div>
 
         <div className="bg-white/95 backdrop-blur rounded-3xl p-6 shadow-2xl">
-          <h1 className="text-lg font-bold text-neutral-900 mb-1.5">Get your services card 🏍️</h1>
+          <h1 className="text-lg font-bold text-neutral-900 mb-1.5">Check your services card 🏍️</h1>
           <p className="text-xs text-neutral-500 mb-5">
-            Get your digital services card — no app needed. Just your name, phone number, and email.
+            Enter the phone number or plate number on file to see your card and stamp progress.
           </p>
           <JoinForm />
         </div>
