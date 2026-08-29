@@ -91,9 +91,7 @@ function RevenueRow({
           )}
         </span>
       </td>
-      <td className="px-5 py-3.5 text-neutral-600 whitespace-nowrap">
-        {r.walkInCount} jobs · {formatCurrency(r.walkInRevenue)}
-      </td>
+      <td className="px-5 py-3.5 text-neutral-600 whitespace-nowrap">{r.walkInCount} jobs</td>
       <td className="px-5 py-3.5 whitespace-nowrap">
         <div className="flex items-center gap-2">
           <span className="text-neutral-800 font-medium">{formatCurrency(today?.revenue ?? 0)}</span>
