@@ -13,6 +13,7 @@ import { CLAIM_STATUSES, STOCK_STATUSES, type ClaimStatus, type StockStatus, typ
 import { BRANCHES, branchLabel, type Branch, type BranchSelection } from "@/lib/branch";
 import { formatDate, toCsv } from "@/lib/format";
 import { useToast } from "@/lib/useToast";
+import ModalPortal from "@/components/ModalPortal";
 
 // Native <datalist> renders as a disconnected floating box on iOS Safari
 // instead of anchoring under the input, so PIC suggestions use a plain
@@ -305,7 +306,7 @@ function ClaimRow({ claim, showBranch, knownPics }: { claim: DeliveryClaim; show
         {notesOpen && <PicModal claim={claim} knownPics={knownPics} onClose={() => setNotesOpen(false)} />}
 
         {confirmOpen && (
-          <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 px-4">
+          <ModalPortal><div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 px-4">
             <div className="bg-white border border-neutral-200 rounded-xl w-full max-w-sm p-6 text-left">
               <h2 className="text-sm font-semibold text-neutral-900 mb-2">Delete this claim?</h2>
               <p className="text-sm text-neutral-600 mb-6">
@@ -329,7 +330,7 @@ function ClaimRow({ claim, showBranch, knownPics }: { claim: DeliveryClaim; show
                 </button>
               </div>
             </div>
-          </div>
+          </div></ModalPortal>
         )}
       </td>
     </tr>
@@ -469,7 +470,7 @@ function PicModal({ claim, knownPics, onClose }: { claim: DeliveryClaim; knownPi
   }
 
   return (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 px-4">
+    <ModalPortal><div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 px-4">
       <div className="bg-white border border-neutral-200 rounded-xl w-full max-w-sm p-6 text-left">
         <h2 className="text-sm font-semibold text-neutral-900 mb-1">Edit PIC</h2>
         <p className="text-xs text-neutral-500 mb-5">
@@ -489,7 +490,7 @@ function PicModal({ claim, knownPics, onClose }: { claim: DeliveryClaim; knownPi
           </button>
         </div>
       </div>
-    </div>
+    </div></ModalPortal>
   );
 }
 
@@ -550,7 +551,7 @@ function AddClaimModal({
   }
 
   return (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 px-4">
+    <ModalPortal><div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 px-4">
       <div className="bg-white border border-neutral-200 rounded-xl w-full max-w-md p-6 max-h-[90vh] overflow-y-auto">
         <h2 className="text-sm font-semibold text-neutral-900 mb-5">Add Delivery Claim</h2>
         <div className="space-y-4">
@@ -701,6 +702,6 @@ function AddClaimModal({
           </button>
         </div>
       </div>
-    </div>
+    </div></ModalPortal>
   );
 }

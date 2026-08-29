@@ -5,6 +5,7 @@ import { Pencil } from "lucide-react";
 import { setMonthlyTargetAction } from "@/lib/targets-actions";
 import { formatCurrency, monthLabel } from "@/lib/format";
 import { BRANCHES, type Branch } from "@/lib/branch";
+import ModalPortal from "@/components/ModalPortal";
 
 export default function CombinedTargetEditor({
   year,
@@ -42,7 +43,7 @@ export default function CombinedTargetEditor({
       </button>
 
       {editing && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 px-4">
+        <ModalPortal><div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 px-4">
           <div className="bg-white border border-neutral-200 rounded-xl w-full max-w-sm p-6">
             <h2 className="text-sm font-semibold text-neutral-900 mb-1">Set {monthLabel(month, year)} Targets</h2>
             <p className="text-xs text-neutral-500 mb-4">Each branch can have its own target — they don't need to match.</p>
@@ -77,7 +78,7 @@ export default function CombinedTargetEditor({
               </button>
             </div>
           </div>
-        </div>
+        </div></ModalPortal>
       )}
     </>
   );

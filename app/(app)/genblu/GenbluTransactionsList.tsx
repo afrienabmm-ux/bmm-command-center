@@ -6,6 +6,7 @@ import { deleteGenbluTransactionAction } from "@/lib/genblu-actions";
 import { branchLabel } from "@/lib/branch";
 import { formatDate, toCsv } from "@/lib/format";
 import type { GenbluTransaction } from "@/lib/types";
+import ModalPortal from "@/components/ModalPortal";
 
 // Same column order as the admin's own spreadsheet (No, Transaction Date,
 // Time, Points, Categories, Remark, Customer Name, Service Coupon, Branch)
@@ -126,7 +127,7 @@ export default function GenbluTransactionsList({
       </div>
 
       {deleting && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 px-4">
+        <ModalPortal><div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 px-4">
           <div className="bg-white border border-neutral-200 rounded-xl w-full max-w-sm p-6">
             <h2 className="text-sm font-semibold text-neutral-900 mb-2">Delete this transaction?</h2>
             <p className="text-sm text-neutral-600 mb-6">
@@ -150,7 +151,7 @@ export default function GenbluTransactionsList({
               </button>
             </div>
           </div>
-        </div>
+        </div></ModalPortal>
       )}
     </div>
   );

@@ -7,6 +7,7 @@ import { BRANCHES, branchLabel, type Branch, type BranchSelection } from "@/lib/
 import { formatDate } from "@/lib/format";
 import { stampCardSize, rewardForStamp, nextReward } from "@/lib/membership";
 import type { CustomerCard } from "@/lib/types";
+import ModalPortal from "@/components/ModalPortal";
 
 export default function CustomersClient({
   customers,
@@ -219,7 +220,7 @@ export default function CustomersClient({
       {stampModalFor && <StampModal card={stampModalFor} onClose={() => setStampModalFor(null)} />}
 
       {deleting && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 px-4">
+        <ModalPortal><div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 px-4">
           <div className="bg-white border border-neutral-200 rounded-xl w-full max-w-sm p-6">
             <h2 className="text-sm font-semibold text-neutral-900 mb-2">Delete this services card?</h2>
             <p className="text-sm text-neutral-600 mb-6">
@@ -242,7 +243,7 @@ export default function CustomersClient({
               </button>
             </div>
           </div>
-        </div>
+        </div></ModalPortal>
       )}
     </div>
   );
@@ -298,7 +299,7 @@ function CardModal({
   }
 
   return (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 px-4">
+    <ModalPortal><div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 px-4">
       <div className="bg-white border border-neutral-200 rounded-xl w-full max-w-sm p-6">
         <div className="flex items-center justify-between mb-5">
           <h2 className="text-sm font-semibold text-neutral-900">
@@ -437,7 +438,7 @@ function CardModal({
           </button>
         </div>
       </div>
-    </div>
+    </div></ModalPortal>
   );
 }
 
@@ -463,7 +464,7 @@ function StampModal({ card, onClose }: { card: CustomerCard; onClose: () => void
   }
 
   return (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 px-4">
+    <ModalPortal><div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 px-4">
       <div className="bg-white border border-neutral-200 rounded-xl w-full max-w-sm p-6">
         <div className="flex items-center justify-between mb-1">
           <h2 className="text-sm font-semibold text-neutral-900">{card.customerName}&apos;s Stamp Card</h2>
@@ -526,6 +527,6 @@ function StampModal({ card, onClose }: { card: CustomerCard; onClose: () => void
           </button>
         </div>
       </div>
-    </div>
+    </div></ModalPortal>
   );
 }

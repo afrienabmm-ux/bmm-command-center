@@ -13,6 +13,7 @@ import {
 } from "@/lib/catalog-actions";
 import { CATALOG_BRANDS, LOW_STOCK_THRESHOLD, type CatalogBrand, type CatalogProduct, type LabourCharge } from "@/lib/types";
 import type { Branch } from "@/lib/branch";
+import ModalPortal from "@/components/ModalPortal";
 
 type Tab = CatalogBrand | "Labour Charge";
 
@@ -316,7 +317,7 @@ function AddProductModal({ brand, branch, onClose }: { brand: CatalogBrand; bran
   }
 
   return (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 px-4">
+    <ModalPortal><div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 px-4">
       <div className="bg-white border border-neutral-200 rounded-xl w-full max-w-sm p-6">
         <h2 className="text-sm font-semibold text-neutral-900 mb-5">Add {brand} Product</h2>
         <div className="space-y-4">
@@ -402,7 +403,7 @@ function AddProductModal({ brand, branch, onClose }: { brand: CatalogBrand; bran
           </button>
         </div>
       </div>
-    </div>
+    </div></ModalPortal>
   );
 }
 
@@ -523,7 +524,7 @@ function LabourChargeModal({ onClose }: { onClose: () => void }) {
   }
 
   return (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 px-4">
+    <ModalPortal><div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 px-4">
       <div className="bg-white border border-neutral-200 rounded-xl w-full max-w-sm p-6">
         <h2 className="text-sm font-semibold text-neutral-900 mb-5">Add Labour Charge</h2>
         <div className="space-y-4">
@@ -584,6 +585,6 @@ function LabourChargeModal({ onClose }: { onClose: () => void }) {
           </button>
         </div>
       </div>
-    </div>
+    </div></ModalPortal>
   );
 }

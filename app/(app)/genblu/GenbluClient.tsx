@@ -7,6 +7,7 @@ import { exportGenbluCsv, exportAllBranchesGenbluCsv } from "@/lib/export-action
 import { BRANCHES, branchLabel, type Branch, type BranchSelection } from "@/lib/branch";
 import { formatDate, formatCurrency } from "@/lib/format";
 import type { Mechanic } from "@/lib/types";
+import ModalPortal from "@/components/ModalPortal";
 
 type RegWithUrl = {
   id: string;
@@ -205,7 +206,7 @@ export default function GenbluClient({
       )}
 
       {deleting && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 px-4">
+        <ModalPortal><div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 px-4">
           <div className="bg-white border border-neutral-200 rounded-xl w-full max-w-sm p-6">
             <h2 className="text-sm font-semibold text-neutral-900 mb-2">Delete this registration?</h2>
             <p className="text-sm text-neutral-600 mb-6">
@@ -229,11 +230,11 @@ export default function GenbluClient({
               </button>
             </div>
           </div>
-        </div>
+        </div></ModalPortal>
       )}
 
       {lightboxUrl && (
-        <div
+        <ModalPortal><div
           className="fixed inset-0 bg-black/90 flex items-center justify-center z-50 px-4"
           onClick={() => setLightboxUrl(null)}
         >
@@ -246,7 +247,7 @@ export default function GenbluClient({
           </button>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={lightboxUrl} alt="GenBlu screenshot full size" className="max-w-full max-h-full object-contain" />
-        </div>
+        </div></ModalPortal>
       )}
     </div>
   );
@@ -293,7 +294,7 @@ function RegisterModal({
   }
 
   return (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 px-4">
+    <ModalPortal><div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 px-4">
       <div className="bg-white border border-neutral-200 rounded-xl w-full max-w-sm p-6">
         <h2 className="text-sm font-semibold text-neutral-900 mb-5">New GenBlu Registration</h2>
         <form action={handleSubmit} className="space-y-4">
@@ -416,7 +417,7 @@ function RegisterModal({
           </div>
         </form>
       </div>
-    </div>
+    </div></ModalPortal>
   );
 }
 
@@ -469,7 +470,7 @@ function EditModal({
   }
 
   return (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 px-4">
+    <ModalPortal><div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 px-4">
       <div className="bg-white border border-neutral-200 rounded-xl w-full max-w-sm p-6">
         <h2 className="text-sm font-semibold text-neutral-900 mb-5">Edit GenBlu Registration</h2>
         <div className="space-y-4">
@@ -576,6 +577,6 @@ function EditModal({
           </button>
         </div>
       </div>
-    </div>
+    </div></ModalPortal>
   );
 }

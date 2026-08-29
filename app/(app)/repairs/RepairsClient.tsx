@@ -21,6 +21,7 @@ import type { Mechanic } from "@/lib/types";
 import { branchLabel, type Branch, type BranchSelection } from "@/lib/branch";
 import { formatCurrency, formatDate, daysBetween, toCsv } from "@/lib/format";
 import { useToast } from "@/lib/useToast";
+import ModalPortal from "@/components/ModalPortal";
 
 const STATUS_STYLES: Record<RepairStatus, string> = {
   Pending: "bg-neutral-100 text-neutral-700 border-neutral-300",
@@ -401,7 +402,7 @@ function ExportRestoreBikeModal({
   const hasFilters = mechanicId !== "all" || query.trim() !== "";
 
   return (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 px-4">
+    <ModalPortal><div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 px-4">
       <div className="bg-white border border-neutral-200 rounded-xl w-full max-w-md p-6">
         <h2 className="text-sm font-semibold text-neutral-900 mb-1">Export Restore Bike Jobs</h2>
         <p className="text-xs text-neutral-500 mb-4">
@@ -466,7 +467,7 @@ function ExportRestoreBikeModal({
           </button>
         </div>
       </div>
-    </div>
+    </div></ModalPortal>
   );
 }
 
@@ -489,7 +490,7 @@ function ExportJobModal({
   }, [jobs, query]);
 
   return (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 px-4">
+    <ModalPortal><div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 px-4">
       <div className="bg-white border border-neutral-200 rounded-xl w-full max-w-md p-6">
         <h2 className="text-sm font-semibold text-neutral-900 mb-1">Export One Job</h2>
         <p className="text-xs text-neutral-500 mb-4">Search by Job No. or Plate No. — the export will include every item and price for that job.</p>
@@ -526,7 +527,7 @@ function ExportJobModal({
           </button>
         </div>
       </div>
-    </div>
+    </div></ModalPortal>
   );
 }
 
@@ -611,7 +612,7 @@ function QcFailReasonModal({ job, onClose }: { job: RepairJob; onClose: () => vo
   }
 
   return (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 px-4">
+    <ModalPortal><div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 px-4">
       {toastNode}
       <div className="bg-white border border-neutral-200 rounded-xl w-full max-w-sm p-6 text-left">
         <h2 className="text-sm font-semibold text-neutral-900 mb-2">Why did this fail QC?</h2>
@@ -642,7 +643,7 @@ function QcFailReasonModal({ job, onClose }: { job: RepairJob; onClose: () => vo
           </button>
         </div>
       </div>
-    </div>
+    </div></ModalPortal>
   );
 }
 
@@ -861,7 +862,7 @@ function RepairDateCell({
 function ItemsDetailModal({ job, onClose }: { job: RepairJob; onClose: () => void }) {
   const itemsTotal = job.items.reduce((sum, item) => sum + item.quantity * item.price, 0);
   return (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 px-4">
+    <ModalPortal><div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 px-4">
       <div className="bg-white border border-neutral-200 rounded-xl w-full max-w-lg p-6">
         <div className="flex items-start justify-between mb-1">
           <div>
@@ -925,7 +926,7 @@ function ItemsDetailModal({ job, onClose }: { job: RepairJob; onClose: () => voi
           </button>
         </div>
       </div>
-    </div>
+    </div></ModalPortal>
   );
 }
 
@@ -1074,7 +1075,7 @@ function RestoreBikeRow({
         </div>
 
         {confirmOpen && (
-          <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 px-4">
+          <ModalPortal><div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 px-4">
             <div className="bg-white border border-neutral-200 rounded-xl w-full max-w-sm p-6 text-left">
               <h2 className="text-sm font-semibold text-neutral-900 mb-2">Delete this job?</h2>
               <p className="text-sm text-neutral-600 mb-6">
@@ -1098,7 +1099,7 @@ function RestoreBikeRow({
                 </button>
               </div>
             </div>
-          </div>
+          </div></ModalPortal>
         )}
 
         {detailsOpen && <ItemsDetailModal job={job} onClose={() => setDetailsOpen(false)} />}

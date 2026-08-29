@@ -26,6 +26,7 @@ import {
 import { signOutAction, changeOwnPasswordAction } from "@/lib/auth-actions";
 import type { Role } from "@/lib/current-user";
 import type { PageKey } from "@/lib/permissions";
+import ModalPortal from "@/components/ModalPortal";
 
 type NavLink = { href: string; label: string; icon: typeof LayoutDashboard; page: PageKey | null; color: string };
 
@@ -230,8 +231,9 @@ function ChangePasswordModal({ onClose }: { onClose: () => void }) {
   }
 
   return (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 px-4">
-      <div className="bg-white border border-neutral-200 rounded-xl w-full max-w-sm p-6">
+    <ModalPortal>
+      <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 px-4">
+        <div className="bg-white border border-neutral-200 rounded-xl w-full max-w-sm p-6">
         {done ? (
           <>
             <h2 className="text-sm font-semibold text-neutral-900 mb-2">Password changed</h2>
@@ -307,7 +309,8 @@ function ChangePasswordModal({ onClose }: { onClose: () => void }) {
             </div>
           </>
         )}
+        </div>
       </div>
-    </div>
+    </ModalPortal>
   );
 }

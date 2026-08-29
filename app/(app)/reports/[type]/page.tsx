@@ -21,6 +21,7 @@ import {
   getGenbluTransactions,
   getAllBranchesGenbluTransactions,
   getGenbluMonthlySummary,
+  getScreenshotUrl,
 } from "@/lib/genblu-actions";
 import { todayInMalaysia } from "@/lib/malaysia-time";
 import GenbluMonthlySummary from "../../genblu/GenbluMonthlySummary";
@@ -66,6 +67,7 @@ export default async function ReportDetailPage({ params }: { params: Promise<{ t
   let dateField: string | undefined;
   let monthField: string | undefined;
   let searchFields: string[] = [];
+  let imageField: string | undefined;
   // Point Allocation only — this month's counts/points by branch, kept in
   // its own table next to the full transaction list rather than folded
   // into the same rows, same split the GenBlu page itself uses.
@@ -153,6 +155,11 @@ export default async function ReportDetailPage({ params }: { params: Promise<{ t
     const [todayYear, todayMonth] = todayInMalaysia().split("-").map(Number);
     monthlySummary = await getGenbluMonthlySummary(todayYear, todayMonth);
     const txns = allBranches ? await getAllBranchesGenbluTransactions() : await getGenbluTransactions(selection);
+    // Signed URLs, one per row's uploaded screenshot — fetched up front so
+    // double-clicking a row opens it with no extra round trip.
+    const screenshotUrls = await Promise.all(
+      txns.map((t) => (t.screenshotPath ? getScreenshotUrl(t.screenshotPath) : Promise.resolve(null)))
+    );
     columns = [
       { key: "transactionDate", label: "Transaction Date" },
       { key: "transactionTime", label: "Time" },
@@ -164,7 +171,8 @@ export default async function ReportDetailPage({ params }: { params: Promise<{ t
     ];
     dateField = "transactionDate";
     searchFields = ["customerName", "membershipNumber"];
-    rows = txns.map((t) => ({
+    imageField = "screenshotUrl";
+    rows = txns.map((t, i) => ({
       transactionDate: t.transactionDate ?? "",
       transactionTime: t.transactionTime ?? "—",
       points: t.points,
@@ -172,6 +180,7 @@ export default async function ReportDetailPage({ params }: { params: Promise<{ t
       customerName: t.customerName,
       membershipNumber: t.membershipNumber ?? "—",
       branch: branchLabel(t.branch),
+      screenshotUrl: screenshotUrls[i] ?? "",
     }));
   } else if (type === "warranty-claims" || type === "delivery-claims") {
     const isWarranty = type === "warranty-claims";
@@ -286,6 +295,7 @@ export default async function ReportDetailPage({ params }: { params: Promise<{ t
                 monthField={monthField}
                 searchFields={searchFields}
                 searchPlaceholder="Search…"
+                imageField={imageField}
                 filename={`bmm-report-${type}`}
               />
             </div>
@@ -298,6 +308,7 @@ export default async function ReportDetailPage({ params }: { params: Promise<{ t
             monthField={monthField}
             searchFields={searchFields}
             searchPlaceholder="Search…"
+                imageField={imageField}
             filename={`bmm-report-${type}`}
           />
         )}

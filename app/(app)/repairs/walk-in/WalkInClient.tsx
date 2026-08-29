@@ -10,6 +10,7 @@ import type { Mechanic } from "@/lib/types";
 import { branchLabel, type Branch, type BranchSelection } from "@/lib/branch";
 import { formatCurrency, formatDate, daysBetween, toCsv } from "@/lib/format";
 import { useToast } from "@/lib/useToast";
+import ModalPortal from "@/components/ModalPortal";
 
 // Walk-in jobs never enter QC (that's Restore Bike only), but the shared
 // RepairStatus type still includes it, so this map needs an entry too.
@@ -394,7 +395,7 @@ export default function WalkInClient({
       )}
 
       {bulkDeleteOpen && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 px-4">
+        <ModalPortal><div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 px-4">
           <div className="bg-white border border-neutral-200 rounded-xl w-full max-w-sm p-6 text-left">
             <h2 className="text-sm font-semibold text-neutral-900 mb-2">Delete {selectedIds.size} job{selectedIds.size === 1 ? "" : "s"}?</h2>
             <p className="text-sm text-neutral-600 mb-6">These jobs will be permanently removed. This can&apos;t be undone.</p>
@@ -414,7 +415,7 @@ export default function WalkInClient({
               </button>
             </div>
           </div>
-        </div>
+        </div></ModalPortal>
       )}
     </div>
   );
@@ -448,7 +449,7 @@ function ExportFilteredModal({
   const hasFilters = mechanicId !== "all" || query.trim() !== "";
 
   return (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 px-4">
+    <ModalPortal><div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 px-4">
       <div className="bg-white border border-neutral-200 rounded-xl w-full max-w-md p-6">
         <h2 className="text-sm font-semibold text-neutral-900 mb-1">Export Jobsheet Jobs</h2>
         <p className="text-xs text-neutral-500 mb-4">
@@ -513,7 +514,7 @@ function ExportFilteredModal({
           </button>
         </div>
       </div>
-    </div>
+    </div></ModalPortal>
   );
 }
 
@@ -536,7 +537,7 @@ function ExportJobModal({
   }, [jobs, query]);
 
   return (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 px-4">
+    <ModalPortal><div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 px-4">
       <div className="bg-white border border-neutral-200 rounded-xl w-full max-w-md p-6">
         <h2 className="text-sm font-semibold text-neutral-900 mb-1">Export One Job</h2>
         <p className="text-xs text-neutral-500 mb-4">Search by Job No. or Plate No. — the export will include every item and price for that job.</p>
@@ -573,7 +574,7 @@ function ExportJobModal({
           </button>
         </div>
       </div>
-    </div>
+    </div></ModalPortal>
   );
 }
 
@@ -814,7 +815,7 @@ function WalkInRow({
         </div>
 
         {confirmOpen && (
-          <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 px-4">
+          <ModalPortal><div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 px-4">
             <div className="bg-white border border-neutral-200 rounded-xl w-full max-w-sm p-6 text-left">
               <h2 className="text-sm font-semibold text-neutral-900 mb-2">Delete this job?</h2>
               <p className="text-sm text-neutral-600 mb-6">
@@ -838,7 +839,7 @@ function WalkInRow({
                 </button>
               </div>
             </div>
-          </div>
+          </div></ModalPortal>
         )}
       </td>
     </tr>

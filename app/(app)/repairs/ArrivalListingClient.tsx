@@ -10,6 +10,7 @@ import { branchLabel, type Branch, type BranchSelection } from "@/lib/branch";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/lib/useToast";
+import ModalPortal from "@/components/ModalPortal";
 
 function AddBikeButton({ branch }: { branch: Branch }) {
   const router = useRouter();
@@ -86,7 +87,7 @@ function AssignCell({ job, mechanics, allActiveJobs }: { job: RepairJob; mechani
         <ChevronDown size={12} className="absolute right-2 top-1/2 -translate-y-1/2 text-red-400 pointer-events-none" />
       </div>
       {idleHeadsUp && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 px-4">
+        <ModalPortal><div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 px-4">
           <div className="bg-white border border-neutral-200 rounded-xl w-full max-w-sm p-6 text-left">
             <div className="w-9 h-9 rounded-lg bg-amber-500/10 flex items-center justify-center mb-3">
               <AlertTriangle size={17} className="text-amber-600" />
@@ -103,7 +104,7 @@ function AssignCell({ job, mechanics, allActiveJobs }: { job: RepairJob; mechani
               </button>
             </div>
           </div>
-        </div>
+        </div></ModalPortal>
       )}
     </>
   );
@@ -188,7 +189,7 @@ function ArrivalRow({
         </div>
 
         {confirmOpen && (
-          <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 px-4">
+          <ModalPortal><div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 px-4">
             <div className="bg-white border border-neutral-200 rounded-xl w-full max-w-sm p-6 text-left">
               <h2 className="text-sm font-semibold text-neutral-900 mb-2">Delete this job?</h2>
               <p className="text-sm text-neutral-600 mb-6">
@@ -212,7 +213,7 @@ function ArrivalRow({
                 </button>
               </div>
             </div>
-          </div>
+          </div></ModalPortal>
         )}
       </td>
     </tr>

@@ -1,9 +1,10 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Download, Search } from "lucide-react";
+import { Download, Search, X } from "lucide-react";
 import { toCsv } from "@/lib/format";
 import { logClientActivityAction } from "@/lib/activity-log";
+import ModalPortal from "@/components/ModalPortal";
 
 export type ReportColumn = { key: string; label: string };
 
@@ -20,6 +21,7 @@ export default function ReportTable({
   searchFields,
   searchPlaceholder = "Search…",
   filename,
+  imageField,
 }: {
   columns: ReportColumn[];
   rows: Record<string, string | number>[];
@@ -34,11 +36,16 @@ export default function ReportTable({
   searchFields: string[];
   searchPlaceholder?: string;
   filename: string;
+  // Name of a (not necessarily displayed) field on each row holding a
+  // signed screenshot URL — when present, double-clicking a row with one
+  // opens it full-size instead of doing nothing.
+  imageField?: string;
 }) {
   const [query, setQuery] = useState("");
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [month, setMonth] = useState("all");
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
   const months = useMemo(() => {
     if (!monthField) return [];
@@ -166,19 +173,50 @@ export default function ReportTable({
                 </td>
               </tr>
             ) : (
-              filtered.map((r, i) => (
-                <tr key={i} className="hover:bg-neutral-50">
-                  {columns.map((c) => (
-                    <td key={c.key} className="px-4 py-2.5 whitespace-nowrap text-neutral-700">
-                      {r[c.key] ?? ""}
-                    </td>
-                  ))}
-                </tr>
-              ))
+              filtered.map((r, i) => {
+                const image = imageField ? r[imageField] : undefined;
+                return (
+                  <tr
+                    key={i}
+                    onDoubleClick={image ? () => setPreviewUrl(String(image)) : undefined}
+                    title={image ? "Double-click to view the uploaded screenshot" : undefined}
+                    className={`hover:bg-neutral-50 ${image ? "cursor-pointer" : ""}`}
+                  >
+                    {columns.map((c) => (
+                      <td key={c.key} className="px-4 py-2.5 whitespace-nowrap text-neutral-700">
+                        {r[c.key] ?? ""}
+                      </td>
+                    ))}
+                  </tr>
+                );
+              })
             )}
           </tbody>
         </table>
       </div>
+
+      {previewUrl && (
+        <ModalPortal><div
+          className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 px-4 py-8"
+          onClick={() => setPreviewUrl(null)}
+        >
+          <div className="relative max-w-lg w-full max-h-full" onClick={(e) => e.stopPropagation()}>
+            <button
+              onClick={() => setPreviewUrl(null)}
+              className="absolute -top-3 -right-3 bg-white text-neutral-700 rounded-full p-1.5 shadow-lg hover:text-red-600"
+              aria-label="Close"
+            >
+              <X size={16} />
+            </button>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={previewUrl}
+              alt="Uploaded screenshot"
+              className="w-full max-h-[85vh] object-contain rounded-xl shadow-2xl bg-white"
+            />
+          </div>
+        </div></ModalPortal>
+      )}
     </div>
   );
 }

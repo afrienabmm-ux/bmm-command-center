@@ -15,6 +15,7 @@ import {
 import type { Role } from "@/lib/current-user";
 import { BRANCHES, type BranchSelection } from "@/lib/branch";
 import { formatDate } from "@/lib/format";
+import ModalPortal from "@/components/ModalPortal";
 
 const ROLES: Role[] = ["Branch PIC", "Management", "Administrator", "Mechanic", "Front Desk"];
 
@@ -344,7 +345,7 @@ function MemberRow({ member, isSelf }: { member: TeamMember; isSelf: boolean }) 
       {confirmDelete && (
         <tr>
           <td colSpan={6} className="p-0">
-            <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 px-4">
+            <ModalPortal><div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 px-4">
               <div className="bg-white border border-neutral-200 rounded-xl w-full max-w-sm p-6">
                 <h2 className="text-sm font-semibold text-neutral-900 mb-2">Permanently delete this account?</h2>
                 <p className="text-sm text-neutral-600 mb-6">
@@ -371,7 +372,7 @@ function MemberRow({ member, isSelf }: { member: TeamMember; isSelf: boolean }) 
                   </button>
                 </div>
               </div>
-            </div>
+            </div></ModalPortal>
           </td>
         </tr>
       )}
@@ -424,7 +425,7 @@ function DetailModal({
   onResetPassword?: () => void;
 }) {
   return (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 px-4">
+    <ModalPortal><div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 px-4">
       <div className="bg-white border border-neutral-200 rounded-xl w-full max-w-sm p-6">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-sm font-semibold text-neutral-900">{member.name || member.email}</h2>
@@ -461,7 +462,7 @@ function DetailModal({
           </button>
         </div>
       </div>
-    </div>
+    </div></ModalPortal>
   );
 }
 
@@ -499,7 +500,7 @@ function ResetPasswordModal({ member, onClose }: { member: TeamMember; onClose: 
   }
 
   return (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 px-4">
+    <ModalPortal><div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 px-4">
       <div className="bg-white border border-neutral-200 rounded-xl w-full max-w-sm p-6">
         {done ? (
           <>
@@ -552,7 +553,7 @@ function ResetPasswordModal({ member, onClose }: { member: TeamMember; onClose: 
           </>
         )}
       </div>
-    </div>
+    </div></ModalPortal>
   );
 }
 
@@ -581,7 +582,7 @@ function AddUserModal({ onClose }: { onClose: () => void }) {
   }
 
   return (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 px-4">
+    <ModalPortal><div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 px-4">
       <div className="bg-white border border-neutral-200 rounded-xl w-full max-w-sm p-6">
         <h2 className="text-sm font-semibold text-neutral-900 mb-1">Add User</h2>
         <p className="text-xs text-neutral-500 mb-4">Creates a login that&apos;s already active — no approval needed, they can sign in right away.</p>
@@ -679,6 +680,6 @@ function AddUserModal({ onClose }: { onClose: () => void }) {
           </button>
         </div>
       </div>
-    </div>
+    </div></ModalPortal>
   );
 }
