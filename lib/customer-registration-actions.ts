@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { supabaseAdmin } from "./supabase-server";
+import { todayInMalaysia } from "./malaysia-time";
 import type { Branch } from "./branch";
 
 function normalizePhone(phone: string): string {
@@ -80,7 +81,7 @@ export async function registerCustomerCardAction(input: {
     plate_no: plateNo,
     model: input.model.trim(),
     bought_bike_here: true,
-    issued_date: new Date().toISOString().slice(0, 10),
+    issued_date: todayInMalaysia(),
   });
   if (error) return { error: error.message };
   revalidatePath("/customers");

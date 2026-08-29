@@ -4,20 +4,29 @@ import { supabaseAdmin } from "./supabase-server";
 import { requireApproved } from "./current-user";
 import type { Branch } from "./branch";
 import { MECHANIC_KPI_DAILY_TARGET } from "./types";
+import { todayInMalaysia } from "./malaysia-time";
 
 const WORKING_DAYS_PER_WEEK = 6;
 
-function startOfWeek(d: Date): Date {
-  const day = d.getDay(); // 0 = Sunday .. 6 = Saturday
-  const diffToMonday = day === 0 ? -6 : 1 - day;
-  const monday = new Date(d);
-  monday.setDate(d.getDate() + diffToMonday);
-  monday.setHours(0, 0, 0, 0);
-  return monday;
+// Anchored to UTC midnight of the given YYYY-MM-DD string, and read back
+// out via getUTC*/toISOString — so results never depend on the host
+// machine's own timezone. Parsing a date-only string as local time (e.g.
+// `new Date(iso + "T00:00:00")`) silently shifts the calendar day back by
+// one when the host's local zone is ahead of UTC, like Asia/Kuala_Lumpur.
+function toDate(iso: string): Date {
+  return new Date(`${iso}T00:00:00Z`);
 }
 
 function toIso(d: Date): string {
   return d.toISOString().slice(0, 10);
+}
+
+function startOfWeek(iso: string): string {
+  const d = toDate(iso);
+  const day = d.getUTCDay(); // 0 = Sunday .. 6 = Saturday
+  const diffToMonday = day === 0 ? -6 : 1 - day;
+  d.setUTCDate(d.getUTCDate() + diffToMonday);
+  return toIso(d);
 }
 
 export type MechanicCommitmentRow = {
@@ -50,11 +59,10 @@ export type MechanicCommitmentSummary = {
 export async function getMechanicCommitment(branch?: Branch, targetDate?: string): Promise<MechanicCommitmentSummary> {
   await requireApproved();
 
-  const now = targetDate ? new Date(`${targetDate}T00:00:00`) : new Date();
-  const monday = startOfWeek(now);
-  const weekStart = toIso(monday);
-  const today = toIso(now);
-  const daysElapsed = Math.min(now.getDay() === 0 ? 6 : now.getDay(), WORKING_DAYS_PER_WEEK);
+  const today = targetDate ?? todayInMalaysia();
+  const weekStart = startOfWeek(today);
+  const dayOfWeek = toDate(today).getUTCDay();
+  const daysElapsed = Math.min(dayOfWeek === 0 ? 6 : dayOfWeek, WORKING_DAYS_PER_WEEK);
 
   let mechanicsQuery = supabaseAdmin.from("cc_mechanics").select("id, full_name, short_code, branch").eq("status", "Active");
   if (branch) mechanicsQuery = mechanicsQuery.eq("branch", branch);
@@ -81,8 +89,8 @@ export async function getMechanicCommitment(branch?: Branch, targetDate?: string
 
     let streakDays = 0;
     for (let i = 0; i < daysElapsed; i++) {
-      const day = new Date(monday);
-      day.setDate(monday.getDate() + i);
+      const day = toDate(weekStart);
+      day.setUTCDate(day.getUTCDate() + i);
       const dayIso = toIso(day);
       if (!weekOwn.some((j) => j.started_date === dayIso)) break;
       streakDays++;

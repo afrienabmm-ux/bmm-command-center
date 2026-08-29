@@ -2,6 +2,7 @@
 
 import { supabaseAdmin } from "./supabase-server";
 import { requireApproved } from "./current-user";
+import { todayInMalaysia } from "./malaysia-time";
 import { CLAIM_STATUSES, type ClaimStatus } from "./types";
 import { BRANCHES, type Branch } from "./branch";
 
@@ -106,9 +107,10 @@ export type TodayActivity = { jobsheetCount: number; restoreBikeCount: number; p
 // regardless of whatever happens to the job's status afterward.
 export async function getTodayActivity(onlyBranch?: Branch): Promise<TodayActivity> {
   await requireApproved();
-  const startOfDay = new Date();
-  startOfDay.setHours(0, 0, 0, 0);
-  const todayStr = startOfDay.toISOString().slice(0, 10);
+  const todayStr = todayInMalaysia();
+  // Malaysia midnight, expressed as the correct UTC instant — not the
+  // host's own midnight, which is 8 hours off from Malaysia on Vercel (UTC).
+  const startOfDay = new Date(`${todayStr}T00:00:00+08:00`);
 
   let jobsQuery = supabaseAdmin.from("cc_repair_jobs").select("job_type").gte("created_at", startOfDay.toISOString());
   if (onlyBranch) jobsQuery = jobsQuery.eq("branch", onlyBranch);
@@ -141,7 +143,7 @@ export type IdleMechanic = { id: string; fullName: string; shortCode: string; br
 // up a job counts as active even once it's no longer in the active list.
 export async function getMechanicsNotActiveToday(onlyBranch?: Branch): Promise<IdleMechanic[]> {
   await requireApproved();
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayInMalaysia();
 
   let mechanicsQuery = supabaseAdmin.from("cc_mechanics").select("id, full_name, short_code, branch").eq("status", "Active");
   if (onlyBranch) mechanicsQuery = mechanicsQuery.eq("branch", onlyBranch);

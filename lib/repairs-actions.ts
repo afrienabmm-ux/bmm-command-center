@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { supabaseAdmin } from "./supabase-server";
 import { requireApproved, requireManagement, assertCanEditBranch } from "./current-user";
 import { logActivity } from "./activity-log";
+import { todayInMalaysia } from "./malaysia-time";
 import type { RepairJob, RepairJobItem, RepairStatus, JobType, ApprovalStatus, QcResult } from "./types";
 import { DEAL_TYPES } from "./types";
 import { BRANCHES, type Branch } from "./branch";
@@ -497,7 +498,7 @@ export async function quickAddRestoreBikeArrivalAction(branch: Branch): Promise<
       revenue_amount: 0,
       deal_type: DEAL_TYPES[0],
       status: "Pending",
-      arrived_date: new Date().toISOString().slice(0, 10),
+      arrived_date: todayInMalaysia(),
     })
     .select("id")
     .single();
@@ -924,7 +925,7 @@ export async function setQcResultAction(
     return { error: "A reason is required when failing QC." };
   }
 
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayInMalaysia();
   const update =
     result === "Passed"
       ? { status: "Completed", qc_result: "Passed", qc_date: today, qc_fail_reason: null, qc_fail_followup_date: null }

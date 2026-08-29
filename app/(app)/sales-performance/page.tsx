@@ -2,6 +2,7 @@ import { requirePage, getActiveBranchSelection, canViewAllBranches } from "@/lib
 import { getAllBranchesPerformance, getBranchPerformance, type MechanicPerformanceRowWithBranch } from "@/lib/reports-actions";
 import { getPackageSalesBreakdown } from "@/lib/dashboard-breakdowns-actions";
 import { getMechanicCommitment } from "@/lib/mechanic-commitment-actions";
+import { todayInMalaysia } from "@/lib/malaysia-time";
 import { branchLabel } from "@/lib/branch";
 import PageHeader from "@/components/PageHeader";
 import MonthPicker from "@/components/MonthPicker";
@@ -22,19 +23,23 @@ export default async function SalesPerformancePage({
 }) {
   const user = await requirePage("sales-performance");
   const params = await searchParams;
-  const now = new Date();
-  const year = params.year ? Number(params.year) : now.getFullYear();
-  const month = params.month ? Number(params.month) : now.getMonth() + 1;
+  // The server's own clock can be in any timezone (Vercel runs UTC, a dev
+  // machine might not) — todayInMalaysia() gives the date the business
+  // actually experiences right now, so "today" here always matches what
+  // MonthPicker/DaySelect compute in the user's own (Malaysia) browser.
+  const todayIso = todayInMalaysia();
+  const [todayYear, todayMonth, todayDay] = todayIso.split("-").map(Number);
+  const year = params.year ? Number(params.year) : todayYear;
+  const month = params.month ? Number(params.month) : todayMonth;
 
   // The GM wants to review a past day's pace, not just today's — the Day
   // selector below picks any day within the selected month. Defaults to
   // today's date when the current month is selected, otherwise the 1st.
   const daysInMonth = new Date(year, month, 0).getDate();
-  const isCurrentMonth = year === now.getFullYear() && month === now.getMonth() + 1;
-  const defaultDay = isCurrentMonth ? now.getDate() : 1;
+  const isCurrentMonth = year === todayYear && month === todayMonth;
+  const defaultDay = isCurrentMonth ? todayDay : 1;
   const day = Math.min(params.day ? Number(params.day) : defaultDay, daysInMonth);
   const selectedDate = `${year}-${pad(month)}-${pad(day)}`;
-  const todayIso = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
 
   const branchSelection = await getActiveBranchSelection(user);
   const locked = !canViewAllBranches(user);
