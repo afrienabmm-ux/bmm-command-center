@@ -22,6 +22,10 @@ export function monthLabel(month: number, year: number): string {
   return `${MONTH_NAMES[month - 1]} ${year}`;
 }
 
+export function formatShortDate(iso: string): string {
+  return new Date(iso).toLocaleDateString("en-MY", { day: "numeric", month: "short" });
+}
+
 export function daysBetween(startIso: string | null, endIso: string | null): number | null {
   if (!startIso || !endIso) return null;
   const start = new Date(startIso);

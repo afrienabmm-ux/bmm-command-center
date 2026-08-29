@@ -2,7 +2,7 @@
 
 import { Fragment, useEffect, useMemo, useState } from "react";
 import { Crown, Wrench, Smartphone, Download, ChevronDown, ChevronUp, ArrowUp, ArrowDown, Minus, Search, Flame, Target } from "lucide-react";
-import { formatCurrency, toCsv } from "@/lib/format";
+import { formatCurrency, formatShortDate, toCsv } from "@/lib/format";
 import { BRANCHES, branchLabel, type BranchSelection } from "@/lib/branch";
 import type { MechanicPerformanceRowWithBranch } from "@/lib/reports-actions";
 import type { MechanicCommitmentRow } from "@/lib/mechanic-commitment-actions";
@@ -148,6 +148,8 @@ export default function AllBranchesMechanicPerformanceClient({
   prevRevenueByMechanicId,
   commitmentByMechanicId,
   dailyTarget,
+  selectedDate,
+  isToday = true,
 }: {
   rows: MechanicPerformanceRowWithBranch[];
   branchSelection?: BranchSelection;
@@ -155,7 +157,14 @@ export default function AllBranchesMechanicPerformanceClient({
   prevRevenueByMechanicId: Record<string, number>;
   commitmentByMechanicId: Record<string, MechanicCommitmentRow>;
   dailyTarget: number;
+  selectedDate?: string;
+  isToday?: boolean;
 }) {
+  // Sales Performance lets the GM pick a past day to review its pace
+  // instead of always showing today's — every "Today" label below adapts
+  // to whichever day is actually selected.
+  const dayLabel = isToday || !selectedDate ? "Today" : formatShortDate(selectedDate);
+  const dayLabelLower = isToday || !selectedDate ? "today" : dayLabel;
   const [branchFilter, setBranchFilter] = useState<BranchSelection>(branchSelection ?? "all");
   const [view, setView] = useState<View>("revenue");
   const [showAll, setShowAll] = useState(false);
@@ -228,8 +237,8 @@ export default function AllBranchesMechanicPerformanceClient({
         "Mechanic",
         "Code",
         "Streak (days)",
-        "Revenue Today (RM)",
-        "Today's Status",
+        `Revenue ${dayLabel} (RM)`,
+        `${isToday ? "Today's" : dayLabel} Status`,
         "Restore Bike Jobs",
         "Restore Bike Revenue (RM)",
         "Jobsheet Jobs",
@@ -281,13 +290,13 @@ export default function AllBranchesMechanicPerformanceClient({
           <p className="text-xs text-neutral-500 mt-0.5">
             {view === "packages"
               ? "Total packages sold per mechanic this month"
-              : `Today's pace (${formatCurrency(dailyTarget)}/day target) plus this month's revenue by source · KPI is ${formatCurrency(MECHANIC_KPI_REVENUE)} Restore Bike revenue over ${MECHANIC_KPI_WORKING_DAYS} working days`}
+              : `${isToday ? "Today's" : `${dayLabel}'s`} pace (${formatCurrency(dailyTarget)}/day target) plus this month's revenue by source · KPI is ${formatCurrency(MECHANIC_KPI_REVENUE)} Restore Bike revenue over ${MECHANIC_KPI_WORKING_DAYS} working days`}
           </p>
         </div>
         {view === "revenue" && todayRows.length > 0 && (
           <div className="flex items-center gap-2">
             <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-700 border border-emerald-500/20">
-              {onTrackCount} on track today
+              {onTrackCount} on track {dayLabelLower}
             </span>
             {behindCount > 0 && (
               <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-red-500/10 text-red-700 border border-red-500/20">
@@ -353,12 +362,12 @@ export default function AllBranchesMechanicPerformanceClient({
       {view === "revenue" && todayRows.length > 0 && (
         <div className="grid grid-cols-2 gap-3 p-5 border-b border-neutral-200">
           <div className="bg-neutral-50 border border-neutral-200 rounded-lg p-3.5">
-            <p className="text-[11px] font-medium text-neutral-500 tracking-wide">TEAM REVENUE TODAY</p>
+            <p className="text-[11px] font-medium text-neutral-500 tracking-wide">TEAM REVENUE {dayLabel.toUpperCase()}</p>
             <p className="text-xl font-semibold text-neutral-900 mt-1">{formatCurrency(teamRevenueToday)}</p>
             <p className="text-xs text-neutral-400 mt-0.5">target {formatCurrency(dailyTarget * todayRows.length)}</p>
           </div>
           <div className="bg-neutral-50 border border-neutral-200 rounded-lg p-3.5">
-            <p className="text-[11px] font-medium text-neutral-500 tracking-wide">JOBS TODAY</p>
+            <p className="text-[11px] font-medium text-neutral-500 tracking-wide">JOBS {dayLabel.toUpperCase()}</p>
             <p className="text-xl font-semibold text-neutral-900 mt-1">{teamJobsToday}</p>
             <p className="text-xs text-neutral-400 mt-0.5">across {todayRows.length} mechanics</p>
           </div>
@@ -409,8 +418,8 @@ export default function AllBranchesMechanicPerformanceClient({
                 <tr className="text-left text-xs text-neutral-500 border-b border-neutral-200">
                   <th className="font-medium px-5 py-3 whitespace-nowrap">Mechanic</th>
                   <th className="font-medium px-5 py-3 whitespace-nowrap text-center">Streak</th>
-                  <th className="font-medium px-5 py-3 whitespace-nowrap">Revenue Today</th>
-                  <th className="font-medium px-5 py-3 whitespace-nowrap text-center">Today's Status</th>
+                  <th className="font-medium px-5 py-3 whitespace-nowrap">Revenue {dayLabel}</th>
+                  <th className="font-medium px-5 py-3 whitespace-nowrap text-center">{isToday ? "Today's" : dayLabel} Status</th>
                   <th className="font-medium px-5 py-3 whitespace-nowrap">Restore Bike</th>
                   <th className="font-medium px-5 py-3 whitespace-nowrap">Jobsheet</th>
                   <th className="font-medium px-5 py-3 whitespace-nowrap">Packages</th>

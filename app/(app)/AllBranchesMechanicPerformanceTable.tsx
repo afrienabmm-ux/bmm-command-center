@@ -10,6 +10,8 @@ export default function AllBranchesMechanicPerformanceTable({
   prevRevenueByMechanicId,
   commitmentByMechanicId,
   dailyTarget,
+  selectedDate,
+  isToday,
 }: {
   rows: MechanicPerformanceRowWithBranch[];
   branchSelection?: BranchSelection;
@@ -17,6 +19,8 @@ export default function AllBranchesMechanicPerformanceTable({
   prevRevenueByMechanicId: Record<string, number>;
   commitmentByMechanicId: Record<string, MechanicCommitmentRow>;
   dailyTarget: number;
+  selectedDate?: string;
+  isToday?: boolean;
 }) {
   return (
     <AllBranchesMechanicPerformanceClient
@@ -26,6 +30,8 @@ export default function AllBranchesMechanicPerformanceTable({
       prevRevenueByMechanicId={prevRevenueByMechanicId}
       commitmentByMechanicId={commitmentByMechanicId}
       dailyTarget={dailyTarget}
+      selectedDate={selectedDate}
+      isToday={isToday}
     />
   );
 }

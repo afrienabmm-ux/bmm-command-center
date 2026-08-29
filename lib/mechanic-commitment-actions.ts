@@ -43,14 +43,14 @@ export type MechanicCommitmentSummary = {
   rows: MechanicCommitmentRow[];
 };
 
-// Daily version — revenue/job counts are today's only, compared against
-// the RM400/day pace reference (MECHANIC_KPI_DAILY_TARGET), so the numbers
-// are accurate as of right now instead of accumulating all week and only
-// reading correctly by Saturday.
-export async function getMechanicCommitment(branch?: Branch): Promise<MechanicCommitmentSummary> {
+// Daily version — revenue/job counts are for a single target day (today by
+// default, or whatever day the GM picks on Sales Performance to review a
+// past day's pace), compared against the RM400/day pace reference
+// (MECHANIC_KPI_DAILY_TARGET).
+export async function getMechanicCommitment(branch?: Branch, targetDate?: string): Promise<MechanicCommitmentSummary> {
   await requireApproved();
 
-  const now = new Date();
+  const now = targetDate ? new Date(`${targetDate}T00:00:00`) : new Date();
   const monday = startOfWeek(now);
   const weekStart = toIso(monday);
   const today = toIso(now);
