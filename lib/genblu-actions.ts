@@ -542,10 +542,6 @@ export async function addGenbluTransactionAction(input: {
   branch: Branch;
   screenshot: File;
   serviceCoupon: boolean;
-  // Set when the admin picked a known jobsheet customer instead of relying
-  // on OCR to read the name off the screenshot — wins over whatever OCR
-  // finds, since a jobsheet name is known-correct.
-  customerNameOverride?: string;
 }): Promise<{ error: string; rawText?: string } | { transaction: GenbluTransaction; rawText: string }> {
   const user = await requireApproved();
   assertCanEditBranch(user, input.branch);
@@ -560,7 +556,7 @@ export async function addGenbluTransactionAction(input: {
     return { error: "Couldn't read the screenshot — please try again with a clearer photo." };
   }
 
-  let customerName = input.customerNameOverride?.trim() || extractTransactionCustomerName(text);
+  let customerName = extractTransactionCustomerName(text);
   let points = extractTransactionPoints(text);
   let membershipNumber = extractMembershipNumber(text);
   let productCategory = extractProductCategory(text);
@@ -574,7 +570,7 @@ export async function addGenbluTransactionAction(input: {
   if (!customerName || points === null) {
     const aiResult = await extractGenbluEventWithAi(text).catch(() => null);
     if (aiResult) {
-      customerName = input.customerNameOverride?.trim() || aiResult.customerName;
+      customerName = aiResult.customerName;
       points = aiResult.points;
       membershipNumber = membershipNumber ?? aiResult.membershipNumber;
       productCategory = productCategory ?? aiResult.productCategory;

@@ -41,11 +41,7 @@ export default function GenbluPanel({
           Point Allocation
         </button>
       </div>
-      {mode === "log" ? (
-        <GenbluTransactionForm branchSelection={branchSelection} recentJobs={recentJobs} />
-      ) : (
-        <GenbluQuickForm recentJobs={recentJobs} />
-      )}
+      {mode === "log" ? <GenbluTransactionForm branchSelection={branchSelection} /> : <GenbluQuickForm recentJobs={recentJobs} />}
     </div>
   );
 }
