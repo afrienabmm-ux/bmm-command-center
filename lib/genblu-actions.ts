@@ -6,6 +6,7 @@ import { requireApproved, assertCanEditBranch } from "./current-user";
 import type { GenbluRegistration, GenbluTransaction } from "./types";
 import { BRANCHES, type Branch } from "./branch";
 import { extractTextFromImage } from "./vision";
+import { extractGenbluEventWithAi } from "./ai-genblu-extract";
 import { logActivity } from "./activity-log";
 
 const BUCKET = "genblu-screenshots";
@@ -359,11 +360,21 @@ function extractTransactionTime(text: string): string | null {
   return timeMatch ? timeMatch[1] : null;
 }
 
-// The customer's name is the large header text above "Membership number" —
-// no label of its own, so it's found by position rather than a keyword.
-// Skips the phone status bar (pure digits/time) and keeps the longest
-// letters-only line in that region, since that's reliably the name.
+// Two different GenBlu screens land here: the instant confirmation right
+// after a counter transaction (name is the large header text above
+// "Membership number", no label of its own), and the "Transaction Details"
+// history screen (name follows an "Awarded to" label, with the membership
+// number in parentheses right after it instead of its own line). Each
+// extractor below tries the labeled "Awarded to" form first, since it's
+// unambiguous, then falls back to the position-based header guess.
 function extractTransactionCustomerName(text: string): string {
+  const awardedIdx = text.search(/awarded\s*to/i);
+  if (awardedIdx !== -1) {
+    const after = text.slice(awardedIdx).replace(/awarded\s*to/i, "");
+    const nameMatch = after.match(/([A-Za-z][A-Za-z .'/@-]{3,}?)\s*\(/);
+    if (nameMatch) return nameMatch[1].trim();
+  }
+
   const membershipIdx = text.search(/membership\s*number/i);
   const head = membershipIdx > 0 ? text.slice(0, membershipIdx) : text;
   const candidates = head
@@ -375,20 +386,32 @@ function extractTransactionCustomerName(text: string): string {
 }
 
 function extractMembershipNumber(text: string): string | null {
-  const match = text.match(/membership\s*number\D{0,15}(\d[\d-]{4,20})/i);
-  return match ? match[1] : null;
+  const labeled = text.match(/membership\s*number\D{0,15}(\d[\d-]{4,20})/i);
+  if (labeled) return labeled[1];
+  // Transaction Details screen: the number sits in parentheses right after
+  // the "Awarded to" name instead of its own labeled line.
+  const parenMatch = text.match(/awarded\s*to[\s\S]{0,60}?\(\s*(\d[\d-]{4,20})\s*\)/i);
+  return parenMatch ? parenMatch[1] : null;
 }
 
 function extractProductCategory(text: string): string | null {
-  const match = text.match(/product\s*category\W{0,15}([A-Za-z]{2,20})/i);
-  return match ? match[1].toUpperCase() : null;
+  const labeled = text.match(/product\s*category\W{0,15}([A-Za-z]{2,20})/i);
+  if (labeled) return labeled[1].toUpperCase();
+  // Transaction Details screen calls the same thing "Spent categories".
+  const spent = text.match(/spent\s*categor(?:y|ies)\W{0,15}([A-Za-z]{2,20})/i);
+  return spent ? spent[1].toUpperCase() : null;
 }
 
 function extractTransactionPoints(text: string): number | null {
   const match = text.match(/points[^\d]{0,20}(\d[\d,]{0,6})/i);
   if (!match) return null;
   const num = Number(match[1].replace(/,/g, ""));
-  return Number.isNaN(num) ? null : num;
+  if (Number.isNaN(num)) return null;
+  // Transaction Details shows redemptions as "Points deducted" — those
+  // reduce the customer's running total instead of adding to it, so they
+  // need to come back negative here for the registration update to net out
+  // correctly (added, not subtracted, by mistake).
+  return /points\s*deducted/i.test(text) ? -num : num;
 }
 
 type TransactionRow = {
@@ -458,8 +481,29 @@ export async function addGenbluTransactionAction(input: {
     return { error: "Couldn't read the screenshot — please try again with a clearer photo." };
   }
 
-  const customerName = input.customerNameOverride?.trim() || extractTransactionCustomerName(text);
-  const points = extractTransactionPoints(text);
+  let customerName = input.customerNameOverride?.trim() || extractTransactionCustomerName(text);
+  let points = extractTransactionPoints(text);
+  let membershipNumber = extractMembershipNumber(text);
+  let productCategory = extractProductCategory(text);
+  let transactionDate = extractTransactionDate(text);
+  let transactionTime = extractTransactionTime(text);
+
+  // The regex extractors above only know the specific GenBlu screens
+  // they've been taught — when they can't find a name and points together,
+  // fall back to asking an LLM to read the same fields off whatever screen
+  // this actually is, so an unfamiliar layout doesn't just fail outright.
+  if (!customerName || points === null) {
+    const aiResult = await extractGenbluEventWithAi(text).catch(() => null);
+    if (aiResult) {
+      customerName = input.customerNameOverride?.trim() || aiResult.customerName;
+      points = aiResult.points;
+      membershipNumber = membershipNumber ?? aiResult.membershipNumber;
+      productCategory = productCategory ?? aiResult.productCategory;
+      transactionDate = transactionDate ?? aiResult.transactionDate;
+      transactionTime = transactionTime ?? aiResult.transactionTime;
+    }
+  }
+
   if (!customerName || points === null) {
     return {
       error: "Couldn't read the customer name and points off that screenshot — please try again with a clearer, uncropped photo of the full screen.",
@@ -486,7 +530,7 @@ export async function addGenbluTransactionAction(input: {
     registrationId = matchedReg.id;
     const { error: updateError } = await supabaseAdmin
       .from("cc_genblu_registrations")
-      .update({ points_accrued: (matchedReg.points_accrued ?? 0) + points })
+      .update({ points_accrued: Math.max(0, (matchedReg.points_accrued ?? 0) + points) })
       .eq("id", matchedReg.id);
     if (updateError) return { error: updateError.message };
   } else {
@@ -502,7 +546,7 @@ export async function addGenbluTransactionAction(input: {
         customer_name: customerName,
         customer_plate_no: "",
         screenshot_path: path,
-        points_accrued: points,
+        points_accrued: Math.max(0, points),
       })
       .select("id")
       .single();
@@ -516,11 +560,11 @@ export async function addGenbluTransactionAction(input: {
     .insert({
       branch: input.branch,
       customer_name: customerName,
-      membership_number: extractMembershipNumber(text),
-      product_category: extractProductCategory(text),
+      membership_number: membershipNumber,
+      product_category: productCategory,
       points,
-      transaction_date: extractTransactionDate(text),
-      transaction_time: extractTransactionTime(text),
+      transaction_date: transactionDate,
+      transaction_time: transactionTime,
       service_coupon: input.serviceCoupon,
       screenshot_path: path,
       uploaded_by: user.name,
