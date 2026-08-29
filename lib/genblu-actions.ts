@@ -41,6 +41,23 @@ function normalizeName(name: string): string {
   return name.trim().toLowerCase();
 }
 
+// Looked up fresh by name each time (rather than stored as a link) so
+// Point Allocation and GenBlu Register stay two independent tables — this
+// only ever updates an existing Tracker entry, never creates one, so a
+// points event for someone not yet registered just logs normally with no
+// side effect on the Tracker.
+async function findMatchingRegistration(
+  branch: Branch,
+  customerName: string
+): Promise<{ id: string; points_accrued: number | null } | null> {
+  const { data } = await supabaseAdmin
+    .from("cc_genblu_registrations")
+    .select("id, customer_name, points_accrued")
+    .eq("branch", branch);
+  const match = (data ?? []).find((r) => normalizeName(r.customer_name) === normalizeName(customerName));
+  return match ? { id: match.id, points_accrued: match.points_accrued } : null;
+}
+
 // Auto-registrations should credit whoever is actually logged in and doing
 // the job (their initials, e.g. "Nurul Izzah" -> "NI"), not the mechanic
 // assigned to the job — a PIC can register a customer for GenBlu on a job
@@ -553,7 +570,7 @@ export async function addGenbluTransactionAction(input: {
   branch: Branch;
   screenshot: File;
   serviceCoupon: boolean;
-}): Promise<{ error: string; rawText?: string } | { transaction: GenbluTransaction; rawText: string }> {
+}): Promise<{ error: string; rawText?: string } | { transaction: GenbluTransaction; rawText: string; trackerUpdated: boolean }> {
   const user = await requireApproved();
   assertCanEditBranch(user, input.branch);
   if (input.screenshot.size === 0) return { error: "Pick a screenshot to upload." };
@@ -622,9 +639,24 @@ export async function addGenbluTransactionAction(input: {
     .single();
   if (error) return { error: error.message };
 
-  await logActivity(user, "Logged GenBlu point allocation", `${customerName} — ${points} pts (${input.branch})`);
+  // Only updates an existing Tracker entry when the name matches one —
+  // never creates a new one, so an unregistered customer's award/deduction
+  // still logs here without leaving a stray, mostly-empty Tracker card.
+  const matchedReg = await findMatchingRegistration(input.branch, customerName);
+  if (matchedReg) {
+    await supabaseAdmin
+      .from("cc_genblu_registrations")
+      .update({ points_accrued: Math.max(0, (matchedReg.points_accrued ?? 0) + points) })
+      .eq("id", matchedReg.id);
+  }
+
+  await logActivity(
+    user,
+    "Logged GenBlu point allocation",
+    `${customerName} — ${points} pts (${input.branch})${matchedReg ? ", Tracker updated" : ""}`
+  );
   revalidatePath("/genblu");
-  return { transaction: toTransaction(data as TransactionRow), rawText: text };
+  return { transaction: toTransaction(data as TransactionRow), rawText: text, trackerUpdated: !!matchedReg };
 }
 
 export async function getGenbluTransactions(branch: Branch): Promise<GenbluTransaction[]> {
@@ -649,6 +681,20 @@ export async function deleteGenbluTransactionAction(id: string, branch: Branch):
   const { data: txn } = await supabaseAdmin.from("cc_genblu_transactions").select("customer_name, points").eq("id", id).single();
   const { error } = await supabaseAdmin.from("cc_genblu_transactions").delete().eq("id", id);
   if (error) throw new Error(error.message);
+
+  // Mirrors the update that logging this allocation made — same
+  // by-name lookup, so deleting a mistaken entry doesn't leave the
+  // Tracker total overstated (or understated, for a deduction).
+  if (txn) {
+    const matchedReg = await findMatchingRegistration(branch, txn.customer_name);
+    if (matchedReg) {
+      await supabaseAdmin
+        .from("cc_genblu_registrations")
+        .update({ points_accrued: Math.max(0, (matchedReg.points_accrued ?? 0) - txn.points) })
+        .eq("id", matchedReg.id);
+    }
+  }
+
   await logActivity(user, "Deleted GenBlu point allocation", `${txn?.customer_name ?? id} — ${txn?.points ?? ""} pts (${branch})`);
   revalidatePath("/genblu");
 }

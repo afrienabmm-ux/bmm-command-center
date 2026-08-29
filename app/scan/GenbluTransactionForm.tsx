@@ -17,6 +17,7 @@ export default function GenbluTransactionForm({ branchSelection }: { branchSelec
   const [serviceCoupon, setServiceCoupon] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<GenbluTransaction | null>(null);
+  const [trackerUpdated, setTrackerUpdated] = useState(false);
   const [rawText, setRawText] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const locked = branchSelection !== "all";
@@ -35,6 +36,7 @@ export default function GenbluTransactionForm({ branchSelection }: { branchSelec
         return;
       }
       setResult(res.transaction);
+      setTrackerUpdated(res.trackerUpdated);
       setScreenshot(null);
       setServiceCoupon(false);
     });
@@ -43,8 +45,13 @@ export default function GenbluTransactionForm({ branchSelection }: { branchSelec
   if (result) {
     return (
       <div className="bg-white border border-neutral-200 rounded-xl p-5">
-        <p className="text-sm font-semibold text-emerald-700 flex items-center gap-1.5 mb-4">
+        <p className="text-sm font-semibold text-emerald-700 flex items-center gap-1.5 mb-1.5">
           <CheckCircle2 size={16} /> Transaction logged
+        </p>
+        <p className="text-xs text-neutral-500 mb-4">
+          {trackerUpdated
+            ? "This customer's total on the GenBlu Tracker was updated too."
+            : "No matching Tracker entry for this name — Tracker wasn't touched."}
         </p>
         <div className="space-y-2.5 text-sm">
           <Field label="Customer" value={result.customerName} />
@@ -66,6 +73,7 @@ export default function GenbluTransactionForm({ branchSelection }: { branchSelec
           onClick={() => {
             setResult(null);
             setRawText(null);
+            setTrackerUpdated(false);
           }}
           className="w-full mt-5 bg-neutral-100 hover:bg-neutral-200 text-neutral-800 text-sm font-medium px-4 py-2.5 rounded-lg transition-colors"
         >
