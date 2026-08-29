@@ -16,7 +16,7 @@ export default function GenbluTransactionForm({ branchSelection }: { branchSelec
   const [screenshot, setScreenshot] = useState<File | null>(null);
   const [serviceCoupon, setServiceCoupon] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [result, setResult] = useState<GenbluTransaction | null>(null);
+  const [result, setResult] = useState<{ transaction: GenbluTransaction; registrationCreated: boolean } | null>(null);
   const [isPending, startTransition] = useTransition();
   const locked = branchSelection !== "all";
 
@@ -32,26 +32,32 @@ export default function GenbluTransactionForm({ branchSelection }: { branchSelec
         setError(res.error);
         return;
       }
-      setResult(res.transaction);
+      setResult(res);
       setScreenshot(null);
       setServiceCoupon(false);
     });
   }
 
   if (result) {
+    const { transaction } = result;
     return (
       <div className="bg-white border border-neutral-200 rounded-xl p-5">
-        <p className="text-sm font-semibold text-emerald-700 flex items-center gap-1.5 mb-4">
-          <CheckCircle2 size={16} /> Transaction logged
+        <p className="text-sm font-semibold text-emerald-700 flex items-center gap-1.5 mb-1.5">
+          <CheckCircle2 size={16} /> Points logged
+        </p>
+        <p className="text-xs text-neutral-500 mb-4">
+          {result.registrationCreated
+            ? "New customer — also added to the GenBlu Tracker."
+            : "Also added to this customer's total on the GenBlu Tracker."}
         </p>
         <div className="space-y-2.5 text-sm">
-          <Field label="Customer" value={result.customerName} />
-          <Field label="Membership No." value={result.membershipNumber ?? "—"} />
-          <Field label="Category" value={result.productCategory ?? "—"} />
-          <Field label="Points" value={String(result.points)} />
-          <Field label="Date" value={result.transactionDate ? formatDate(result.transactionDate) : "—"} />
-          <Field label="Time" value={result.transactionTime ?? "—"} />
-          <Field label="Service Coupon" value={result.serviceCoupon ? "Yes" : "No"} />
+          <Field label="Customer" value={transaction.customerName} />
+          <Field label="Membership No." value={transaction.membershipNumber ?? "—"} />
+          <Field label="Category" value={transaction.productCategory ?? "—"} />
+          <Field label="Points" value={String(transaction.points)} />
+          <Field label="Date" value={transaction.transactionDate ? formatDate(transaction.transactionDate) : "—"} />
+          <Field label="Time" value={transaction.transactionTime ?? "—"} />
+          <Field label="Service Coupon" value={transaction.serviceCoupon ? "Yes" : "No"} />
         </div>
         <button
           type="button"

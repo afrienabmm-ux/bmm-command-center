@@ -9,19 +9,12 @@ import {
   canViewAllBranches,
   hasPageAccess,
 } from "@/lib/current-user";
-import {
-  getAllBranchesActiveRepairJobs,
-  getAllBranchesCompletedRepairJobs,
-  getActiveRepairJobs,
-  getCompletedRepairJobs,
-  getRepairJobById,
-} from "@/lib/repairs-actions";
+import { getAllBranchesActiveRepairJobs, getActiveRepairJobs, getRepairJobById } from "@/lib/repairs-actions";
 import { getAllMechanics, getMechanics } from "@/lib/mechanics-actions";
 import type { Branch } from "@/lib/branch";
 import { getAllCatalogProducts } from "@/lib/catalog-actions";
 import { getPackages } from "@/lib/packages-actions";
 import WalkInJobForm from "../(app)/repairs/walk-in/WalkInJobForm";
-import { type RecentJobsheetCustomer } from "./GenbluQuickForm";
 import GenbluPanel from "./GenbluPanel";
 import JobsheetPicker from "./JobsheetPicker";
 import ScanTabs from "./ScanTabs";
@@ -60,10 +53,9 @@ export default async function ScanPage({ searchParams }: { searchParams: Promise
   // database load on every single phone-page visit. Only Management/
   // Administrator opening this page still needs the all-branches version.
   const ownBranch = locked ? (currentUser.homeBranch as Branch) : null;
-  const [branchSelection, allActiveJobs, completedJobs, mechanics, catalogProducts, packages, editingJob] = await Promise.all([
+  const [branchSelection, allActiveJobs, mechanics, catalogProducts, packages, editingJob] = await Promise.all([
     getActiveBranchSelection(currentUser),
     ownBranch ? getActiveRepairJobs(ownBranch) : getAllBranchesActiveRepairJobs(),
-    ownBranch ? getCompletedRepairJobs(ownBranch) : getAllBranchesCompletedRepairJobs(),
     ownBranch ? getMechanics(ownBranch) : getAllMechanics(),
     getAllCatalogProducts(),
     getPackages(),
@@ -107,15 +99,6 @@ export default async function ScanPage({ searchParams }: { searchParams: Promise
   // offering the jobsheet-scanning tab at all.
   const canScanJobsheet = currentUser.role !== "Front Desk";
 
-  // Most recent Walk-in jobs (active or completed) are what a GenBlu
-  // screenshot actually gets attached to — the whole point of this tab is
-  // reusing whatever the jobsheet already has on file, not asking again.
-  const recentJobs: RecentJobsheetCustomer[] = [...allActiveJobs, ...completedJobs]
-    .filter((j) => j.jobType === "Walk-in" && (!locked || j.branch === currentUser.homeBranch))
-    .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
-    .slice(0, 25)
-    .map((j) => ({ jobId: j.id, branch: j.branch, customerName: j.customerName, customerPlateNo: j.plateNo, date: j.createdAt }));
-
   return (
     <div className="min-h-screen bg-gradient-to-b from-red-50 via-neutral-50 to-neutral-50">
       <Suspense fallback={null}>
@@ -140,22 +123,9 @@ export default async function ScanPage({ searchParams }: { searchParams: Promise
       </div>
       <div className="p-4">
         {canScanJobsheet && canUploadGenblu ? (
-          <ScanTabs
-            jobsheet={jobsheetForm}
-            genblu={
-              <GenbluPanel
-                recentJobs={recentJobs}
-                branchSelection={branchSelection}
-                defaultMode={currentUser.role === "Mechanic" ? "link" : "log"}
-              />
-            }
-          />
+          <ScanTabs jobsheet={jobsheetForm} genblu={<GenbluPanel branchSelection={branchSelection} />} />
         ) : canUploadGenblu ? (
-          <GenbluPanel
-            recentJobs={recentJobs}
-            branchSelection={branchSelection}
-            defaultMode={currentUser.role === "Mechanic" ? "link" : "log"}
-          />
+          <GenbluPanel branchSelection={branchSelection} />
         ) : (
           jobsheetForm
         )}

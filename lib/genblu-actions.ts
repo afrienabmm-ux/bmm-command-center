@@ -326,87 +326,6 @@ export async function ensureGenbluRegistrationAction(input: {
   return { created: true };
 }
 
-// Used by the standalone phone Upload page, where uploading the photo IS
-// the action — unlike ensureGenbluRegistrationAction (which skips the
-// upload once a customer is already registered, since the jobsheet form
-// that calls it only needs the screenshot once), this always attaches the
-// screenshot: onto the existing registration if the customer already has
-// one (adding this screenshot's points to their running total — see the
-// comment below), or a newly created one otherwise.
-export async function attachGenbluScreenshotAction(input: {
-  branch: Branch;
-  customerName: string;
-  customerPlateNo: string;
-  screenshot: File;
-}): Promise<{ error: string } | { updated: boolean }> {
-  const user = await requireApproved();
-  assertCanEditBranch(user, input.branch);
-
-  const customerName = input.customerName.trim();
-  if (!customerName) return { error: "Customer name is required." };
-  if (input.screenshot.size === 0) return { error: "Pick a screenshot to upload." };
-
-  let nameMatches = true;
-  let pointsAccrued: number | null = null;
-  try {
-    const analysis = await analyzeGenbluScreenshot(input.screenshot, customerName);
-    nameMatches = analysis.nameMatches;
-    pointsAccrued = analysis.pointsAccrued;
-  } catch {
-    nameMatches = true;
-  }
-  if (!nameMatches) {
-    return {
-      error: `The name on the screenshot doesn't match "${customerName}" — please check it's the right screenshot and try again.`,
-    };
-  }
-
-  const ext = input.screenshot.name.split(".").pop() || "jpg";
-  const path = `${input.branch}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
-  const { error: uploadError } = await supabaseAdmin.storage.from(BUCKET).upload(path, input.screenshot, {
-    contentType: input.screenshot.type || "image/jpeg",
-  });
-  if (uploadError) return { error: `Couldn't upload the screenshot: ${uploadError.message}` };
-
-  const { data: existing, error: fetchError } = await supabaseAdmin
-    .from("cc_genblu_registrations")
-    .select("id, customer_name, points_accrued")
-    .eq("branch", input.branch);
-  if (fetchError) return { error: fetchError.message };
-  const match = (existing ?? []).find((r) => normalizeName(r.customer_name) === normalizeName(customerName));
-
-  if (match) {
-    // Each screenshot is proof of one award (points the admin gave the
-    // customer on that visit — the "deducted" wording on it is from the
-    // admin's own account, not the customer's), not a snapshot of their
-    // whole balance. A repeat upload adds to the running total on file
-    // instead of replacing it, so points from earlier visits aren't lost.
-    // If this screenshot's amount couldn't be read, the total is left as
-    // it was rather than being reset to null.
-    const newTotal = pointsAccrued === null ? match.points_accrued : (match.points_accrued ?? 0) + pointsAccrued;
-    const { error } = await supabaseAdmin
-      .from("cc_genblu_registrations")
-      .update({ screenshot_path: path, points_accrued: newTotal })
-      .eq("id", match.id);
-    if (error) return { error: error.message };
-  } else {
-    const { error } = await supabaseAdmin.from("cc_genblu_registrations").insert({
-      branch: input.branch,
-      salesperson_name: user.name,
-      salesperson_code: initialsFromName(user.name),
-      customer_name: customerName,
-      customer_plate_no: input.customerPlateNo.trim(),
-      screenshot_path: path,
-      points_accrued: pointsAccrued,
-    });
-    if (error) return { error: error.message };
-  }
-
-  await logActivity(user, "Uploaded GenBlu screenshot", `${customerName} (${input.branch})`);
-  revalidatePath("/genblu");
-  return { updated: true };
-}
-
 const TRANSACTIONS_BUCKET = "genblu-screenshots";
 
 const MONTHS: Record<string, number> = {
@@ -485,6 +404,7 @@ type TransactionRow = {
   screenshot_path: string | null;
   uploaded_by: string | null;
   created_at: string;
+  registration_id: string | null;
 };
 
 function toTransaction(r: TransactionRow): GenbluTransaction {
@@ -501,6 +421,7 @@ function toTransaction(r: TransactionRow): GenbluTransaction {
     screenshotPath: r.screenshot_path,
     uploadedBy: r.uploaded_by,
     createdAt: r.created_at,
+    registrationId: r.registration_id,
   };
 }
 
@@ -508,11 +429,18 @@ function toTransaction(r: TransactionRow): GenbluTransaction {
 // has no manual inputs for these, by design (photo evidence, not typed
 // numbers someone could fat-finger or fudge). Branch is the one exception,
 // since it never appears on the GenBlu app screen itself.
+//
+// One upload now drives both GenBlu views: this logs the award (for the
+// monthly counts/points totals) AND finds-or-creates the matching Tracker
+// registration for this customer, adding this award's points to their
+// running total there too — previously those were two separate uploads
+// (GenBlu Register / Point Allocation) that had to be done by hand to stay
+// in sync.
 export async function addGenbluTransactionAction(input: {
   branch: Branch;
   screenshot: File;
   serviceCoupon: boolean;
-}): Promise<{ error: string } | { transaction: GenbluTransaction }> {
+}): Promise<{ error: string } | { transaction: GenbluTransaction; registrationCreated: boolean }> {
   const user = await requireApproved();
   assertCanEditBranch(user, input.branch);
   if (input.screenshot.size === 0) return { error: "Pick a screenshot to upload." };
@@ -541,6 +469,44 @@ export async function addGenbluTransactionAction(input: {
   });
   if (uploadError) return { error: `Couldn't upload the screenshot: ${uploadError.message}` };
 
+  const { data: existingRegs, error: regFetchError } = await supabaseAdmin
+    .from("cc_genblu_registrations")
+    .select("id, customer_name, points_accrued")
+    .eq("branch", input.branch);
+  if (regFetchError) return { error: regFetchError.message };
+  const matchedReg = (existingRegs ?? []).find((r) => normalizeName(r.customer_name) === normalizeName(customerName));
+
+  let registrationId: string;
+  let registrationCreated = false;
+  if (matchedReg) {
+    registrationId = matchedReg.id;
+    const { error: updateError } = await supabaseAdmin
+      .from("cc_genblu_registrations")
+      .update({ points_accrued: (matchedReg.points_accrued ?? 0) + points })
+      .eq("id", matchedReg.id);
+    if (updateError) return { error: updateError.message };
+  } else {
+    // No Tracker entry for this customer yet — the transaction screenshot
+    // has no plate number, so this starts blank and can be filled in later
+    // from the Tracker tab if needed.
+    const { data: newReg, error: insertRegError } = await supabaseAdmin
+      .from("cc_genblu_registrations")
+      .insert({
+        branch: input.branch,
+        salesperson_name: user.name,
+        salesperson_code: initialsFromName(user.name),
+        customer_name: customerName,
+        customer_plate_no: "",
+        screenshot_path: path,
+        points_accrued: points,
+      })
+      .select("id")
+      .single();
+    if (insertRegError) return { error: insertRegError.message };
+    registrationId = newReg.id;
+    registrationCreated = true;
+  }
+
   const { data, error } = await supabaseAdmin
     .from("cc_genblu_transactions")
     .insert({
@@ -554,14 +520,19 @@ export async function addGenbluTransactionAction(input: {
       service_coupon: input.serviceCoupon,
       screenshot_path: path,
       uploaded_by: user.name,
+      registration_id: registrationId,
     })
     .select("*")
     .single();
   if (error) return { error: error.message };
 
-  await logActivity(user, "Logged GenBlu point allocation", `${customerName} — ${points} pts (${input.branch})`);
+  await logActivity(
+    user,
+    "Logged GenBlu point allocation",
+    `${customerName} — ${points} pts (${input.branch})${registrationCreated ? ", added to Tracker" : ""}`
+  );
   revalidatePath("/genblu");
-  return { transaction: toTransaction(data as TransactionRow) };
+  return { transaction: toTransaction(data as TransactionRow), registrationCreated };
 }
 
 export async function getGenbluTransactions(branch: Branch): Promise<GenbluTransaction[]> {
