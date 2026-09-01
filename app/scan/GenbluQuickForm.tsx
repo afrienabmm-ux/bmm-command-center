@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { CheckCircle2, ChevronDown, Search } from "lucide-react";
-import { attachGenbluScreenshotAction } from "@/lib/genblu-actions";
+import { attachGenbluScreenshotAction, scanGenbluScreenshotForNameAction } from "@/lib/genblu-actions";
 import { BRANCHES, branchLabel, type Branch, type BranchSelection } from "@/lib/branch";
 import { formatDate } from "@/lib/format";
 
@@ -37,9 +37,26 @@ export default function GenbluQuickForm({
   const [manualCustomerName, setManualCustomerName] = useState("");
   const [manualPlateNo, setManualPlateNo] = useState("");
   const [screenshot, setScreenshot] = useState<File | null>(null);
+  const [scanningName, setScanningName] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
   const [isPending, startTransition] = useTransition();
+
+  // For a brand new customer there's no jobsheet to pull the name from —
+  // but the screenshot itself (the GenBlu app's home screen) already shows
+  // it printed right at the top, so reading it off there beats asking
+  // staff to retype what they can already see on the photo they just took.
+  function handleScreenshotChange(file: File | null) {
+    setScreenshot(file);
+    if (file && !hasJobsheet) {
+      setScanningName(true);
+      scanGenbluScreenshotForNameAction(file)
+        .then((result) => {
+          if (result.customerName) setManualCustomerName(result.customerName);
+        })
+        .finally(() => setScanningName(false));
+    }
+  }
 
   const filteredJobs = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -163,6 +180,18 @@ export default function GenbluQuickForm({
       ) : (
         <div className="space-y-4">
           <div>
+            <label className="block text-xs font-medium text-neutral-600 mb-1.5">Points Screenshot *</label>
+            <input
+              type="file"
+              accept="image/*"
+              onChange={(e) => handleScreenshotChange(e.target.files?.[0] ?? null)}
+              className="w-full text-sm text-neutral-700 file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:bg-neutral-100 file:text-neutral-800 file:text-xs"
+            />
+            <p className="text-[11px] text-neutral-500 mt-1.5">
+              {scanningName ? "Reading the customer's name off the screenshot…" : "Upload the app's home screen — the name below fills in automatically."}
+            </p>
+          </div>
+          <div>
             <label className="block text-xs font-medium text-neutral-600 mb-1.5">Branch</label>
             <div className="relative">
               <select
@@ -186,6 +215,7 @@ export default function GenbluQuickForm({
               type="text"
               value={manualCustomerName}
               onChange={(e) => setManualCustomerName(e.target.value)}
+              placeholder={scanningName ? "Reading name from screenshot…" : "Fills in from the screenshot — edit if it's wrong"}
               className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
             />
           </div>
@@ -201,15 +231,17 @@ export default function GenbluQuickForm({
         </div>
       )}
 
-      <div className="mt-4">
-        <label className="block text-xs font-medium text-neutral-600 mb-1.5">Points Screenshot *</label>
-        <input
-          type="file"
-          accept="image/*"
-          onChange={(e) => setScreenshot(e.target.files?.[0] ?? null)}
-          className="w-full text-sm text-neutral-700 file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:bg-neutral-100 file:text-neutral-800 file:text-xs"
-        />
-      </div>
+      {hasJobsheet && (
+        <div className="mt-4">
+          <label className="block text-xs font-medium text-neutral-600 mb-1.5">Points Screenshot *</label>
+          <input
+            type="file"
+            accept="image/*"
+            onChange={(e) => handleScreenshotChange(e.target.files?.[0] ?? null)}
+            className="w-full text-sm text-neutral-700 file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:bg-neutral-100 file:text-neutral-800 file:text-xs"
+          />
+        </div>
+      )}
 
       {error && <p className="text-sm text-red-700 mt-4">{error}</p>}
       {done && !isPending && (
@@ -221,7 +253,7 @@ export default function GenbluQuickForm({
       <button
         type="button"
         onClick={handleSubmit}
-        disabled={isPending || !canSubmit}
+        disabled={isPending || scanningName || !canSubmit}
         className="w-full bg-red-500 hover:bg-red-400 disabled:opacity-50 text-white text-sm font-medium px-4 py-2.5 rounded-lg transition-colors mt-4"
       >
         {isPending ? "Uploading…" : "Upload"}

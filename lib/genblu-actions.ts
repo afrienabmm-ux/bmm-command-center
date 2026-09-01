@@ -125,6 +125,44 @@ async function analyzeGenbluScreenshot(
   return { nameMatches, pointsReading: extractPointsAccrued(text) };
 }
 
+// The GenBlu app's home screen (used when registering a brand new customer
+// with no jobsheet on file to pull a name from) prints the customer's name
+// as the very first line, directly above their phone number — anchoring on
+// that phone-number line is far more reliable than guessing which of many
+// all-caps-looking lines on a busy home screen (menu labels, promo banners)
+// is actually the name.
+function extractHomeScreenCustomerName(text: string): string | null {
+  const lines = text
+    .split("\n")
+    .map((l) => l.trim())
+    .filter(Boolean);
+  const phoneIdx = lines.findIndex((l) => /^\d{2,4}[-\s]\d{3,4}[-\s]\d{3,4}$/.test(l));
+  if (phoneIdx > 0) {
+    const candidate = lines[phoneIdx - 1];
+    if (/^[A-Za-z][A-Za-z .'-]{3,}$/.test(candidate)) return candidate;
+  }
+  // Fallback — the longest name-shaped line among the first few lines,
+  // since the name always sits right at the top of this screen.
+  const candidates = lines.slice(0, 5).filter((l) => /^[A-Za-z][A-Za-z .'-]{3,}$/.test(l));
+  if (candidates.length === 0) return null;
+  return candidates.reduce((a, b) => (b.length > a.length ? b : a));
+}
+
+// Called as soon as a mechanic picks a screenshot in the "No Jobsheet — New
+// Customer" flow, so the name field can fill itself in instead of asking
+// staff to retype what's already on the screen they just uploaded.
+export async function scanGenbluScreenshotForNameAction(screenshot: File): Promise<{ customerName: string | null }> {
+  await requireApproved();
+  try {
+    const buffer = Buffer.from(await screenshot.arrayBuffer());
+    const base64 = buffer.toString("base64");
+    const text = await extractTextFromImage(base64);
+    return { customerName: extractHomeScreenCustomerName(text) };
+  } catch {
+    return { customerName: null };
+  }
+}
+
 export async function getGenbluRegistrations(branch: Branch): Promise<GenbluRegistration[]> {
   await requireApproved();
   const { data, error } = await supabaseAdmin
