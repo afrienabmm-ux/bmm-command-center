@@ -81,6 +81,7 @@ type Row = {
   qc_fail_followup_date: string | null;
   signature_status: string;
   jobsheet_photo_path: string | null;
+  remark: string;
   cc_repair_job_items: ItemRow[] | null;
 };
 
@@ -141,6 +142,7 @@ function toJob(r: Row): RepairJob {
     qcFailFollowupDate: r.qc_fail_followup_date,
     signatureStatus: r.signature_status,
     jobsheetPhotoPath: r.jobsheet_photo_path,
+    remark: r.remark,
   };
 }
 
@@ -965,6 +967,18 @@ export async function setQcResultAction(
 // (see the "completed" stage check in setRestoreBikeWorkflowDateAction),
 // so a failure reason can't just sit there unaddressed. Same toggle
 // behaviour as the other workflow stamps: clicking again un-stamps it.
+// Restore Bike — free-text note, edited directly from the list rather
+// than through the full edit form, same as the other click-to-edit cells.
+export async function updateRepairRemarkAction(id: string, branch: Branch, remark: string): Promise<{ error: string } | void> {
+  const user = await requireApproved();
+  assertCanEditBranch(user, branch);
+  const { error } = await supabaseAdmin.from("cc_repair_jobs").update({ remark: remark.trim() }).eq("id", id);
+  if (error) return { error: error.message };
+  await logActivity(user, "Set Restore Bike remark", `job ${id}`);
+  revalidatePath("/repairs");
+  revalidatePath("/");
+}
+
 export async function setQcFailFollowupAction(id: string, branch: Branch, value: string | null): Promise<{ error: string } | void> {
   const user = await requireApproved();
   assertCanEditBranch(user, branch);

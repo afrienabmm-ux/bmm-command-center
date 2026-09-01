@@ -187,6 +187,9 @@ export type RepairJob = {
   // Restore Bike photos (private bucket, path only; resolved to a signed
   // URL on read). Null for jobs entered by hand, without scanning.
   jobsheetPhotoPath: string | null;
+  // Restore Bike — free-text note the PIC can add/edit directly from the
+  // list, for anything not covered by its own dedicated field.
+  remark: string;
 };
 
 export const RESTORE_BIKE_CONDITIONS = ["L", "H"] as const;

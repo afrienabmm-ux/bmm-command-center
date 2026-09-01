@@ -8,6 +8,7 @@ import {
   setRestoreBikeWorkflowDateAction,
   setQcResultAction,
   setQcFailFollowupAction,
+  updateRepairRemarkAction,
   deleteRepairJobAction,
 } from "@/lib/repairs-actions";
 import {
@@ -164,8 +165,9 @@ export default function RepairsClient({
       j.startedDate ? formatDate(j.startedDate) : "",
       j.completedDate ? formatDate(j.completedDate) : "",
       j.revenueAmount.toFixed(2),
-      j.dealType,
       j.approvalStatus,
+      j.dealType,
+      j.remark,
       j.status,
     ]);
     const csv = toCsv(
@@ -181,8 +183,9 @@ export default function RepairsClient({
         "Start Date",
         "End Date",
         "Cost Restore (RM)",
-        "Trade In / Tarik",
         "Approval",
+        "Trade In / Tarik",
+        "Remark",
         "Status",
       ],
       rows
@@ -318,11 +321,12 @@ export default function RepairsClient({
                 <th className="font-medium px-5 py-3 whitespace-nowrap">Condition</th>
                 <th className="font-medium px-5 py-3 whitespace-nowrap">Cost Restore</th>
                 <th className="font-medium px-5 py-3 whitespace-nowrap text-center">Approval</th>
+                <th className="font-medium px-5 py-3 whitespace-nowrap text-center">Trade In / Tarik / Jual</th>
+                <th className="font-medium px-5 py-3 whitespace-nowrap">Remark</th>
                 <th className="font-medium px-5 py-3 whitespace-nowrap text-center">Part Order</th>
                 <th className="font-medium px-5 py-3 whitespace-nowrap text-center">Part Arrive</th>
                 <th className="font-medium px-5 py-3 whitespace-nowrap text-center">Start Date</th>
                 <th className="font-medium px-5 py-3 whitespace-nowrap text-center">End Date</th>
-                <th className="font-medium px-5 py-3 whitespace-nowrap text-center">Trade In / Tarik / Jual</th>
                 <th className="font-medium px-5 py-3 whitespace-nowrap text-center">Status</th>
                 {tab === "qc" && <th className="font-medium px-5 py-3 whitespace-nowrap text-center">QC Result</th>}
                 <th className="px-5 py-3" />
@@ -344,7 +348,7 @@ export default function RepairsClient({
               {jobs.length === 0 && (
                 <tr>
                   <td
-                    colSpan={17 + (tab === "qc" ? 1 : 0)}
+                    colSpan={18 + (tab === "qc" ? 1 : 0)}
                     className="px-5 py-10 text-center text-neutral-500 text-sm"
                   >
                     {tabJobs.length === 0
@@ -930,6 +934,39 @@ function ItemsDetailModal({ job, onClose }: { job: RepairJob; onClose: () => voi
   );
 }
 
+// Free-text note the PIC types straight into the list — saves on blur (or
+// Enter), same click-to-edit feel as the date/status cells beside it.
+function RemarkCell({ job, editable }: { job: RepairJob; editable: boolean }) {
+  const [value, setValue] = useState(job.remark);
+  const [isPending, startTransition] = useTransition();
+
+  function save() {
+    if (value === job.remark) return;
+    startTransition(async () => {
+      await updateRepairRemarkAction(job.id, job.branch, value);
+    });
+  }
+
+  if (!editable) {
+    return <span className="text-neutral-600 whitespace-nowrap">{job.remark || "—"}</span>;
+  }
+
+  return (
+    <input
+      type="text"
+      value={value}
+      onChange={(e) => setValue(e.target.value)}
+      onBlur={save}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") e.currentTarget.blur();
+      }}
+      disabled={isPending}
+      placeholder="Add a remark…"
+      className="w-40 bg-neutral-50 border border-neutral-200 rounded-lg px-2.5 py-1.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50 disabled:opacity-50"
+    />
+  );
+}
+
 function OverdueBadge({ job }: { job: RepairJob }) {
   if (!isOverdue(job)) return null;
   return (
@@ -1013,6 +1050,10 @@ function RestoreBikeRow({
       <td className="px-5 py-3.5 text-center">
         <ApprovalCell job={job} canApprove={isManagement} />
       </td>
+      <td className="px-5 py-3.5 text-neutral-600 whitespace-nowrap text-center">{job.dealType || "—"}</td>
+      <td className="px-5 py-3.5">
+        <RemarkCell job={job} editable={editable} />
+      </td>
       <td className="px-5 py-3.5 text-center">
         <StockDateCell job={job} branch={job.branch} stage="stockOrder" editable={editable} />
       </td>
@@ -1028,7 +1069,6 @@ function RestoreBikeRow({
       <td className="px-5 py-3.5 text-center">
         <RepairDateCell job={job} stage="completed" editable={editable} />
       </td>
-      <td className="px-5 py-3.5 text-neutral-600 whitespace-nowrap text-center">{job.dealType || "—"}</td>
       <td className="px-5 py-3.5 text-center">
         <StatusCell job={job} editable={editable} />
       </td>
