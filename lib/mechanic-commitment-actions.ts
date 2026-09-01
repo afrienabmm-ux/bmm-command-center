@@ -67,7 +67,9 @@ export async function getMechanicCommitment(branch?: Branch, targetDate?: string
   let mechanicsQuery = supabaseAdmin.from("cc_mechanics").select("id, full_name, short_code, branch").eq("status", "Active");
   if (branch) mechanicsQuery = mechanicsQuery.eq("branch", branch);
 
-  const [{ data: mechanics, error: mErr }, { data: jobs, error: jErr }] = await Promise.all([
+  type SaleWithPrice = { mechanic_id: string | null; cc_packages: { price: number } | null };
+
+  const [{ data: mechanics, error: mErr }, { data: jobs, error: jErr }, { data: sales, error: sErr }] = await Promise.all([
     mechanicsQuery,
     // Jobsheet (Walk-in) revenue only — Restore Bike jobs don't count
     // toward the daily pace.
@@ -77,14 +79,21 @@ export async function getMechanicCommitment(branch?: Branch, targetDate?: string
       .eq("job_type", "Walk-in")
       .gte("started_date", weekStart)
       .lte("started_date", today),
+    // Services Combo sales count toward today's revenue too — a package
+    // sold today is still money brought in today, same as a jobsheet.
+    supabaseAdmin.from("cc_package_sales").select("mechanic_id, cc_packages(price)").eq("sale_date", today),
   ]);
   if (mErr) throw new Error(mErr.message);
   if (jErr) throw new Error(jErr.message);
+  if (sErr) throw new Error(sErr.message);
 
   const rows: MechanicCommitmentRow[] = (mechanics ?? []).map((m) => {
     const weekOwn = (jobs ?? []).filter((j) => j.mechanic_id === m.id);
     const todayOwn = weekOwn.filter((j) => j.started_date === today);
-    const revenue = todayOwn.reduce((s, j) => s + Number(j.revenue_amount), 0);
+    const todayPackages = ((sales ?? []) as unknown as SaleWithPrice[]).filter((s) => s.mechanic_id === m.id);
+    const revenue =
+      todayOwn.reduce((s, j) => s + Number(j.revenue_amount), 0) +
+      todayPackages.reduce((s, sale) => s + Number(sale.cc_packages?.price ?? 0), 0);
     const restoreBikeCount = todayOwn.filter((j) => j.job_type === "Restore Bike").length;
 
     let streakDays = 0;
