@@ -188,20 +188,21 @@ export async function addGenbluRegistrationAction(formData: FormData): Promise<{
   let screenshotPath: string | null = null;
   let pointsAccrued: number | null = null;
   if (screenshot && screenshot.size > 0) {
-    try {
-      const reading = (await analyzeGenbluScreenshot(screenshot, customerName)).pointsReading;
-      pointsAccrued = applyPointsReading(null, reading);
-    } catch {
-      // Points extraction is a bonus, not a requirement — don't block the
-      // registration if OCR hiccups.
-    }
     const ext = screenshot.name.split(".").pop() || "jpg";
     const path = `${branch}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
-    const { error: uploadError } = await supabaseAdmin.storage.from(BUCKET).upload(path, screenshot, {
-      contentType: screenshot.type || "image/jpeg",
-    });
-    if (uploadError) return { error: `Couldn't upload the screenshot: ${uploadError.message}` };
+    // OCR and the storage upload don't depend on each other — run them
+    // together instead of waiting for OCR before even starting the upload.
+    const [reading, uploadResult] = await Promise.all([
+      analyzeGenbluScreenshot(screenshot, customerName)
+        .then((a) => a.pointsReading)
+        // Points extraction is a bonus, not a requirement — don't block the
+        // registration if OCR hiccups.
+        .catch(() => null),
+      supabaseAdmin.storage.from(BUCKET).upload(path, screenshot, { contentType: screenshot.type || "image/jpeg" }),
+    ]);
+    if (uploadResult.error) return { error: `Couldn't upload the screenshot: ${uploadResult.error.message}` };
     screenshotPath = path;
+    pointsAccrued = applyPointsReading(null, reading);
   }
 
   const { error } = await supabaseAdmin.from("cc_genblu_registrations").insert({
@@ -249,20 +250,21 @@ export async function updateGenbluRegistrationAction(
   };
 
   if (input.screenshot && input.screenshot.size > 0) {
-    try {
-      const reading = (await analyzeGenbluScreenshot(input.screenshot, input.customerName)).pointsReading;
-      const { data: existing } = await supabaseAdmin.from("cc_genblu_registrations").select("points_accrued").eq("id", id).single();
-      update.points_accrued = applyPointsReading(existing?.points_accrued ?? null, reading);
-    } catch {
-      // Points extraction is a bonus, not a requirement — don't block the save.
-    }
     const ext = input.screenshot.name.split(".").pop() || "jpg";
     const path = `${branch}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
-    const { error: uploadError } = await supabaseAdmin.storage.from(BUCKET).upload(path, input.screenshot, {
-      contentType: input.screenshot.type || "image/jpeg",
-    });
-    if (uploadError) return { error: `Couldn't upload the screenshot: ${uploadError.message}` };
+    // OCR, the storage upload, and reading the existing points total are
+    // all independent of each other — run them together.
+    const [reading, uploadResult, existing] = await Promise.all([
+      analyzeGenbluScreenshot(input.screenshot, input.customerName)
+        .then((a) => a.pointsReading)
+        // Points extraction is a bonus, not a requirement — don't block the save.
+        .catch(() => null),
+      supabaseAdmin.storage.from(BUCKET).upload(path, input.screenshot, { contentType: input.screenshot.type || "image/jpeg" }),
+      supabaseAdmin.from("cc_genblu_registrations").select("points_accrued").eq("id", id).single().then((r) => r.data),
+    ]);
+    if (uploadResult.error) return { error: `Couldn't upload the screenshot: ${uploadResult.error.message}` };
     update.screenshot_path = path;
+    update.points_accrued = applyPointsReading(existing?.points_accrued ?? null, reading);
   }
 
   const { error } = await supabaseAdmin.from("cc_genblu_registrations").update(update).eq("id", id);
@@ -329,28 +331,26 @@ export async function ensureGenbluRegistrationAction(input: {
   let pointsAccrued: number | null = null;
   const screenshot = input.screenshot;
   if (screenshot && screenshot.size > 0) {
-    let nameMatches = true;
-    try {
-      const analysis = await analyzeGenbluScreenshot(screenshot, customerName);
-      nameMatches = analysis.nameMatches;
-      pointsAccrued = applyPointsReading(null, analysis.pointsReading);
-    } catch {
-      // If the OCR check itself fails (e.g. Vision hiccup), don't block
-      // the registration over it — just skip the verification.
-      nameMatches = true;
-    }
+    const ext = screenshot.name.split(".").pop() || "jpg";
+    const path = `${input.branch}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+    // The name-match check and the storage upload don't depend on each
+    // other, so run them together — on a mismatch the upload is simply
+    // discarded (its path never gets saved anywhere), same as any other
+    // save that fails after the file is already uploaded.
+    const [analysis, uploadResult] = await Promise.all([
+      analyzeGenbluScreenshot(screenshot, customerName).catch(() => null),
+      supabaseAdmin.storage.from(BUCKET).upload(path, screenshot, { contentType: screenshot.type || "image/jpeg" }),
+    ]);
+    if (uploadResult.error) return { error: `Couldn't upload the GenBlu screenshot: ${uploadResult.error.message}` };
+    // If the OCR check itself fails (e.g. Vision hiccup), don't block the
+    // registration over it — just skip the verification.
+    const nameMatches = analysis?.nameMatches ?? true;
     if (!nameMatches) {
       return {
         error: `The name on the GenBlu screenshot doesn't match "${customerName}" — please check the screenshot is for the right customer and try again.`,
       };
     }
-
-    const ext = screenshot.name.split(".").pop() || "jpg";
-    const path = `${input.branch}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
-    const { error: uploadError } = await supabaseAdmin.storage.from(BUCKET).upload(path, screenshot, {
-      contentType: screenshot.type || "image/jpeg",
-    });
-    if (uploadError) return { error: `Couldn't upload the GenBlu screenshot: ${uploadError.message}` };
+    pointsAccrued = applyPointsReading(null, analysis?.pointsReading ?? null);
     screenshotPath = path;
   }
 
@@ -389,27 +389,22 @@ export async function attachGenbluScreenshotAction(input: {
   if (!customerName) return { error: "Customer name is required." };
   if (input.screenshot.size === 0) return { error: "Pick a screenshot to upload." };
 
-  let nameMatches = true;
-  let pointsReading: PointsReading | null = null;
-  try {
-    const analysis = await analyzeGenbluScreenshot(input.screenshot, customerName);
-    nameMatches = analysis.nameMatches;
-    pointsReading = analysis.pointsReading;
-  } catch {
-    nameMatches = true;
-  }
+  const ext = input.screenshot.name.split(".").pop() || "jpg";
+  const path = `${input.branch}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+  // The name-match check and the storage upload don't depend on each
+  // other, so run them together instead of one after the other.
+  const [analysis, uploadResult] = await Promise.all([
+    analyzeGenbluScreenshot(input.screenshot, customerName).catch(() => null),
+    supabaseAdmin.storage.from(BUCKET).upload(path, input.screenshot, { contentType: input.screenshot.type || "image/jpeg" }),
+  ]);
+  if (uploadResult.error) return { error: `Couldn't upload the screenshot: ${uploadResult.error.message}` };
+  const nameMatches = analysis?.nameMatches ?? true;
   if (!nameMatches) {
     return {
       error: `The name on the screenshot doesn't match "${customerName}" — please check it's the right screenshot and try again.`,
     };
   }
-
-  const ext = input.screenshot.name.split(".").pop() || "jpg";
-  const path = `${input.branch}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
-  const { error: uploadError } = await supabaseAdmin.storage.from(BUCKET).upload(path, input.screenshot, {
-    contentType: input.screenshot.type || "image/jpeg",
-  });
-  if (uploadError) return { error: `Couldn't upload the screenshot: ${uploadError.message}` };
+  const pointsReading = analysis?.pointsReading ?? null;
 
   const { data: existing, error: fetchError } = await supabaseAdmin
     .from("cc_genblu_registrations")

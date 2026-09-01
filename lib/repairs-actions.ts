@@ -1034,17 +1034,23 @@ export async function uploadRestoreBikeImagesAction(
   const room = MAX_RESTORE_BIKE_PHOTOS - existingPaths.length;
   if (room <= 0) return { error: `Already has ${MAX_RESTORE_BIKE_PHOTOS} photos — remove one before adding more.` };
 
+  // Uploaded together instead of one-at-a-time — each photo's path is
+  // already unique (timestamp + random suffix), so there's no ordering
+  // dependency between them.
   const toUpload = files.slice(0, room);
-  const newPaths: string[] = [];
-  for (const file of toUpload) {
-    const ext = file.name.split(".").pop() || "jpg";
-    const path = `${branch}/${jobId}-${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
-    const { error: uploadError } = await supabaseAdmin.storage
-      .from(RESTORE_BIKE_PHOTO_BUCKET)
-      .upload(path, file, { contentType: file.type || "image/jpeg" });
-    if (uploadError) return { error: `Couldn't upload the photo: ${uploadError.message}` };
-    newPaths.push(path);
-  }
+  const uploads = await Promise.all(
+    toUpload.map(async (file) => {
+      const ext = file.name.split(".").pop() || "jpg";
+      const path = `${branch}/${jobId}-${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+      const { error: uploadError } = await supabaseAdmin.storage
+        .from(RESTORE_BIKE_PHOTO_BUCKET)
+        .upload(path, file, { contentType: file.type || "image/jpeg" });
+      return { path, uploadError };
+    })
+  );
+  const failed = uploads.find((u) => u.uploadError);
+  if (failed) return { error: `Couldn't upload the photo: ${failed.uploadError!.message}` };
+  const newPaths = uploads.map((u) => u.path);
 
   const { error } = await supabaseAdmin
     .from("cc_repair_jobs")

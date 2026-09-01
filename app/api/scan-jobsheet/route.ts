@@ -19,19 +19,22 @@ export async function POST(req: NextRequest) {
 
   const buffer = Buffer.from(await file.arrayBuffer());
   const base64 = buffer.toString("base64");
-  const result = await scanJobsheet(base64, file.type);
-  if ("error" in result) return NextResponse.json(result);
 
   // Keep the original photo the mechanic uploaded so a manager can look at
   // it directly in the dashboard later, whenever the automated reading
   // (item rows, signature check) needs a human double-check against the
   // real thing. Best-effort — a failed upload here shouldn't fail the scan
-  // itself, since the form has already been filled in either way.
+  // itself, since the form has already been filled in either way. Runs
+  // alongside the OCR scan instead of after it — the upload doesn't depend
+  // on the scan result, so there's no reason to wait for one before
+  // starting the other.
   const ext = file.type === "application/pdf" ? "pdf" : (file.name.split(".").pop() || "jpg").toLowerCase();
   const path = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
-  const { error: uploadError } = await supabaseAdmin.storage
-    .from(JOBSHEET_PHOTO_BUCKET)
-    .upload(path, buffer, { contentType: file.type || "image/jpeg" });
+  const [result, uploadResult] = await Promise.all([
+    scanJobsheet(base64, file.type),
+    supabaseAdmin.storage.from(JOBSHEET_PHOTO_BUCKET).upload(path, buffer, { contentType: file.type || "image/jpeg" }),
+  ]);
+  if ("error" in result) return NextResponse.json(result);
 
-  return NextResponse.json({ data: result.data, photoPath: uploadError ? null : path });
+  return NextResponse.json({ data: result.data, photoPath: uploadResult.error ? null : path });
 }
