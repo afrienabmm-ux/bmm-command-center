@@ -38,7 +38,10 @@ function itemsFromJob(job: RepairJob): ItemInput[] {
 // item's description when a mechanic picks one, and what typed text is
 // matched against.
 function catalogLabel(p: CatalogProduct): string {
-  return p.spec ? `${p.productName} ${p.spec}` : p.productName;
+  const nameWithSpec = p.spec ? `${p.productName} ${p.spec}` : p.productName;
+  // Include the brand so searching "Yamalube" or "Rock Oil" surfaces every
+  // product under it — most product names don't repeat their own brand.
+  return `${p.brand} ${nameWithSpec}`;
 }
 
 function ItemsEditor({
