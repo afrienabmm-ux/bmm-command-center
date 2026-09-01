@@ -102,10 +102,14 @@ export default async function ScanPage({ searchParams }: { searchParams: Promise
   // one thing they can do here. Staff on their own account still get both.
   const isFieldScanner = currentUser.email === process.env.FIELD_SCANNER_EMAIL;
   const canUploadGenblu = !isFieldScanner && hasPageAccess(currentUser, "genblu");
-  // Front Desk can see Jobsheet on desktop but never add/edit one — so the
-  // phone page skips straight to GenBlu (their actual task) instead of
-  // offering the jobsheet-scanning tab at all.
-  const canScanJobsheet = currentUser.role !== "Front Desk";
+  // Front Desk now scans jobsheets from the phone too (previously skipped
+  // straight to GenBlu, since they're read-only on Jobsheet on desktop) —
+  // remindGenbluAfterSave below is what makes sure the GenBlu step still
+  // actually happens once they do.
+  // Front Desk in particular tends to save a jobsheet and stop there — a
+  // soft nudge (not a hard block) straight to the GenBlu tab after saving,
+  // rather than requiring the two steps to be combined into one form.
+  const remindGenbluAfterSave = currentUser.role === "Front Desk";
 
   // Most recent Walk-in jobs (active or completed) — lets the GenBlu form
   // offer picking the customer's name off a known jobsheet instead of
@@ -139,23 +143,20 @@ export default async function ScanPage({ searchParams }: { searchParams: Promise
         </form>
       </div>
       <div className="p-4">
-        {canScanJobsheet && canUploadGenblu ? (
-          <ScanTabs
-            jobsheet={jobsheetForm}
-            genblu={
-              <GenbluPanel
-                recentJobs={recentJobs}
-                branchSelection={branchSelection}
-                defaultMode={currentUser.role === "Mechanic" ? "link" : "log"}
-              />
-            }
-          />
-        ) : canUploadGenblu ? (
-          <GenbluPanel
-            recentJobs={recentJobs}
-            branchSelection={branchSelection}
-            defaultMode={currentUser.role === "Mechanic" ? "link" : "log"}
-          />
+        {canUploadGenblu ? (
+          <Suspense fallback={jobsheetForm}>
+            <ScanTabs
+              jobsheet={jobsheetForm}
+              remindGenbluAfterSave={remindGenbluAfterSave}
+              genblu={
+                <GenbluPanel
+                  recentJobs={recentJobs}
+                  branchSelection={branchSelection}
+                  defaultMode={currentUser.role === "Mechanic" ? "link" : "log"}
+                />
+              }
+            />
+          </Suspense>
         ) : (
           jobsheetForm
         )}
