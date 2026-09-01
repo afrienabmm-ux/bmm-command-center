@@ -166,11 +166,11 @@ export default async function ReportDetailPage({ params }: { params: Promise<{ t
       { key: "points", label: "Points" },
       { key: "productCategory", label: "Category" },
       { key: "customerName", label: "Customer Name" },
-      { key: "membershipNumber", label: "Membership No" },
+      { key: "serviceCoupon", label: "Service Coupon" },
       { key: "branch", label: "Branch" },
     ];
     dateField = "transactionDate";
-    searchFields = ["customerName", "membershipNumber"];
+    searchFields = ["customerName"];
     imageField = "screenshotUrl";
     rows = txns.map((t, i) => ({
       transactionDate: t.transactionDate ?? "",
@@ -178,7 +178,7 @@ export default async function ReportDetailPage({ params }: { params: Promise<{ t
       points: t.points,
       productCategory: t.productCategory ?? "—",
       customerName: t.customerName,
-      membershipNumber: t.membershipNumber ?? "—",
+      serviceCoupon: t.serviceCoupon ? "Yes" : "No",
       branch: branchLabel(t.branch),
       screenshotUrl: screenshotUrls[i] ?? "",
     }));
