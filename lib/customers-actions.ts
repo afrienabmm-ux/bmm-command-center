@@ -85,13 +85,15 @@ export async function addCustomerCardAction(input: {
   }
   const customerPhone = input.customerPhone.trim();
 
-  const dupError = await checkCustomerCardDuplicate(customerPhone);
+  // These two checks don't depend on each other, so run them together
+  // instead of one after another — halves the DB round-trips before the
+  // actual insert.
+  const [dupError, cardNumber] = await Promise.all([
+    checkCustomerCardDuplicate(customerPhone),
+    generateUniqueCardNumber(input.branch),
+  ]);
   if (dupError) return dupError;
 
-  // Card numbers are generated here, same as the customer-facing /join
-  // self-signup — staff never type one in by hand, so there's no typo or
-  // accidental duplicate to worry about.
-  const cardNumber = await generateUniqueCardNumber(input.branch);
   const { error } = await supabaseAdmin.from("cc_customer_cards").insert({
     branch: input.branch,
     customer_name: customerName,
