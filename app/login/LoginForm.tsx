@@ -52,6 +52,11 @@ export default function LoginForm({ next }: { next?: string }) {
         </div>
       </div>
 
+      <label className="flex items-center gap-2 text-sm text-neutral-600">
+        <input type="checkbox" name="rememberMe" className="accent-red-500" />
+        Remember me on this device
+      </label>
+
       {state && "error" in state ? <p className="text-sm text-red-700">{state.error}</p> : null}
 
       <button

@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
+import { REMEMBER_ME_COOKIE, REMEMBER_ME_MAX_AGE } from "./lib/auth-cookie";
 
 const PUBLIC_PATHS = ["/login", "/signup", "/forgot-password"];
 // Customer-facing membership sign-up — no staff login needed, so every
@@ -8,6 +9,12 @@ const PUBLIC_PREFIXES = ["/join"];
 
 export async function middleware(request: NextRequest) {
   let response = NextResponse.next({ request });
+
+  // Middleware refreshes the Supabase session cookies on every request —
+  // without this, that refresh would keep resetting a "remember me" login
+  // back down to Supabase's own default (much shorter) cookie lifetime the
+  // very next time this ran.
+  const rememberMe = request.cookies.get(REMEMBER_ME_COOKIE) !== undefined;
 
   const supabase = createServerClient(
     process.env.SUPABASE_URL!,
@@ -20,7 +27,10 @@ export async function middleware(request: NextRequest) {
         setAll(cookiesToSet) {
           cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
           response = NextResponse.next({ request });
-          cookiesToSet.forEach(({ name, value, options }) => response.cookies.set(name, value, options));
+          cookiesToSet.forEach(({ name, value, options }) => {
+            const finalOptions = rememberMe ? { ...options, maxAge: REMEMBER_ME_MAX_AGE } : options;
+            response.cookies.set(name, value, finalOptions);
+          });
         },
       },
     }

@@ -1,9 +1,11 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
 import { createAuthClient } from "./supabase-auth-server";
 import { supabaseAdmin } from "./supabase-server";
 import { logActivity } from "./activity-log";
+import { REMEMBER_ME_COOKIE, REMEMBER_ME_MAX_AGE } from "./auth-cookie";
 
 export type AuthResult = { error: string } | { needsEmailConfirmation: true } | void;
 
@@ -36,13 +38,31 @@ export async function signInAction(formData: FormData): Promise<AuthResult> {
   const email = String(formData.get("email") || "").trim();
   const password = String(formData.get("password") || "");
   const next = String(formData.get("next") || "");
+  const rememberMe = formData.get("rememberMe") === "on";
 
   if (!email || !password) return { error: "Enter your email and password." };
 
-  const supabase = await createAuthClient();
+  const supabase = await createAuthClient(rememberMe);
   const { data, error } = await supabase.auth.signInWithPassword({ email, password });
 
   if (error) return { error: "Incorrect email or password." };
+
+  // A plain marker cookie, not a secret — just tells middleware (on every
+  // later request, when it refreshes the Supabase session) whether to keep
+  // stretching this session's cookies to 30 days or let them behave as a
+  // normal session cookie. Cleared on an unchecked login so a previous
+  // "remember me" choice on this device doesn't linger.
+  const cookieStore = await cookies();
+  if (rememberMe) {
+    cookieStore.set(REMEMBER_ME_COOKIE, "1", {
+      maxAge: REMEMBER_ME_MAX_AGE,
+      httpOnly: true,
+      sameSite: "lax",
+      path: "/",
+    });
+  } else {
+    cookieStore.delete(REMEMBER_ME_COOKIE);
+  }
 
   if (data.user) {
     const { data: profile } = await supabaseAdmin
@@ -73,6 +93,7 @@ export async function signOutAction(): Promise<void> {
     await logActivity({ id: user.id, name: profile?.name ?? "", email: user.email }, "Logged out");
   }
   await supabase.auth.signOut();
+  (await cookies()).delete(REMEMBER_ME_COOKIE);
   redirect("/login");
 }
 
