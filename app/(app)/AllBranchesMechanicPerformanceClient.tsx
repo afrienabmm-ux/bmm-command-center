@@ -152,6 +152,15 @@ export default function AllBranchesMechanicPerformanceClient({
   const [showAll, setShowAll] = useState(false);
   const [query, setQuery] = useState("");
 
+  // Switching branches with the top-level selector (in the page header)
+  // re-renders this component with a new branchSelection prop, but a plain
+  // useState only reads that prop once, on first mount — without this, the
+  // table's own dropdown below stayed stuck on whatever branch was active
+  // when the page first loaded, out of sync with the header.
+  useEffect(() => {
+    setBranchFilter(branchSelection ?? "all");
+  }, [branchSelection]);
+
   const filtered = useMemo(() => {
     const branchScoped = branchFilter === "all" ? rows : rows.filter((r) => r.branch === branchFilter);
     const q = query.trim().toLowerCase();
