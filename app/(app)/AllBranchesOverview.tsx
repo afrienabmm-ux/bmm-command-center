@@ -25,10 +25,10 @@ import {
   getWarrantyClaimStatusBreakdown,
   getDeliveryClaimStatusBreakdown,
   getPackageSalesBreakdown,
-  getMechanicsNotActiveToday,
   getTodayActivity,
 } from "@/lib/dashboard-breakdowns-actions";
-import IdleMechanicsNotice from "./IdleMechanicsNotice";
+import { getMechanicCommitment } from "@/lib/mechanic-commitment-actions";
+import TodaysJobCheck from "./TodaysJobCheck";
 import PackageBreakdownCharts from "./PackageBreakdownCharts";
 import RestoreBikeStatus, { type OverdueRestoreBikeDetail } from "./RestoreBikeStatus";
 import ClaimStatusPieCard from "./ClaimStatusPieCard";
@@ -77,7 +77,7 @@ export default async function AllBranchesOverview({
     deliveryClaimStatusBreakdown,
     packageBreakdown,
     activeJobs,
-    idleMechanics,
+    mechanicCommitment,
     todayActivity,
     allMechanics,
     branchMechanicRows,
@@ -102,7 +102,9 @@ export default async function AllBranchesOverview({
     getDeliveryClaimStatusBreakdown(year, month, onlyBranch),
     getPackageSalesBreakdown(year, month),
     onlyBranch ? getActiveRepairJobs(onlyBranch) : getAllBranchesActiveRepairJobs(),
-    isManagement ? getMechanicsNotActiveToday(onlyBranch) : Promise.resolve([]),
+    isManagement
+      ? getMechanicCommitment(onlyBranch)
+      : Promise.resolve({ date: "", revenueTarget: 0, rows: [] }),
     getTodayActivity(onlyBranch),
     getAllMechanics(),
     onlyBranch ? getBranchPerformance(onlyBranch, year, month) : Promise.resolve([]),
@@ -334,7 +336,9 @@ export default async function AllBranchesOverview({
 
       {isManagement && <ServiceReminderBanner reminders={serviceReminders} />}
 
-      {isManagement && <IdleMechanicsNotice mechanics={idleMechanics} />}
+      {isManagement && (
+        <TodaysJobCheck rows={mechanicCommitment.rows} revenueTarget={mechanicCommitment.revenueTarget} />
+      )}
 
       {/* Today, at a glance. */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">

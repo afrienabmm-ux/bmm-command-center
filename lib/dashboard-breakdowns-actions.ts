@@ -134,32 +134,3 @@ export async function getTodayActivity(onlyBranch?: Branch): Promise<TodayActivi
   return { ...jobCounts, packagesSoldCount: packagesSoldCount ?? 0 };
 }
 
-export type IdleMechanic = { id: string; fullName: string; shortCode: string; branch: Branch };
-
-// Active-status mechanics who haven't started or finished a single job
-// today — a manager checking the dashboard wants to know who to check in
-// with, not just who's marked Active on paper. "Today" is a job with
-// started_date or completed_date equal to today, so a mechanic who wraps
-// up a job counts as active even once it's no longer in the active list.
-export async function getMechanicsNotActiveToday(onlyBranch?: Branch): Promise<IdleMechanic[]> {
-  await requireApproved();
-  const today = todayInMalaysia();
-
-  let mechanicsQuery = supabaseAdmin.from("cc_mechanics").select("id, full_name, short_code, branch").eq("status", "Active");
-  if (onlyBranch) mechanicsQuery = mechanicsQuery.eq("branch", onlyBranch);
-
-  const [{ data: mechanics, error: mErr }, { data: jobs, error: jErr }] = await Promise.all([
-    mechanicsQuery,
-    supabaseAdmin
-      .from("cc_repair_jobs")
-      .select("mechanic_id")
-      .or(`started_date.eq.${today},completed_date.eq.${today}`),
-  ]);
-  if (mErr) throw new Error(mErr.message);
-  if (jErr) throw new Error(jErr.message);
-
-  const activeToday = new Set((jobs ?? []).map((j) => j.mechanic_id).filter(Boolean));
-  return (mechanics ?? [])
-    .filter((m) => !activeToday.has(m.id))
-    .map((m) => ({ id: m.id, fullName: m.full_name, shortCode: m.short_code, branch: m.branch as Branch }));
-}
