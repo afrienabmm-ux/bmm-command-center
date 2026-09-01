@@ -87,8 +87,8 @@ export default function Sidebar({
   }, [profileOpen]);
 
   const visible = (list: NavLink[]) => list.filter((l) => l.page === null || pages.includes(l.page));
-  const navLinks: NavLink[] = [
-    ...visible(mainLinks),
+  const mainNavLinks = visible(mainLinks);
+  const trailingNavLinks: NavLink[] = [
     ...visible(trailingLinks),
     ...(canSeeTeam ? [{ href: "/team", label: "Manage Team", icon: UserCog, page: null, color: TEAM_LINK_COLOR }] : []),
   ];
@@ -176,25 +176,30 @@ export default function Sidebar({
       </div>
 
       <nav className={`flex-1 py-4 space-y-1 overflow-y-auto ${collapsed ? "px-2" : "px-3"}`}>
-        {navLinks.map((link) => {
+        {[...mainNavLinks, ...trailingNavLinks].map((link, i) => {
           const active = pathname === link.href;
           const Icon = link.icon;
+          // A thin divider sets Mechanics/Manage Team apart from the main
+          // nav items, right where the trailing group starts.
+          const isFirstTrailing = i === mainNavLinks.length && trailingNavLinks.length > 0;
           return (
-            <Link
-              key={link.href}
-              href={link.href}
-              title={collapsed ? link.label : undefined}
-              className={`flex items-center rounded-lg text-sm font-medium transition-colors ${
-                collapsed ? "justify-center px-2 py-2.5" : "gap-3 px-3 py-2.5"
-              } ${
-                active
-                  ? "bg-red-500/10 text-red-700"
-                  : "text-neutral-600 hover:bg-neutral-100 hover:text-neutral-800"
-              }`}
-            >
-              <Icon size={17} className={`shrink-0 ${active ? "text-red-600" : link.color}`} />
-              {!collapsed && link.label}
-            </Link>
+            <div key={link.href}>
+              {isFirstTrailing && <hr className="my-2 border-neutral-200" />}
+              <Link
+                href={link.href}
+                title={collapsed ? link.label : undefined}
+                className={`flex items-center rounded-lg text-sm font-medium transition-colors ${
+                  collapsed ? "justify-center px-2 py-2.5" : "gap-3 px-3 py-2.5"
+                } ${
+                  active
+                    ? "bg-red-500/10 text-red-700"
+                    : "text-neutral-600 hover:bg-neutral-100 hover:text-neutral-800"
+                }`}
+              >
+                <Icon size={17} className={`shrink-0 ${active ? "text-red-600" : link.color}`} />
+                {!collapsed && link.label}
+              </Link>
+            </div>
           );
         })}
       </nav>

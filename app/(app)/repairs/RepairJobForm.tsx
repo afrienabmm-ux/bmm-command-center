@@ -55,7 +55,7 @@ function ItemsEditor({
   packages: Package[];
   catalogProducts: CatalogProduct[];
 }) {
-  const [suggestionsFor, setSuggestionsFor] = useState<number | null>(null);
+  const [suggestionsFor, setSuggestionsFor] = useState<{ row: number; field: "code" | "description" } | null>(null);
 
   function update(i: number, patch: Partial<ItemInput>) {
     onChange(items.map((it, idx) => (idx === i ? { ...it, ...patch } : it)));
@@ -74,8 +74,15 @@ function ItemsEditor({
     if (!pkg) return;
     onChange([...items, { code: "", description: pkg.name, quantity: "1", price: String(pkg.price) }]);
   }
-  function pickSuggestion(i: number, product: CatalogProduct) {
-    update(i, { description: catalogLabel(product), price: String(product.price) });
+  // Picking from the Code field's own dropdown fills the code too, since
+  // that's the field being searched — picking from Description still
+  // leaves code alone, as before.
+  function pickSuggestion(i: number, product: CatalogProduct, field: "code" | "description") {
+    update(i, {
+      ...(field === "code" ? { code: product.code } : {}),
+      description: catalogLabel(product),
+      price: String(product.price),
+    });
     setSuggestionsFor(null);
   }
   const total = items.reduce((sum, it) => sum + (Number(it.quantity) || 0) * (Number(it.price) || 0), 0);
@@ -105,43 +112,67 @@ function ItemsEditor({
       )}
       <div className="space-y-2">
         {items.map((it, i) => {
-          const query = it.description.trim().toLowerCase();
-          const suggestions =
-            suggestionsFor === i && query
-              ? catalogProducts
-                  .filter((p) => catalogLabel(p).toLowerCase().includes(query) || p.code.toLowerCase().includes(query))
-                  .slice(0, 8)
-              : [];
+          const activeField = suggestionsFor?.row === i ? suggestionsFor.field : null;
+          const query = (activeField === "code" ? it.code : activeField === "description" ? it.description : "")
+            .trim()
+            .toLowerCase();
+          const suggestions = activeField && query
+            ? catalogProducts
+                .filter((p) => catalogLabel(p).toLowerCase().includes(query) || p.code.toLowerCase().includes(query))
+                .slice(0, 8)
+            : [];
           return (
             <div
               key={i}
               className="grid grid-cols-1 sm:grid-cols-[auto_90px_1fr_70px_100px_auto] gap-2 sm:items-center border-b border-neutral-100 sm:border-0 pb-3 sm:pb-0 last:border-0 last:pb-0"
             >
               <span className="text-xs text-neutral-400 w-5 text-right tabular-nums">{i + 1}.</span>
-              <input
-                type="text"
-                value={it.code}
-                onChange={(e) => update(i, { code: e.target.value })}
-                placeholder="Code"
-                className="bg-neutral-50 border border-neutral-200 rounded-lg px-2.5 py-2 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
-              />
               <div className="relative">
                 <input
                   type="text"
-                  value={it.description}
-                  onChange={(e) => update(i, { description: e.target.value })}
-                  onFocus={() => setSuggestionsFor(i)}
-                  onBlur={() => setTimeout(() => setSuggestionsFor((cur) => (cur === i ? null : cur)), 150)}
-                  placeholder="e.g. Engine Oil — or search the catalog"
+                  value={it.code}
+                  onChange={(e) => update(i, { code: e.target.value })}
+                  onFocus={() => setSuggestionsFor({ row: i, field: "code" })}
+                  onBlur={() => setTimeout(() => setSuggestionsFor((cur) => (cur?.row === i ? null : cur)), 150)}
+                  placeholder="Code — or search the catalog"
                   className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-2.5 py-2 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
                 />
-                {suggestions.length > 0 && (
+                {activeField === "code" && suggestions.length > 0 && (
                   <div className="absolute z-10 top-full left-0 right-0 mt-1 bg-white border border-neutral-200 rounded-lg shadow-lg max-h-56 overflow-y-auto">
                     {suggestions.map((p) => (
                       <button
                         key={p.id}
                         type="button"
-                        onMouseDown={() => pickSuggestion(i, p)}
+                        onMouseDown={() => pickSuggestion(i, p, "code")}
+                        className="w-full text-left px-3 py-2 text-sm hover:bg-neutral-50 flex items-center justify-between gap-2"
+                      >
+                        <span className="text-neutral-800">
+                          {catalogLabel(p)}
+                          {p.code && <span className="text-neutral-400"> ({p.code})</span>}
+                        </span>
+                        <span className="text-neutral-500 shrink-0">{formatCurrency(p.price)}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <div className="relative">
+                <input
+                  type="text"
+                  value={it.description}
+                  onChange={(e) => update(i, { description: e.target.value })}
+                  onFocus={() => setSuggestionsFor({ row: i, field: "description" })}
+                  onBlur={() => setTimeout(() => setSuggestionsFor((cur) => (cur?.row === i ? null : cur)), 150)}
+                  placeholder="e.g. Engine Oil — or search the catalog"
+                  className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-2.5 py-2 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
+                />
+                {activeField === "description" && suggestions.length > 0 && (
+                  <div className="absolute z-10 top-full left-0 right-0 mt-1 bg-white border border-neutral-200 rounded-lg shadow-lg max-h-56 overflow-y-auto">
+                    {suggestions.map((p) => (
+                      <button
+                        key={p.id}
+                        type="button"
+                        onMouseDown={() => pickSuggestion(i, p, "description")}
                         className="w-full text-left px-3 py-2 text-sm hover:bg-neutral-50 flex items-center justify-between gap-2"
                       >
                         <span className="text-neutral-800">
