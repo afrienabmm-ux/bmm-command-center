@@ -5,7 +5,6 @@ import {
   getBranchAchievedInRange,
   type MechanicPerformanceRowWithBranch,
 } from "@/lib/reports-actions";
-import { getPackageSalesBreakdown } from "@/lib/dashboard-breakdowns-actions";
 import { getMechanicCommitment } from "@/lib/mechanic-commitment-actions";
 import { getMonthlyTarget } from "@/lib/targets-actions";
 import {
@@ -20,7 +19,6 @@ import PageHeader from "@/components/PageHeader";
 import MonthPicker from "@/components/MonthPicker";
 import DaySelect from "./DaySelect";
 import AllBranchesMechanicPerformanceTable from "../AllBranchesMechanicPerformanceTable";
-import PackageBreakdownCharts from "../PackageBreakdownCharts";
 
 export const dynamic = "force-dynamic";
 
@@ -68,14 +66,13 @@ export default async function SalesPerformancePage({
   const weekStart = startOfWeekInMalaysia(selectedDate);
   const weekEnd = endOfWeekInMalaysia(selectedDate);
 
-  const [rows, prevRows, packageBreakdown, commitment, targetList, weekAchievedList] = await Promise.all([
+  const [rows, prevRows, commitment, targetList, weekAchievedList] = await Promise.all([
     onlyBranch
       ? getBranchPerformance(onlyBranch, year, month).then(
           (r): MechanicPerformanceRowWithBranch[] => r.map((row) => ({ ...row, branch: onlyBranch }))
         )
       : getAllBranchesPerformance(year, month),
     onlyBranch ? getBranchPerformance(onlyBranch, prevYear, prevMonth) : getAllBranchesPerformance(prevYear, prevMonth),
-    getPackageSalesBreakdown(year, month),
     getMechanicCommitment(onlyBranch, selectedDate),
     // Every branch's target is fetched even on a single-branch view, since
     // the table's own branch dropdown re-scopes client-side without a
@@ -131,7 +128,6 @@ export default async function SalesPerformancePage({
           selectedDate={selectedDate}
           isToday={selectedDate === todayIso}
         />
-        <PackageBreakdownCharts packageBreakdown={packageBreakdown} onlyBranch={onlyBranch} />
       </div>
     </div>
   );
