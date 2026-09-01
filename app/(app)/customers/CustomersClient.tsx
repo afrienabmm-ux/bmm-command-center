@@ -8,6 +8,7 @@ import { formatDate } from "@/lib/format";
 import { stampCardSize, rewardForStamp, nextReward } from "@/lib/membership";
 import type { CustomerCard } from "@/lib/types";
 import ModalPortal from "@/components/ModalPortal";
+import { isOver250ccModel } from "@/lib/bike-models";
 
 export default function CustomersClient({
   customers,
@@ -268,7 +269,16 @@ function CardModal({
   const [plateNo, setPlateNo] = useState(existing?.plateNo ?? "");
   const [model, setModel] = useState(existing?.model ?? "");
   const [boughtBikeHere, setBoughtBikeHere] = useState(existing?.boughtBikeHere ?? false);
-  const [under250cc, setUnder250cc] = useState(existing?.under250cc ?? false);
+  const [under250cc, setUnder250cc] = useState(existing?.under250cc ?? !isOver250ccModel(existing?.model ?? ""));
+
+  // Auto-checks/unchecks based on the model name as the PIC types it (only
+  // a handful of Yamaha big-bike names are actually over 250cc — see
+  // lib/bike-models.ts) — staff can still flip it by hand afterward for a
+  // bike this doesn't recognize.
+  function handleModelChange(value: string) {
+    setModel(value);
+    setUnder250cc(!isOver250ccModel(value));
+  }
   const [issuedDate, setIssuedDate] = useState(existing?.issuedDate ?? new Date().toISOString().slice(0, 10));
   const [expiryDate, setExpiryDate] = useState(existing?.expiryDate ?? "");
   const [error, setError] = useState<string | null>(null);
@@ -367,7 +377,7 @@ function CardModal({
               <input
                 type="text"
                 value={model}
-                onChange={(e) => setModel(e.target.value)}
+                onChange={(e) => handleModelChange(e.target.value)}
                 placeholder="e.g. Y15ZR"
                 className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
               />
@@ -411,7 +421,10 @@ function CardModal({
             <label htmlFor="under-250cc" className="text-xs text-neutral-700">
               <span className="font-medium">250cc or below *</span>
               <br />
-              <span className="text-neutral-500">Bikes over 250cc aren&apos;t eligible for a services card.</span>
+              <span className="text-neutral-500">
+                Auto-checked from the model above — bikes over 250cc aren&apos;t eligible. Flip it by hand if this
+                bike isn&apos;t recognized.
+              </span>
             </label>
           </div>
           <div className="grid grid-cols-2 gap-3">
