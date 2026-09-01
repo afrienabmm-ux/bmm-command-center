@@ -145,11 +145,9 @@ function ItemsEditor({
                         type="button"
                         onMouseDown={() => pickSuggestion(i, p, "code")}
                         className="w-full text-left px-3 py-2 text-sm hover:bg-neutral-50 flex items-center justify-between gap-2"
+                        title={catalogLabel(p)}
                       >
-                        <span className="text-neutral-800">
-                          {catalogLabel(p)}
-                          {p.code && <span className="text-neutral-400"> ({p.code})</span>}
-                        </span>
+                        <span className="text-neutral-800 font-medium">{p.code || "—"}</span>
                         <span className="text-neutral-500 shrink-0">{formatCurrency(p.price)}</span>
                       </button>
                     ))}
