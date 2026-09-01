@@ -80,6 +80,7 @@ type Row = {
   qc_fail_reason: string | null;
   qc_fail_followup_date: string | null;
   signature_status: string;
+  signature_issue_resolved: boolean;
   jobsheet_photo_path: string | null;
   remark: string;
   cc_repair_job_items: ItemRow[] | null;
@@ -141,6 +142,7 @@ function toJob(r: Row): RepairJob {
     qcFailReason: r.qc_fail_reason,
     qcFailFollowupDate: r.qc_fail_followup_date,
     signatureStatus: r.signature_status,
+    signatureIssueResolved: r.signature_issue_resolved,
     jobsheetPhotoPath: r.jobsheet_photo_path,
     remark: r.remark,
   };
@@ -967,6 +969,20 @@ export async function setQcResultAction(
 // (see the "completed" stage check in setRestoreBikeWorkflowDateAction),
 // so a failure reason can't just sit there unaddressed. Same toggle
 // behaviour as the other workflow stamps: clicking again un-stamps it.
+// Walk-in only — Management clears a flagged "no signature detected" job
+// after checking the actual jobsheet photo and confirming a signature
+// really is on it. Gated to Management (not just assertCanEditBranch)
+// since the whole point is a second set of eyes above whoever saved the
+// job in the first place.
+export async function resolveSignatureIssueAction(id: string, branch: Branch): Promise<{ error: string } | void> {
+  const user = await requireManagement();
+  assertCanEditBranch(user, branch);
+  const { error } = await supabaseAdmin.from("cc_repair_jobs").update({ signature_issue_resolved: true }).eq("id", id);
+  if (error) return { error: error.message };
+  await logActivity(user, "Confirmed jobsheet signature", `job ${id}`);
+  revalidatePath("/repairs/walk-in");
+}
+
 // Restore Bike — free-text note, edited directly from the list rather
 // than through the full edit form, same as the other click-to-edit cells.
 export async function updateRepairRemarkAction(id: string, branch: Branch, remark: string): Promise<{ error: string } | void> {

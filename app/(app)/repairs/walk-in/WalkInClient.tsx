@@ -4,7 +4,12 @@ import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Plus, Download, Pencil, Search, Trash2, Check, Printer, ArrowUpDown, ChevronDown, ImageIcon, Link2 } from "lucide-react";
-import { setWalkInEndDateAction, deleteRepairJobAction, getJobsheetPhotoUrlAction } from "@/lib/repairs-actions";
+import {
+  setWalkInEndDateAction,
+  deleteRepairJobAction,
+  getJobsheetPhotoUrlAction,
+  resolveSignatureIssueAction,
+} from "@/lib/repairs-actions";
 import { isHeavyRepairJob, type RepairStatus, type RepairJob } from "@/lib/types";
 import type { Mechanic } from "@/lib/types";
 import { branchLabel, type Branch, type BranchSelection } from "@/lib/branch";
@@ -24,19 +29,23 @@ const STATUS_STYLES: Record<RepairStatus, string> = {
 export default function WalkInClient({
   active,
   completed,
+  errors,
   mechanics,
   branchSelection,
   highlightId,
   canEdit,
+  canResolveErrors,
 }: {
   active: RepairJob[];
   completed: RepairJob[];
+  errors: RepairJob[];
   mechanics: Mechanic[];
   branchSelection: BranchSelection;
   highlightId?: string;
   canEdit: boolean;
+  canResolveErrors: boolean;
 }) {
-  const [tab, setTab] = useState<"active" | "completed">("active");
+  const [tab, setTab] = useState<"active" | "completed" | "errors">("active");
   const [exporting, setExporting] = useState(false);
   const [exportJobModalOpen, setExportJobModalOpen] = useState(false);
   const [exportFilteredModalOpen, setExportFilteredModalOpen] = useState(false);
@@ -79,10 +88,11 @@ export default function WalkInClient({
     if (!highlightId) return;
     if (active.some((j) => j.id === highlightId)) setTab("active");
     else if (completed.some((j) => j.id === highlightId)) setTab("completed");
+    else if (errors.some((j) => j.id === highlightId)) setTab("errors");
     setQuery("");
-  }, [highlightId, active, completed]);
+  }, [highlightId, active, completed, errors]);
 
-  const jobs = tab === "active" ? active : completed;
+  const jobs = tab === "active" ? active : tab === "completed" ? completed : errors;
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase();
     const filtered = q
@@ -229,6 +239,16 @@ export default function WalkInClient({
           >
             Completed ({completed.length})
           </button>
+          {errors.length > 0 && (
+            <button
+              onClick={() => setTab("errors")}
+              className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors whitespace-nowrap ${
+                tab === "errors" ? "bg-red-500 text-white" : "text-red-600 hover:text-red-700"
+              }`}
+            >
+              Errors ({errors.length})
+            </button>
+          )}
         </div>
         <div className="flex items-center gap-3 flex-wrap">
           <div className="relative">
@@ -359,6 +379,7 @@ export default function WalkInClient({
                   mechanicLabel={mechanicLabel(job.mechanicId)}
                   editable={canEdit && tab === "active"}
                   canEdit={canEdit}
+                  canResolveErrors={canResolveErrors}
                   highlight={job.id === highlightId}
                   selected={selectedIds.has(job.id)}
                   onToggleSelect={() => toggleSelectOne(job.id)}
@@ -371,7 +392,7 @@ export default function WalkInClient({
                     className="px-5 py-10 text-center text-neutral-500 text-sm"
                   >
                     {jobs.length === 0
-                      ? `${tab === "active" ? "No active" : "No completed"} Jobsheet jobs.`
+                      ? `${tab === "active" ? "No active" : tab === "completed" ? "No completed" : "No"} Jobsheet jobs${tab === "errors" ? " need checking" : ""}.`
                       : "No jobs match your search."}
                   </td>
                 </tr>
@@ -660,6 +681,7 @@ function WalkInRow({
   mechanicLabel,
   editable,
   canEdit,
+  canResolveErrors,
   highlight,
   selected,
   onToggleSelect,
@@ -669,6 +691,7 @@ function WalkInRow({
   mechanicLabel: string;
   editable: boolean;
   canEdit: boolean;
+  canResolveErrors: boolean;
   highlight?: boolean;
   selected: boolean;
   onToggleSelect: () => void;
@@ -678,6 +701,16 @@ function WalkInRow({
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [photoPending, setPhotoPending] = useState(false);
+  const [resolving, setResolving] = useState(false);
+  const isSignatureError = job.signatureStatus === "not_detected" && !job.signatureIssueResolved;
+
+  function handleResolveSignature() {
+    setResolving(true);
+    startTransition(async () => {
+      await resolveSignatureIssueAction(job.id, job.branch);
+      setResolving(false);
+    });
+  }
   const days = daysBetween(job.startedDate, job.completedDate ?? new Date().toISOString().slice(0, 10));
   const rowRef = useRef<HTMLTableRowElement>(null);
 
@@ -769,6 +802,19 @@ function WalkInRow({
       </td>
       <td className="px-5 py-3.5">
         <div className="flex items-center gap-1">
+          {isSignatureError && canResolveErrors && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                handleResolveSignature();
+              }}
+              disabled={resolving}
+              className="flex items-center gap-1 text-xs font-medium text-emerald-700 bg-emerald-500/10 border border-emerald-500/20 hover:bg-emerald-500/20 disabled:opacity-50 px-2 py-1 rounded-lg transition-colors whitespace-nowrap"
+              title="Confirm the photo actually shows a customer signature"
+            >
+              <Check size={12} /> {resolving ? "Confirming…" : "Confirm Signed"}
+            </button>
+          )}
           {job.jobsheetPhotoPath && (
             <button
               onClick={(e) => {
