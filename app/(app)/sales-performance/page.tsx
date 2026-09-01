@@ -1,3 +1,4 @@
+import { ClipboardList, Wallet, PackageCheck, Wrench } from "lucide-react";
 import { requirePage, getActiveBranchSelection, canViewAllBranches } from "@/lib/current-user";
 import {
   getAllBranchesPerformance,
@@ -7,6 +8,9 @@ import {
 } from "@/lib/reports-actions";
 import { getMechanicCommitment } from "@/lib/mechanic-commitment-actions";
 import { getMonthlyTarget } from "@/lib/targets-actions";
+import { getRevenuePace } from "@/lib/revenue-pace-actions";
+import { getTodayActivity, getPackageSalesBreakdown } from "@/lib/dashboard-breakdowns-actions";
+import { formatCurrency } from "@/lib/format";
 import {
   todayInMalaysia,
   startOfWeekInMalaysia,
@@ -17,8 +21,11 @@ import {
 import { BRANCHES, branchLabel, type Branch } from "@/lib/branch";
 import PageHeader from "@/components/PageHeader";
 import MonthPicker from "@/components/MonthPicker";
+import StatCard from "@/components/StatCard";
 import DaySelect from "./DaySelect";
 import AllBranchesMechanicPerformanceTable from "../AllBranchesMechanicPerformanceTable";
+import RevenuePace from "../RevenuePace";
+import PackageBreakdownCharts from "../PackageBreakdownCharts";
 
 export const dynamic = "force-dynamic";
 
@@ -66,7 +73,7 @@ export default async function SalesPerformancePage({
   const weekStart = startOfWeekInMalaysia(selectedDate);
   const weekEnd = endOfWeekInMalaysia(selectedDate);
 
-  const [rows, prevRows, commitment, targetList, weekAchievedList] = await Promise.all([
+  const [rows, prevRows, commitment, targetList, weekAchievedList, revenuePace, todayActivity, packageBreakdown] = await Promise.all([
     onlyBranch
       ? getBranchPerformance(onlyBranch, year, month).then(
           (r): MechanicPerformanceRowWithBranch[] => r.map((row) => ({ ...row, branch: onlyBranch }))
@@ -79,7 +86,12 @@ export default async function SalesPerformancePage({
     // round trip — the matching target has to already be on hand.
     Promise.all(BRANCHES.map(({ value }) => getMonthlyTarget(value, year, month))),
     Promise.all(BRANCHES.map(({ value }) => getBranchAchievedInRange(value, weekStart, weekEnd))),
+    getRevenuePace(year, month, onlyBranch),
+    getTodayActivity(onlyBranch),
+    getPackageSalesBreakdown(year, month),
   ]);
+
+  const serviceRevenueToday = revenuePace.branches.reduce((sum, b) => sum + b.revenueToday, 0);
 
   // A monthly target prorated down to a week by working days (Sundays
   // excluded), not just divided by ~4.3 — matches the same working-day
@@ -116,6 +128,42 @@ export default async function SalesPerformancePage({
         }
       />
       <div className="p-8 space-y-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <StatCard
+            icon={ClipboardList}
+            label="Jobsheet Today"
+            value={todayActivity.jobsheetCount}
+            color="text-red-700 bg-red-500/10"
+            href="/repairs/walk-in"
+          />
+          <StatCard
+            icon={Wallet}
+            label="Service Revenue Today"
+            value={formatCurrency(serviceRevenueToday)}
+            color="text-emerald-700 bg-emerald-500/10"
+            href="/repairs/walk-in"
+          />
+          <StatCard
+            icon={PackageCheck}
+            label="Services Combo Today"
+            value={todayActivity.packagesSoldCount}
+            color="text-teal-700 bg-teal-500/10"
+            href="/packages"
+          />
+          <StatCard
+            icon={Wrench}
+            label="Restore Bike Today"
+            value={todayActivity.restoreBikeCount}
+            color="text-sky-700 bg-sky-500/10"
+            href="/repairs"
+          />
+        </div>
+
+        <RevenuePace
+          data={revenuePace}
+          title={onlyBranch ? `Revenue Run-Rate — ${branchLabel(onlyBranch)}` : "Revenue Run-Rate — all branches"}
+        />
+
         <AllBranchesMechanicPerformanceTable
           rows={rows}
           branchSelection={branchSelection}
@@ -128,6 +176,8 @@ export default async function SalesPerformancePage({
           selectedDate={selectedDate}
           isToday={selectedDate === todayIso}
         />
+
+        <PackageBreakdownCharts packageBreakdown={packageBreakdown} onlyBranch={onlyBranch} />
       </div>
     </div>
   );

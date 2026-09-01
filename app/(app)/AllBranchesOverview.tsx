@@ -340,7 +340,7 @@ export default async function AllBranchesOverview({
       {isManagement && <ServiceReminderBanner reminders={serviceReminders} />}
 
       {isManagement && (
-        <TodaysJobCheck rows={mechanicCommitment.rows} revenueTarget={mechanicCommitment.revenueTarget} />
+        <TodaysJobCheck rows={mechanicCommitment.rows} />
       )}
 
       {/* Today, at a glance. */}
@@ -375,15 +375,15 @@ export default async function AllBranchesOverview({
         />
       </div>
 
+      <RevenuePace
+        data={revenuePace}
+        title={onlyBranch ? `Revenue Run-Rate — ${branchLabel(onlyBranch)}` : "Revenue Run-Rate — all branches"}
+      />
+
       <MonthlyPaceChart
         points={monthlyTargetHistory}
         workingDaysRemaining={revenuePace.branches[0]?.workingDaysRemaining ?? 0}
         title={onlyBranch ? `Pace to Target — ${branchLabel(onlyBranch)}` : "Pace to Target"}
-      />
-
-      <RevenuePace
-        data={revenuePace}
-        title={onlyBranch ? `Revenue Run-Rate — ${branchLabel(onlyBranch)}` : "Revenue Run-Rate — all branches"}
       />
 
       {/* Current status, at a glance — claims, restore bike workflow, combo sales. */}
