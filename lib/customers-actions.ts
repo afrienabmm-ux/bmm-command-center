@@ -17,6 +17,7 @@ type CardRow = {
   plate_no: string;
   model: string;
   bought_bike_here: boolean;
+  under_250cc: boolean;
   issued_date: string;
   expiry_date: string | null;
   notes: string;
@@ -34,6 +35,7 @@ function toCard(r: CardRow): CustomerCard {
     plateNo: r.plate_no,
     model: r.model,
     boughtBikeHere: r.bought_bike_here,
+    under250cc: r.under_250cc,
     issuedDate: r.issued_date,
     expiryDate: r.expiry_date,
     notes: r.notes,
@@ -69,6 +71,7 @@ export async function addCustomerCardAction(input: {
   plateNo: string;
   model: string;
   boughtBikeHere: boolean;
+  under250cc: boolean;
   issuedDate: string;
   expiryDate: string | null;
   notes: string;
@@ -82,6 +85,9 @@ export async function addCustomerCardAction(input: {
   // there unable to earn rewards.
   if (!input.boughtBikeHere) {
     return { error: "Only customers who bought their bike from us are eligible for a services card." };
+  }
+  if (!input.under250cc) {
+    return { error: "Bikes over 250cc aren't eligible for a services card." };
   }
   const customerPhone = input.customerPhone.trim();
 
@@ -102,6 +108,7 @@ export async function addCustomerCardAction(input: {
     plate_no: input.plateNo.trim(),
     model: input.model.trim(),
     bought_bike_here: input.boughtBikeHere,
+    under_250cc: input.under250cc,
     issued_date: input.issuedDate,
     expiry_date: input.expiryDate || null,
     notes: input.notes.trim(),
@@ -136,6 +143,7 @@ export async function updateCustomerCardAction(
     plateNo: string;
     model: string;
     boughtBikeHere: boolean;
+    under250cc: boolean;
     issuedDate: string;
     expiryDate: string | null;
     notes: string;
@@ -149,6 +157,11 @@ export async function updateCustomerCardAction(
     return {
       error:
         "Only customers who bought their bike from us are eligible for a services card — delete the card instead of unchecking this.",
+    };
+  }
+  if (!input.under250cc) {
+    return {
+      error: "Bikes over 250cc aren't eligible for a services card — delete the card instead of unchecking this.",
     };
   }
   const customerPhone = input.customerPhone.trim();
@@ -165,6 +178,7 @@ export async function updateCustomerCardAction(
       plate_no: input.plateNo.trim(),
       model: input.model.trim(),
       bought_bike_here: input.boughtBikeHere,
+      under_250cc: input.under250cc,
       issued_date: input.issuedDate,
       expiry_date: input.expiryDate || null,
       notes: input.notes.trim(),

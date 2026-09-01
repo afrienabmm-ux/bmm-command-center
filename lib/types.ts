@@ -289,6 +289,8 @@ export type CustomerCard = {
   // Eligibility for the stamp-reward card — only customers who bought
   // their bike from us can earn/redeem the stamp rewards.
   boughtBikeHere: boolean;
+  // Second eligibility rule — bikes over 250cc don't qualify for a card.
+  under250cc: boolean;
   issuedDate: string;
   expiryDate: string | null;
   notes: string;

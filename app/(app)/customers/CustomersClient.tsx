@@ -268,6 +268,7 @@ function CardModal({
   const [plateNo, setPlateNo] = useState(existing?.plateNo ?? "");
   const [model, setModel] = useState(existing?.model ?? "");
   const [boughtBikeHere, setBoughtBikeHere] = useState(existing?.boughtBikeHere ?? false);
+  const [under250cc, setUnder250cc] = useState(existing?.under250cc ?? false);
   const [issuedDate, setIssuedDate] = useState(existing?.issuedDate ?? new Date().toISOString().slice(0, 10));
   const [expiryDate, setExpiryDate] = useState(existing?.expiryDate ?? "");
   const [error, setError] = useState<string | null>(null);
@@ -280,6 +281,7 @@ function CardModal({
       plateNo,
       model,
       boughtBikeHere,
+      under250cc,
       issuedDate,
       expiryDate: expiryDate || null,
       notes: existing?.notes ?? "",
@@ -398,6 +400,20 @@ function CardModal({
               <span className="text-neutral-500">Only bike-buyers are eligible for the stamp-reward card.</span>
             </label>
           </div>
+          <div className="flex items-start gap-2 bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-3">
+            <input
+              id="under-250cc"
+              type="checkbox"
+              checked={under250cc}
+              onChange={(e) => setUnder250cc(e.target.checked)}
+              className="accent-red-500 mt-0.5"
+            />
+            <label htmlFor="under-250cc" className="text-xs text-neutral-700">
+              <span className="font-medium">250cc or below *</span>
+              <br />
+              <span className="text-neutral-500">Bikes over 250cc aren&apos;t eligible for a services card.</span>
+            </label>
+          </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-medium text-neutral-600 mb-1.5">Issued</label>
@@ -431,7 +447,7 @@ function CardModal({
           </button>
           <button
             onClick={handleSave}
-            disabled={isPending || !customerName.trim() || !boughtBikeHere}
+            disabled={isPending || !customerName.trim() || !boughtBikeHere || !under250cc}
             className="bg-red-500 hover:bg-red-400 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
           >
             {isPending ? "Saving…" : "Save"}
