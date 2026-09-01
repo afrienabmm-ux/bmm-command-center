@@ -109,7 +109,9 @@ function ItemsEditor({
           const query = it.description.trim().toLowerCase();
           const suggestions =
             suggestionsFor === i && query
-              ? catalogProducts.filter((p) => catalogLabel(p).toLowerCase().includes(query)).slice(0, 8)
+              ? catalogProducts
+                  .filter((p) => catalogLabel(p).toLowerCase().includes(query) || p.code.toLowerCase().includes(query))
+                  .slice(0, 8)
               : [];
           return (
             <div key={i} className="grid grid-cols-[auto_90px_1fr_70px_100px_auto] gap-2 items-center">
@@ -142,7 +144,10 @@ function ItemsEditor({
                         onMouseDown={() => pickSuggestion(i, p)}
                         className="w-full text-left px-3 py-2 text-sm hover:bg-neutral-50 flex items-center justify-between gap-2"
                       >
-                        <span className="text-neutral-800">{catalogLabel(p)}</span>
+                        <span className="text-neutral-800">
+                          {catalogLabel(p)}
+                          {p.code && <span className="text-neutral-400"> ({p.code})</span>}
+                        </span>
                         <span className="text-neutral-500 shrink-0">{formatCurrency(p.price)}</span>
                       </button>
                     ))}
