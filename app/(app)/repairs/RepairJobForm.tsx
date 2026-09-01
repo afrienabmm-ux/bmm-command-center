@@ -113,7 +113,10 @@ function ItemsEditor({
                   .slice(0, 8)
               : [];
           return (
-            <div key={i} className="grid grid-cols-[auto_90px_1fr_70px_100px_auto] gap-2 items-center">
+            <div
+              key={i}
+              className="grid grid-cols-1 sm:grid-cols-[auto_90px_1fr_70px_100px_auto] gap-2 sm:items-center border-b border-neutral-100 sm:border-0 pb-3 sm:pb-0 last:border-0 last:pb-0"
+            >
               <span className="text-xs text-neutral-400 w-5 text-right tabular-nums">{i + 1}.</span>
               <input
                 type="text"
