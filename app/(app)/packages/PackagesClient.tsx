@@ -1,8 +1,14 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
-import { Plus, Search, Download, Trash2, ArrowUpDown } from "lucide-react";
-import { addPackageAction, deletePackageAction, deletePackageSaleAction, type PackageSaleWithNames } from "@/lib/packages-actions";
+import { Plus, Search, Download, Trash2, Pencil, ArrowUpDown } from "lucide-react";
+import {
+  addPackageAction,
+  updatePackageAction,
+  deletePackageAction,
+  deletePackageSaleAction,
+  type PackageSaleWithNames,
+} from "@/lib/packages-actions";
 import { exportPackageSalesCsv, exportAllBranchesPackageSalesCsv } from "@/lib/export-actions";
 import { formatDate } from "@/lib/format";
 import { branchLabel, type Branch, type BranchSelection } from "@/lib/branch";
@@ -152,6 +158,7 @@ export default function PackagesClient({
 function PackageCard({ pkg, soldCount, isAdmin }: { pkg: Package; soldCount: number; isAdmin: boolean }) {
   const [isPending, startTransition] = useTransition();
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
 
   return (
     <div className="relative bg-white border border-neutral-200 rounded-xl p-5 pt-4 flex flex-col">
@@ -162,22 +169,34 @@ function PackageCard({ pkg, soldCount, isAdmin }: { pkg: Package; soldCount: num
       <p className="text-sm font-semibold text-red-600 mt-1">{pkg.spec}</p>
       {pkg.description && <p className="text-sm text-neutral-500 mt-2 flex-1">{pkg.description}</p>}
 
-      <div className="border-t border-neutral-100 mt-4 pt-3 flex items-center justify-between">
+      <div className="border-t border-neutral-100 mt-4 pt-3 flex items-center justify-between gap-2">
         <span className="text-xs text-neutral-500">Sold Sets:</span>
-        <span className="text-sm font-semibold bg-neutral-100 text-neutral-800 px-2.5 py-1 rounded-lg">
-          {soldCount} set{soldCount === 1 ? "" : "s"}
-        </span>
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-semibold bg-neutral-100 text-neutral-800 px-2.5 py-1 rounded-lg">
+            {soldCount} set{soldCount === 1 ? "" : "s"}
+          </span>
+          {isAdmin && (
+            <>
+              <button
+                onClick={() => setEditOpen(true)}
+                className="text-neutral-300 hover:text-red-600 transition-colors"
+                aria-label="Edit package"
+              >
+                <Pencil size={13} />
+              </button>
+              <button
+                onClick={() => setConfirmDelete(true)}
+                className="text-neutral-300 hover:text-red-600 transition-colors"
+                aria-label="Delete package"
+              >
+                <Trash2 size={13} />
+              </button>
+            </>
+          )}
+        </div>
       </div>
 
-      {isAdmin && (
-        <button
-          onClick={() => setConfirmDelete(true)}
-          className="absolute bottom-3 right-3 text-neutral-300 hover:text-red-600 transition-colors"
-          aria-label="Delete package"
-        >
-          <Trash2 size={13} />
-        </button>
-      )}
+      {editOpen && <EditPackageModal pkg={pkg} onClose={() => setEditOpen(false)} />}
 
       {confirmDelete && (
         <ModalPortal><div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 px-4">
@@ -229,6 +248,99 @@ function SaleRow({ sale }: { sale: PackageSaleWithNames }) {
         </button>
       </td>
     </tr>
+  );
+}
+
+function EditPackageModal({ pkg, onClose }: { pkg: Package; onClose: () => void }) {
+  const [name, setName] = useState(pkg.name);
+  const [price, setPrice] = useState(String(pkg.price));
+  const [spec, setSpec] = useState(pkg.spec);
+  const [description, setDescription] = useState(pkg.description);
+  const [error, setError] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
+
+  const canSave = name.trim() !== "" && price.trim() !== "";
+
+  function handleSave() {
+    if (!canSave) return;
+    startTransition(async () => {
+      const result = await updatePackageAction(pkg.id, {
+        name: name.trim(),
+        price: Number(price) || 0,
+        spec: spec.trim(),
+        description: description.trim(),
+      });
+      if (result && "error" in result) {
+        setError(result.error);
+        return;
+      }
+      onClose();
+    });
+  }
+
+  return (
+    <ModalPortal><div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 px-4">
+      <div className="bg-white border border-neutral-200 rounded-xl w-full max-w-sm p-6">
+        <h2 className="text-sm font-semibold text-neutral-900 mb-5">Edit Package</h2>
+        <div className="space-y-4">
+          <div>
+            <label className="block text-xs font-medium text-neutral-600 mb-1.5">Package Name *</label>
+            <input
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-neutral-600 mb-1.5">Price (RM) *</label>
+            <input
+              type="number"
+              min={0}
+              value={price}
+              onChange={(e) => setPrice(e.target.value)}
+              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-neutral-600 mb-1.5">What's included</label>
+            <input
+              type="text"
+              value={spec}
+              onChange={(e) => setSpec(e.target.value)}
+              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-neutral-600 mb-1.5">Description</label>
+            <textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              rows={2}
+              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50 resize-none"
+            />
+          </div>
+        </div>
+
+        {error && <p className="text-sm text-red-700 mt-4">{error}</p>}
+
+        <div className="flex items-center justify-end gap-3 mt-6">
+          <button
+            onClick={onClose}
+            className="text-sm font-medium text-neutral-600 hover:text-neutral-800 px-4 py-2 transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleSave}
+            disabled={!canSave || isPending}
+            className="bg-red-500 hover:bg-red-400 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+          >
+            {isPending ? "Saving…" : "Save Changes"}
+          </button>
+        </div>
+      </div>
+    </div></ModalPortal>
   );
 }
 

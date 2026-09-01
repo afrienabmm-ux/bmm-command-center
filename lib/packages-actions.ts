@@ -38,6 +38,31 @@ export async function addPackageAction(input: {
   revalidatePath("/packages");
 }
 
+export async function updatePackageAction(
+  id: string,
+  input: {
+    name: string;
+    price: number;
+    spec: string;
+    description: string;
+  }
+): Promise<{ error: string } | void> {
+  const user = await requireApproved();
+  if (!input.name.trim()) return { error: "Package name is required." };
+  const { error } = await supabaseAdmin
+    .from("cc_packages")
+    .update({
+      name: input.name.trim(),
+      price: input.price,
+      spec: input.spec.trim(),
+      description: input.description.trim(),
+    })
+    .eq("id", id);
+  if (error) return { error: error.message };
+  await logActivity(user, "Updated Services Combo", input.name);
+  revalidatePath("/packages");
+}
+
 export async function deletePackageAction(id: string): Promise<void> {
   const user = await requireApproved();
   const { data: pkg } = await supabaseAdmin.from("cc_packages").select("name").eq("id", id).single();
