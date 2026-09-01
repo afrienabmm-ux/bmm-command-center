@@ -45,7 +45,10 @@ export default function WalkInClient({
   canEdit: boolean;
   canResolveErrors: boolean;
 }) {
-  const [tab, setTab] = useState<"active" | "completed" | "errors">("active");
+  // The Active tab hides itself entirely when there's nothing in it (same
+  // as Errors) — defaulting straight to Completed in that case avoids
+  // landing on a tab bar with no button highlighted at all.
+  const [tab, setTab] = useState<"active" | "completed" | "errors">(active.length > 0 ? "active" : "completed");
   const [exporting, setExporting] = useState(false);
   const [exportJobModalOpen, setExportJobModalOpen] = useState(false);
   const [exportFilteredModalOpen, setExportFilteredModalOpen] = useState(false);
@@ -223,14 +226,16 @@ export default function WalkInClient({
     <div>
       <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
         <div className="flex gap-1 bg-white border border-neutral-200 rounded-lg p-1">
-          <button
-            onClick={() => setTab("active")}
-            className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
-              tab === "active" ? "bg-red-500 text-white" : "text-neutral-600 hover:text-neutral-800"
-            }`}
-          >
-            Active ({active.length})
-          </button>
+          {active.length > 0 && (
+            <button
+              onClick={() => setTab("active")}
+              className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                tab === "active" ? "bg-red-500 text-white" : "text-neutral-600 hover:text-neutral-800"
+              }`}
+            >
+              Active ({active.length})
+            </button>
+          )}
           <button
             onClick={() => setTab("completed")}
             className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${

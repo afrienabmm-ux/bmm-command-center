@@ -126,6 +126,7 @@ export default function CustomersClient({
           <thead>
             <tr className="bg-neutral-50 text-left text-xs font-medium text-neutral-500 uppercase tracking-wide">
               <th className="px-4 py-3">Customer</th>
+              <th className="px-4 py-3">Salesperson</th>
               <th className="px-4 py-3">Phone</th>
               <th className="px-4 py-3">Plate No.</th>
               <th className="px-4 py-3">Model</th>
@@ -155,6 +156,7 @@ export default function CustomersClient({
                     </span>
                   )}
                 </td>
+                <td className="px-4 py-3 text-neutral-600">{c.salespersonName || "—"}</td>
                 <td className="px-4 py-3 text-neutral-600">{c.customerPhone || "—"}</td>
                 <td className="px-4 py-3 text-neutral-600">{c.plateNo || "—"}</td>
                 <td className="px-4 py-3 text-neutral-600">{c.model || "—"}</td>

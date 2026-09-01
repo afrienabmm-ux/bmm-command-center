@@ -351,7 +351,10 @@ export default function RepairJobForm({
       scrollToField(imageRef.current);
       return;
     }
-    if (mileageKm.trim() === "") {
+    // A "Tarik" (withdrawn) bike isn't actually being worked on, so there's
+    // no odometer reading to record for it — every other deal type still
+    // requires one.
+    if (dealType !== "Tarik" && mileageKm.trim() === "") {
       scrollToField(mileageRef.current);
       return;
     }
@@ -554,7 +557,7 @@ export default function RepairJobForm({
             />
           </div>
           <div ref={imageRef} tabIndex={-1}>
-            <label className="block text-xs font-medium text-neutral-600 mb-1.5">Bike Photos * ({MAX_PHOTOS} required)</label>
+            <label className="block text-xs font-medium text-neutral-600 mb-1.5">Bike Photos ({MAX_PHOTOS} required)</label>
             {(existingPhotos.length > 0 || newPhotoFiles.length > 0) && (
               <div className="flex flex-wrap gap-2 mb-2">
                 {existingPhotos.map((p) => (

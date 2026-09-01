@@ -192,10 +192,15 @@ function BranchRevenueCard({ pace, revenueToday }: { pace: BranchRevenuePace; re
 export default function RevenuePace({ data, title = "Revenue Run-Rate — all branches" }: { data: RevenuePaceData; title?: string }) {
   return (
     <div className="space-y-4">
-      <div className={data.branches.length === 1 ? "grid grid-cols-1 gap-4" : "grid grid-cols-1 md:grid-cols-3 gap-4"}>
-        {data.branches.map((b) => (
-          <BranchRevenueCard key={b.branch} pace={b} revenueToday={b.revenueToday} />
-        ))}
+      <div>
+        <p className="text-sm font-semibold text-neutral-900">Pace to Target — Each Branch</p>
+        <div
+          className={`mt-3 grid ${data.branches.length === 1 ? "grid-cols-1" : "grid-cols-1 md:grid-cols-3"} gap-4`}
+        >
+          {data.branches.map((b) => (
+            <BranchRevenueCard key={b.branch} pace={b} revenueToday={b.revenueToday} />
+          ))}
+        </div>
       </div>
       <RevenueRunRateChart data={data} title={title} />
     </div>
