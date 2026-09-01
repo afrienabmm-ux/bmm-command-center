@@ -607,8 +607,22 @@ function extractTransactionCustomerName(text: string): string {
   const awardedIdx = text.search(/awarded\s*to/i);
   if (awardedIdx !== -1) {
     const after = text.slice(awardedIdx).replace(/awarded\s*to/i, "");
-    const nameMatch = after.match(/([A-Za-z][A-Za-z .'/@-]{3,}?)\s*\(/);
-    if (nameMatch) return nameMatch[1].trim();
+    // One "Transaction Details" layout: name directly followed by "(memberNo)"
+    // on the same line.
+    const inlineMatch = after.match(/^\s*([A-Za-z][A-Za-z .'/@-]{3,}?)\s*\(/);
+    if (inlineMatch) return inlineMatch[1].trim();
+    // A second "Transaction Details" layout: name sits on its own line right
+    // after "Awarded to", with no parenthesis — the member number instead
+    // shows up much further down under a separate "Card used by member"
+    // label. Falling through to the length-based guess below picked up
+    // whatever nearby line happened to be longest (e.g. "Points deducted on
+    // sale of Service"), not the actual name — anchoring on the very next
+    // line after "Awarded to" is far more reliable than guessing by length.
+    const nextLine = after
+      .split("\n")
+      .map((l) => l.trim())
+      .find((l) => /^[A-Za-z][A-Za-z .'/@-]{3,}$/.test(l));
+    if (nextLine) return nextLine;
   }
 
   const membershipIdx = text.search(/membership\s*number/i);
@@ -627,7 +641,11 @@ function extractMembershipNumber(text: string): string | null {
   // Transaction Details screen: the number sits in parentheses right after
   // the "Awarded to" name instead of its own labeled line.
   const parenMatch = text.match(/awarded\s*to[\s\S]{0,60}?\(\s*(\d[\d-]{4,20})\s*\)/i);
-  return parenMatch ? parenMatch[1] : null;
+  if (parenMatch) return parenMatch[1];
+  // A second Transaction Details layout has no parenthesis at all — the
+  // member number is further down under its own "Card used by member" line.
+  const cardUsedMatch = text.match(/card\s*used\s*by\s*member\D{0,20}(\d[\d-]{4,20})/i);
+  return cardUsedMatch ? cardUsedMatch[1] : null;
 }
 
 function extractProductCategory(text: string): string | null {
