@@ -57,13 +57,25 @@ function SectionHeader({ icon: Icon, title }: { icon: typeof User; title: string
   );
 }
 
+// Search text for a catalog suggestion combines the product name and spec
+// (e.g. "Motul 5100 15W-50") — the same string that gets filled into the
+// item's description when a mechanic picks one, and what typed text is
+// matched against.
+function catalogLabel(p: CatalogProduct): string {
+  return p.spec ? `${p.productName} ${p.spec}` : p.productName;
+}
+
 function ItemsEditor({
   items,
   onChange,
+  catalogProducts,
 }: {
   items: ItemInput[];
   onChange: (items: ItemInput[]) => void;
+  catalogProducts: CatalogProduct[];
 }) {
+  const [suggestionsFor, setSuggestionsFor] = useState<number | null>(null);
+
   function update(i: number, patch: Partial<ItemInput>) {
     onChange(items.map((it, idx) => (idx === i ? { ...it, ...patch } : it)));
   }
@@ -76,55 +88,91 @@ function ItemsEditor({
   function removeRow(i: number) {
     onChange(items.filter((_, idx) => idx !== i));
   }
+  function pickSuggestion(i: number, product: CatalogProduct) {
+    update(i, { description: catalogLabel(product), price: String(product.price) });
+    setSuggestionsFor(null);
+  }
   const total = items.reduce((sum, it) => sum + (Number(it.quantity) || 0) * (Number(it.price) || 0), 0);
 
   return (
     <div>
       <label className="block text-xs font-medium text-neutral-600 mb-1.5">Parts / Items</label>
+      <p className="text-xs text-neutral-500 mb-2">
+        Can&apos;t scan the item off the jobsheet? Type a few letters in the description field to search the parts
+        catalog and pick it from the list instead.
+      </p>
       <div className="space-y-2">
-        {items.map((it, i) => (
-          <div key={i} className="grid grid-cols-[auto_90px_1fr_70px_100px_auto] gap-2 items-center">
-            <span className="text-xs text-neutral-400 w-5 text-right tabular-nums">{i + 1}.</span>
-            <input
-              type="text"
-              value={it.code}
-              onChange={(e) => update(i, { code: e.target.value })}
-              placeholder="Code"
-              className="bg-neutral-50 border border-neutral-200 rounded-lg px-2.5 py-2 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
-            />
-            <input
-              type="text"
-              value={it.description}
-              onChange={(e) => update(i, { description: e.target.value })}
-              placeholder="e.g. Engine Oil"
-              className="bg-neutral-50 border border-neutral-200 rounded-lg px-2.5 py-2 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
-            />
-            <input
-              type="number"
-              min={0}
-              value={it.quantity}
-              onChange={(e) => update(i, { quantity: e.target.value })}
-              placeholder="Qty"
-              className="bg-neutral-50 border border-neutral-200 rounded-lg px-2 py-2 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
-            />
-            <input
-              type="number"
-              min={0}
-              value={it.price}
-              onChange={(e) => update(i, { price: e.target.value })}
-              placeholder="Price"
-              className="bg-neutral-50 border border-neutral-200 rounded-lg px-2 py-2 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
-            />
-            <button
-              type="button"
-              onClick={() => removeRow(i)}
-              className="text-neutral-400 hover:text-red-600 transition-colors p-1"
-              aria-label="Remove item"
-            >
-              <Trash2 size={14} />
-            </button>
-          </div>
-        ))}
+        {items.map((it, i) => {
+          const query = it.description.trim().toLowerCase();
+          const suggestions =
+            suggestionsFor === i && query
+              ? catalogProducts.filter((p) => catalogLabel(p).toLowerCase().includes(query)).slice(0, 8)
+              : [];
+          return (
+            <div key={i} className="grid grid-cols-[auto_90px_1fr_70px_100px_auto] gap-2 items-center">
+              <span className="text-xs text-neutral-400 w-5 text-right tabular-nums">{i + 1}.</span>
+              <input
+                type="text"
+                value={it.code}
+                onChange={(e) => update(i, { code: e.target.value })}
+                placeholder="Code"
+                className="bg-neutral-50 border border-neutral-200 rounded-lg px-2.5 py-2 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
+              />
+              <div className="relative">
+                <input
+                  type="text"
+                  value={it.description}
+                  onChange={(e) => update(i, { description: e.target.value })}
+                  onFocus={() => setSuggestionsFor(i)}
+                  onBlur={() => setTimeout(() => setSuggestionsFor((cur) => (cur === i ? null : cur)), 150)}
+                  placeholder="e.g. Engine Oil — or search the catalog"
+                  className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-2.5 py-2 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
+                />
+                {suggestions.length > 0 && (
+                  <div className="absolute z-10 top-full left-0 right-0 mt-1 bg-white border border-neutral-200 rounded-lg shadow-lg max-h-56 overflow-y-auto">
+                    {suggestions.map((p) => (
+                      <button
+                        key={p.id}
+                        type="button"
+                        // Mousedown, not click — fires before the input's onBlur
+                        // closes the list, so the click actually lands.
+                        onMouseDown={() => pickSuggestion(i, p)}
+                        className="w-full text-left px-3 py-2 text-sm hover:bg-neutral-50 flex items-center justify-between gap-2"
+                      >
+                        <span className="text-neutral-800">{catalogLabel(p)}</span>
+                        <span className="text-neutral-500 shrink-0">{formatCurrency(p.price)}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <input
+                type="number"
+                min={0}
+                value={it.quantity}
+                onChange={(e) => update(i, { quantity: e.target.value })}
+                placeholder="Qty"
+                className="bg-neutral-50 border border-neutral-200 rounded-lg px-2 py-2 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
+              />
+              <input
+                type="number"
+                min={0}
+                value={it.price}
+                onChange={(e) => update(i, { price: e.target.value })}
+                placeholder="Price"
+                className="bg-neutral-50 border border-neutral-200 rounded-lg px-2 py-2 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
+              />
+              <button
+                type="button"
+                onClick={() => removeRow(i)}
+                className="text-neutral-400 hover:text-red-600 transition-colors p-1"
+                aria-label="Remove item"
+              >
+                <Trash2 size={14} />
+              </button>
+            </div>
+          );
+        })}
       </div>
       <div className="flex items-center gap-4 mt-2">
         <button
@@ -1088,7 +1136,7 @@ export default function WalkInJobForm({
           </div>
 
           {isScan && <SectionHeader icon={Boxes} title="Parts & Cost" />}
-          <ItemsEditor items={items} onChange={setItems} />
+          <ItemsEditor items={items} onChange={setItems} catalogProducts={catalogProducts} />
 
           <div>
             <label className="block text-xs font-medium text-neutral-600 mb-1.5">Cost Total (RM)</label>
