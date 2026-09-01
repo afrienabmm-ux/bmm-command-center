@@ -99,7 +99,9 @@ function RevenueRow({
         </div>
       </td>
       <td className="px-5 py-3.5 text-neutral-600 whitespace-nowrap">{r.restoreBikeCount} jobs</td>
-      <td className="px-5 py-3.5 text-neutral-600 whitespace-nowrap">{r.packageSetsSold} sets</td>
+      <td className="px-5 py-3.5 text-neutral-600 whitespace-nowrap">
+        {r.packageSetsSold} sets · {formatCurrency(r.packageRevenue)}
+      </td>
       <td className="px-5 py-3.5 text-neutral-600 whitespace-nowrap">
         <span className="inline-flex items-center gap-1">
           <Smartphone size={12} className="text-sky-500" /> {r.genbluCount} new
