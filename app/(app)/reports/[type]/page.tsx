@@ -72,6 +72,10 @@ export default async function ReportDetailPage({ params }: { params: Promise<{ t
   // its own table next to the full transaction list rather than folded
   // into the same rows, same split the GenBlu page itself uses.
   let monthlySummary: Awaited<ReturnType<typeof getGenbluMonthlySummary>> | undefined;
+  // Stitched onto the front of the CSV export alongside the transaction
+  // rows — same numbers shown in the Monthly Point Allocation Summary
+  // table beside it, just also captured when someone exports the report.
+  let summarySection: { title: string; columns: string[]; rows: (string | number)[][] } | undefined;
 
   if (type === "jobsheet" || type === "restore-bike") {
     const jobType = type === "jobsheet" ? "Walk-in" : "Restore Bike";
@@ -154,6 +158,14 @@ export default async function ReportDetailPage({ params }: { params: Promise<{ t
   } else if (type === "point-allocation") {
     const [todayYear, todayMonth] = todayInMalaysia().split("-").map(Number);
     monthlySummary = await getGenbluMonthlySummary(todayYear, todayMonth);
+    summarySection = {
+      title: "Monthly Point Allocation Summary",
+      columns: ["Branch", "Counts", "Points"],
+      rows: [
+        ...monthlySummary.rows.map((r) => [r.label, r.counts, r.points]),
+        [monthlySummary.total.label, monthlySummary.total.counts, monthlySummary.total.points],
+      ],
+    };
     const txns = allBranches ? await getAllBranchesGenbluTransactions() : await getGenbluTransactions(selection);
     // Signed URLs, one per row's uploaded screenshot — fetched up front so
     // double-clicking a row opens it with no extra round trip.
@@ -297,6 +309,7 @@ export default async function ReportDetailPage({ params }: { params: Promise<{ t
                 searchPlaceholder="Search…"
                 imageField={imageField}
                 filename={`bmm-report-${type}`}
+                summarySection={summarySection}
               />
             </div>
           </div>
