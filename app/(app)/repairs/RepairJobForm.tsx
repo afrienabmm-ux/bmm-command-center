@@ -609,7 +609,9 @@ export default function RepairJobForm({
             </p>
           </div>
           <div>
-            <label className="block text-xs font-medium text-neutral-600 mb-1.5">Mileage (KM) *</label>
+            <label className="block text-xs font-medium text-neutral-600 mb-1.5">
+              Mileage (KM){dealType !== "Tarik" && " *"}
+            </label>
             <input
               ref={mileageRef}
               type="text"
