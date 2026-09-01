@@ -241,23 +241,22 @@ export default async function ReportDetailPage({ params }: { params: Promise<{ t
       status: m.status,
     }));
   } else if (type === "sales-performance") {
-    const now = new Date();
-    let year = now.getFullYear();
-    let month = now.getMonth() + 1;
-    const monthRows: {
-      label: string;
-      rows: { fullName: string; shortCode: string; restoreBikeRevenue: number; walkInRevenue: number; packageRevenue: number; totalRevenue: number }[];
-    }[] = [];
+    let [year, month] = todayInMalaysia().split("-").map(Number);
+    const periods: { year: number; month: number }[] = [];
     for (let i = 0; i < 12; i++) {
-      const perf = allBranches ? await getAllBranchesPerformance(year, month) : await getBranchPerformance(selection, year, month);
-      monthRows.push({
-        label: new Date(year, month - 1).toLocaleDateString("en-US", { month: "short", year: "numeric" }),
-        rows: perf,
-      });
+      periods.push({ year, month });
       const rolled = rollBackMonth(year, month);
       year = rolled.year;
       month = rolled.month;
     }
+    // All 12 months fetched at once instead of one-by-one — the sequential
+    // version made every render wait out 12 round trips back to back.
+    const monthRows = await Promise.all(
+      periods.map(async (p) => ({
+        label: new Date(p.year, p.month - 1).toLocaleDateString("en-US", { month: "short", year: "numeric" }),
+        rows: allBranches ? await getAllBranchesPerformance(p.year, p.month) : await getBranchPerformance(selection, p.year, p.month),
+      }))
+    );
     columns = [
       { key: "month", label: "Month" },
       { key: "fullName", label: "Mechanic" },

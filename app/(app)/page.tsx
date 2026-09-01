@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { requireApproved, getActiveBranchSelection, isManagementLevel } from "@/lib/current-user";
 import { branchLabel } from "@/lib/branch";
+import { todayInMalaysia } from "@/lib/malaysia-time";
 import PageHeader from "@/components/PageHeader";
 import MonthPicker from "@/components/MonthPicker";
 import AllBranchesOverview from "./AllBranchesOverview";
@@ -26,9 +27,9 @@ export default async function CommandCenterPage({
   if (user.role === "Front Desk") redirect("/customers");
   const branchSelection = await getActiveBranchSelection(user);
   const params = await searchParams;
-  const now = new Date();
-  const year = params.year ? Number(params.year) : now.getFullYear();
-  const month = params.month ? Number(params.month) : now.getMonth() + 1;
+  const [todayYear, todayMonth] = todayInMalaysia().split("-").map(Number);
+  const year = params.year ? Number(params.year) : todayYear;
+  const month = params.month ? Number(params.month) : todayMonth;
 
   return (
     <div className="flex flex-col h-full">

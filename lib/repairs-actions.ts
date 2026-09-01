@@ -456,29 +456,34 @@ function countItemCodes(items: ItemInput[]): Map<string, number> {
 async function deductCatalogStockForNewItems(branch: Branch, oldItems: ItemInput[], newItems: ItemInput[]): Promise<void> {
   const oldCounts = countItemCodes(oldItems);
   const newCounts = countItemCodes(newItems);
-  const codes = new Set([...oldCounts.keys(), ...newCounts.keys()]);
+  const codes = [...new Set([...oldCounts.keys(), ...newCounts.keys()])];
 
-  for (const code of codes) {
-    const delta = (newCounts.get(code) ?? 0) - (oldCounts.get(code) ?? 0);
-    if (delta <= 0) continue;
+  // Each code touches its own catalog product/stock row, so every code's
+  // read-then-write chain is independent — running them one code at a
+  // time made a 6-part jobsheet wait out 18 round trips back to back.
+  await Promise.all(
+    codes.map(async (code) => {
+      const delta = (newCounts.get(code) ?? 0) - (oldCounts.get(code) ?? 0);
+      if (delta <= 0) return;
 
-    const { data: product } = await supabaseAdmin.from("cc_catalog_products").select("id").eq("code", code).maybeSingle();
-    if (!product) continue;
+      const { data: product } = await supabaseAdmin.from("cc_catalog_products").select("id").eq("code", code).maybeSingle();
+      if (!product) return;
 
-    const { data: stockRow } = await supabaseAdmin
-      .from("cc_catalog_stock")
-      .select("quantity")
-      .eq("product_id", product.id)
-      .eq("branch", branch)
-      .maybeSingle();
-    const nextQuantity = Math.max(0, (stockRow?.quantity ?? 0) - delta);
-    await supabaseAdmin
-      .from("cc_catalog_stock")
-      .upsert(
-        { product_id: product.id, branch, quantity: nextQuantity, updated_at: new Date().toISOString() },
-        { onConflict: "product_id,branch" }
-      );
-  }
+      const { data: stockRow } = await supabaseAdmin
+        .from("cc_catalog_stock")
+        .select("quantity")
+        .eq("product_id", product.id)
+        .eq("branch", branch)
+        .maybeSingle();
+      const nextQuantity = Math.max(0, (stockRow?.quantity ?? 0) - delta);
+      await supabaseAdmin
+        .from("cc_catalog_stock")
+        .upsert(
+          { product_id: product.id, branch, quantity: nextQuantity, updated_at: new Date().toISOString() },
+          { onConflict: "product_id,branch" }
+        );
+    })
+  );
 }
 
 // "Bike Arrived" quick-add: creates a bare Restore Bike job stamped with

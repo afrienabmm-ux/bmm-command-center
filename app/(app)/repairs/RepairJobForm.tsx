@@ -40,7 +40,10 @@ function itemsFromJob(job: RepairJob): ItemInput[] {
 function catalogLabel(p: CatalogProduct): string {
   const nameWithSpec = p.spec ? `${p.productName} ${p.spec}` : p.productName;
   // Include the brand so searching "Yamalube" or "Rock Oil" surfaces every
-  // product under it — most product names don't repeat their own brand.
+  // product under it — most product names don't repeat their own brand,
+  // but some catalog rows (e.g. "YAMALUBE 4T 10W-40") already have it
+  // baked in, so skip prepending a second copy in that case.
+  if (nameWithSpec.toLowerCase().startsWith(p.brand.toLowerCase())) return nameWithSpec;
   return `${p.brand} ${nameWithSpec}`;
 }
 
@@ -124,7 +127,7 @@ function ItemsEditor({
           return (
             <div
               key={i}
-              className="grid grid-cols-1 sm:grid-cols-[auto_90px_1fr_70px_100px_auto] gap-2 sm:items-center border-b border-neutral-100 sm:border-0 pb-3 sm:pb-0 last:border-0 last:pb-0"
+              className="grid grid-cols-1 sm:grid-cols-[auto_150px_1fr_55px_80px_auto] gap-2 sm:items-center border-b border-neutral-100 sm:border-0 pb-3 sm:pb-0 last:border-0 last:pb-0"
             >
               <span className="text-xs text-neutral-400 w-5 text-right tabular-nums">{i + 1}.</span>
               <div className="relative">
@@ -133,7 +136,9 @@ function ItemsEditor({
                   value={it.code}
                   onChange={(e) => update(i, { code: e.target.value })}
                   onFocus={() => setSuggestionsFor({ row: i, field: "code" })}
-                  onBlur={() => setTimeout(() => setSuggestionsFor((cur) => (cur?.row === i ? null : cur)), 150)}
+                  onBlur={() =>
+                    setTimeout(() => setSuggestionsFor((cur) => (cur?.row === i && cur.field === "code" ? null : cur)), 150)
+                  }
                   placeholder="Code — or search the catalog"
                   className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-2.5 py-2 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
                 />
@@ -160,7 +165,9 @@ function ItemsEditor({
                   value={it.description}
                   onChange={(e) => update(i, { description: e.target.value })}
                   onFocus={() => setSuggestionsFor({ row: i, field: "description" })}
-                  onBlur={() => setTimeout(() => setSuggestionsFor((cur) => (cur?.row === i ? null : cur)), 150)}
+                  onBlur={() =>
+                    setTimeout(() => setSuggestionsFor((cur) => (cur?.row === i && cur.field === "description" ? null : cur)), 150)
+                  }
                   placeholder="e.g. Engine Oil — or search the catalog"
                   className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-2.5 py-2 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
                 />

@@ -10,6 +10,7 @@ import {
 } from "@/lib/genblu-actions";
 import { getAllMechanics } from "@/lib/mechanics-actions";
 import { branchLabel } from "@/lib/branch";
+import { todayInMalaysia } from "@/lib/malaysia-time";
 import PageHeader from "@/components/PageHeader";
 import MonthPicker from "@/components/MonthPicker";
 import GenbluClient from "./GenbluClient";
@@ -29,9 +30,9 @@ export default async function GenbluPage({
   const branchSelection = await getActiveBranchSelection(user);
   const showAllBranches = branchSelection === "all";
   const params = await searchParams;
-  const now = new Date();
-  const year = params.year ? Number(params.year) : now.getFullYear();
-  const month = params.month ? Number(params.month) : now.getMonth() + 1;
+  const [todayYear, todayMonth] = todayInMalaysia().split("-").map(Number);
+  const year = params.year ? Number(params.year) : todayYear;
+  const month = params.month ? Number(params.month) : todayMonth;
 
   const [registrations, mechanics, pointsByName, monthlySummary, allTransactions] = await Promise.all([
     showAllBranches ? getAllBranchesGenbluRegistrations() : getGenbluRegistrations(branch),

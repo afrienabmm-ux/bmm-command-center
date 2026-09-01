@@ -3,6 +3,7 @@
 import { supabaseAdmin } from "./supabase-server";
 import { requireApproved } from "./current-user";
 import { BRANCHES, type Branch } from "./branch";
+import { todayInMalaysia } from "./malaysia-time";
 
 function pad(n: number): string {
   return String(n).padStart(2, "0");
@@ -68,10 +69,14 @@ export async function getRevenuePace(year: number, month: number, onlyBranch?: B
   await requireApproved();
   const { from, to, totalDays } = monthRange(year, month);
 
-  const now = new Date();
-  const isCurrentMonth = year === now.getFullYear() && month === now.getMonth() + 1;
-  const isPastMonth = year < now.getFullYear() || (year === now.getFullYear() && month < now.getMonth() + 1);
-  const today = isCurrentMonth ? now.getDate() : isPastMonth ? totalDays : 0;
+  // Malaysia's calendar date, not the server process's own clock — Vercel
+  // runs UTC, which reads yesterday's date for the first 8 hours of every
+  // Malaysia day and would otherwise show "today" as still-completed
+  // yesterday's revenue during that window.
+  const [todayYear, todayMonthNum, todayDate] = todayInMalaysia().split("-").map(Number);
+  const isCurrentMonth = year === todayYear && month === todayMonthNum;
+  const isPastMonth = year < todayYear || (year === todayYear && month < todayMonthNum);
+  const today = isCurrentMonth ? todayDate : isPastMonth ? totalDays : 0;
 
   const [{ data: targets, error: targetsErr }, { data: jobs, error: jobsErr }, { data: sales, error: salesErr }] = await Promise.all([
     supabaseAdmin
