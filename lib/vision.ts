@@ -38,7 +38,7 @@ function getWorker(): Promise<Worker> {
   return cachedWorker;
 }
 
-type PositionedWord = { text: string; x: number; yCenter: number; height: number };
+export type PositionedWord = { text: string; x: number; yCenter: number; height: number };
 
 function collectWordsFromTesseractBlocks(blocks: Tesseract.Block[] | null): PositionedWord[] {
   const words: PositionedWord[] = [];
@@ -249,6 +249,16 @@ async function runOcr(buffer: Buffer): Promise<OcrResult> {
 // Sends a photo (base64, no data: prefix) for OCR — see runOcr for engine
 // selection.
 export async function extractTextFromImage(base64Image: string): Promise<string> {
+  const { text } = await extractTextAndWordsFromImage(base64Image);
+  return text;
+}
+
+// Same OCR pass as extractTextFromImage, but also hands back each word's
+// on-page position — needed when a screen's own layout (e.g. two
+// side-by-side info cards) can jumble the linear reading order badly
+// enough that text-only heuristics grab the wrong number, and only the
+// real geometry (which number sits directly above which label) settles it.
+export async function extractTextAndWordsFromImage(base64Image: string): Promise<{ text: string; words: PositionedWord[] }> {
   const rawBuffer = Buffer.from(base64Image, "base64");
   let buffer: Buffer;
   try {
@@ -258,8 +268,7 @@ export async function extractTextFromImage(base64Image: string): Promise<string>
     // original photo rather than blocking the scan entirely.
     buffer = rawBuffer;
   }
-  const { text } = await runOcr(buffer);
-  return text;
+  return runOcr(buffer);
 }
 
 // A raw pixel-variance check (the previous approach) can't tell a pen

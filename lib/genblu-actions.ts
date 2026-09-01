@@ -5,7 +5,7 @@ import { supabaseAdmin } from "./supabase-server";
 import { requireApproved, assertCanEditBranch } from "./current-user";
 import type { GenbluRegistration, GenbluTransaction } from "./types";
 import { BRANCHES, type Branch } from "./branch";
-import { extractTextFromImage } from "./vision";
+import { extractTextFromImage, extractTextAndWordsFromImage, type PositionedWord } from "./vision";
 import { extractGenbluEventWithAi } from "./ai-genblu-extract";
 import { logActivity } from "./activity-log";
 
@@ -88,13 +88,44 @@ function condensedName(name: string): string {
 // expiry year) sitting near a stray mention of the word "points".
 type PointsReading = { value: number; isBalance: boolean };
 
-function extractPointsAccrued(text: string): PointsReading | null {
+// The home screen's points card sits directly beside a "membership expires
+// on <date>" card — OCR's linear reading order can jumble the two enough
+// that the expiry year (e.g. "2028") ends up textually closer to "Reward
+// Points" than the real points figure, and a proximity-based text regex
+// grabs the year instead. The actual page geometry doesn't lie, though:
+// the points number always sits directly above the words "Reward Points"
+// in roughly the same column — so when word positions are available, find
+// it that way first, and only fall back to a text-only guess when they're
+// not (e.g. the Tesseract engine hands back less reliable boxes).
+function findPointsAboveLabel(words: PositionedWord[]): number | null {
+  const rewardIdx = words.findIndex((w) => /^reward$/i.test(w.text));
+  if (rewardIdx === -1) return null;
+  const label = words[rewardIdx];
+  const numeric = words.filter((w) => /^[\d,]+$/.test(w.text) && w.yCenter < label.yCenter - label.height * 0.3);
+  if (numeric.length === 0) return null;
+  // Same column as the label first (a big card's number sits above its own
+  // caption, not the neighboring card's) — widen to "anything above" only
+  // if nothing lines up horizontally.
+  const sameColumn = numeric.filter((w) => Math.abs(w.x - label.x) < label.height * 6);
+  const pool = sameColumn.length > 0 ? sameColumn : numeric;
+  const closest = pool.reduce((a, b) => (b.yCenter > a.yCenter ? b : a));
+  const num = Number(closest.text.replace(/,/g, ""));
+  return Number.isNaN(num) ? null : num;
+}
+
+function extractPointsAccrued(text: string, words: PositionedWord[] = []): PointsReading | null {
   const labeled = text.match(/points[^\d]{0,20}(\d[\d,]{0,6})/i);
   if (labeled) {
     const num = Number(labeled[1].replace(/,/g, ""));
     if (!Number.isNaN(num)) return { value: num, isBalance: false };
   }
-  const homeScreen = text.match(/(\d[\d,]{0,6})[^\d]{0,20}reward\s+points/i);
+  const fromPosition = findPointsAboveLabel(words);
+  if (fromPosition !== null) return { value: fromPosition, isBalance: true };
+
+  // Text-only fallback — same expiry-stripping safety net as before, for
+  // whenever word positions aren't available at all.
+  const withoutExpiry = text.replace(/expir\w*[^\n]{0,60}/gi, "");
+  const homeScreen = withoutExpiry.match(/(\d[\d,]{0,6})[^\d]{0,20}reward\s+points/i);
   if (homeScreen) {
     const num = Number(homeScreen[1].replace(/,/g, ""));
     if (!Number.isNaN(num)) return { value: num, isBalance: true };
@@ -119,10 +150,10 @@ async function analyzeGenbluScreenshot(
 ): Promise<{ nameMatches: boolean; pointsReading: PointsReading | null }> {
   const buffer = Buffer.from(await screenshot.arrayBuffer());
   const base64 = buffer.toString("base64");
-  const text = await extractTextFromImage(base64);
+  const { text, words } = await extractTextAndWordsFromImage(base64);
   const condensed = condensedName(customerName);
   const nameMatches = !condensed || condensedName(text).includes(condensed);
-  return { nameMatches, pointsReading: extractPointsAccrued(text) };
+  return { nameMatches, pointsReading: extractPointsAccrued(text, words) };
 }
 
 // The GenBlu app's home screen (used when registering a brand new customer
@@ -179,10 +210,10 @@ export async function scanGenbluScreenshotForNameAction(
   try {
     const buffer = Buffer.from(await screenshot.arrayBuffer());
     const base64 = buffer.toString("base64");
-    const text = await extractTextFromImage(base64);
+    const { text, words } = await extractTextAndWordsFromImage(base64);
     return {
       customerName: extractHomeScreenCustomerName(text),
-      pointsPreview: pointsPreviewText(extractPointsAccrued(text)),
+      pointsPreview: pointsPreviewText(extractPointsAccrued(text, words)),
     };
   } catch {
     return { customerName: null, pointsPreview: null };
