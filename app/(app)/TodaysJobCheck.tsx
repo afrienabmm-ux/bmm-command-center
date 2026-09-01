@@ -46,8 +46,8 @@ export default function TodaysJobCheck({
                   >
                     {r.onTrack ? <Check size={12} className="shrink-0" /> : <X size={12} className="shrink-0" />}
                     <span className={r.onTrack ? "text-emerald-800" : ""}>{r.fullName}</span>
-                    {r.onTrack && (
-                      <span className="text-emerald-600">
+                    {r.jobCount > 0 && (
+                      <span className={r.onTrack ? "text-emerald-600" : "text-neutral-400"}>
                         {formatCurrency(r.revenue)} · {r.jobCount} job{r.jobCount === 1 ? "" : "s"}
                       </span>
                     )}
