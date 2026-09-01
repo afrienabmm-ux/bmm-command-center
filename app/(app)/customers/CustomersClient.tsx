@@ -9,6 +9,7 @@ import { stampCardSize, rewardForStamp, nextReward } from "@/lib/membership";
 import type { CustomerCard } from "@/lib/types";
 import ModalPortal from "@/components/ModalPortal";
 import { isOver250ccModel } from "@/lib/bike-models";
+import { SALESPEOPLE_BY_BRANCH } from "@/lib/services-card-salespeople";
 
 export default function CustomersClient({
   customers,
@@ -274,6 +275,21 @@ function CardModal({
   const [customerPhone, setCustomerPhone] = useState(existing?.customerPhone ?? "");
   const [cardNumber, setCardNumber] = useState(existing?.cardNumber ?? "");
   const [salespersonName, setSalespersonName] = useState(existing?.salespersonName ?? "");
+  // Branches with a fixed staff list show a dropdown instead of free text;
+  // "other" mode falls back to typing when the saved name isn't on that
+  // branch's list (or the picker chooses "Other (type manually)").
+  const [salespersonOther, setSalespersonOther] = useState(() => {
+    const list = SALESPEOPLE_BY_BRANCH[customer?.branch ?? branch];
+    return !!list && !!existing?.salespersonName && !list.includes(existing.salespersonName);
+  });
+  const branchSalespeople = SALESPEOPLE_BY_BRANCH[cardBranch];
+
+  function handleBranchChange(value: Branch) {
+    setCardBranch(value);
+    const list = SALESPEOPLE_BY_BRANCH[value];
+    if (!list) return;
+    setSalespersonOther(!!salespersonName && !list.includes(salespersonName));
+  }
   const [plateNo, setPlateNo] = useState(existing?.plateNo ?? "");
   const [model, setModel] = useState(existing?.model ?? "");
   const [boughtBikeHere, setBoughtBikeHere] = useState(existing?.boughtBikeHere ?? false);
@@ -335,7 +351,7 @@ function CardModal({
             <label className="block text-xs font-medium text-neutral-600 mb-1.5">Branch</label>
             <select
               value={cardBranch}
-              onChange={(e) => setCardBranch(e.target.value as Branch)}
+              onChange={(e) => handleBranchChange(e.target.value as Branch)}
               disabled={locked}
               className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50 disabled:opacity-60"
             >
@@ -357,13 +373,50 @@ function CardModal({
           </div>
           <div>
             <label className="block text-xs font-medium text-neutral-600 mb-1.5">Salesperson Name</label>
-            <input
-              type="text"
-              value={salespersonName}
-              onChange={(e) => setSalespersonName(e.target.value)}
-              placeholder="Who issued this card"
-              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
-            />
+            {branchSalespeople && !salespersonOther ? (
+              <select
+                value={branchSalespeople.includes(salespersonName) ? salespersonName : ""}
+                onChange={(e) => {
+                  if (e.target.value === "__other__") {
+                    setSalespersonOther(true);
+                    setSalespersonName("");
+                  } else {
+                    setSalespersonName(e.target.value);
+                  }
+                }}
+                className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
+              >
+                <option value="">Select…</option>
+                {branchSalespeople.map((name) => (
+                  <option key={name} value={name}>
+                    {name}
+                  </option>
+                ))}
+                <option value="__other__">Other (type manually)</option>
+              </select>
+            ) : (
+              <div className={branchSalespeople ? "flex items-center gap-2" : ""}>
+                <input
+                  type="text"
+                  value={salespersonName}
+                  onChange={(e) => setSalespersonName(e.target.value)}
+                  placeholder="Who issued this card"
+                  className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
+                />
+                {branchSalespeople && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSalespersonOther(false);
+                      setSalespersonName("");
+                    }}
+                    className="text-xs font-medium text-neutral-500 hover:text-red-600 whitespace-nowrap"
+                  >
+                    Use list
+                  </button>
+                )}
+              </div>
+            )}
           </div>
           <div>
             <label className="block text-xs font-medium text-neutral-600 mb-1.5">Phone Number</label>
