@@ -38,7 +38,16 @@ export default function CustomersClient({
   const [sortBy, setSortBy] = useState<"name" | "issued">("issued");
   const [sortDir, setSortDir] = useState<"desc" | "asc">("desc");
   const [showCardNumber, setShowCardNumber] = useState(false);
+  const [salespersonFilter, setSalespersonFilter] = useState("");
   const showAllBranches = branchSelection === "all";
+
+  const salespeople = useMemo(
+    () =>
+      Array.from(new Set(customers.map((c) => c.salespersonName).filter((n) => n.trim() !== ""))).sort((a, b) =>
+        a.localeCompare(b)
+      ),
+    [customers]
+  );
 
   function handleCopyLink() {
     const url = `${window.location.origin}/join`;
@@ -50,19 +59,20 @@ export default function CustomersClient({
 
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase();
-    const filtered = q
-      ? customers.filter(
-          (c) =>
-            c.customerName.toLowerCase().includes(q) ||
-            c.plateNo.toLowerCase().includes(q) ||
-            c.customerPhone.toLowerCase().includes(q)
-        )
-      : customers;
+    const filtered = customers
+      .filter(
+        (c) =>
+          !q ||
+          c.customerName.toLowerCase().includes(q) ||
+          c.plateNo.toLowerCase().includes(q) ||
+          c.customerPhone.toLowerCase().includes(q)
+      )
+      .filter((c) => !salespersonFilter || c.salespersonName === salespersonFilter);
     return [...filtered].sort((a, b) => {
       const cmp = sortBy === "name" ? a.customerName.localeCompare(b.customerName) : a.issuedDate.localeCompare(b.issuedDate);
       return sortDir === "desc" ? -cmp : cmp;
     });
-  }, [customers, query, sortBy, sortDir]);
+  }, [customers, query, salespersonFilter, sortBy, sortDir]);
 
   function handleDelete() {
     if (!deleting) return;
@@ -97,6 +107,23 @@ export default function CustomersClient({
             </select>
             <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none" />
           </div>
+          {salespeople.length > 0 && (
+            <div className="relative">
+              <select
+                value={salespersonFilter}
+                onChange={(e) => setSalespersonFilter(e.target.value)}
+                className="appearance-none bg-white border border-neutral-200 hover:border-red-300 rounded-xl pl-3 pr-8 py-2 text-sm text-neutral-700 font-medium focus:outline-none focus:border-red-500/50 focus:ring-2 focus:ring-red-100 transition-colors cursor-pointer"
+              >
+                <option value="">All Salespeople</option>
+                {salespeople.map((name) => (
+                  <option key={name} value={name}>
+                    {name}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none" />
+            </div>
+          )}
           <button
             onClick={() => setSortDir((d) => (d === "desc" ? "asc" : "desc"))}
             className="flex items-center gap-1.5 bg-white border border-neutral-200 hover:border-red-300 text-neutral-700 text-sm font-medium px-3 py-2 rounded-lg transition-colors whitespace-nowrap"
