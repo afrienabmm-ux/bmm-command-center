@@ -136,30 +136,56 @@ function extractHomeScreenCustomerName(text: string): string | null {
     .split("\n")
     .map((l) => l.trim())
     .filter(Boolean);
+  const isNameLine = (l: string) => /^[A-Za-z][A-Za-z .'-]{1,}$/.test(l);
   const phoneIdx = lines.findIndex((l) => /^\d{2,4}[-\s]\d{3,4}[-\s]\d{3,4}$/.test(l));
+
   if (phoneIdx > 0) {
-    const candidate = lines[phoneIdx - 1];
-    if (/^[A-Za-z][A-Za-z .'-]{3,}$/.test(candidate)) return candidate;
+    // A long name sometimes wraps across two lines on the app's home
+    // screen — walk backward from the phone number, joining every
+    // consecutive name-shaped line above it, not just the one right next
+    // to it (which grabbed only the first word of a wrapped name).
+    const nameLines: string[] = [];
+    for (let i = phoneIdx - 1; i >= 0 && nameLines.length < 3 && isNameLine(lines[i]); i--) {
+      nameLines.unshift(lines[i]);
+    }
+    if (nameLines.length > 0) return nameLines.join(" ");
   }
-  // Fallback — the longest name-shaped line among the first few lines,
-  // since the name always sits right at the top of this screen.
-  const candidates = lines.slice(0, 5).filter((l) => /^[A-Za-z][A-Za-z .'-]{3,}$/.test(l));
-  if (candidates.length === 0) return null;
-  return candidates.reduce((a, b) => (b.length > a.length ? b : a));
+
+  // Fallback — the name always sits at the very top of this screen, so
+  // join whichever of the first few lines look like name text.
+  const topNameLines = lines.slice(0, 3).filter(isNameLine);
+  return topNameLines.length > 0 ? topNameLines.join(" ") : null;
+}
+
+// A short, human-readable preview of whatever points figure OCR found on
+// the screenshot — shown to staff so they can see what was read (and catch
+// a bad read) instead of the number silently applying itself on submit.
+function pointsPreviewText(reading: PointsReading | null): string | null {
+  if (!reading) return null;
+  return reading.isBalance
+    ? `${reading.value.toLocaleString()} points (current balance shown on screen)`
+    : `${reading.value.toLocaleString()} points awarded`;
 }
 
 // Called as soon as a mechanic picks a screenshot in the "No Jobsheet — New
 // Customer" flow, so the name field can fill itself in instead of asking
-// staff to retype what's already on the screen they just uploaded.
-export async function scanGenbluScreenshotForNameAction(screenshot: File): Promise<{ customerName: string | null }> {
+// staff to retype what's already on the screen they just uploaded — and so
+// the points figure that'll be saved is visible up front, not just applied
+// silently on submit.
+export async function scanGenbluScreenshotForNameAction(
+  screenshot: File
+): Promise<{ customerName: string | null; pointsPreview: string | null }> {
   await requireApproved();
   try {
     const buffer = Buffer.from(await screenshot.arrayBuffer());
     const base64 = buffer.toString("base64");
     const text = await extractTextFromImage(base64);
-    return { customerName: extractHomeScreenCustomerName(text) };
+    return {
+      customerName: extractHomeScreenCustomerName(text),
+      pointsPreview: pointsPreviewText(extractPointsAccrued(text)),
+    };
   } catch {
-    return { customerName: null };
+    return { customerName: null, pointsPreview: null };
   }
 }
 

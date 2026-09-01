@@ -38,6 +38,7 @@ export default function GenbluQuickForm({
   const [manualPlateNo, setManualPlateNo] = useState("");
   const [screenshot, setScreenshot] = useState<File | null>(null);
   const [scanningName, setScanningName] = useState(false);
+  const [pointsPreview, setPointsPreview] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
   const [isPending, startTransition] = useTransition();
@@ -46,13 +47,18 @@ export default function GenbluQuickForm({
   // but the screenshot itself (the GenBlu app's home screen) already shows
   // it printed right at the top, so reading it off there beats asking
   // staff to retype what they can already see on the photo they just took.
+  // The points figure shown here is a preview only — the real save on
+  // submit re-reads the screenshot itself, this just shows staff up front
+  // what that reading looks like.
   function handleScreenshotChange(file: File | null) {
     setScreenshot(file);
+    setPointsPreview(null);
     if (file && !hasJobsheet) {
       setScanningName(true);
       scanGenbluScreenshotForNameAction(file)
         .then((result) => {
           if (result.customerName) setManualCustomerName(result.customerName);
+          setPointsPreview(result.pointsPreview);
         })
         .finally(() => setScanningName(false));
     }
@@ -190,6 +196,9 @@ export default function GenbluQuickForm({
             <p className="text-[11px] text-neutral-500 mt-1.5">
               {scanningName ? "Reading the customer's name off the screenshot…" : "Upload the app's home screen — the name below fills in automatically."}
             </p>
+            {pointsPreview && !scanningName && (
+              <p className="text-[11px] text-amber-700 mt-1">Points read from screenshot: {pointsPreview}</p>
+            )}
           </div>
           <div>
             <label className="block text-xs font-medium text-neutral-600 mb-1.5">Branch</label>
