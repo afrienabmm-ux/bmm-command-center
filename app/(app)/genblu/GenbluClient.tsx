@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
-import { Plus, ImageIcon, Download, X, Pencil, Trash2, Search, Award, ChevronDown } from "lucide-react";
+import { Plus, Download, X, Pencil, Trash2, Search, Award, ChevronDown } from "lucide-react";
 import { addGenbluRegistrationAction, updateGenbluRegistrationAction, deleteGenbluRegistrationAction } from "@/lib/genblu-actions";
 import { exportGenbluCsv, exportAllBranchesGenbluCsv } from "@/lib/export-actions";
 import { BRANCHES, branchLabel, type Branch, type BranchSelection } from "@/lib/branch";
@@ -127,74 +127,85 @@ export default function GenbluClient({
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {visible.map((r) => (
-          <div key={r.id} className="bg-white border border-neutral-200 rounded-xl overflow-hidden">
-            <div
-              className="aspect-video bg-neutral-50 flex items-center justify-center cursor-pointer"
-              onDoubleClick={() => r.screenshotUrl && setLightboxUrl(r.screenshotUrl)}
-              title={r.screenshotUrl ? "Double-click to view full size" : undefined}
-            >
-              {r.screenshotUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={r.screenshotUrl} alt="GenBlu screenshot" className="w-full h-full object-cover" />
-              ) : (
-                <ImageIcon size={24} className="text-neutral-700" />
+      <div className="bg-white border border-neutral-200 rounded-xl overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="bg-neutral-50 text-left text-xs font-medium text-neutral-500 uppercase tracking-wide">
+                <th className="px-4 py-2.5">Customer Name</th>
+                <th className="px-4 py-2.5">Plate No.</th>
+                <th className="px-4 py-2.5">Registered By</th>
+                <th className="px-4 py-2.5">Date</th>
+                <th className="px-4 py-2.5">Branch</th>
+                <th className="px-4 py-2.5">Points</th>
+                <th className="px-4 py-2.5 w-16" />
+              </tr>
+            </thead>
+            <tbody>
+              {visible.map((r) => (
+                <tr
+                  key={r.id}
+                  className={`border-t border-neutral-100 ${r.screenshotUrl ? "cursor-pointer hover:bg-neutral-50" : ""}`}
+                  onDoubleClick={() => r.screenshotUrl && setLightboxUrl(r.screenshotUrl)}
+                  title={r.screenshotUrl ? "Double-click to view the uploaded screenshot" : undefined}
+                >
+                  <td className="px-4 py-2.5 text-neutral-800 font-medium">{r.customerName || "—"}</td>
+                  <td className="px-4 py-2.5 text-neutral-700">{r.customerPlateNo}</td>
+                  <td className="px-4 py-2.5 text-neutral-600">
+                    {r.salespersonName} {r.salespersonCode && `(${r.salespersonCode})`}
+                  </td>
+                  <td className="px-4 py-2.5 text-neutral-500 whitespace-nowrap">{formatDate(r.createdAt)}</td>
+                  <td className="px-4 py-2.5 text-neutral-600 whitespace-nowrap">{branchLabel(r.branch)}</td>
+                  <td className="px-4 py-2.5">
+                    {r.points > 0 &&
+                      (r.pointsAreActual ? (
+                        <span
+                          className="inline-flex items-center gap-1 text-xs font-medium text-amber-700 bg-amber-500/10 border border-amber-500/20 rounded-full px-2 py-0.5 whitespace-nowrap"
+                          title="Read straight off the customer's GenBlu app screenshot"
+                        >
+                          <Award size={11} /> {r.points.toLocaleString()}
+                        </span>
+                      ) : (
+                        <span
+                          className="inline-flex items-center gap-1 text-xs font-medium text-neutral-600 bg-neutral-100 border border-neutral-200 rounded-full px-2 py-0.5 whitespace-nowrap"
+                          title="No screenshot balance on file yet — estimated from job spending"
+                        >
+                          <Award size={11} /> ~{r.points.toLocaleString()} ({formatCurrency(r.points)})
+                        </span>
+                      ))}
+                  </td>
+                  <td className="px-4 py-2.5">
+                    <div className="flex items-center gap-1 shrink-0">
+                      <button
+                        onClick={() => setEditing(r)}
+                        className="text-neutral-400 hover:text-red-600 transition-colors p-1"
+                        title="Edit registration"
+                        aria-label="Edit registration"
+                      >
+                        <Pencil size={14} />
+                      </button>
+                      <button
+                        onClick={() => setDeleting(r)}
+                        className="text-neutral-400 hover:text-red-600 transition-colors p-1"
+                        title="Delete registration"
+                        aria-label="Delete registration"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+              {visible.length === 0 && (
+                <tr>
+                  <td colSpan={7} className="px-4 py-8 text-center text-neutral-500">
+                    {registrations.length === 0 ? "No GenBlu registrations yet." : "No registrations match your search."}
+                  </td>
+                </tr>
               )}
-            </div>
-            <div className="p-4 flex items-start justify-between gap-2">
-              <div className="min-w-0">
-                <p className="text-sm font-medium text-neutral-800 truncate">{r.customerName || "—"}</p>
-                <p className="text-xs text-neutral-500 mt-0.5">Plate: {r.customerPlateNo}</p>
-                <p className="text-xs text-neutral-500 mt-0.5">
-                  Registered by {r.salespersonName} {r.salespersonCode && `(${r.salespersonCode})`}
-                </p>
-                <p className="text-xs text-neutral-400 mt-1">
-                  {formatDate(r.createdAt)} · {branchLabel(r.branch)}
-                </p>
-                {r.points > 0 &&
-                  (r.pointsAreActual ? (
-                    <span
-                      className="inline-flex items-center gap-1 text-xs font-medium text-amber-700 bg-amber-500/10 border border-amber-500/20 rounded-full px-2 py-0.5 mt-2"
-                      title="Read straight off the customer's GenBlu app screenshot"
-                    >
-                      <Award size={11} /> {r.points.toLocaleString()} GenBlu points
-                    </span>
-                  ) : (
-                    <span
-                      className="inline-flex items-center gap-1 text-xs font-medium text-neutral-600 bg-neutral-100 border border-neutral-200 rounded-full px-2 py-0.5 mt-2"
-                      title="No screenshot balance on file yet — estimated from job spending"
-                    >
-                      <Award size={11} /> ~{r.points.toLocaleString()} points est. ({formatCurrency(r.points)})
-                    </span>
-                  ))}
-              </div>
-              <div className="flex items-center gap-1 shrink-0">
-                <button
-                  onClick={() => setEditing(r)}
-                  className="text-neutral-400 hover:text-red-600 transition-colors p-1"
-                  title="Edit registration"
-                  aria-label="Edit registration"
-                >
-                  <Pencil size={14} />
-                </button>
-                <button
-                  onClick={() => setDeleting(r)}
-                  className="text-neutral-400 hover:text-red-600 transition-colors p-1"
-                  title="Delete registration"
-                  aria-label="Delete registration"
-                >
-                  <Trash2 size={14} />
-                </button>
-              </div>
-            </div>
-          </div>
-        ))}
-        {visible.length === 0 && (
-          <p className="text-sm text-neutral-500 col-span-full text-center py-10">
-            {registrations.length === 0 ? "No GenBlu registrations yet." : "No registrations match your search."}
-          </p>
-        )}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       {modalOpen && (
