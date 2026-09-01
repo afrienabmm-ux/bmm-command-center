@@ -107,6 +107,48 @@ export async function getBranchAchievedInRange(branch: Branch, from: string, to:
   return repairRevenue + packageRevenue;
 }
 
+export type MonthlyTargetHistoryPoint = { year: number; month: number; achieved: number; target: number };
+
+// Last `monthsBack` calendar months (oldest first, current month last) —
+// achieved-vs-target per month, for the "Pace to Target" bar chart. Reuses
+// the exact same achieved/target definition as the rest of the dashboard
+// (getBranchMonthSummary), just repeated across several months instead of
+// one.
+export async function getMonthlyTargetHistory(
+  year: number,
+  month: number,
+  onlyBranch?: Branch,
+  monthsBack = 6
+): Promise<MonthlyTargetHistoryPoint[]> {
+  await requireApproved();
+  const periods: { year: number; month: number }[] = [];
+  let y = year;
+  let m = month;
+  for (let i = 0; i < monthsBack; i++) {
+    periods.unshift({ year: y, month: m });
+    m -= 1;
+    if (m === 0) {
+      m = 12;
+      y -= 1;
+    }
+  }
+  return Promise.all(
+    periods.map(async (p) => {
+      if (onlyBranch) {
+        const s = await getBranchMonthSummary(onlyBranch, p.year, p.month);
+        return { year: p.year, month: p.month, achieved: s.achievedAmount, target: s.targetAmount };
+      }
+      const summaries = await Promise.all(BRANCHES.map(({ value }) => getBranchMonthSummary(value, p.year, p.month)));
+      return {
+        year: p.year,
+        month: p.month,
+        achieved: summaries.reduce((sum, s) => sum + s.achievedAmount, 0),
+        target: summaries.reduce((sum, s) => sum + s.targetAmount, 0),
+      };
+    })
+  );
+}
+
 export type MechanicAchievement = {
   mechanicId: string;
   fullName: string;

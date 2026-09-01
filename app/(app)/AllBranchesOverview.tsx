@@ -17,10 +17,11 @@ import {
   getAllBranchesApprovedReadyToStartJobs,
   getUpcomingServiceReminders,
 } from "@/lib/repairs-actions";
-import { getBranchMonthSummary, getBranchPerformance } from "@/lib/reports-actions";
+import { getBranchMonthSummary, getBranchPerformance, getMonthlyTargetHistory } from "@/lib/reports-actions";
 import { getMonthlyTrends } from "@/lib/trends-actions";
 import { getRevenuePace } from "@/lib/revenue-pace-actions";
 import RevenuePace from "./RevenuePace";
+import MonthlyPaceChart from "./MonthlyPaceChart";
 import {
   getWarrantyClaimStatusBreakdown,
   getDeliveryClaimStatusBreakdown,
@@ -73,6 +74,7 @@ export default async function AllBranchesOverview({
     prevAchieved,
     trendPoints,
     revenuePace,
+    monthlyTargetHistory,
     claimStatusBreakdown,
     deliveryClaimStatusBreakdown,
     packageBreakdown,
@@ -98,6 +100,7 @@ export default async function AllBranchesOverview({
       : getAllBranchesAchievedTotal(prev.year, prev.month),
     getMonthlyTrends(year, month, 6, onlyBranch),
     getRevenuePace(year, month, onlyBranch),
+    getMonthlyTargetHistory(year, month, onlyBranch),
     getWarrantyClaimStatusBreakdown(year, month, onlyBranch),
     getDeliveryClaimStatusBreakdown(year, month, onlyBranch),
     getPackageSalesBreakdown(year, month),
@@ -371,6 +374,12 @@ export default async function AllBranchesOverview({
           href="/repairs"
         />
       </div>
+
+      <MonthlyPaceChart
+        points={monthlyTargetHistory}
+        workingDaysRemaining={revenuePace.branches[0]?.workingDaysRemaining ?? 0}
+        title={onlyBranch ? `Pace to Target — ${branchLabel(onlyBranch)}` : "Pace to Target"}
+      />
 
       <RevenuePace
         data={revenuePace}
