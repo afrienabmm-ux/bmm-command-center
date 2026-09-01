@@ -416,7 +416,10 @@ export async function getBranchPerformance(
       packageRevenue: pkg?.revenue ?? 0,
       packageSetsSold: pkg?.setsSold ?? 0,
       genbluCount: genblu?.genbluCount ?? 0,
-      totalRevenue: a.totalRevenue + (pkg?.revenue ?? 0),
+      // Jobsheet (Walk-in) revenue only — Restore Bike and Services Combo
+      // are shown in their own columns but don't count toward this figure,
+      // the sort order, or which mechanic gets the crown.
+      totalRevenue: a.walkInRevenue,
     };
   });
 
