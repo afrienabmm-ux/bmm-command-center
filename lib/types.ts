@@ -282,6 +282,8 @@ export type CustomerCard = {
   customerName: string;
   customerPhone: string;
   cardNumber: string;
+  // Who issued/sold the card — the staff member the customer dealt with.
+  salespersonName: string;
   // The bike the customer registered with — matches the plate/model fields
   // on the physical card.
   plateNo: string;

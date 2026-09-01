@@ -266,6 +266,7 @@ function CardModal({
   const [customerName, setCustomerName] = useState(existing?.customerName ?? "");
   const [customerPhone, setCustomerPhone] = useState(existing?.customerPhone ?? "");
   const [cardNumber, setCardNumber] = useState(existing?.cardNumber ?? "");
+  const [salespersonName, setSalespersonName] = useState(existing?.salespersonName ?? "");
   const [plateNo, setPlateNo] = useState(existing?.plateNo ?? "");
   const [model, setModel] = useState(existing?.model ?? "");
   const [boughtBikeHere, setBoughtBikeHere] = useState(existing?.boughtBikeHere ?? false);
@@ -288,6 +289,7 @@ function CardModal({
     const base = {
       customerName,
       customerPhone,
+      salespersonName,
       plateNo,
       model,
       boughtBikeHere,
@@ -343,6 +345,16 @@ function CardModal({
               type="text"
               value={customerName}
               onChange={(e) => setCustomerName(e.target.value)}
+              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-neutral-600 mb-1.5">Salesperson Name</label>
+            <input
+              type="text"
+              value={salespersonName}
+              onChange={(e) => setSalespersonName(e.target.value)}
+              placeholder="Who issued this card"
               className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
             />
           </div>

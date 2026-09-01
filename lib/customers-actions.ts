@@ -14,6 +14,7 @@ type CardRow = {
   customer_name: string;
   customer_phone: string;
   card_number: string;
+  salesperson_name: string;
   plate_no: string;
   model: string;
   bought_bike_here: boolean;
@@ -32,6 +33,7 @@ function toCard(r: CardRow): CustomerCard {
     customerName: r.customer_name,
     customerPhone: r.customer_phone,
     cardNumber: r.card_number,
+    salespersonName: r.salesperson_name,
     plateNo: r.plate_no,
     model: r.model,
     boughtBikeHere: r.bought_bike_here,
@@ -68,6 +70,7 @@ export async function addCustomerCardAction(input: {
   branch: Branch;
   customerName: string;
   customerPhone: string;
+  salespersonName: string;
   plateNo: string;
   model: string;
   boughtBikeHere: boolean;
@@ -105,6 +108,7 @@ export async function addCustomerCardAction(input: {
     customer_name: customerName,
     customer_phone: customerPhone,
     card_number: cardNumber,
+    salesperson_name: input.salespersonName.trim(),
     plate_no: input.plateNo.trim(),
     model: input.model.trim(),
     bought_bike_here: input.boughtBikeHere,
@@ -140,6 +144,7 @@ export async function updateCustomerCardAction(
     customerName: string;
     customerPhone: string;
     cardNumber: string;
+    salespersonName: string;
     plateNo: string;
     model: string;
     boughtBikeHere: boolean;
@@ -175,6 +180,7 @@ export async function updateCustomerCardAction(
       customer_name: customerName,
       customer_phone: customerPhone,
       card_number: input.cardNumber.trim(),
+      salesperson_name: input.salespersonName.trim(),
       plate_no: input.plateNo.trim(),
       model: input.model.trim(),
       bought_bike_here: input.boughtBikeHere,
