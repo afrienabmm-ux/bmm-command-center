@@ -27,6 +27,7 @@ export default async function CustomersPage() {
           branchSelection={branchSelection}
           locked={!canViewAllBranches(user)}
           canManageCards={user.role !== "Front Desk"}
+          canAddCards
         />
       </div>
     </div>

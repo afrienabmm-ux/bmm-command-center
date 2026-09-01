@@ -16,12 +16,17 @@ export default function CustomersClient({
   branchSelection,
   locked,
   canManageCards,
+  canAddCards,
 }: {
   customers: CustomerCard[];
   branch: Branch;
   branchSelection: BranchSelection;
   locked: boolean;
+  // Edit/delete an existing card — Management/Administrator/Branch PIC only.
   canManageCards: boolean;
+  // Add a brand new card — everyone who can reach this page, including
+  // Front Desk, since issuing a card is exactly their day-to-day job here.
+  canAddCards: boolean;
 }) {
   const [query, setQuery] = useState("");
   const [cardModalFor, setCardModalFor] = useState<CustomerCard | "new" | null>(null);
@@ -107,7 +112,7 @@ export default function CustomersClient({
             {linkCopied ? <Check size={15} className="text-emerald-600" /> : <Link2 size={15} />}
             {linkCopied ? "Link copied" : "Copy Check-Card Link"}
           </button>
-          {canManageCards && (
+          {canAddCards && (
             <button
               onClick={() => setCardModalFor("new")}
               className="flex items-center gap-1.5 bg-red-500 hover:bg-red-400 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors whitespace-nowrap"
