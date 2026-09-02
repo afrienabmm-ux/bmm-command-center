@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { Download, Pencil, AlertTriangle, Search, Check, Trash2, Printer, Eye, X, ArrowUpDown, ChevronDown } from "lucide-react";
 import {
@@ -19,7 +19,7 @@ import {
   type RepairJob,
 } from "@/lib/types";
 import type { Mechanic } from "@/lib/types";
-import { branchLabel, type Branch, type BranchSelection } from "@/lib/branch";
+import { BRANCHES, branchLabel, type Branch, type BranchSelection } from "@/lib/branch";
 import { formatCurrency, formatDate, daysBetween, toCsv } from "@/lib/format";
 import { useToast } from "@/lib/useToast";
 import ModalPortal from "@/components/ModalPortal";
@@ -115,6 +115,17 @@ export default function RepairsClient({
   const overdueQcCount = qc.filter(isQcOverdue).length;
   const allJobs = useMemo(() => [...active, ...qc, ...completed], [active, qc, completed]);
   const showBranchColumn = branchSelection === "all";
+  // Grouped by branch with a totals row per group — same "Branch — Branch
+  // Total" pattern as the other branch-summary tables in the app. Only
+  // matters in the combined "All Branches" view; a single-branch view
+  // still gets one flat, date-sorted list.
+  const groupedJobs = useMemo(() => {
+    if (!showBranchColumn) return null;
+    return BRANCHES.map(({ value: branch }) => ({
+      branch,
+      rows: jobs.filter((j) => j.branch === branch),
+    })).filter((g) => g.rows.length > 0);
+  }, [jobs, showBranchColumn]);
 
   function mechanicLabel(id: string | null) {
     if (!id) return "—";
@@ -334,19 +345,46 @@ export default function RepairsClient({
               </tr>
             </thead>
             <tbody>
-              {jobs.map((job, i) => (
-                <RestoreBikeRow
-                  key={job.id}
-                  no={i + 1}
-                  job={job}
-                  showBranch={showBranchColumn}
-                  editable={tab === "active"}
-                  showQc={tab === "qc"}
-                  isManagement={isManagement}
-                  highlight={job.id === highlightId}
-                  mechanicLabel={mechanicLabel}
-                />
-              ))}
+              {groupedJobs
+                ? groupedJobs.map(({ branch, rows }) => (
+                    <Fragment key={branch}>
+                      <tr className="bg-emerald-50">
+                        <td colSpan={9} className="px-5 py-2.5 whitespace-nowrap text-sm font-semibold text-emerald-900">
+                          {branchLabel(branch)} — Branch Total ({rows.length} job{rows.length === 1 ? "" : "s"})
+                        </td>
+                        <td className="px-5 py-2.5 whitespace-nowrap text-sm font-semibold text-emerald-900">
+                          {formatCurrency(rows.reduce((sum, j) => sum + j.revenueAmount, 0))}
+                        </td>
+                        <td colSpan={9 + (tab === "qc" ? 1 : 0)} className="bg-emerald-50" />
+                      </tr>
+                      {rows.map((job, i) => (
+                        <RestoreBikeRow
+                          key={job.id}
+                          no={i + 1}
+                          job={job}
+                          showBranch={showBranchColumn}
+                          editable={tab === "active"}
+                          showQc={tab === "qc"}
+                          isManagement={isManagement}
+                          highlight={job.id === highlightId}
+                          mechanicLabel={mechanicLabel}
+                        />
+                      ))}
+                    </Fragment>
+                  ))
+                : jobs.map((job, i) => (
+                    <RestoreBikeRow
+                      key={job.id}
+                      no={i + 1}
+                      job={job}
+                      showBranch={showBranchColumn}
+                      editable={tab === "active"}
+                      showQc={tab === "qc"}
+                      isManagement={isManagement}
+                      highlight={job.id === highlightId}
+                      mechanicLabel={mechanicLabel}
+                    />
+                  ))}
               {jobs.length === 0 && (
                 <tr>
                   <td
