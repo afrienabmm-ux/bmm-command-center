@@ -54,6 +54,11 @@ export default function WalkInClient({
   const [exportFilteredModalOpen, setExportFilteredModalOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [sortDir, setSortDir] = useState<"desc" | "asc">("desc");
+  // Filters by Job Date (the same field the "Job Date" column shows) —
+  // a plain flat list with no way to narrow down to a specific day or
+  // range made it easy to lose track of which rows were even from.
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
   const [bulkDeleting, setBulkDeleting] = useState(false);
@@ -98,14 +103,18 @@ export default function WalkInClient({
   const jobs = tab === "active" ? active : tab === "completed" ? completed : errors;
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase();
-    const filtered = q
-      ? jobs.filter((j) => (j.customerName ?? "").toLowerCase().includes(q) || j.plateNo.toLowerCase().includes(q))
-      : jobs;
+    const filtered = jobs.filter((j) => {
+      if (q && !((j.customerName ?? "").toLowerCase().includes(q) || j.plateNo.toLowerCase().includes(q))) return false;
+      const jobDate = j.startedDate ?? "";
+      if (dateFrom && jobDate < dateFrom) return false;
+      if (dateTo && jobDate > dateTo) return false;
+      return true;
+    });
     return [...filtered].sort((a, b) => {
       const dateOf = (j: RepairJob) => j.completedDate || j.startedDate || j.createdAt || "";
       return sortDir === "desc" ? dateOf(b).localeCompare(dateOf(a)) : dateOf(a).localeCompare(dateOf(b));
     });
-  }, [jobs, query, sortDir]);
+  }, [jobs, query, sortDir, dateFrom, dateTo]);
   const allJobs = useMemo(() => [...active, ...completed], [active, completed]);
   const showBranchColumn = branchSelection === "all";
 
@@ -266,6 +275,32 @@ export default function WalkInClient({
               className="bg-white border border-neutral-200 rounded-lg pl-8 pr-3 py-2 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50 w-64"
             />
           </div>
+          <input
+            type="date"
+            value={dateFrom}
+            onChange={(e) => setDateFrom(e.target.value)}
+            title="Job Date from"
+            className="bg-white border border-neutral-200 rounded-lg px-3 py-2 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
+          />
+          <span className="text-sm text-neutral-400">to</span>
+          <input
+            type="date"
+            value={dateTo}
+            onChange={(e) => setDateTo(e.target.value)}
+            title="Job Date to"
+            className="bg-white border border-neutral-200 rounded-lg px-3 py-2 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
+          />
+          {(dateFrom || dateTo) && (
+            <button
+              onClick={() => {
+                setDateFrom("");
+                setDateTo("");
+              }}
+              className="text-xs font-medium text-neutral-500 hover:text-neutral-700"
+            >
+              Clear dates
+            </button>
+          )}
           <button
             onClick={() => setSortDir((d) => (d === "desc" ? "asc" : "desc"))}
             className="flex items-center gap-1.5 bg-white border border-neutral-200 hover:border-red-300 text-neutral-700 text-sm font-medium px-3 py-2 rounded-lg transition-colors whitespace-nowrap"
