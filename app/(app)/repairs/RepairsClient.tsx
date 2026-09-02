@@ -349,13 +349,12 @@ export default function RepairsClient({
                 ? groupedJobs.map(({ branch, rows }) => (
                     <Fragment key={branch}>
                       <tr className="bg-emerald-50">
-                        <td colSpan={9} className="px-5 py-2.5 whitespace-nowrap text-sm font-semibold text-emerald-900">
-                          {branchLabel(branch)} — Branch Total ({rows.length} job{rows.length === 1 ? "" : "s"})
+                        <td
+                          colSpan={19 + (tab === "qc" ? 1 : 0)}
+                          className="px-5 py-2.5 whitespace-nowrap text-sm font-semibold text-emerald-900"
+                        >
+                          {branchLabel(branch)}
                         </td>
-                        <td className="px-5 py-2.5 whitespace-nowrap text-sm font-semibold text-emerald-900">
-                          {formatCurrency(rows.reduce((sum, j) => sum + j.revenueAmount, 0))}
-                        </td>
-                        <td colSpan={9 + (tab === "qc" ? 1 : 0)} className="bg-emerald-50" />
                       </tr>
                       {rows.map((job, i) => (
                         <RestoreBikeRow
@@ -1050,8 +1049,11 @@ function RemarkCell({ job, editable }: { job: RepairJob; editable: boolean }) {
 function OverdueBadge({ job }: { job: RepairJob }) {
   if (!isOverdue(job)) return null;
   return (
-    <span className="flex items-center gap-1 text-xs font-medium text-red-700 bg-red-500/10 border border-red-500/20 rounded-full px-2 py-0.5 whitespace-nowrap">
-      <AlertTriangle size={10} /> Overdue
+    <span
+      title="Overdue — running past 5 days"
+      className="flex items-center justify-center w-5 h-5 rounded-full text-red-700 bg-red-500/10 border border-red-500/20 shrink-0"
+    >
+      <AlertTriangle size={11} />
     </span>
   );
 }
@@ -1144,9 +1146,11 @@ function RestoreBikeRow({
         <StockDateCell job={job} branch={job.branch} stage="stockArrive" editable={editable} />
       </td>
       <td className="px-5 py-3.5 text-center">
-        <span className="inline-flex items-center gap-1.5">
+        <span className="inline-flex items-start gap-1.5">
           <RepairDateCell job={job} stage="started" editable={editable} />
-          <OverdueBadge job={job} />
+          <span className="mt-1.5">
+            <OverdueBadge job={job} />
+          </span>
         </span>
       </td>
       <td className="px-5 py-3.5 text-center">
