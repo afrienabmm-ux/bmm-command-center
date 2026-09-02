@@ -411,6 +411,20 @@ export default function WalkInClient({
               </tr>
             </thead>
             <tbody>
+              {visible.length > 0 && (
+                <tr className="bg-emerald-50">
+                  <td
+                    colSpan={(canEdit ? 1 : 0) + (showBranchColumn ? 1 : 0) + 5}
+                    className="px-5 py-2.5 whitespace-nowrap text-sm font-semibold text-emerald-900"
+                  >
+                    Total ({visible.length} job{visible.length === 1 ? "" : "s"})
+                  </td>
+                  <td className="px-5 py-2.5 whitespace-nowrap text-sm font-semibold text-emerald-900">
+                    {formatCurrency(visible.reduce((sum, j) => sum + j.revenueAmount, 0))}
+                  </td>
+                  <td colSpan={6} className="bg-emerald-50" />
+                </tr>
+              )}
               {visible.map((job) => (
                 <WalkInRow
                   key={job.id}
