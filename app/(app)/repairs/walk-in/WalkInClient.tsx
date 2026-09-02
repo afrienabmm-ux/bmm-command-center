@@ -14,6 +14,7 @@ import { isHeavyRepairJob, type RepairStatus, type RepairJob } from "@/lib/types
 import type { Mechanic } from "@/lib/types";
 import { branchLabel, type Branch, type BranchSelection } from "@/lib/branch";
 import { formatCurrency, formatDate, daysBetween, toCsv } from "@/lib/format";
+import { todayInMalaysia } from "@/lib/malaysia-time";
 import { useToast } from "@/lib/useToast";
 import ModalPortal from "@/components/ModalPortal";
 
@@ -59,6 +60,22 @@ export default function WalkInClient({
   // range made it easy to lose track of which rows were even from.
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
+
+  // Completed defaults to today only — years of history dumped into one
+  // flat list was the whole complaint. Active/Errors still show
+  // everything regardless of date, since a job started days ago still
+  // needs to stay visible until it's actually done. "See All" (below)
+  // clears this back to the full list.
+  useEffect(() => {
+    if (tab === "completed") {
+      const today = todayInMalaysia();
+      setDateFrom(today);
+      setDateTo(today);
+    } else {
+      setDateFrom("");
+      setDateTo("");
+    }
+  }, [tab]);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
   const [bulkDeleting, setBulkDeleting] = useState(false);
@@ -290,16 +307,36 @@ export default function WalkInClient({
             title="Job Date to"
             className="bg-white border border-neutral-200 rounded-lg px-3 py-2 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
           />
-          {(dateFrom || dateTo) && (
+          {tab === "completed" ? (
             <button
               onClick={() => {
-                setDateFrom("");
-                setDateTo("");
+                if (dateFrom || dateTo) {
+                  setDateFrom("");
+                  setDateTo("");
+                } else {
+                  const today = todayInMalaysia();
+                  setDateFrom(today);
+                  setDateTo(today);
+                }
               }}
-              className="text-xs font-medium text-neutral-500 hover:text-neutral-700"
+              title={dateFrom || dateTo ? "Show every completed job" : "Back to today's jobs only"}
+              className="bg-white border border-neutral-200 hover:border-red-300 text-neutral-700 text-sm font-medium px-3 py-2 rounded-lg transition-colors whitespace-nowrap"
             >
-              Clear dates
+              {dateFrom || dateTo ? "See All" : "Today Only"}
             </button>
+          ) : (
+            (dateFrom || dateTo) && (
+              <button
+                onClick={() => {
+                  setDateFrom("");
+                  setDateTo("");
+                }}
+                title="Show every job regardless of date"
+                className="bg-white border border-neutral-200 hover:border-red-300 text-neutral-700 text-sm font-medium px-3 py-2 rounded-lg transition-colors whitespace-nowrap"
+              >
+                See All
+              </button>
+            )
           )}
           <button
             onClick={() => setSortDir((d) => (d === "desc" ? "asc" : "desc"))}
