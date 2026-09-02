@@ -905,8 +905,8 @@ function ItemsDetailModal({ job, onClose }: { job: RepairJob; onClose: () => voi
   const itemsTotal = job.items.reduce((sum, item) => sum + item.quantity * item.price, 0);
   return (
     <ModalPortal><div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 px-4">
-      <div className="bg-white border border-neutral-200 rounded-xl w-full max-w-lg p-6">
-        <div className="flex items-start justify-between mb-1">
+      <div className="bg-white border border-neutral-200 rounded-xl w-full max-w-lg max-h-[85vh] flex flex-col">
+        <div className="flex items-start justify-between p-6 pb-0 shrink-0">
           <div>
             <h2 className="text-sm font-semibold text-neutral-900">Restore Bike Costing</h2>
             <p className="text-xs text-neutral-500 mt-0.5">
@@ -918,6 +918,7 @@ function ItemsDetailModal({ job, onClose }: { job: RepairJob; onClose: () => voi
           </button>
         </div>
 
+        <div className="flex-1 min-h-0 overflow-y-auto px-6">
         <div className="mt-4 border border-neutral-200 rounded-lg overflow-hidden">
           <table className="w-full text-sm">
             <thead>
@@ -961,8 +962,9 @@ function ItemsDetailModal({ job, onClose }: { job: RepairJob; onClose: () => voi
         {job.items.length > 0 && itemsTotal !== job.revenueAmount && (
           <p className="text-xs text-neutral-500 text-right px-1">Items sum to {formatCurrency(itemsTotal)}</p>
         )}
+        </div>
 
-        <div className="flex items-center justify-end mt-5">
+        <div className="flex items-center justify-end p-6 pt-4 shrink-0 border-t border-neutral-100">
           <button onClick={onClose} className="text-sm font-medium text-neutral-600 hover:text-neutral-800 px-4 py-2 transition-colors">
             Close
           </button>
