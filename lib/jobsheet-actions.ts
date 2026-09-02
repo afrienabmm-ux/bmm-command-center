@@ -333,13 +333,31 @@ function parseJobsheetText(text: string): ScannedJobsheet {
     return Number(tok.replace(/[,:]/g, ".")) || 0;
   }
 
-  for (const rawLine of text.split("\n")) {
+  // A dash-suffixed code (e.g. "90793-AHB02", or "157-E3440-09" — the
+  // suffix itself can have its own internal dash) sometimes gets read
+  // back with the dash split off as its own token, or attached to
+  // whichever side it's closer to ("90793 - AHB02", "90793- AHB02",
+  // "90793 -AHB02") instead of one unbroken word — left alone, the dash
+  // and suffix would get swallowed into the start of the description
+  // instead of staying part of the code. A code suffix chunk is short,
+  // alphanumeric, and mixes letters with digits — a real description
+  // word doesn't.
+  function looksLikeCodeSuffix(tok: string): boolean {
+    return tok.length <= 12 && /^[A-Za-z0-9]+(?:-[A-Za-z0-9]+)*$/.test(tok) && /[A-Za-z]/.test(tok) && /\d/.test(tok);
+  }
+
+  // One attempt at reading a single item row out of one physical line of
+  // text — pulled out of the loop below so it can be tried a second time
+  // against a merged pair of lines (see the loop) without duplicating the
+  // logic. Returns null rather than throwing/skipping-with-a-side-effect,
+  // so the caller decides what to do next.
+  function tryParseItemLine(rawLine: string): ScannedJobsheetItem | null {
     // OCR sometimes reads a decimal point as a colon with stray spaces on
     // both sides ("14.50" -> "14 : 50") — merged back into one token
     // before splitting, so it isn't mistaken for two unrelated numbers.
     const line = rawLine.replace(/(\d+)\s*:\s*(\d{2})(?!\d)/g, "$1.$2");
     const tokens = line.split(/\s+/).filter(Boolean);
-    if (tokens.length < 4) continue;
+    if (tokens.length < 4) return null;
 
     // A leading row number is a separate token from the code that
     // follows it, and — unlike a product code — never runs more than two
@@ -349,18 +367,6 @@ function parseJobsheetText(text: string): ScannedJobsheet {
     let code = tokens[i];
     let descStart = i + 1;
 
-    // A dash-suffixed code (e.g. "90793-AHB02", or "157-E3440-09" — the
-    // suffix itself can have its own internal dash) sometimes gets read
-    // back with the dash split off as its own token, or attached to
-    // whichever side it's closer to ("90793 - AHB02", "90793- AHB02",
-    // "90793 -AHB02") instead of one unbroken word — left alone, the dash
-    // and suffix would get swallowed into the start of the description
-    // instead of staying part of the code. A code suffix chunk is short,
-    // alphanumeric, and mixes letters with digits — a real description
-    // word doesn't.
-    function looksLikeCodeSuffix(tok: string): boolean {
-      return tok.length <= 12 && /^[A-Za-z0-9]+(?:-[A-Za-z0-9]+)*$/.test(tok) && /[A-Za-z]/.test(tok) && /\d/.test(tok);
-    }
     const next = tokens[descStart] ?? "";
     if (code.endsWith("-") && looksLikeCodeSuffix(next)) {
       code += next;
@@ -385,7 +391,7 @@ function parseJobsheetText(text: string): ScannedJobsheet {
         break;
       }
     }
-    if (qtyIndex === -1) continue;
+    if (qtyIndex === -1) return null;
 
     const description = tokens.slice(descStart, qtyIndex).join(" ").trim();
     const quantity = tokenToNumber(tokens[qtyIndex]) || 1;
@@ -393,7 +399,7 @@ function parseJobsheetText(text: string): ScannedJobsheet {
       .slice(qtyIndex + 2)
       .filter(isNumericToken)
       .map(tokenToNumber);
-    if (afterUom.length === 0) continue;
+    if (afterUom.length === 0) return null;
 
     // Unit Price is whichever candidate, multiplied by Qty, actually
     // matches a later number on the same row (Amount) — real rows are
@@ -409,7 +415,46 @@ function parseJobsheetText(text: string): ScannedJobsheet {
       }
     }
 
-    items.push({ code: code.trim(), description, quantity, price });
+    return { code: code.trim(), description, quantity, price };
+  }
+
+  // Guards the merge-with-next-line fallback below: only a line that
+  // already starts the way every real item row does (a small leading row
+  // number) is worth trying to stitch to the next line. Without this, an
+  // ordinary label line the row-number/UOM checks happen to reject for
+  // other reasons (e.g. "Customer Code : 910517-10-6231") could still
+  // accidentally swallow a genuinely clean item row right after it into
+  // one bad merged match, corrupting a row that would have parsed fine on
+  // its own if left alone.
+  function looksLikeItemRowStart(rawLine: string): boolean {
+    const tokens = rawLine.trim().split(/\s+/).filter(Boolean);
+    return tokens.length >= 2 && /^\d{1,2}$/.test(tokens[0]);
+  }
+
+  const lines = text.split("\n");
+  for (let li = 0; li < lines.length; li++) {
+    const single = tryParseItemLine(lines[li]);
+    if (single) {
+      items.push(single);
+      continue;
+    }
+    // A wide items table (this jobsheet template runs Item/Code/
+    // Description/Qty/UOM/Unit Price/Amount/Discount/GST Amt/I-E/Nett Amt
+    // — eleven columns) gives OCR's row-reconstruction more room to split
+    // one physical row into two reconstructed lines than a narrower form
+    // does, e.g. "1 9000000010 OIL MOTUL..." on one line and "1.00 UNIT
+    // 76.00 76.00" on the next. A lone line with no code+description or no
+    // qty+UOM pair can't be recovered on its own — but stitching it to the
+    // next line and trying again catches exactly that split without
+    // changing anything for the (majority) rows that already read cleanly
+    // on one line.
+    if (li + 1 < lines.length && looksLikeItemRowStart(lines[li])) {
+      const merged = tryParseItemLine(`${lines[li]} ${lines[li + 1]}`);
+      if (merged) {
+        items.push(merged);
+        li += 1;
+      }
+    }
   }
 
   return {
