@@ -314,6 +314,7 @@ export default function RepairsClient({
                 <th className="font-medium px-5 py-3 whitespace-nowrap">Date</th>
                 <th className="font-medium px-5 py-3 whitespace-nowrap">No.</th>
                 <th className="font-medium px-5 py-3 whitespace-nowrap text-center">Thumbprint</th>
+                <th className="font-medium px-5 py-3 whitespace-nowrap">Mechanic</th>
                 <th className="font-medium px-5 py-3 whitespace-nowrap">Plate</th>
                 <th className="font-medium px-5 py-3 whitespace-nowrap">Model</th>
                 <th className="font-medium px-5 py-3 whitespace-nowrap">Tahun</th>
@@ -343,12 +344,13 @@ export default function RepairsClient({
                   showQc={tab === "qc"}
                   isManagement={isManagement}
                   highlight={job.id === highlightId}
+                  mechanicLabel={mechanicLabel}
                 />
               ))}
               {jobs.length === 0 && (
                 <tr>
                   <td
-                    colSpan={18 + (tab === "qc" ? 1 : 0)}
+                    colSpan={19 + (tab === "qc" ? 1 : 0)}
                     className="px-5 py-10 text-center text-neutral-500 text-sm"
                   >
                     {tabJobs.length === 0
@@ -1025,6 +1027,7 @@ function RestoreBikeRow({
   showQc,
   isManagement,
   highlight,
+  mechanicLabel,
 }: {
   no: number;
   job: RepairJob;
@@ -1033,6 +1036,7 @@ function RestoreBikeRow({
   showQc: boolean;
   isManagement: boolean;
   highlight?: boolean;
+  mechanicLabel: (id: string | null) => string;
 }) {
   const [isPending, startTransition] = useTransition();
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -1081,6 +1085,7 @@ function RestoreBikeRow({
           )}
         </span>
       </td>
+      <td className="px-5 py-3.5 text-neutral-700 whitespace-nowrap">{mechanicLabel(job.mechanicId)}</td>
       <td className="px-5 py-3.5 text-neutral-600 whitespace-nowrap">{job.plateNo}</td>
       <td className="px-5 py-3.5 text-neutral-600 whitespace-nowrap">{job.model || "—"}</td>
       <td className="px-5 py-3.5 text-neutral-600 whitespace-nowrap">{job.bikeYear || "—"}</td>
