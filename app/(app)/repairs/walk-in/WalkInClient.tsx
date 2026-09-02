@@ -610,11 +610,19 @@ function ExportJobModal({
 // staff can still tick "Customer has signed" by hand, but this makes that
 // override visible on the job afterward instead of forgotten once the
 // form closes.
-function StatusCell({ status, signatureStatus }: { status: RepairStatus; signatureStatus: string }) {
+function StatusCell({
+  status,
+  signatureStatus,
+  signatureIssueResolved,
+}: {
+  status: RepairStatus;
+  signatureStatus: string;
+  signatureIssueResolved: boolean;
+}) {
   return (
     <div className="flex flex-col gap-1 items-center">
       <span className={`text-xs font-medium px-2.5 py-1 rounded-full border ${STATUS_STYLES[status]}`}>{status}</span>
-      {signatureStatus === "not_detected" && (
+      {signatureStatus === "not_detected" && !signatureIssueResolved && (
         <span
           title="Scan found no signature, but staff confirmed it was signed anyway"
           className="text-[10px] font-medium px-2 py-0.5 rounded-full border bg-red-500/10 text-red-700 border-red-500/20"
@@ -803,7 +811,7 @@ function WalkInRow({
         {job.nextServiceDate ? formatDate(job.nextServiceDate) : "—"}
       </td>
       <td className="px-5 py-3.5 text-center">
-        <StatusCell status={job.status} signatureStatus={job.signatureStatus} />
+        <StatusCell status={job.status} signatureStatus={job.signatureStatus} signatureIssueResolved={job.signatureIssueResolved} />
       </td>
       <td className="px-5 py-3.5">
         <div className="flex items-center gap-1">
