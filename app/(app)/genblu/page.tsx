@@ -43,23 +43,27 @@ export default async function GenbluPage({
   ]);
   const monthPrefix = `${year}-${String(month).padStart(2, "0")}`;
   const transactions = allTransactions.filter((t) => (t.transactionDate ?? "").startsWith(monthPrefix));
-  const transactionsWithUrls = await Promise.all(
-    transactions.map(async (t) => ({
-      ...t,
-      screenshotUrl: t.screenshotPath ? await getScreenshotUrl(t.screenshotPath) : null,
-    }))
-  );
-  const withUrls = await Promise.all(
-    registrations.map(async (r) => ({
-      ...r,
-      screenshotUrl: r.screenshotPath ? await getScreenshotUrl(r.screenshotPath) : null,
-      // The running total built from actual "proof of award" screenshots
-      // wins when there's at least one — real points the admin gave this
-      // customer, not our own RM-spent estimate.
-      points: r.pointsAccrued ?? pointsByName[r.customerName.trim().toLowerCase()] ?? 0,
-      pointsAreActual: r.pointsAccrued !== null,
-    }))
-  );
+  // Both screenshot batches run together — previously awaited one after
+  // the other, adding their latencies instead of overlapping them.
+  const [transactionsWithUrls, withUrls] = await Promise.all([
+    Promise.all(
+      transactions.map(async (t) => ({
+        ...t,
+        screenshotUrl: t.screenshotPath ? await getScreenshotUrl(t.screenshotPath) : null,
+      }))
+    ),
+    Promise.all(
+      registrations.map(async (r) => ({
+        ...r,
+        screenshotUrl: r.screenshotPath ? await getScreenshotUrl(r.screenshotPath) : null,
+        // The running total built from actual "proof of award" screenshots
+        // wins when there's at least one — real points the admin gave this
+        // customer, not our own RM-spent estimate.
+        points: r.pointsAccrued ?? pointsByName[r.customerName.trim().toLowerCase()] ?? 0,
+        pointsAreActual: r.pointsAccrued !== null,
+      }))
+    ),
+  ]);
 
   return (
     <div className="flex flex-col h-full">
