@@ -34,3 +34,29 @@ body {
     margin: 12mm;
   }
 }
+
+/* Restore Bike's Part Order/Part Arrive/Start Date cells: a compact
+   "click the calendar icon to pick a date" button instead of the full
+   date text — Chrome/Edge only (::-webkit-* has no Firefox equivalent,
+   which is an acceptable gap for a desktop tool used on Windows/Chrome). */
+input.date-icon-only {
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+input.date-icon-only::-webkit-datetime-edit,
+input.date-icon-only::-webkit-datetime-edit-fields-wrapper,
+input.date-icon-only::-webkit-datetime-edit-text,
+input.date-icon-only::-webkit-datetime-edit-month-field,
+input.date-icon-only::-webkit-datetime-edit-day-field,
+input.date-icon-only::-webkit-datetime-edit-year-field {
+  display: none;
+}
+input.date-icon-only::-webkit-inner-spin-button {
+  display: none;
+}
+input.date-icon-only::-webkit-calendar-picker-indicator {
+  margin: 0;
+  cursor: pointer;
+}

@@ -781,9 +781,40 @@ function ArrivedCell({ job }: { job: RepairJob }) {
   return <StageButton label="Arr" date={job.arrivedDate} onClick={() => {}} disabled title={job.arrivedDate ? formatDate(job.arrivedDate) : "Not recorded"} />;
 }
 
-// Stock Order/Arrival click-to-stamp cells — same plain toggle as before,
-// no gating of their own, but Start (below) won't unlock until both of
-// these are set.
+// A real date picker instead of a click-to-stamp button — lets the PIC
+// record the actual day a part was ordered/arrived or a repair started,
+// not just "today", e.g. logging yesterday's delivery after the fact.
+function DatePickerCell({
+  date,
+  onChange,
+  disabled,
+  title,
+}: {
+  date: string | null;
+  onChange: (value: string) => void;
+  disabled: boolean;
+  title?: string;
+}) {
+  const defaultTitle = date ? `${formatDate(date)} — click to change` : "Click to pick a date";
+  return (
+    <div className="flex flex-col items-center gap-0.5">
+      <input
+        type="date"
+        value={date ?? ""}
+        onChange={(e) => onChange(e.target.value)}
+        disabled={disabled}
+        title={title ?? defaultTitle}
+        className={`date-icon-only w-8 h-8 rounded-lg border transition-colors disabled:opacity-50 ${
+          date ? "bg-emerald-500/10 border-emerald-500/30" : "bg-neutral-50 border-neutral-200 hover:border-red-300"
+        }`}
+      />
+      <span className="text-[9px] text-neutral-500 whitespace-nowrap">{date ? shortDate(date) : " "}</span>
+    </div>
+  );
+}
+
+// Stock Order/Arrival date cells — no gating of their own, but Start
+// (below) won't unlock until both of these are set.
 function StockDateCell({
   job,
   branch,
@@ -797,18 +828,12 @@ function StockDateCell({
 }) {
   const [isPending, startTransition] = useTransition();
   const date = stage === "stockOrder" ? job.stockOrderDate : job.stockArriveDate;
-  return (
-    <StageButton
-      label={stage === "stockOrder" ? "Ord" : "Arv"}
-      date={date}
-      onClick={() =>
-        startTransition(async () => {
-          await setRestoreBikeWorkflowDateAction(job.id, branch, stage, date ? null : new Date().toISOString().slice(0, 10));
-        })
-      }
-      disabled={isPending || !editable}
-    />
-  );
+  function handleChange(value: string) {
+    startTransition(async () => {
+      await setRestoreBikeWorkflowDateAction(job.id, branch, stage, value || null);
+    });
+  }
+  return <DatePickerCell date={date} onChange={handleChange} disabled={isPending || !editable} />;
 }
 
 // Repair Start/Last click-to-stamp cells. Start is hard-gated on the
@@ -839,6 +864,15 @@ function RepairDateCell({
         ? "Set the Stock Order date and Stock Arrival date before starting the repair"
         : undefined;
 
+  function handleChange(value: string) {
+    startTransition(async () => {
+      const result = await setRestoreBikeWorkflowDateAction(job.id, job.branch, stage, value || null);
+      if (result && "error" in result) {
+        showError(result.error);
+      }
+    });
+  }
+
   function handleClick() {
     startTransition(async () => {
       const result = await setRestoreBikeWorkflowDateAction(
@@ -856,7 +890,11 @@ function RepairDateCell({
   return (
     <>
       {toastNode}
-      <StageButton label={stage === "started" ? "St" : "En"} date={date} onClick={handleClick} disabled={disabled} title={title} />
+      {stage === "started" ? (
+        <DatePickerCell date={date} onChange={handleChange} disabled={disabled} title={title} />
+      ) : (
+        <StageButton label="En" date={date} onClick={handleClick} disabled={disabled} title={title} />
+      )}
     </>
   );
 }
