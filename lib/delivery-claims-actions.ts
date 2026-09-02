@@ -1,6 +1,6 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, updateTag, unstable_cache } from "next/cache";
 import { supabaseAdmin } from "./supabase-server";
 import { requireApproved, assertCanEditBranch } from "./current-user";
 import type { DeliveryClaim, ClaimStatus, StockStatus } from "./types";
@@ -47,15 +47,25 @@ function toClaim(r: Row): DeliveryClaim {
   };
 }
 
+// Same short-window cache as Warranty Claims — busted immediately by
+// updateTag on every write below.
+const cachedDeliveryClaims = unstable_cache(
+  async (branch: Branch): Promise<DeliveryClaim[]> => {
+    const { data, error } = await supabaseAdmin
+      .from("cc_delivery_claims")
+      .select("*")
+      .eq("branch", branch)
+      .order("submitted_date", { ascending: false });
+    if (error) throw new Error(error.message);
+    return (data as Row[]).map(toClaim);
+  },
+  ["delivery-claims-by-branch"],
+  { revalidate: 60, tags: ["delivery-claims"] }
+);
+
 export async function getDeliveryClaims(branch: Branch): Promise<DeliveryClaim[]> {
   await requireApproved();
-  const { data, error } = await supabaseAdmin
-    .from("cc_delivery_claims")
-    .select("*")
-    .eq("branch", branch)
-    .order("submitted_date", { ascending: false });
-  if (error) throw new Error(error.message);
-  return (data as Row[]).map(toClaim);
+  return cachedDeliveryClaims(branch);
 }
 
 // Claims across all 3 branches — for the "All Branches" view.
@@ -109,6 +119,7 @@ export async function addDeliveryClaimAction(input: {
   if (error) return { error: error.message };
   await logActivity(user, "Added delivery claim", `${input.ticketId.trim()} — ${input.plateNo.trim()} (${input.branch})`);
   revalidatePath("/warranty-claims");
+  updateTag("delivery-claims");
   revalidatePath("/");
 }
 
@@ -131,6 +142,7 @@ export async function updateDeliveryClaimNotesAction(
   if (error) throw new Error(error.message);
   await logActivity(user, "Updated delivery claim notes", `claim ${id}`);
   revalidatePath("/warranty-claims");
+  updateTag("delivery-claims");
 }
 
 export async function updateDeliveryClaimStatusAction(
@@ -144,6 +156,7 @@ export async function updateDeliveryClaimStatusAction(
   if (error) return { error: error.message };
   await logActivity(user, "Set delivery claim status", `claim ${id} → ${status}`);
   revalidatePath("/warranty-claims");
+  updateTag("delivery-claims");
   revalidatePath("/");
 }
 
@@ -158,6 +171,7 @@ export async function updateDeliveryClaimStockStatusAction(
   if (error) return { error: error.message };
   await logActivity(user, "Set delivery claim stock status", `claim ${id} → ${stockStatus}`);
   revalidatePath("/warranty-claims");
+  updateTag("delivery-claims");
 }
 
 export async function deleteDeliveryClaimAction(id: string, branch: Branch): Promise<void> {
@@ -168,5 +182,6 @@ export async function deleteDeliveryClaimAction(id: string, branch: Branch): Pro
   if (error) throw new Error(error.message);
   await logActivity(user, "Deleted delivery claim", `${claim?.ticket_id ?? id} — ${claim?.plate_no ?? ""} (${branch})`);
   revalidatePath("/warranty-claims");
+  updateTag("delivery-claims");
   revalidatePath("/");
 }

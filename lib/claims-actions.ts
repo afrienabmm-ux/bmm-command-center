@@ -1,6 +1,6 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, updateTag, unstable_cache } from "next/cache";
 import { supabaseAdmin } from "./supabase-server";
 import { requireApproved, assertCanEditBranch } from "./current-user";
 import type { WarrantyClaim, ClaimStatus, StockStatus, BikeMake } from "./types";
@@ -47,15 +47,27 @@ function toClaim(r: Row): WarrantyClaim {
   };
 }
 
+// Warranty Claims doesn't change from second to second — caching the read
+// for a short window means clicking between tabs doesn't re-hit Supabase
+// every single time, while every write below busts the cache immediately
+// via updateTag so edits still show up right away.
+const cachedWarrantyClaims = unstable_cache(
+  async (branch: Branch): Promise<WarrantyClaim[]> => {
+    const { data, error } = await supabaseAdmin
+      .from("cc_warranty_claims")
+      .select("*")
+      .eq("branch", branch)
+      .order("submitted_date", { ascending: false });
+    if (error) throw new Error(error.message);
+    return (data as Row[]).map(toClaim);
+  },
+  ["warranty-claims-by-branch"],
+  { revalidate: 60, tags: ["warranty-claims"] }
+);
+
 export async function getWarrantyClaims(branch: Branch): Promise<WarrantyClaim[]> {
   await requireApproved();
-  const { data, error } = await supabaseAdmin
-    .from("cc_warranty_claims")
-    .select("*")
-    .eq("branch", branch)
-    .order("submitted_date", { ascending: false });
-  if (error) throw new Error(error.message);
-  return (data as Row[]).map(toClaim);
+  return cachedWarrantyClaims(branch);
 }
 
 // Claims across all 3 branches — for the "All Branches" view.
@@ -116,6 +128,7 @@ export async function addWarrantyClaimAction(input: {
   if (error) return { error: error.message };
   await logActivity(user, "Added warranty claim", `${input.ticketId.trim()} — ${input.customerName.trim()} (${input.branch})`);
   revalidatePath("/warranty-claims");
+  updateTag("warranty-claims");
   revalidatePath("/");
 }
 
@@ -139,6 +152,7 @@ export async function updateClaimNotesAction(
   if (error) throw new Error(error.message);
   await logActivity(user, "Updated warranty claim notes", `claim ${id}`);
   revalidatePath("/warranty-claims");
+  updateTag("warranty-claims");
 }
 
 export async function updateClaimStatusAction(
@@ -152,6 +166,7 @@ export async function updateClaimStatusAction(
   if (error) return { error: error.message };
   await logActivity(user, "Set warranty claim status", `claim ${id} → ${status}`);
   revalidatePath("/warranty-claims");
+  updateTag("warranty-claims");
   revalidatePath("/");
 }
 
@@ -166,6 +181,7 @@ export async function updateClaimStockStatusAction(
   if (error) return { error: error.message };
   await logActivity(user, "Set warranty claim stock status", `claim ${id} → ${stockStatus}`);
   revalidatePath("/warranty-claims");
+  updateTag("warranty-claims");
 }
 
 export async function deleteClaimAction(id: string, branch: Branch): Promise<void> {
@@ -176,5 +192,6 @@ export async function deleteClaimAction(id: string, branch: Branch): Promise<voi
   if (error) throw new Error(error.message);
   await logActivity(user, "Deleted warranty claim", `${claim?.claim_no ?? id} — ${claim?.customer_name ?? ""} (${branch})`);
   revalidatePath("/warranty-claims");
+  updateTag("warranty-claims");
   revalidatePath("/");
 }
