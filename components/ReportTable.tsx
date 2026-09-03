@@ -23,6 +23,7 @@ export default function ReportTable({
   filename,
   imageField,
   summarySections,
+  selectFilter,
 }: {
   columns: ReportColumn[];
   rows: Record<string, string | number>[];
@@ -34,6 +35,11 @@ export default function ReportTable({
   // Month dropdown instead of a day-range picker, for reports grouped by
   // month rather than individual dated transactions (Sales Performance).
   monthField?: string;
+  // A plain "pick one value" dropdown over any column — every distinct
+  // value seen in that column, plus an "All <label>" reset option. Used
+  // where a set of a few repeating values (e.g. Logs' Action column) is
+  // more useful to filter by exact match than free-text search.
+  selectFilter?: { field: string; label: string };
   searchFields: string[];
   searchPlaceholder?: string;
   filename: string;
@@ -51,6 +57,7 @@ export default function ReportTable({
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [month, setMonth] = useState("all");
+  const [selectValue, setSelectValue] = useState("all");
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
   const months = useMemo(() => {
@@ -67,6 +74,16 @@ export default function ReportTable({
     return list;
   }, [rows, monthField]);
 
+  const selectOptions = useMemo(() => {
+    if (!selectFilter) return [];
+    const seen = new Set<string>();
+    for (const r of rows) {
+      const value = String(r[selectFilter.field] ?? "");
+      if (value) seen.add(value);
+    }
+    return [...seen].sort((a, b) => a.localeCompare(b));
+  }, [rows, selectFilter]);
+
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     return rows.filter((r) => {
@@ -77,9 +94,10 @@ export default function ReportTable({
         if (to && value > to) return false;
       }
       if (monthField && month !== "all" && String(r[monthField] ?? "") !== month) return false;
+      if (selectFilter && selectValue !== "all" && String(r[selectFilter.field] ?? "") !== selectValue) return false;
       return true;
     });
-  }, [rows, query, searchFields, dateField, from, to, monthField, month]);
+  }, [rows, query, searchFields, dateField, from, to, monthField, month, selectFilter, selectValue]);
 
   function handleExport() {
     const mainCsv = toCsv(
@@ -122,6 +140,20 @@ export default function ReportTable({
             {months.map((m) => (
               <option key={m} value={m}>
                 {m}
+              </option>
+            ))}
+          </select>
+        )}
+        {selectFilter && (
+          <select
+            value={selectValue}
+            onChange={(e) => setSelectValue(e.target.value)}
+            className="appearance-none bg-white border border-neutral-200 hover:border-red-300 rounded-xl px-3 py-2 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50 focus:ring-2 focus:ring-red-100 transition-colors cursor-pointer"
+          >
+            <option value="all">All {selectFilter.label}</option>
+            {selectOptions.map((v) => (
+              <option key={v} value={v}>
+                {v}
               </option>
             ))}
           </select>
