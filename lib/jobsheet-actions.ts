@@ -346,11 +346,10 @@ function parseJobsheetText(text: string): ScannedJobsheet {
     return tok.length <= 12 && /^[A-Za-z0-9]+(?:-[A-Za-z0-9]+)*$/.test(tok) && /[A-Za-z]/.test(tok) && /\d/.test(tok);
   }
 
-  // One attempt at reading a single item row out of one physical line of
-  // text — pulled out of the loop below so it can be tried a second time
-  // against a merged pair of lines (see the loop) without duplicating the
-  // logic. Returns null rather than throwing/skipping-with-a-side-effect,
-  // so the caller decides what to do next.
+  // One attempt at reading a single item row out of one physical line (or
+  // several merged together — see the loop below) of text. Returns null
+  // rather than throwing/skipping-with-a-side-effect, so the caller
+  // decides what to do next.
   function tryParseItemLine(rawLine: string): ScannedJobsheetItem | null {
     // OCR sometimes reads a decimal point as a colon with stray spaces on
     // both sides ("14.50" -> "14 : 50") — merged back into one token
@@ -359,70 +358,75 @@ function parseJobsheetText(text: string): ScannedJobsheet {
     const tokens = line.split(/\s+/).filter(Boolean);
     if (tokens.length < 4) return null;
 
-    // A leading row number is a separate token from the code that
-    // follows it, and — unlike a product code — never runs more than two
-    // digits, so a genuinely numeric code (e.g. "9000000013") doesn't get
-    // mistaken for one and swallowed.
-    const i = /^\d{1,2}$/.test(tokens[0]) ? 1 : 0;
+    // The row-number cell is a separate token from the code that follows
+    // it, and — unlike a product code — never runs more than two digits,
+    // so a genuinely numeric code (e.g. "9000000013") doesn't get mistaken
+    // for one and swallowed. OCR sometimes reads it back as more than one
+    // such token (e.g. "23 3" instead of just "3", the row number
+    // apparently duplicated) — every leading 1-2 digit token is skipped,
+    // not just the first, so the real code right after doesn't get
+    // mistaken for a second row number.
+    let i = 0;
+    while (i < tokens.length - 1 && /^\d{1,2}$/.test(tokens[i])) i++;
     let code = tokens[i];
     let descStart = i + 1;
 
-    const next = tokens[descStart] ?? "";
-    if (code.endsWith("-") && looksLikeCodeSuffix(next)) {
-      code += next;
-      descStart += 1;
-    } else if (next === "-" && looksLikeCodeSuffix(tokens[descStart + 1] ?? "")) {
-      code += "-" + tokens[descStart + 1];
-      descStart += 2;
-    } else if (next.startsWith("-") && looksLikeCodeSuffix(next.slice(1))) {
-      code += next;
-      descStart += 1;
-    }
-
-    // The first "<clean number> <UOM word>" pair after the code is Qty
-    // followed by UOM. Requiring the word to be a real UOM (not just any
-    // run of letters) matters here specifically — motor oil descriptions
-    // are full of "<number> <ALL-CAPS spec>" pairs like "40 API" or "40
-    // SN" that would otherwise get mistaken for the quantity.
-    let qtyIndex = -1;
-    for (let j = descStart; j < tokens.length - 1; j++) {
-      if (isNumericToken(tokens[j]) && UOM_WORDS.test(tokens[j + 1])) {
-        qtyIndex = j;
-        break;
-      }
-    }
-    if (qtyIndex === -1) return null;
-
-    const description = tokens.slice(descStart, qtyIndex).join(" ").trim();
-    const quantity = tokenToNumber(tokens[qtyIndex]) || 1;
-    const afterUom = tokens
-      .slice(qtyIndex + 2)
-      .filter(isNumericToken)
-      .map(tokenToNumber);
-    if (afterUom.length === 0) return null;
-
-    // Unit Price is whichever candidate, multiplied by Qty, actually
-    // matches a later number on the same row (Amount) — real rows are
-    // internally consistent that way, which is what lets a spurious extra
-    // number OCR sometimes inserts get skipped instead of mistaken for
-    // the real price. Falls back to the first candidate if nothing lines
-    // up (still better than leaving the row out entirely).
-    let price = afterUom[0];
-    for (let k = 0; k < afterUom.length - 1; k++) {
-      if (Math.abs(quantity * afterUom[k] - afterUom[k + 1]) < 0.5) {
-        price = afterUom[k];
+    // Keeps stitching as long as the next token still looks like another
+    // dash-suffix chunk, so a code split into more than two pieces (e.g.
+    // "1DB - F414G - 01") gets fully reassembled, not just the first dash.
+    for (;;) {
+      const next = tokens[descStart] ?? "";
+      if (code.endsWith("-") && looksLikeCodeSuffix(next)) {
+        code += next;
+        descStart += 1;
+      } else if (next === "-" && looksLikeCodeSuffix(tokens[descStart + 1] ?? "")) {
+        code += "-" + tokens[descStart + 1];
+        descStart += 2;
+      } else if (next.startsWith("-") && looksLikeCodeSuffix(next.slice(1))) {
+        code += next;
+        descStart += 1;
+      } else {
         break;
       }
     }
 
-    return { code: code.trim(), description, quantity, price };
+    // Quantity is whichever numeric token, scanning left to right from
+    // just after the code, is followed later on the row by a number that
+    // equals qty * <that later number> (Unit Price -> Amount) — real rows
+    // are internally consistent that way. This is deliberately NOT
+    // anchored on a UOM word: plenty of real rows print a blank UOM cell
+    // (oil sold by count rather than a unit, mainly), and requiring one
+    // dropped every one of those rows entirely. A UOM word right after the
+    // candidate, when present, is just skipped over rather than required —
+    // it still matters for telling a real qty apart from a number that's
+    // actually part of the spec ("40 API", "10W-40"), since those never
+    // have a later number whose product with them checks out.
+    for (let j = descStart; j < tokens.length; j++) {
+      if (!isNumericToken(tokens[j])) continue;
+      const qty = tokenToNumber(tokens[j]);
+      if (qty <= 0) continue;
+      let afterQty = j + 1;
+      if (UOM_WORDS.test(tokens[afterQty] ?? "")) afterQty++;
+      const nums = tokens
+        .slice(afterQty)
+        .filter(isNumericToken)
+        .map(tokenToNumber);
+      for (let k = 0; k < nums.length - 1; k++) {
+        if (Math.abs(qty * nums[k] - nums[k + 1]) < 0.5) {
+          const description = tokens.slice(descStart, j).join(" ").trim();
+          if (!description) continue;
+          return { code: code.trim(), description, quantity: qty, price: nums[k] };
+        }
+      }
+    }
+    return null;
   }
 
-  // Guards the merge-with-next-line fallback below: only a line that
+  // Guards the merge-with-later-lines fallback below: only a line that
   // already starts the way every real item row does (a small leading row
-  // number) is worth trying to stitch to the next line. Without this, an
-  // ordinary label line the row-number/UOM checks happen to reject for
-  // other reasons (e.g. "Customer Code : 910517-10-6231") could still
+  // number) is worth trying to stitch onward. Without this, an ordinary
+  // label line the row-number/qty checks happen to reject for other
+  // reasons (e.g. "Customer Code : 910517-10-6231") could still
   // accidentally swallow a genuinely clean item row right after it into
   // one bad merged match, corrupting a row that would have parsed fine on
   // its own if left alone.
@@ -441,18 +445,22 @@ function parseJobsheetText(text: string): ScannedJobsheet {
     // A wide items table (this jobsheet template runs Item/Code/
     // Description/Qty/UOM/Unit Price/Amount/Discount/GST Amt/I-E/Nett Amt
     // — eleven columns) gives OCR's row-reconstruction more room to split
-    // one physical row into two reconstructed lines than a narrower form
-    // does, e.g. "1 9000000010 OIL MOTUL..." on one line and "1.00 UNIT
-    // 76.00 76.00" on the next. A lone line with no code+description or no
-    // qty+UOM pair can't be recovered on its own — but stitching it to the
-    // next line and trying again catches exactly that split without
+    // one physical row across two or even three reconstructed lines than
+    // a narrower form does — e.g. "1 90793-AH426 YAMALUBE" on one line,
+    // "4T RS 200 10W-50 SN WITH ES 2.00 113.50 227.00" on the next, and a
+    // stray "I 227.00" on a third. A lone line with no code+description or
+    // no qty/price pair can't be recovered on its own — but stitching it
+    // to the line(s) right after and trying again catches that without
     // changing anything for the (majority) rows that already read cleanly
     // on one line.
-    if (li + 1 < lines.length && looksLikeItemRowStart(lines[li])) {
-      const merged = tryParseItemLine(`${lines[li]} ${lines[li + 1]}`);
-      if (merged) {
-        items.push(merged);
-        li += 1;
+    if (looksLikeItemRowStart(lines[li])) {
+      for (let span = 2; span <= 3 && li + span - 1 < lines.length; span++) {
+        const merged = tryParseItemLine(lines.slice(li, li + span).join(" "));
+        if (merged) {
+          items.push(merged);
+          li += span - 1;
+          break;
+        }
       }
     }
   }
