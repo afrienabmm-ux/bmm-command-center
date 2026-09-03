@@ -17,7 +17,7 @@ import { BRANCHES, type BranchSelection } from "@/lib/branch";
 import { formatDate } from "@/lib/format";
 import ModalPortal from "@/components/ModalPortal";
 
-const ROLES: Role[] = ["Branch PIC", "Management", "Administrator", "Mechanic", "Front Desk"];
+const ROLES: Role[] = ["Branch PIC", "Management", "Administrator", "Mechanic", "Front Desk", "Sales Advisor"];
 
 export default function TeamClient({ members, currentUserId }: { members: TeamMember[]; currentUserId: string }) {
   const pending = members.filter((m) => m.status === "pending");

@@ -20,11 +20,13 @@ export default async function CommandCenterPage({
   // Mechanic is jobsheet-scanning only — sent to the phone-optimized /scan
   // page (not the desktop Jobsheet list) since that's what this role is
   // for. Front Desk only ticks Services Card stamps — sent straight there.
-  // This page has no page-key gate of its own (it's every other role's
-  // default landing page), so it needs its own explicit redirect instead
-  // of relying on requirePage().
+  // Sales Advisor only registers GenBlu — sent to their own phone-
+  // optimized upload page. This page has no page-key gate of its own
+  // (it's every other role's default landing page), so it needs its own
+  // explicit redirect instead of relying on requirePage().
   if (user.role === "Mechanic") redirect("/scan");
   if (user.role === "Front Desk") redirect("/customers");
+  if (user.role === "Sales Advisor") redirect("/genblu-upload");
   const branchSelection = await getActiveBranchSelection(user);
   const params = await searchParams;
   const [todayYear, todayMonth] = todayInMalaysia().split("-").map(Number);

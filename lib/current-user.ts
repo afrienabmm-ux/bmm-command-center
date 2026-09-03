@@ -7,12 +7,12 @@ import type { Branch, BranchSelection } from "./branch";
 import { getSelectedBranch, getRawBranchSelection } from "./branch-server";
 import { resolveAllowedPages, type PageKey } from "./permissions";
 
-// Mechanic and Front Desk are narrower access levels than Branch PIC — see
-// resolveAllowedPages in permissions.ts for exactly what each can see
-// (jobsheet scanning only; Services Card stamps only). Administrator is a
-// separate label with the exact same full access as Management — see
-// isManagementLevel below.
-export type Role = "Branch PIC" | "Management" | "Administrator" | "Mechanic" | "Front Desk";
+// Mechanic, Front Desk, and Sales Advisor are narrower access levels than
+// Branch PIC — see resolveAllowedPages in permissions.ts for exactly what
+// each can see (jobsheet scanning only; Services Card stamps only; GenBlu
+// registration only). Administrator is a separate label with the exact
+// same full access as Management — see isManagementLevel below.
+export type Role = "Branch PIC" | "Management" | "Administrator" | "Mechanic" | "Front Desk" | "Sales Advisor";
 
 export function isManagementLevel(role: Role | null): boolean {
   return role === "Management" || role === "Administrator";

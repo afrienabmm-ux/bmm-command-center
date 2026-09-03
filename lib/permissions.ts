@@ -20,15 +20,17 @@ export const ALL_PAGE_KEYS: PageKey[] = PAGE_DEFS.map((p) => p.key);
 
 // Every approved person sees every page — access is controlled by branch
 // scope (Branch PIC vs Management/Administrator), not by per-page
-// permissions. Mechanic and Front Desk are the two exceptions: narrow,
-// fixed access levels. Mechanic only ever scans/saves jobsheets — no
-// GenBlu, that's not their task. Front Desk's real job is ticking stamps
-// on the Services Card page; it also sees Jobsheet (read-only — see
-// WalkInClient's canEdit prop) and GenBlu for context, but can't touch
-// either.
+// permissions. Mechanic, Front Desk, and Sales Advisor are the exceptions:
+// narrow, fixed access levels. Mechanic only ever scans/saves jobsheets —
+// no GenBlu, that's not their task. Front Desk's real job is ticking
+// stamps on the Services Card page; it also sees Jobsheet (read-only —
+// see WalkInClient's canEdit prop) and GenBlu for context, but can't touch
+// either. Sales Advisor's only task is registering GenBlu customers — no
+// jobsheet, no services card, nothing else.
 export function resolveAllowedPages(role: Role | null): PageKey[] {
   if (!role) return [];
   if (role === "Mechanic") return ["walk-in"];
   if (role === "Front Desk") return ["customers", "walk-in", "genblu"];
+  if (role === "Sales Advisor") return ["genblu"];
   return ALL_PAGE_KEYS;
 }
