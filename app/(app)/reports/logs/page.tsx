@@ -73,7 +73,10 @@ export default async function LogsPage() {
           searchFields={["userName", "userEmail", "action", "detail"]}
           searchPlaceholder="Search user, action, or detail…"
           filename="bmm-activity-logs"
-          selectFilter={{ field: "action", label: "Actions" }}
+          selectFilters={[
+            { field: "userName", label: "Users" },
+            { field: "action", label: "Actions" },
+          ]}
         />
       </div>
     </div>
