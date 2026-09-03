@@ -200,7 +200,6 @@ function ItemsEditor({
               />
               <input
                 type="number"
-                min={0}
                 value={it.price}
                 onChange={(e) => update(i, { price: e.target.value })}
                 placeholder="Price"
