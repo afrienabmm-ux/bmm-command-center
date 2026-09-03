@@ -169,12 +169,16 @@ const cachedMechanicAchievements = cache(
   async (branch: Branch, year: number, month: number): Promise<MechanicAchievement[]> => {
     const { from, to } = monthRange(year, month);
 
-    // Counts every job assigned this month regardless of status (Pending/In
-    // Progress/Completed) — a mechanic's revenue credit shouldn't wait on
-    // the job being marked finished, only on when it started. Restore Bike
-    // is counted per bike (one job = one bike) separately from Walk-in so
-    // "Top Restore Bike" reflects only bike-restoration earnings, while a
-    // mechanic's overall revenue is still Restore Bike + Walk-in combined.
+    // Walk-in jobs count as soon as they start, regardless of status —
+    // a mechanic's revenue credit there shouldn't wait on the job being
+    // marked finished. Restore Bike is different: a bike can sit "In
+    // Progress" for days/weeks, and crediting it the moment it starts made
+    // "Top Restore Bike" (and this branch's leaderboard) show mechanics for
+    // bikes that aren't actually done yet — so Restore Bike only counts
+    // once status is Completed. Restore Bike is counted per bike (one job
+    // = one bike) separately from Walk-in so "Top Restore Bike" reflects
+    // only finished bike-restoration earnings, while a mechanic's overall
+    // revenue is still Restore Bike + Walk-in combined.
     //
     // The jobs query is deliberately NOT filtered by branch: a job's Location
     // can be set independently of the assigned mechanic's own branch (e.g. a
@@ -187,7 +191,7 @@ const cachedMechanicAchievements = cache(
       supabaseAdmin.from("cc_mechanics").select("id, full_name, short_code").eq("branch", branch),
       supabaseAdmin
         .from("cc_repair_jobs")
-        .select("mechanic_id, job_type, revenue_amount")
+        .select("mechanic_id, job_type, revenue_amount, status")
         .gte("started_date", from)
         .lte("started_date", to),
     ]);
@@ -196,7 +200,7 @@ const cachedMechanicAchievements = cache(
 
     return (mechanics ?? []).map((m) => {
       const own = (jobs ?? []).filter((j) => j.mechanic_id === m.id);
-      const restoreBike = own.filter((j) => j.job_type === "Restore Bike");
+      const restoreBike = own.filter((j) => j.job_type === "Restore Bike" && j.status === "Completed");
       const walkIn = own.filter((j) => j.job_type === "Walk-in");
       const restoreBikeRevenue = restoreBike.reduce((s, j) => s + Number(j.revenue_amount), 0);
       const walkInRevenue = walkIn.reduce((s, j) => s + Number(j.revenue_amount), 0);
