@@ -23,8 +23,10 @@ import {
   getGenbluMonthlySummary,
   getScreenshotUrl,
 } from "@/lib/genblu-actions";
-import { todayInMalaysia } from "@/lib/malaysia-time";
+import { todayInMalaysia, startOfWeekInMalaysia, endOfWeekInMalaysia } from "@/lib/malaysia-time";
+import { formatShortDate, monthLabel } from "@/lib/format";
 import GenbluMonthlySummary from "../../genblu/GenbluMonthlySummary";
+import JobsheetRevenueSummary from "./JobsheetRevenueSummary";
 import { getWarrantyClaims, getAllBranchesWarrantyClaims } from "@/lib/claims-actions";
 import { getDeliveryClaims, getAllBranchesDeliveryClaims } from "@/lib/delivery-claims-actions";
 import { getAllBranchesPerformance, getBranchPerformance } from "@/lib/reports-actions";
@@ -73,9 +75,13 @@ export default async function ReportDetailPage({ params }: { params: Promise<{ t
   // into the same rows, same split the GenBlu page itself uses.
   let monthlySummary: Awaited<ReturnType<typeof getGenbluMonthlySummary>> | undefined;
   // Stitched onto the front of the CSV export alongside the transaction
-  // rows — same numbers shown in the Monthly Point Allocation Summary
-  // table beside it, just also captured when someone exports the report.
-  let summarySection: { title: string; columns: string[]; rows: (string | number)[][] } | undefined;
+  // rows — same numbers shown in the summary table(s) beside it (Point
+  // Allocation's per-branch counts, Jobsheet's revenue by week/month),
+  // just also captured when someone exports the report.
+  let summarySections: { title: string; columns: string[]; rows: (string | number)[][] }[] | undefined;
+  // Jobsheet only — revenue totalled by week and by month, shown next to
+  // the transaction list the same way Point Allocation's summary is.
+  let revenueSummary: { weeks: { label: string; total: number }[]; months: { label: string; total: number }[] } | undefined;
 
   if (type === "jobsheet" || type === "restore-bike") {
     const jobType = type === "jobsheet" ? "Walk-in" : "Restore Bike";
@@ -113,6 +119,36 @@ export default async function ReportDetailPage({ params }: { params: Promise<{ t
       completedDate: j.completedDate || "",
       status: j.status,
     }));
+
+    if (type === "jobsheet") {
+      const weekTotals = new Map<string, number>();
+      const monthTotals = new Map<string, number>();
+      for (const j of jobs) {
+        const date = j.formDate || j.startedDate;
+        if (!date) continue;
+        const weekKey = startOfWeekInMalaysia(date);
+        weekTotals.set(weekKey, (weekTotals.get(weekKey) ?? 0) + j.revenueAmount);
+        const monthKey = date.slice(0, 7);
+        monthTotals.set(monthKey, (monthTotals.get(monthKey) ?? 0) + j.revenueAmount);
+      }
+      const weeks = [...weekTotals.entries()]
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([weekStart, total]) => ({
+          label: `${formatShortDate(weekStart)} – ${formatShortDate(endOfWeekInMalaysia(weekStart))}`,
+          total,
+        }));
+      const months = [...monthTotals.entries()]
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([key, total]) => {
+          const [y, m] = key.split("-").map(Number);
+          return { label: monthLabel(m, y), total };
+        });
+      revenueSummary = { weeks, months };
+      summarySections = [
+        { title: "Jobsheet Revenue by Week", columns: ["Week", "Revenue (RM)"], rows: weeks.map((w) => [w.label, w.total.toFixed(2)]) },
+        { title: "Jobsheet Revenue by Month", columns: ["Month", "Revenue (RM)"], rows: months.map((m) => [m.label, m.total.toFixed(2)]) },
+      ];
+    }
   } else if (type === "services-card") {
     const cards = allBranches ? await getAllBranchesCustomers() : await getCustomers(selection);
     columns = [
@@ -158,14 +194,16 @@ export default async function ReportDetailPage({ params }: { params: Promise<{ t
   } else if (type === "point-allocation") {
     const [todayYear, todayMonth] = todayInMalaysia().split("-").map(Number);
     monthlySummary = await getGenbluMonthlySummary(todayYear, todayMonth);
-    summarySection = {
-      title: "Monthly Point Allocation Summary",
-      columns: ["Branch", "Counts", "Points"],
-      rows: [
-        ...monthlySummary.rows.map((r) => [r.label, r.counts, r.points]),
-        [monthlySummary.total.label, monthlySummary.total.counts, monthlySummary.total.points],
-      ],
-    };
+    summarySections = [
+      {
+        title: "Monthly Point Allocation Summary",
+        columns: ["Branch", "Counts", "Points"],
+        rows: [
+          ...monthlySummary.rows.map((r) => [r.label, r.counts, r.points]),
+          [monthlySummary.total.label, monthlySummary.total.counts, monthlySummary.total.points],
+        ],
+      },
+    ];
     const txns = allBranches ? await getAllBranchesGenbluTransactions() : await getGenbluTransactions(selection);
     // Signed URLs, one per row's uploaded screenshot — fetched up front so
     // double-clicking a row opens it with no extra round trip.
@@ -293,10 +331,11 @@ export default async function ReportDetailPage({ params }: { params: Promise<{ t
         }
       />
       <div className="flex-1 overflow-y-auto p-8">
-        {monthlySummary ? (
+        {monthlySummary || revenueSummary ? (
           <div className="flex flex-col lg:flex-row gap-6 items-start">
             <div className="shrink-0 w-full lg:w-auto">
-              <GenbluMonthlySummary summary={monthlySummary} />
+              {monthlySummary && <GenbluMonthlySummary summary={monthlySummary} />}
+              {revenueSummary && <JobsheetRevenueSummary weeks={revenueSummary.weeks} months={revenueSummary.months} />}
             </div>
             <div className="flex-1 min-w-0 w-full">
               <ReportTable
@@ -308,7 +347,7 @@ export default async function ReportDetailPage({ params }: { params: Promise<{ t
                 searchPlaceholder="Search…"
                 imageField={imageField}
                 filename={`bmm-report-${type}`}
-                summarySection={summarySection}
+                summarySections={summarySections}
               />
             </div>
           </div>
@@ -320,7 +359,7 @@ export default async function ReportDetailPage({ params }: { params: Promise<{ t
             monthField={monthField}
             searchFields={searchFields}
             searchPlaceholder="Search…"
-                imageField={imageField}
+            imageField={imageField}
             filename={`bmm-report-${type}`}
           />
         )}

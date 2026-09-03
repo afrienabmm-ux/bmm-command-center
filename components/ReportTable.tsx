@@ -22,7 +22,7 @@ export default function ReportTable({
   searchPlaceholder = "Search…",
   filename,
   imageField,
-  summarySection,
+  summarySections,
 }: {
   columns: ReportColumn[];
   rows: Record<string, string | number>[];
@@ -41,10 +41,11 @@ export default function ReportTable({
   // signed screenshot URL — when present, double-clicking a row with one
   // opens it full-size instead of doing nothing.
   imageField?: string;
-  // A separate small table (e.g. Point Allocation's per-branch counts)
-  // shown elsewhere on the page — not rendered here, only stitched onto
-  // the front of the CSV so exporting the report also captures it.
-  summarySection?: { title: string; columns: string[]; rows: (string | number)[][] };
+  // Separate small tables (e.g. Point Allocation's per-branch counts, or
+  // Jobsheet's revenue-by-week/month) shown elsewhere on the page — not
+  // rendered here, only stitched onto the front of the CSV so exporting
+  // the report also captures them.
+  summarySections?: { title: string; columns: string[]; rows: (string | number)[][] }[];
 }) {
   const [query, setQuery] = useState("");
   const [from, setFrom] = useState("");
@@ -85,8 +86,8 @@ export default function ReportTable({
       columns.map((c) => c.label),
       filtered.map((r) => columns.map((c) => r[c.key] ?? ""))
     );
-    const csv = summarySection
-      ? [summarySection.title, toCsv(summarySection.columns, summarySection.rows), "", mainCsv].join("\n")
+    const csv = summarySections?.length
+      ? [...summarySections.flatMap((s) => [s.title, toCsv(s.columns, s.rows), ""]), mainCsv].join("\n")
       : mainCsv;
     const blob = new Blob([csv], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
