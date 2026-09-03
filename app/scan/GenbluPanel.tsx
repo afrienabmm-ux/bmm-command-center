@@ -14,34 +14,42 @@ export default function GenbluPanel({
   recentJobs,
   branchSelection,
   defaultMode = "log",
+  onlyMode,
 }: {
   recentJobs: RecentJobsheetCustomer[];
   branchSelection: BranchSelection;
   defaultMode?: "link" | "log";
+  // Sales Advisor's only task is registration — no Point Allocation toggle
+  // to even show them. When set, this pins the panel to one mode and
+  // skips rendering the tab switcher entirely.
+  onlyMode?: "link" | "log";
 }) {
-  const [mode, setMode] = useState<"link" | "log">(defaultMode);
+  const [mode, setMode] = useState<"link" | "log">(onlyMode ?? defaultMode);
+  const effectiveMode = onlyMode ?? mode;
 
   return (
     <div>
-      <div className="flex gap-1 bg-neutral-100 border border-neutral-200 rounded-lg p-1 mb-4">
-        <button
-          onClick={() => setMode("link")}
-          className={`flex-1 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-            mode === "link" ? "bg-white text-red-700 shadow-sm" : "text-neutral-600"
-          }`}
-        >
-          GenBlu Register
-        </button>
-        <button
-          onClick={() => setMode("log")}
-          className={`flex-1 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-            mode === "log" ? "bg-white text-red-700 shadow-sm" : "text-neutral-600"
-          }`}
-        >
-          Point Allocation
-        </button>
-      </div>
-      {mode === "log" ? (
+      {!onlyMode && (
+        <div className="flex gap-1 bg-neutral-100 border border-neutral-200 rounded-lg p-1 mb-4">
+          <button
+            onClick={() => setMode("link")}
+            className={`flex-1 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+              mode === "link" ? "bg-white text-red-700 shadow-sm" : "text-neutral-600"
+            }`}
+          >
+            GenBlu Register
+          </button>
+          <button
+            onClick={() => setMode("log")}
+            className={`flex-1 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+              mode === "log" ? "bg-white text-red-700 shadow-sm" : "text-neutral-600"
+            }`}
+          >
+            Point Allocation
+          </button>
+        </div>
+      )}
+      {effectiveMode === "log" ? (
         <GenbluTransactionForm branchSelection={branchSelection} />
       ) : (
         <GenbluQuickForm recentJobs={recentJobs} branchSelection={branchSelection} />

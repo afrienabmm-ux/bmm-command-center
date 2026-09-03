@@ -1,7 +1,8 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { requirePage, getActiveBranchSelection } from "@/lib/current-user";
+import { SCOPED_REPORT_SLUGS } from "@/lib/permissions";
 import PageHeader from "@/components/PageHeader";
 import ReportTable, { type ReportColumn } from "@/components/ReportTable";
 import { BRANCHES, branchLabel } from "@/lib/branch";
@@ -61,6 +62,14 @@ export default async function ReportDetailPage({ params }: { params: Promise<{ t
   if (!TITLES[type]) notFound();
 
   const user = await requirePage("reports");
+  // Some narrow roles' Reports index only ever links to a few cards, but
+  // nothing stops someone typing another report's URL directly — same
+  // scoping enforced here too, not just by hiding the card on the index
+  // page. See SCOPED_REPORT_SLUGS in lib/permissions.ts.
+  const scopedSlugs = user.role ? SCOPED_REPORT_SLUGS[user.role] : undefined;
+  if (scopedSlugs && !scopedSlugs.includes(type)) {
+    redirect("/reports");
+  }
   const selection = await getActiveBranchSelection(user);
   const allBranches = selection === "all";
 

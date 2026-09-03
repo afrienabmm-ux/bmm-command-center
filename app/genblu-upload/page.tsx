@@ -7,8 +7,9 @@ import GenbluPanel from "../scan/GenbluPanel";
 import type { RecentJobsheetCustomer } from "../scan/GenbluQuickForm";
 import SavedToast from "../scan/SavedToast";
 import { Suspense } from "react";
+import Link from "next/link";
 import { signOutAction } from "@/lib/auth-actions";
-import { LogOut } from "lucide-react";
+import { LogOut, BarChart3 } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 // The GenBlu screenshot check runs an OCR call (with retries) inside this
@@ -64,6 +65,13 @@ export default async function GenbluUploadPage() {
           <p className="text-sm font-semibold text-neutral-900">BMM GenBlu Upload</p>
           <p className="text-[11px] text-neutral-500 truncate">Signed in as {currentUser.name} ({currentUser.email})</p>
         </div>
+        <Link
+          href="/reports"
+          className="flex items-center gap-1 text-[11px] font-medium text-neutral-600 hover:text-red-600 border border-neutral-200 rounded-full px-2.5 py-1 shrink-0"
+        >
+          <BarChart3 className="w-3 h-3" />
+          Sales Reports
+        </Link>
         <form action={signOutAction}>
           <button
             type="submit"
@@ -75,7 +83,7 @@ export default async function GenbluUploadPage() {
         </form>
       </div>
       <div className="p-4">
-        <GenbluPanel recentJobs={recentJobs} branchSelection={branchSelection} defaultMode="link" />
+        <GenbluPanel recentJobs={recentJobs} branchSelection={branchSelection} onlyMode="link" />
       </div>
     </div>
   );

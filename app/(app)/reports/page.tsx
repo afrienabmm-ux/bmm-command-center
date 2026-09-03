@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ClipboardList, Wrench, Users, Smartphone, ShieldCheck, Truck, Wrench as MechanicIcon, TrendingUp, History } from "lucide-react";
 import { requirePage, requireApproved } from "@/lib/current-user";
 import { canViewLogs } from "@/lib/logs-access";
+import { SCOPED_REPORT_SLUGS } from "@/lib/permissions";
 import PageHeader from "@/components/PageHeader";
 
 export const dynamic = "force-dynamic";
@@ -36,11 +37,19 @@ const CARDS: ReportCard[] = [
 export default async function ReportsPage() {
   await requirePage("reports");
   const user = await requireApproved();
-  const showLogs = canViewLogs(user.email);
+  // Some narrow roles (Sales Advisor, Front Desk) get a cut-down Reports
+  // page — just the report types their own work touches — instead of the
+  // full admin list. See SCOPED_REPORT_SLUGS in lib/permissions.ts.
+  const scopedSlugs = user.role ? SCOPED_REPORT_SLUGS[user.role] : undefined;
+  const showLogs = !scopedSlugs && canViewLogs(user.email);
+  const visibleCards = scopedSlugs ? CARDS.filter((c) => scopedSlugs.includes(c.slug)) : CARDS;
 
   return (
     <div className="flex flex-col h-full">
-      <PageHeader title="Reports" subtitle="Search, filter, and export any of these records." />
+      <PageHeader
+        title={user.role === "Sales Advisor" ? "Sales Reports" : "Reports"}
+        subtitle="Search, filter, and export any of these records."
+      />
       <div className="flex-1 overflow-y-auto p-8">
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-5">
           {showLogs && (
@@ -58,7 +67,7 @@ export default async function ReportsPage() {
               <p className="text-sm text-neutral-500 mt-1.5 leading-relaxed">Who logged in and every team-management action.</p>
             </Link>
           )}
-          {CARDS.map((card) => {
+          {visibleCards.map((card) => {
             const Icon = card.icon;
             return (
               <Link
