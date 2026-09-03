@@ -4,7 +4,7 @@ import { ArrowLeft } from "lucide-react";
 import { requirePage, getActiveBranchSelection } from "@/lib/current-user";
 import PageHeader from "@/components/PageHeader";
 import ReportTable, { type ReportColumn } from "@/components/ReportTable";
-import { branchLabel } from "@/lib/branch";
+import { BRANCHES, branchLabel } from "@/lib/branch";
 import {
   getActiveRepairJobs,
   getAllBranchesActiveRepairJobs,
@@ -79,9 +79,16 @@ export default async function ReportDetailPage({ params }: { params: Promise<{ t
   // Allocation's per-branch counts, Jobsheet's revenue by week/month),
   // just also captured when someone exports the report.
   let summarySections: { title: string; columns: string[]; rows: (string | number)[][] }[] | undefined;
-  // Jobsheet only — revenue totalled by week and by month, shown next to
-  // the transaction list the same way Point Allocation's summary is.
-  let revenueSummary: { weeks: { label: string; total: number }[]; months: { label: string; total: number }[] } | undefined;
+  // Jobsheet only — revenue totalled by week, by month, and (on the
+  // combined All Branches view) by branch — shown next to the transaction
+  // list the same way Point Allocation's summary is.
+  let revenueSummary:
+    | {
+        weeks: { label: string; total: number }[];
+        months: { label: string; total: number }[];
+        branches?: { label: string; jobs: number; revenue: number }[];
+      }
+    | undefined;
 
   if (type === "jobsheet" || type === "restore-bike") {
     const jobType = type === "jobsheet" ? "Walk-in" : "Restore Bike";
@@ -143,10 +150,37 @@ export default async function ReportDetailPage({ params }: { params: Promise<{ t
           const [y, m] = key.split("-").map(Number);
           return { label: monthLabel(m, y), total };
         });
-      revenueSummary = { weeks, months };
+
+      // Branch breakdown only makes sense on the combined view — a
+      // single-branch selection only ever has the one branch anyway.
+      let branches: { label: string; jobs: number; revenue: number }[] | undefined;
+      if (allBranches) {
+        const perBranch = new Map<string, { jobs: number; revenue: number }>();
+        for (const b of BRANCHES) perBranch.set(b.value, { jobs: 0, revenue: 0 });
+        for (const j of jobs) {
+          const entry = perBranch.get(j.branch);
+          if (!entry) continue;
+          entry.jobs += 1;
+          entry.revenue += j.revenueAmount;
+        }
+        branches = BRANCHES.map((b) => {
+          const entry = perBranch.get(b.value)!;
+          return { label: branchLabel(b.value), jobs: entry.jobs, revenue: entry.revenue };
+        });
+        branches.push({
+          label: "All Branches",
+          jobs: jobs.length,
+          revenue: jobs.reduce((sum, j) => sum + j.revenueAmount, 0),
+        });
+      }
+
+      revenueSummary = { weeks, months, branches };
       summarySections = [
         { title: "Jobsheet Revenue by Week", columns: ["Week", "Revenue (RM)"], rows: weeks.map((w) => [w.label, w.total.toFixed(2)]) },
         { title: "Jobsheet Revenue by Month", columns: ["Month", "Revenue (RM)"], rows: months.map((m) => [m.label, m.total.toFixed(2)]) },
+        ...(branches
+          ? [{ title: "Jobsheet Summary by Branch", columns: ["Branch", "Jobs", "Revenue (RM)"], rows: branches.map((b) => [b.label, b.jobs, b.revenue.toFixed(2)]) }]
+          : []),
       ];
     }
   } else if (type === "services-card") {
@@ -335,7 +369,9 @@ export default async function ReportDetailPage({ params }: { params: Promise<{ t
           <div className="flex flex-col lg:flex-row gap-6 items-start">
             <div className="shrink-0 w-full lg:w-auto">
               {monthlySummary && <GenbluMonthlySummary summary={monthlySummary} />}
-              {revenueSummary && <JobsheetRevenueSummary weeks={revenueSummary.weeks} months={revenueSummary.months} />}
+              {revenueSummary && (
+                <JobsheetRevenueSummary weeks={revenueSummary.weeks} months={revenueSummary.months} branches={revenueSummary.branches} />
+              )}
             </div>
             <div className="flex-1 min-w-0 w-full">
               <ReportTable
