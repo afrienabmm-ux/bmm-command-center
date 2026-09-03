@@ -26,14 +26,14 @@ export const ALL_PAGE_KEYS: PageKey[] = PAGE_DEFS.map((p) => p.key);
 // stamps on the Services Card page; it also sees Jobsheet (read-only —
 // see WalkInClient's canEdit prop) and GenBlu for context, but can't touch
 // either. Sales Advisor's only task is registering GenBlu customers — no
-// jobsheet, no services card, nothing else. Both Front Desk and Sales
-// Advisor also get Reports, but cut down to just the report types their
-// own work touches — see SCOPED_REPORT_SLUGS below.
+// jobsheet, no services card, no Reports, nothing else — just the one
+// GenBlu upload link. Front Desk also gets Reports, but cut down to just
+// the report types their own work touches — see SCOPED_REPORT_SLUGS below.
 export function resolveAllowedPages(role: Role | null): PageKey[] {
   if (!role) return [];
   if (role === "Mechanic") return ["walk-in"];
   if (role === "Front Desk") return ["customers", "walk-in", "genblu", "reports"];
-  if (role === "Sales Advisor") return ["genblu", "reports"];
+  if (role === "Sales Advisor") return ["genblu"];
   return ALL_PAGE_KEYS;
 }
 
@@ -41,8 +41,8 @@ export function resolveAllowedPages(role: Role | null): PageKey[] {
 // their own work touches) instead of the full admin list everyone else
 // gets — used by both reports/page.tsx (which cards to show) and
 // reports/[type]/page.tsx (blocking a disallowed type by direct URL, not
-// just hiding its card). A role with no entry here gets the full list.
+// just hiding its card). A role with no entry here gets the full list —
+// Sales Advisor has no entry at all since it has no Reports access.
 export const SCOPED_REPORT_SLUGS: Partial<Record<Role, string[]>> = {
-  "Sales Advisor": ["genblu", "point-allocation"],
   "Front Desk": ["genblu", "services-card", "jobsheet"],
 };

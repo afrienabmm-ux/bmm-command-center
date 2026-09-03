@@ -37,9 +37,9 @@ const CARDS: ReportCard[] = [
 export default async function ReportsPage() {
   await requirePage("reports");
   const user = await requireApproved();
-  // Some narrow roles (Sales Advisor, Front Desk) get a cut-down Reports
-  // page — just the report types their own work touches — instead of the
-  // full admin list. See SCOPED_REPORT_SLUGS in lib/permissions.ts.
+  // Front Desk gets a cut-down Reports page — just the report types their
+  // own work touches — instead of the full admin list. See
+  // SCOPED_REPORT_SLUGS in lib/permissions.ts.
   const scopedSlugs = user.role ? SCOPED_REPORT_SLUGS[user.role] : undefined;
   const showLogs = !scopedSlugs && canViewLogs(user.email);
   const visibleCards = scopedSlugs ? CARDS.filter((c) => scopedSlugs.includes(c.slug)) : CARDS;
@@ -47,7 +47,7 @@ export default async function ReportsPage() {
   return (
     <div className="flex flex-col h-full">
       <PageHeader
-        title={user.role === "Sales Advisor" ? "Sales Reports" : "Reports"}
+        title="Reports"
         subtitle="Search, filter, and export any of these records."
       />
       <div className="flex-1 overflow-y-auto p-8">
