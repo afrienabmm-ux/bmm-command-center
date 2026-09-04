@@ -26,6 +26,7 @@ export default function PackageBreakdownCharts({
           <thead>
             <tr className="bg-neutral-50 text-left text-xs font-medium text-neutral-500 uppercase tracking-wide">
               <th className="px-4 py-2.5">Package</th>
+              <th className="px-4 py-2.5">Jobsheet No</th>
               <th className="px-4 py-2.5">Mechanic</th>
               <th className="px-4 py-2.5">Customer</th>
               {!onlyBranch && <th className="px-4 py-2.5">Branch</th>}
@@ -37,6 +38,7 @@ export default function PackageBreakdownCharts({
               (packageBreakdown[branch] ?? []).map((row, i) => (
                 <tr key={`${branch}-${i}`} className="border-t border-neutral-100">
                   <td className="px-4 py-2.5 text-neutral-800 font-medium">{row.packageName}</td>
+                  <td className="px-4 py-2.5 text-neutral-700">{row.receiptId}</td>
                   <td className="px-4 py-2.5 text-neutral-700">{row.mechanicLabel}</td>
                   <td className="px-4 py-2.5 text-neutral-600">{row.customerName}</td>
                   {!onlyBranch && <td className="px-4 py-2.5 text-neutral-600">{branchLabel(branch)}</td>}
@@ -46,7 +48,7 @@ export default function PackageBreakdownCharts({
             )}
             {totalSold === 0 && (
               <tr>
-                <td colSpan={onlyBranch ? 4 : 5} className="px-4 py-8 text-center text-neutral-500">
+                <td colSpan={onlyBranch ? 5 : 6} className="px-4 py-8 text-center text-neutral-500">
                   No Services Combo sold this month.
                 </td>
               </tr>

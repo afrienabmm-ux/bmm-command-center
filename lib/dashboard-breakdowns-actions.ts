@@ -60,12 +60,21 @@ export async function getDeliveryClaimStatusBreakdown(
 // Which mechanic sold which package, not just a count — a plain list is
 // more useful to check than a pie chart when you actually want to know who
 // sold what.
-export type PackageBreakdownRow = { packageName: string; mechanicLabel: string; customerName: string; saleDate: string };
+export type PackageBreakdownRow = {
+  packageName: string;
+  mechanicLabel: string;
+  customerName: string;
+  saleDate: string;
+  // Falls back to the jobsheet number when the combo was rung up on the
+  // same receipt (the common case — see WalkInJobForm's comboReceiptId).
+  receiptId: string;
+};
 
 type PackageSaleRow = {
   branch: Branch;
   sale_date: string;
   customer_name: string | null;
+  receipt_id: string | null;
   cc_packages: { name: string } | null;
   cc_mechanics: { short_code: string; short_name: string } | null;
 };
@@ -75,7 +84,7 @@ export async function getPackageSalesBreakdown(year: number, month: number): Pro
   const { from, to } = monthRange(year, month);
   const { data, error } = await supabaseAdmin
     .from("cc_package_sales")
-    .select("branch, sale_date, customer_name, cc_packages(name), cc_mechanics(short_code, short_name)")
+    .select("branch, sale_date, customer_name, receipt_id, cc_packages(name), cc_mechanics(short_code, short_name)")
     .gte("sale_date", from)
     .lte("sale_date", to)
     .order("sale_date", { ascending: false });
@@ -91,6 +100,7 @@ export async function getPackageSalesBreakdown(year: number, month: number): Pro
           mechanicLabel: row.cc_mechanics ? `${row.cc_mechanics.short_name} (${row.cc_mechanics.short_code})` : "—",
           customerName: row.customer_name || "—",
           saleDate: row.sale_date,
+          receiptId: row.receipt_id || "—",
         }));
       return acc;
     },
