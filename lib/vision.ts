@@ -435,22 +435,28 @@ async function detectSignature(buffer: Buffer, words: PositionedWord[], imageWid
     { name: "below", top: label.yCenter + label.height / 2, height: belowRegionHeight },
   ];
 
+  // The "above" and "below" candidates don't depend on each other — scoring
+  // them one at a time (the previous version) made this step pay for both
+  // crops' latency back to back for no reason.
+  const scored = await Promise.all(
+    candidates.map(async (region) => {
+      const top = Math.max(0, Math.min(region.top, imageHeight - 1));
+      const height = Math.min(region.height, imageHeight - top);
+      if (height < 10) return { name: region.name, score: null as number | null, reason: "offscreen" };
+      const score = await inkResidualScore(buffer, left, top, boxWidth, height);
+      return { name: region.name, score, reason: score === null ? "crop failed" : null };
+    })
+  );
+
   let maxScore = 0;
   let checkedAny = false;
   const scoreLog: string[] = [];
-  for (const region of candidates) {
-    const top = Math.max(0, Math.min(region.top, imageHeight - 1));
-    const height = Math.min(region.height, imageHeight - top);
-    if (height < 10) {
-      scoreLog.push(`${region.name}=skipped(offscreen)`);
-      continue;
-    }
-    const score = await inkResidualScore(buffer, left, top, boxWidth, height);
+  for (const { name, score, reason } of scored) {
     if (score === null) {
-      scoreLog.push(`${region.name}=skipped(crop failed)`);
+      scoreLog.push(`${name}=skipped(${reason})`);
       continue;
     }
-    scoreLog.push(`${region.name}=${score.toFixed(2)}`);
+    scoreLog.push(`${name}=${score.toFixed(2)}`);
     maxScore = Math.max(maxScore, score);
     checkedAny = true;
   }
