@@ -261,6 +261,7 @@ export default async function ReportDetailPage({ params }: { params: Promise<{ t
       { key: "branch", label: "Branch" },
       { key: "customerPlateNo", label: "Plate No" },
       { key: "salespersonName", label: "Upload By" },
+      { key: "hasScreenshot", label: "Screenshot" },
       { key: "pointsAccrued", label: "Points" },
       { key: "createdAt", label: "Registered On" },
     ];
@@ -271,6 +272,7 @@ export default async function ReportDetailPage({ params }: { params: Promise<{ t
       branch: branchLabel(r.branch),
       customerPlateNo: r.customerPlateNo,
       salespersonName: r.salespersonName,
+      hasScreenshot: r.screenshotPath ? "Yes" : "No",
       pointsAccrued: r.pointsAccrued ?? "—",
       createdAt: r.createdAt.slice(0, 10),
     }));
