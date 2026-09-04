@@ -327,8 +327,14 @@ function parseJobsheetText(text: string): ScannedJobsheet {
   const items: ScannedJobsheetItem[] = [];
   const UOM_WORDS = /^(UNIT|UNI|PCS?|SET|PKT|PAIR|PRS|LTRS?|L|KG|BTL|BOX|TIN|ROLL|PAIL|EA|NOS)$/i;
 
+  // A leading "-" is accepted (not just plain digits) so a discount/FOC
+  // row's negative amount — e.g. "-20.00" — parses as a real number
+  // instead of being silently unrecognized and dropping the whole row.
+  // Quantity still can't go negative in practice: the qty candidate loop
+  // below already requires qty > 0, so this only ever affects the
+  // unit-price/amount side of the arithmetic check.
   function isNumericToken(tok: string): boolean {
-    return /^\d+(?:[.,:]\d+)?$/.test(tok);
+    return /^-?\d+(?:[.,:]\d+)?$/.test(tok);
   }
   function tokenToNumber(tok: string): number {
     return Number(tok.replace(/[,:]/g, ".")) || 0;
@@ -549,6 +555,20 @@ function applyCatalogData(items: ScannedJobsheetItem[], lookup: Map<string, Cata
   });
 }
 
+// A row whose description mentions "FOC" or "Discount" is a deduction, not
+// a real stocked part — relabelled to the same "DISCOUNT FOC" wording used
+// when staff add one by hand from the catalog, so both ways of entering a
+// discount land in reports under one consistent name. The scanned
+// quantity/price are kept as-is (the actual amount deducted that visit) —
+// a real discount can be any amount, not always the catalog's default
+// RM-20, so it's never overwritten here the way a real part's price is.
+function normalizeDiscountItems(items: ScannedJobsheetItem[]): ScannedJobsheetItem[] {
+  return items.map((item) => {
+    if (!/\bFOC\b/i.test(item.description) && !/\bDISCOUNT\b/i.test(item.description)) return item;
+    return { ...item, code: "", description: "DISCOUNT FOC" };
+  });
+}
+
 export async function scanJobsheet(
   base64File: string,
   mimeType: string
@@ -569,6 +589,10 @@ export async function scanJobsheet(
         const aiItems = await extractItemsWithAi(text);
         if (aiItems && aiItems.length > 0) parsed.items = aiItems;
       }
+      // Discount/FOC rows are checked first and their code cleared, so the
+      // catalog match right after never mistakes one for a real part just
+      // because a garbled leftover code happens to be close to one.
+      parsed.items = normalizeDiscountItems(parsed.items);
       parsed.items = applyCatalogData(parsed.items, await catalogLookupPromise);
       return { data: parsed };
     }
@@ -586,10 +610,12 @@ export async function scanJobsheet(
       const aiItems = await extractItemsWithAi(text);
       if (aiItems && aiItems.length > 0) parsed.items = aiItems;
     }
-    // Whichever path found the items, a code that matches something in our
-    // own catalog gets that item's description/price filled in from there
-    // instead of trusting OCR's read of the tiny, easy-to-garble print next
-    // to it — see applyCatalogData.
+    // Discount/FOC rows first (so a garbled leftover code never gets
+    // mistaken for a real part below), then whichever items are left get
+    // their description/price filled in from a matching catalog code
+    // instead of trusting OCR's read of the tiny, easy-to-garble print
+    // next to it — see normalizeDiscountItems and applyCatalogData.
+    parsed.items = normalizeDiscountItems(parsed.items);
     parsed.items = applyCatalogData(parsed.items, await catalogLookupPromise);
     return { data: { ...parsed, signatureDetected, signatureDebug } };
   } catch (err) {
