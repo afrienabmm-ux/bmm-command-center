@@ -71,6 +71,39 @@ function catalogLabel(p: CatalogProduct): string {
   return `${p.brand} ${nameWithSpec}`;
 }
 
+// Which real catalog items make up each Services Combo package (the
+// workshop's own promo poster bundles) — keyed by the package's own name
+// exactly as it's saved in cc_packages. Each combo is 3 real parts (oil,
+// oil filter, carbon cleaner) by their catalog code, plus that combo's own
+// "Package X" discount line (blank code, so it's matched by name instead)
+// that brings the 3 items' real sum down to the fixed bundle price.
+// Resolved against the live catalogProducts list at selection time rather
+// than baking in prices here, so a later catalog price edit is picked up
+// automatically instead of quietly going stale.
+const PACKAGE_ITEM_CODES: Record<string, { codes: string[]; discountName: string }> = {
+  "Pakej Abang Ah peng": { codes: ["90793-AS418", "1S7-E3340-09", "90793AY80300"], discountName: "Package Abang Ah-Peng" },
+  "Pakej Otai Santai": { codes: ["90793-AH426", "1S7-E3340-09", "90793AY80300"], discountName: "Package Otai Santai" },
+  "Pakej Kita Rider": { codes: ["90793-AH424", "1S7-E3340-09", "90793AY80300"], discountName: "Package Kita Rider" },
+  "Pakej Ride Sempoi": { codes: ["90793-AH425", "1S7-E3340-09", "90793AY80300"], discountName: "Package Ride Sempoi" },
+};
+
+// A package with no mapping (a future/renamed combo not in the table
+// above) just yields no rows — the mechanic still has to add its items by
+// hand, same as before this feature existed, rather than the form
+// breaking or silently guessing.
+function buildPackageItemRows(packageName: string, catalogProducts: CatalogProduct[]): ItemInput[] {
+  const mapping = PACKAGE_ITEM_CODES[packageName];
+  if (!mapping) return [];
+  const rows: ItemInput[] = [];
+  for (const code of mapping.codes) {
+    const product = catalogProducts.find((p) => p.code === code);
+    if (product) rows.push({ code: product.code, description: catalogLabel(product), quantity: "1", price: String(product.price) });
+  }
+  const discount = catalogProducts.find((p) => p.productName === mapping.discountName);
+  if (discount) rows.push({ code: discount.code, description: catalogLabel(discount), quantity: "1", price: String(discount.price) });
+  return rows;
+}
+
 function ItemsEditor({
   items,
   onChange,
@@ -315,6 +348,31 @@ export default function WalkInJobForm({
   // combo sold alongside a jobsheet is usually on the same receipt anyway.
   // Only needed when the package was rung up on its own separate receipt.
   const [comboReceiptId, setComboReceiptId] = useState("");
+  // The exact rows the last package selection auto-added — kept so
+  // switching to a different package removes just those rows instead of
+  // piling a second combo's items on top, while never touching anything
+  // the mechanic typed in by hand (which never matches this by coincidence
+  // outside of picking the same package twice).
+  const lastPackageRowsRef = useRef<ItemInput[]>([]);
+
+  function applyPackageItems(packageId: string) {
+    const pkg = packages.find((p) => p.id === packageId);
+    const newRows = pkg ? buildPackageItemRows(pkg.name, catalogProducts) : [];
+    // Snapshotted here, synchronously, before the ref is overwritten below
+    // — setItems's updater only actually runs later (React's batched
+    // render pass), by which point the ref mutation on the next line would
+    // already have happened, making prevRows compare newRows against
+    // itself (removing nothing) if it read straight from the ref inside
+    // the updater instead of this captured local.
+    const prevRows = lastPackageRowsRef.current;
+    setItems((cur) => {
+      const withoutPrev = prevRows.length
+        ? cur.filter((it) => !prevRows.some((p) => p.code === it.code && p.description === it.description && p.price === it.price))
+        : cur;
+      return [...withoutPrev, ...newRows];
+    });
+    lastPackageRowsRef.current = newRows;
+  }
   const [isPending, startTransition] = useTransition();
   const { showError, showInfo, toastNode } = useToast();
   const [isScanning, setIsScanning] = useState(false);
@@ -1262,7 +1320,10 @@ export default function WalkInJobForm({
               <div className="flex items-center gap-2">
                 <button
                   type="button"
-                  onClick={() => setWantsCombo(true)}
+                  onClick={() => {
+                    setWantsCombo(true);
+                    if (comboPackageId) applyPackageItems(comboPackageId);
+                  }}
                   className={`px-4 py-2 rounded-lg text-sm font-medium border transition-colors ${
                     wantsCombo
                       ? "bg-red-500 border-red-500 text-white"
@@ -1325,7 +1386,10 @@ export default function WalkInJobForm({
               <div className="relative">
                 <select
                   value={comboPackageId}
-                  onChange={(e) => setComboPackageId(e.target.value)}
+                  onChange={(e) => {
+                    setComboPackageId(e.target.value);
+                    applyPackageItems(e.target.value);
+                  }}
                   className="w-full appearance-none bg-neutral-50 border border-neutral-200 hover:border-red-300 rounded-xl pl-3.5 pr-9 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50 focus:ring-2 focus:ring-red-100 transition-colors cursor-pointer"
                 >
                   {packages.map((p) => (
