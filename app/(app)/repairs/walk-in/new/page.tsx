@@ -1,4 +1,3 @@
-import { redirect } from "next/navigation";
 import { requirePageContext, requirePage, getActiveBranchSelection, canViewAllBranches } from "@/lib/current-user";
 import { getAllBranchesActiveRepairJobs } from "@/lib/repairs-actions";
 import { getAllMechanics } from "@/lib/mechanics-actions";
@@ -16,8 +15,6 @@ export const maxDuration = 60;
 export default async function NewWalkInJobPage() {
   await requirePage("walk-in");
   const { user } = await requirePageContext();
-  // Front Desk can see Jobsheet for context but never add/edit one.
-  if (user.role === "Front Desk") redirect("/repairs/walk-in");
   const [branchSelection, allActiveJobs, mechanics, catalogProducts, packages] = await Promise.all([
     getActiveBranchSelection(user),
     getAllBranchesActiveRepairJobs(),

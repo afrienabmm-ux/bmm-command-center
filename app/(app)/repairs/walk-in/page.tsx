@@ -45,6 +45,7 @@ export default async function WalkInPage({ searchParams }: { searchParams: Promi
           branchSelection={branchSelection}
           highlightId={highlight}
           canEdit={user.role !== "Front Desk"}
+          canAdd
           canResolveErrors={isManagementLevel(user.role)}
         />
       </div>
