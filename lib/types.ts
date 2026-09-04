@@ -238,6 +238,10 @@ export type GenbluRegistration = {
   // split the GenBlu Tracker report into "Has Jobsheet" vs "New
   // Registration" report types.
   source: "new_customer" | "has_jobsheet";
+  // Staff's own note explaining why the screenshot's name didn't match the
+  // customer (e.g. "wife's genblu") — null when there was no mismatch to
+  // begin with, or the mismatch was never confirmed past.
+  nameMismatchRemark: string | null;
   createdAt: string;
 };
 

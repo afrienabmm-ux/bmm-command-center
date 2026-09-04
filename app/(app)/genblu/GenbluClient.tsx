@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
-import { Plus, Download, X, Pencil, Trash2, Search, Award, ChevronDown } from "lucide-react";
+import { Plus, Download, X, Pencil, Trash2, Search, Award, ChevronDown, MessageSquareWarning } from "lucide-react";
 import { addGenbluRegistrationAction, updateGenbluRegistrationAction, deleteGenbluRegistrationAction } from "@/lib/genblu-actions";
 import { exportGenbluCsv, exportAllBranchesGenbluCsv } from "@/lib/export-actions";
 import { BRANCHES, branchLabel, type Branch, type BranchSelection } from "@/lib/branch";
@@ -21,6 +21,7 @@ type RegWithUrl = {
   points: number;
   pointsAreActual: boolean;
   source: "new_customer" | "has_jobsheet";
+  nameMismatchRemark: string | null;
 };
 
 export default function GenbluClient({
@@ -164,7 +165,16 @@ export default function GenbluClient({
                   onDoubleClick={() => r.screenshotUrl && setLightboxUrl(r.screenshotUrl)}
                   title={r.screenshotUrl ? "Double-click to view the uploaded screenshot" : undefined}
                 >
-                  <td className="px-4 py-2.5 text-neutral-800 font-medium">{r.customerName || "—"}</td>
+                  <td className="px-4 py-2.5 text-neutral-800 font-medium">
+                    <span className="inline-flex items-center gap-1.5">
+                      {r.customerName || "—"}
+                      {r.nameMismatchRemark && (
+                        <span title={`Name mismatch: ${r.nameMismatchRemark}`}>
+                          <MessageSquareWarning size={13} className="text-amber-500 shrink-0" />
+                        </span>
+                      )}
+                    </span>
+                  </td>
                   <td className="px-4 py-2.5 text-neutral-700">{r.customerPlateNo}</td>
                   <td className="px-4 py-2.5 text-neutral-600">
                     {r.salespersonName} {r.salespersonCode && `(${r.salespersonCode})`}

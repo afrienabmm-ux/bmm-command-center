@@ -771,6 +771,23 @@ export default function WalkInJobForm({
               confirmDuplicate: true,
             });
           }
+          if (genbluResult && "nameMismatch" in genbluResult) {
+            // Not blocked outright — a customer using someone else's
+            // GenBlu account (a spouse's, say) is a real case, just one
+            // that needs a quick note explaining it for admin later.
+            const remark = window.prompt(genbluResult.message);
+            if (!remark || !remark.trim()) {
+              showError("Job not saved — add a short note explaining the name mismatch, or pick a different screenshot.");
+              return;
+            }
+            genbluResult = await ensureGenbluRegistrationAction({
+              branch: effectiveBranch,
+              customerName: customerName.trim(),
+              customerPlateNo: plateNo.trim(),
+              screenshot: genbluScreenshot,
+              nameMismatchRemark: remark.trim(),
+            });
+          }
           if (genbluResult && "error" in genbluResult) {
             showError(`Job not saved — ${genbluResult.error}`);
             return;

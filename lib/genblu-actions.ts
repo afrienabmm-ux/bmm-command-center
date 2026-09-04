@@ -22,6 +22,7 @@ type Row = {
   screenshot_path: string | null;
   points_accrued: number | null;
   source: "new_customer" | "has_jobsheet";
+  name_mismatch_remark: string | null;
   created_at: string;
 };
 
@@ -36,6 +37,7 @@ function toReg(r: Row): GenbluRegistration {
     screenshotPath: r.screenshot_path,
     pointsAccrued: r.points_accrued,
     source: r.source,
+    nameMismatchRemark: r.name_mismatch_remark,
     createdAt: r.created_at,
   };
 }
@@ -456,7 +458,11 @@ export async function ensureGenbluRegistrationAction(input: {
   // Set once staff confirm "yes, upload it anyway" past a duplicate-photo
   // warning — see findDuplicateScreenshot.
   confirmDuplicate?: boolean;
-}): Promise<{ error: string } | { warning: string } | { created: boolean }> {
+  // Staff's note explaining a name mismatch (e.g. "wife's genblu") — once
+  // set, the registration goes through even though the screenshot's name
+  // doesn't match the customer, instead of the upload being blocked.
+  nameMismatchRemark?: string;
+}): Promise<{ error: string } | { warning: string } | { nameMismatch: true; message: string } | { created: boolean }> {
   const user = await requireApproved();
   assertCanEditBranch(user, input.branch);
 
@@ -500,11 +506,15 @@ export async function ensureGenbluRegistrationAction(input: {
     ]);
     if (uploadResult.error) return { error: `Couldn't upload the GenBlu screenshot: ${uploadResult.error.message}` };
     // If the OCR check itself fails (e.g. Vision hiccup), don't block the
-    // registration over it — just skip the verification.
+    // registration over it — just skip the verification. A genuine
+    // mismatch no longer blocks either — a customer using someone else's
+    // GenBlu account (a spouse's, say) is a real case, not a mistake — but
+    // it does need staff to confirm with a short note first.
     const nameMatches = analysis?.nameMatches ?? true;
-    if (!nameMatches) {
+    if (!nameMatches && !input.nameMismatchRemark?.trim()) {
       return {
-        error: `The name on the GenBlu screenshot doesn't match "${customerName}" — please check the screenshot is for the right customer and try again.`,
+        nameMismatch: true,
+        message: `The name on the GenBlu screenshot doesn't match "${customerName}" — add a quick note explaining why (e.g. "wife's GenBlu") to continue.`,
       };
     }
     pointsAccrued = applyPointsReading(null, analysis?.pointsReading ?? null);
@@ -518,6 +528,7 @@ export async function ensureGenbluRegistrationAction(input: {
     salesperson_code: initialsFromName(user.name),
     customer_name: customerName,
     customer_plate_no: input.customerPlateNo.trim(),
+    name_mismatch_remark: input.nameMismatchRemark?.trim() || null,
     screenshot_path: screenshotPath,
     screenshot_hash: screenshotHash,
     points_accrued: pointsAccrued,
@@ -549,7 +560,11 @@ export async function attachGenbluScreenshotAction(input: {
   // Set once staff confirm "yes, upload it anyway" past a duplicate-photo
   // warning — see findDuplicateScreenshot.
   confirmDuplicate?: boolean;
-}): Promise<{ error: string } | { warning: string } | { updated: boolean }> {
+  // Staff's note explaining a name mismatch (e.g. "wife's genblu") — once
+  // set, the upload goes through even though the screenshot's name doesn't
+  // match the customer, instead of being blocked.
+  nameMismatchRemark?: string;
+}): Promise<{ error: string } | { warning: string } | { nameMismatch: true; message: string } | { updated: boolean }> {
   const user = await requireApproved();
   assertCanEditBranch(user, input.branch);
 
@@ -578,9 +593,10 @@ export async function attachGenbluScreenshotAction(input: {
   ]);
   if (uploadResult.error) return { error: `Couldn't upload the screenshot: ${uploadResult.error.message}` };
   const nameMatches = analysis?.nameMatches ?? true;
-  if (!nameMatches) {
+  if (!nameMatches && !input.nameMismatchRemark?.trim()) {
     return {
-      error: `The name on the screenshot doesn't match "${customerName}" — please check it's the right screenshot and try again.`,
+      nameMismatch: true,
+      message: `The name on the screenshot doesn't match "${customerName}" — add a quick note explaining why (e.g. "wife's GenBlu") to continue.`,
     };
   }
   const pointsReading = analysis?.pointsReading ?? null;
@@ -603,10 +619,12 @@ export async function attachGenbluScreenshotAction(input: {
     // dashboard existed. If nothing could be read, the total is left as
     // it was rather than being reset to null.
     const newTotal = applyPointsReading(match.points_accrued, pointsReading);
-    const { error } = await supabaseAdmin
-      .from("cc_genblu_registrations")
-      .update({ screenshot_path: path, screenshot_hash: hash, points_accrued: newTotal })
-      .eq("id", match.id);
+    const update: Record<string, unknown> = { screenshot_path: path, screenshot_hash: hash, points_accrued: newTotal };
+    // Only touches the remark when this upload actually needed one — never
+    // clears a remark left over from an earlier mismatch just because this
+    // particular screenshot's name happened to match fine.
+    if (input.nameMismatchRemark?.trim()) update.name_mismatch_remark = input.nameMismatchRemark.trim();
+    const { error } = await supabaseAdmin.from("cc_genblu_registrations").update(update).eq("id", match.id);
     if (error) return { error: error.message };
   } else {
     const { error } = await supabaseAdmin.from("cc_genblu_registrations").insert({
@@ -619,6 +637,7 @@ export async function attachGenbluScreenshotAction(input: {
       screenshot_hash: hash,
       points_accrued: applyPointsReading(null, pointsReading),
       source: input.hasJobsheet ? "has_jobsheet" : "new_customer",
+      name_mismatch_remark: input.nameMismatchRemark?.trim() || null,
     });
     if (error) return { error: error.message };
   }

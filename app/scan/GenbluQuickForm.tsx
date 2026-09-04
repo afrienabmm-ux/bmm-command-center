@@ -45,6 +45,11 @@ export default function GenbluQuickForm({
   const [scanningName, setScanningName] = useState(false);
   const [pointsPreview, setPointsPreview] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // Set when the screenshot's name doesn't match the customer — the
+  // upload isn't blocked, but staff need to type a short reason (e.g.
+  // "wife's GenBlu") before it's allowed through.
+  const [mismatchMessage, setMismatchMessage] = useState<string | null>(null);
+  const [remark, setRemark] = useState("");
   const [isPending, startTransition] = useTransition();
 
   // For a brand new customer there's no jobsheet to pull the name from —
@@ -104,15 +109,27 @@ export default function GenbluQuickForm({
     }
     setError(null);
     startTransition(async () => {
-      const result = await attachGenbluScreenshotAction({ ...input, screenshot, hasJobsheet, confirmDuplicate });
+      const result = await attachGenbluScreenshotAction({
+        ...input,
+        screenshot,
+        hasJobsheet,
+        confirmDuplicate,
+        nameMismatchRemark: remark.trim() || undefined,
+      });
       if ("warning" in result) {
         if (window.confirm(result.warning)) handleSubmit(true);
+        return;
+      }
+      if ("nameMismatch" in result) {
+        setMismatchMessage(result.message);
         return;
       }
       if ("error" in result) {
         setError(result.error);
         return;
       }
+      setMismatchMessage(null);
+      setRemark("");
       // A real page load, not just clearing local state — the file input
       // above stays showing the old filename even after screenshot is
       // reset to null (browsers don't let React control that value), which
@@ -265,10 +282,31 @@ export default function GenbluQuickForm({
 
       {error && <p className="text-sm text-red-700 mt-4">{error}</p>}
 
+      {mismatchMessage && (
+        <div className="mt-4 bg-amber-50 border border-amber-200 rounded-lg p-3.5">
+          <p className="text-xs text-amber-800">{mismatchMessage}</p>
+          <input
+            type="text"
+            value={remark}
+            onChange={(e) => setRemark(e.target.value)}
+            placeholder={`e.g. "wife's GenBlu"`}
+            className="w-full mt-2 bg-white border border-amber-300 rounded-lg px-3 py-2 text-sm text-neutral-800 focus:outline-none focus:border-amber-500"
+          />
+          <button
+            type="button"
+            onClick={() => handleSubmit()}
+            disabled={isPending || !remark.trim()}
+            className="w-full mt-2 bg-amber-600 hover:bg-amber-500 disabled:opacity-50 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+          >
+            {isPending ? "Uploading…" : "Confirm and Upload"}
+          </button>
+        </div>
+      )}
+
       <button
         type="button"
         onClick={() => handleSubmit()}
-        disabled={isPending || scanningName || !canSubmit}
+        disabled={isPending || scanningName || !canSubmit || !!mismatchMessage}
         className="w-full bg-red-500 hover:bg-red-400 disabled:opacity-50 text-white text-sm font-medium px-4 py-2.5 rounded-lg transition-colors mt-4"
       >
         {isPending ? "Uploading…" : "Upload"}
