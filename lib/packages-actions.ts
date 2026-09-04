@@ -164,6 +164,24 @@ export async function addPackageSaleAction(input: {
 }): Promise<void> {
   const user = await requireApproved();
   assertCanEditBranch(user, input.branch);
+
+  // One Services Combo sale per jobsheet, full stop — re-saving the same
+  // job (edit, or the PIC hitting save twice) used to log a fresh sale
+  // every time, since nothing here ever checked for one already on file.
+  // Only guards against a real receipt number; a blank one has no key to
+  // dedupe against, so it's left alone.
+  const receiptId = input.receiptId?.trim();
+  if (receiptId) {
+    const { data: existing, error: existingError } = await supabaseAdmin
+      .from("cc_package_sales")
+      .select("id")
+      .eq("branch", input.branch)
+      .eq("receipt_id", receiptId)
+      .limit(1);
+    if (existingError) throw new Error(existingError.message);
+    if (existing && existing.length > 0) return;
+  }
+
   const { error } = await supabaseAdmin.from("cc_package_sales").insert({
     branch: input.branch,
     package_id: input.packageId,
