@@ -94,12 +94,13 @@ function ItemsEditor({
   function removeRow(i: number) {
     onChange(items.filter((_, idx) => idx !== i));
   }
-  // Picking from the Code field's own dropdown fills the code too, since
-  // that's the field being searched — picking from Description still
-  // leaves code alone, as before.
-  function pickSuggestion(i: number, product: CatalogProduct, field: "code" | "description") {
+  // Picking a catalog match fills in its real code regardless of which
+  // field was searched — searching by description and getting the wrong
+  // code left in the row (or none at all) defeated the point of picking
+  // from the catalog instead of typing it by hand.
+  function pickSuggestion(i: number, product: CatalogProduct) {
     update(i, {
-      ...(field === "code" ? { code: product.code } : {}),
+      code: product.code,
       description: catalogLabel(product),
       price: String(product.price),
     });
@@ -149,7 +150,7 @@ function ItemsEditor({
                       <button
                         key={p.id}
                         type="button"
-                        onMouseDown={() => pickSuggestion(i, p, "code")}
+                        onMouseDown={() => pickSuggestion(i, p)}
                         className="w-full text-left px-3 py-2 text-sm hover:bg-neutral-50 flex items-center justify-between gap-2"
                         title={catalogLabel(p)}
                       >
@@ -180,7 +181,7 @@ function ItemsEditor({
                         type="button"
                         // Mousedown, not click — fires before the input's onBlur
                         // closes the list, so the click actually lands.
-                        onMouseDown={() => pickSuggestion(i, p, "description")}
+                        onMouseDown={() => pickSuggestion(i, p)}
                         className="w-full text-left px-3 py-2 text-sm hover:bg-neutral-50 flex items-center justify-between gap-2"
                       >
                         <span className="text-neutral-800">
