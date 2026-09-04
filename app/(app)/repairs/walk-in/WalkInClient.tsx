@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Plus, Download, Pencil, Search, Trash2, Check, Printer, ArrowUpDown, ChevronDown, ImageIcon, Link2 } from "lucide-react";
@@ -12,7 +12,7 @@ import {
 } from "@/lib/repairs-actions";
 import { isHeavyRepairJob, type RepairStatus, type RepairJob } from "@/lib/types";
 import type { Mechanic } from "@/lib/types";
-import { branchLabel, type Branch, type BranchSelection } from "@/lib/branch";
+import { BRANCHES, branchLabel, type Branch, type BranchSelection } from "@/lib/branch";
 import { formatCurrency, formatDate, daysBetween, toCsv } from "@/lib/format";
 import { todayInMalaysia } from "@/lib/malaysia-time";
 import { useToast } from "@/lib/useToast";
@@ -144,6 +144,19 @@ export default function WalkInClient({
   }, [jobs, query, sortDir, dateFrom, dateTo]);
   const allJobs = useMemo(() => [...active, ...completed], [active, completed]);
   const showBranchColumn = branchSelection === "all";
+
+  // On the combined "All Branches" view, jobs are grouped under a header
+  // row per branch (same pattern as the Mechanic Performance table)
+  // instead of one flat list mixed together — the per-row Branch column
+  // becomes redundant once grouped, so it's dropped in favor of the group
+  // header. Existing sort order (Newest/Oldest) is preserved within each
+  // branch's own section.
+  const branchGroups = useMemo(() => {
+    if (!showBranchColumn) return [];
+    return BRANCHES.map(({ value: branch }) => ({ branch, rows: visible.filter((j) => j.branch === branch) })).filter(
+      (g) => g.rows.length > 0
+    );
+  }, [visible, showBranchColumn]);
 
   // Selection is scoped to whatever's currently visible — switching tabs
   // or typing a new search clears it rather than silently carrying over
@@ -484,7 +497,6 @@ export default function WalkInClient({
                   </th>
                 )}
                 <th className="font-medium px-5 py-3 whitespace-nowrap">Job No.</th>
-                {showBranchColumn && <th className="font-medium px-5 py-3 whitespace-nowrap">Branch</th>}
                 <th className="font-medium px-5 py-3 whitespace-nowrap">Customer</th>
                 <th className="font-medium px-5 py-3 whitespace-nowrap">Plate No.</th>
                 <th className="font-medium px-5 py-3 whitespace-nowrap">Model</th>
@@ -502,33 +514,57 @@ export default function WalkInClient({
               {visible.length > 0 && (
                 <tr className="bg-emerald-50">
                   <td
-                    colSpan={(canEdit ? 1 : 0) + (showBranchColumn ? 1 : 0) + 12}
+                    colSpan={(canEdit ? 1 : 0) + 12}
                     className="px-5 py-2.5 whitespace-nowrap text-sm font-semibold text-emerald-900"
                   >
                     Total: {visible.length} job{visible.length === 1 ? "" : "s"}
                   </td>
                 </tr>
               )}
-              {visible.map((job) => (
-                <WalkInRow
-                  key={job.id}
-                  job={job}
-                  showBranch={showBranchColumn}
-                  mechanicLabel={mechanicLabel(job.mechanicId)}
-                  editable={canEdit && tab === "active"}
-                  canEdit={canEdit}
-                  canResolveErrors={canResolveErrors}
-                  highlight={job.id === highlightId}
-                  selected={selectedIds.has(job.id)}
-                  onToggleSelect={() => toggleSelectOne(job.id)}
-                />
-              ))}
+              {showBranchColumn
+                ? branchGroups.map((g) => (
+                    <Fragment key={g.branch}>
+                      <tr className="bg-neutral-50">
+                        <td
+                          colSpan={(canEdit ? 1 : 0) + 12}
+                          className="px-5 py-2 whitespace-nowrap text-xs font-semibold text-neutral-600 uppercase tracking-wide"
+                        >
+                          {branchLabel(g.branch)} — {g.rows.length} job{g.rows.length === 1 ? "" : "s"}
+                        </td>
+                      </tr>
+                      {g.rows.map((job) => (
+                        <WalkInRow
+                          key={job.id}
+                          job={job}
+                          showBranch={false}
+                          mechanicLabel={mechanicLabel(job.mechanicId)}
+                          editable={canEdit && tab === "active"}
+                          canEdit={canEdit}
+                          canResolveErrors={canResolveErrors}
+                          highlight={job.id === highlightId}
+                          selected={selectedIds.has(job.id)}
+                          onToggleSelect={() => toggleSelectOne(job.id)}
+                        />
+                      ))}
+                    </Fragment>
+                  ))
+                : visible.map((job) => (
+                    <WalkInRow
+                      key={job.id}
+                      job={job}
+                      showBranch={false}
+                      mechanicLabel={mechanicLabel(job.mechanicId)}
+                      editable={canEdit && tab === "active"}
+                      canEdit={canEdit}
+                      canResolveErrors={canResolveErrors}
+                      highlight={job.id === highlightId}
+                      selected={selectedIds.has(job.id)}
+                      onToggleSelect={() => toggleSelectOne(job.id)}
+                    />
+                  ))}
               {visible.length === 0 && (
                 <tr>
-                  <td
-                    colSpan={(showBranchColumn ? 13 : 12) + (canEdit ? 1 : 0)}
-                    className="px-5 py-10 text-center text-neutral-500 text-sm"
-                  >
+                  <td colSpan={12 + (canEdit ? 1 : 0)} className="px-5 py-10 text-center text-neutral-500 text-sm">
                     {jobs.length === 0
                       ? `${tab === "active" ? "No active" : tab === "completed" ? "No completed" : "No"} Jobsheet jobs${tab === "errors" ? " need checking" : ""}.`
                       : "No jobs match your search."}
