@@ -35,7 +35,6 @@ export default function WalkInClient({
   branchSelection,
   highlightId,
   canEdit,
-  canAdd = false,
   canResolveErrors,
 }: {
   active: RepairJob[];
@@ -45,10 +44,6 @@ export default function WalkInClient({
   branchSelection: BranchSelection;
   highlightId?: string;
   canEdit: boolean;
-  // Separate from canEdit — Front Desk can add a new jobsheet from the
-  // dashboard but still can't touch an existing one (bulk delete, inline
-  // End Date stamp, Edit/Delete per row all stay gated on canEdit alone).
-  canAdd?: boolean;
   canResolveErrors: boolean;
 }) {
   // The Active tab hides itself entirely when there's nothing in it (same
@@ -455,7 +450,7 @@ export default function WalkInClient({
               <Trash2 size={15} /> Delete Selected ({selectedIds.size})
             </button>
           )}
-          {(canEdit || canAdd) && (
+          {canEdit && (
             <Link
               href="/repairs/walk-in/new"
               className="flex items-center gap-1.5 bg-red-500 hover:bg-red-400 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
