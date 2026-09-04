@@ -340,6 +340,30 @@ function parseJobsheetText(text: string): ScannedJobsheet {
     return Number(tok.replace(/[,:]/g, ".")) || 0;
   }
 
+  // A genuine item description always has at least one real word in it —
+  // when a merged multi-line row's qty/price arithmetic happens to check
+  // out but every token in between is just numbers/UOM words (e.g. "1.00
+  // UNIT" left over from a neighboring row's own cells), that's a
+  // coincidental match on a scrambled reading order, not a real row, and
+  // safer to reject than to save a real-looking but wrong quantity/price.
+  function hasRealDescription(tokens: string[]): boolean {
+    return tokens.some((t) => !isNumericToken(t) && !UOM_WORDS.test(t));
+  }
+
+  // A description pulled from a merge across several OCR-reconstructed
+  // lines often carries leftover column noise at its edges — table-header
+  // words, a stray "(RM)", a UOM cell — from lines that don't belong to
+  // this item's own row. Trimmed from both ends only (never the middle,
+  // where a real mid-description number like "10W-40" needs to survive).
+  function cleanDescriptionTokens(tokens: string[]): string {
+    const isEdgeNoise = (t: string) => isNumericToken(t) || UOM_WORDS.test(t) || /^[()[\]{},:;.]+$/.test(t) || /^RM$/i.test(t);
+    let start = 0;
+    while (start < tokens.length && isEdgeNoise(tokens[start])) start++;
+    let end = tokens.length;
+    while (end > start && isEdgeNoise(tokens[end - 1])) end--;
+    return tokens.slice(start, end).join(" ").trim();
+  }
+
   // A dash-suffixed code (e.g. "90793-AHB02", or "157-E3440-09" — the
   // suffix itself can have its own internal dash) sometimes gets read
   // back with the dash split off as its own token, or attached to
@@ -420,7 +444,9 @@ function parseJobsheetText(text: string): ScannedJobsheet {
         .map(tokenToNumber);
       for (let k = 0; k < nums.length - 1; k++) {
         if (Math.abs(qty * nums[k] - nums[k + 1]) < 0.5) {
-          const description = tokens.slice(descStart, j).join(" ").trim();
+          const rawDescription = tokens.slice(descStart, j);
+          if (!hasRealDescription(rawDescription)) continue;
+          const description = cleanDescriptionTokens(rawDescription);
           if (!description) continue;
           return { code: code.trim(), description, quantity: qty, price: nums[k] };
         }
@@ -452,16 +478,22 @@ function parseJobsheetText(text: string): ScannedJobsheet {
     // A wide items table (this jobsheet template runs Item/Code/
     // Description/Qty/UOM/Unit Price/Amount/Discount/GST Amt/I-E/Nett Amt
     // — eleven columns) gives OCR's row-reconstruction more room to split
-    // one physical row across two or even three reconstructed lines than
-    // a narrower form does — e.g. "1 90793-AH426 YAMALUBE" on one line,
-    // "4T RS 200 10W-50 SN WITH ES 2.00 113.50 227.00" on the next, and a
-    // stray "I 227.00" on a third. A lone line with no code+description or
-    // no qty/price pair can't be recovered on its own — but stitching it
-    // to the line(s) right after and trying again catches that without
-    // changing anything for the (majority) rows that already read cleanly
-    // on one line.
+    // one physical row across two, three, or even four reconstructed lines
+    // than a narrower form does — e.g. "1 90793-AH426 YAMALUBE" on one
+    // line, "4T RS 200 10W-50 SN WITH ES 2.00 113.50 227.00" on the next,
+    // and a stray "I 227.00" on a third; a heavily duplicated-value row
+    // (Amount and Nett Amt both printing the same figure) can push the
+    // real qty/price pairing out to a fourth. A lone line with no
+    // code+description or no qty/price pair can't be recovered on its own
+    // — but stitching it to the line(s) right after and trying again
+    // catches that without changing anything for the (majority) rows that
+    // already read cleanly on one line. hasRealDescription (inside
+    // tryParseItemLine) is what keeps a wider merge window safe — it
+    // rejects a coincidental arithmetic match that isn't backed by any
+    // real description text, which is what a wrong cross-row pairing
+    // always looks like.
     if (looksLikeItemRowStart(lines[li])) {
-      for (let span = 2; span <= 3 && li + span - 1 < lines.length; span++) {
+      for (let span = 2; span <= 4 && li + span - 1 < lines.length; span++) {
         const merged = tryParseItemLine(lines.slice(li, li + span).join(" "));
         if (merged) {
           items.push(merged);
