@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, useTransition } from "react";
-import { CheckCircle2, ChevronDown, Search } from "lucide-react";
+import { ChevronDown, Search } from "lucide-react";
 import { attachGenbluScreenshotAction, scanGenbluScreenshotForNameAction } from "@/lib/genblu-actions";
 import { BRANCHES, branchLabel, type Branch, type BranchSelection } from "@/lib/branch";
 import { formatDate } from "@/lib/format";
@@ -45,7 +45,6 @@ export default function GenbluQuickForm({
   const [scanningName, setScanningName] = useState(false);
   const [pointsPreview, setPointsPreview] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [done, setDone] = useState(false);
   const [isPending, startTransition] = useTransition();
 
   // For a brand new customer there's no jobsheet to pull the name from —
@@ -104,7 +103,6 @@ export default function GenbluQuickForm({
       return;
     }
     setError(null);
-    setDone(false);
     startTransition(async () => {
       const result = await attachGenbluScreenshotAction({ ...input, screenshot, hasJobsheet, confirmDuplicate });
       if ("warning" in result) {
@@ -115,12 +113,14 @@ export default function GenbluQuickForm({
         setError(result.error);
         return;
       }
-      setDone(true);
-      setScreenshot(null);
-      if (!hasJobsheet) {
-        setManualCustomerName("");
-        setManualPlateNo("");
-      }
+      // A real page load, not just clearing local state — the file input
+      // above stays showing the old filename even after screenshot is
+      // reset to null (browsers don't let React control that value), which
+      // looked like the same photo was still sitting there ready to
+      // re-upload. A hard reload guarantees a genuinely blank form, same
+      // as browsing back to the page — SavedToast (already on this page)
+      // picks up ?genblu_saved=1 and shows the confirmation once it's back.
+      window.location.href = `${window.location.pathname}?genblu_saved=1`;
     });
   }
 
@@ -264,11 +264,6 @@ export default function GenbluQuickForm({
       )}
 
       {error && <p className="text-sm text-red-700 mt-4">{error}</p>}
-      {done && !isPending && (
-        <p className="text-sm text-emerald-700 flex items-center gap-1.5 mt-4">
-          <CheckCircle2 size={15} /> Screenshot uploaded.
-        </p>
-      )}
 
       <button
         type="button"
