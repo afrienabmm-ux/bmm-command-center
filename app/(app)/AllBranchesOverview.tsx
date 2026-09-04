@@ -1,22 +1,12 @@
 import Link from "next/link";
-import { AlertTriangle, Clock, ShieldCheck, CheckCircle2, ClipboardList, Wrench, Wallet, Layers, PackageCheck, ArrowUp, ArrowDown } from "lucide-react";
-import { formatCurrency, formatDate, monthLabel } from "@/lib/format";
-import { daysSinceInMalaysia } from "@/lib/malaysia-time";
+import { ClipboardList, Wallet, Layers, PackageCheck, ArrowUp, ArrowDown } from "lucide-react";
+import { formatCurrency, monthLabel } from "@/lib/format";
 import { branchLabel, type Branch, type BranchSelection } from "@/lib/branch";
 import StatCard from "@/components/StatCard";
 import CombinedTargetEditor from "./CombinedTargetEditor";
 import BranchBreakdownTable, { getBranchBreakdown, getAllBranchesAchievedTotal } from "./BranchBreakdownTable";
 import MonthlyTrends from "./MonthlyTrends";
-import {
-  getAllBranchesOverdueRestoreBikeJobs,
-  getAllBranchesOverdueQcJobs,
-  getAllBranchesQcReminderJobs,
-  getAllBranchesActiveRepairJobs,
-  getActiveRepairJobs,
-  getAllBranchesPendingApprovalJobs,
-  getAllBranchesApprovedReadyToStartJobs,
-  getUpcomingServiceReminders,
-} from "@/lib/repairs-actions";
+import { getUpcomingServiceReminders } from "@/lib/repairs-actions";
 import { getBranchMonthSummary, getBranchPerformance, getMonthlyTargetHistory } from "@/lib/reports-actions";
 import { getMonthlyTrends } from "@/lib/trends-actions";
 import { getRevenuePace } from "@/lib/revenue-pace-actions";
@@ -31,9 +21,7 @@ import {
 import { getMechanicCommitment } from "@/lib/mechanic-commitment-actions";
 import TodaysJobCheck from "./TodaysJobCheck";
 import PackageBreakdownCharts from "./PackageBreakdownCharts";
-import RestoreBikeStatus, { type OverdueRestoreBikeDetail } from "./RestoreBikeStatus";
 import ClaimStatusPieCard from "./ClaimStatusPieCard";
-import { getAllMechanics } from "@/lib/mechanics-actions";
 import BranchMechanicLeaderboard from "./BranchMechanicLeaderboard";
 import ServiceReminderBanner from "./ServiceReminderBanner";
 
@@ -65,12 +53,7 @@ export default async function AllBranchesOverview({
   // dashboard lag before.
   const [
     rows,
-    overdueJobs,
-    overdueQcJobs,
-    qcReminderJobs,
     serviceReminders,
-    pendingApprovalJobs,
-    approvedReadyToStartJobs,
     prevAchieved,
     trendPoints,
     revenuePace,
@@ -78,23 +61,15 @@ export default async function AllBranchesOverview({
     claimStatusBreakdown,
     deliveryClaimStatusBreakdown,
     packageBreakdown,
-    activeJobs,
     mechanicCommitment,
     todayActivity,
-    allMechanics,
     branchMechanicRows,
   ] = await Promise.all([
     getBranchBreakdown(year, month),
-    // These five only ever get rendered for Management (see the isManagement
-    // && gates below) — skipping the query entirely for everyone else saves
-    // a real database round-trip on every dashboard load, not just a hidden
-    // render.
-    isManagement ? getAllBranchesOverdueRestoreBikeJobs(onlyBranch) : Promise.resolve([]),
-    isManagement ? getAllBranchesOverdueQcJobs(onlyBranch) : Promise.resolve([]),
-    isManagement ? getAllBranchesQcReminderJobs(onlyBranch) : Promise.resolve([]),
+    // Only ever rendered for Management (see the isManagement && gate
+    // below) — skipping the query entirely for everyone else saves a real
+    // database round-trip on every dashboard load, not just a hidden render.
     isManagement ? getUpcomingServiceReminders(onlyBranch) : Promise.resolve([]),
-    isManagement ? getAllBranchesPendingApprovalJobs(onlyBranch) : Promise.resolve([]),
-    isManagement ? Promise.resolve([]) : getAllBranchesApprovedReadyToStartJobs(onlyBranch),
     onlyBranch
       ? getBranchMonthSummary(onlyBranch, prev.year, prev.month).then((s) => s.achievedAmount)
       : getAllBranchesAchievedTotal(prev.year, prev.month),
@@ -104,12 +79,10 @@ export default async function AllBranchesOverview({
     getWarrantyClaimStatusBreakdown(year, month, onlyBranch),
     getDeliveryClaimStatusBreakdown(year, month, onlyBranch),
     getPackageSalesBreakdown(year, month),
-    onlyBranch ? getActiveRepairJobs(onlyBranch) : getAllBranchesActiveRepairJobs(),
     isManagement
       ? getMechanicCommitment(onlyBranch)
       : Promise.resolve({ date: "", dailyTargetByBranch: {} as Record<Branch, number>, rows: [] }),
     getTodayActivity(onlyBranch),
-    getAllMechanics(),
     onlyBranch ? getBranchPerformance(onlyBranch, year, month) : Promise.resolve([]),
   ]);
 
@@ -131,30 +104,6 @@ export default async function AllBranchesOverview({
   const pct = totals.target > 0 ? Math.min(100, Math.round((totals.achieved / totals.target) * 100)) : 0;
 
   const serviceRevenueToday = revenuePace.branches.reduce((sum, b) => sum + b.revenueToday, 0);
-
-  // Same 5-day overdue cutoff as the "running past 5 days" alert below —
-  // just green/red now, no amber warning zone. Jobs that haven't started
-  // yet (no startedDate) aren't running the clock, so they count as green
-  // rather than being left out entirely.
-  const restoreBikeStatusCounts = activeJobs
-    .filter((j) => j.jobType === "Restore Bike")
-    .reduce(
-      (acc, j) => {
-        const days = j.startedDate ? daysSinceInMalaysia(j.startedDate) : null;
-        if (days === null || days <= 5) acc.green += 1;
-        else acc.red += 1;
-        return acc;
-      },
-      { green: 0, red: 0 }
-    );
-
-  const mechanicNameById = new Map(allMechanics.map((m) => [m.id, `${m.shortName} (${m.shortCode})`]));
-  const overdueRestoreBikeDetails: OverdueRestoreBikeDetail[] = overdueJobs.map((j) => ({
-    plateNo: j.plateNo,
-    mechanicName: j.mechanicId ? (mechanicNameById.get(j.mechanicId) ?? "Unknown") : "Unassigned",
-    branch: j.branch,
-    daysRunning: j.daysRunning,
-  }));
 
   // Month-over-month change vs the same combined-achieved figure last month.
   // No badge when there's nothing to compare against (e.g. a brand new month).
@@ -202,141 +151,6 @@ export default async function AllBranchesOverview({
       </div>
 
       {/* Alerts — anything that needs action or a heads-up, most urgent first. */}
-      {isManagement && pendingApprovalJobs.length > 0 && (
-        <Link
-          href="/repairs"
-          className="block bg-red-50 border border-red-200 rounded-xl p-5 hover:border-red-300 transition-colors"
-        >
-          <div className="flex items-start gap-3">
-            <div className="w-9 h-9 rounded-lg bg-red-500/10 flex items-center justify-center shrink-0">
-              <ShieldCheck size={17} className="text-red-600" />
-            </div>
-            <div className="min-w-0">
-              <p className="text-sm font-semibold text-red-700">
-                {pendingApprovalJobs.length} Restore Bike job{pendingApprovalJobs.length === 1 ? "" : "s"} waiting on your
-                approval
-              </p>
-              <p className="text-xs text-red-600 mt-1">
-                {pendingApprovalJobs
-                  .slice(0, 6)
-                  .map((j) => j.plateNo)
-                  .join(", ")}
-                {pendingApprovalJobs.length > 6 ? `, +${pendingApprovalJobs.length - 6} more` : ""} — the PIC can't
-                start repair until you approve.
-              </p>
-            </div>
-          </div>
-        </Link>
-      )}
-
-      {!isManagement && approvedReadyToStartJobs.length > 0 && (
-        <Link
-          href={
-            approvedReadyToStartJobs.length === 1
-              ? `/repairs?tab=bikes&highlight=${approvedReadyToStartJobs[0].id}`
-              : "/repairs?tab=bikes"
-          }
-          className="block bg-emerald-50 border border-emerald-200 rounded-xl p-5 hover:border-emerald-300 transition-colors"
-        >
-          <div className="flex items-start gap-3">
-            <div className="w-9 h-9 rounded-lg bg-emerald-500/10 flex items-center justify-center shrink-0">
-              <CheckCircle2 size={17} className="text-emerald-600" />
-            </div>
-            <div className="min-w-0">
-              <p className="text-sm font-semibold text-emerald-700">
-                {approvedReadyToStartJobs.length} Restore Bike job{approvedReadyToStartJobs.length === 1 ? "" : "s"} approved
-                by GM — ready to start
-              </p>
-              <p className="text-xs text-emerald-600 mt-1">
-                {approvedReadyToStartJobs
-                  .slice(0, 6)
-                  .map((j) => j.plateNo)
-                  .join(", ")}
-                {approvedReadyToStartJobs.length > 6 ? `, +${approvedReadyToStartJobs.length - 6} more` : ""}
-              </p>
-            </div>
-          </div>
-        </Link>
-      )}
-
-      {isManagement && overdueJobs.length > 0 && (
-        <Link
-          href="/repairs"
-          className="block bg-red-50 border border-red-200 rounded-xl p-5 hover:border-red-300 transition-colors"
-        >
-          <div className="flex items-start gap-3">
-            <div className="w-9 h-9 rounded-lg bg-red-500/10 flex items-center justify-center shrink-0">
-              <AlertTriangle size={17} className="text-red-600" />
-            </div>
-            <div className="min-w-0">
-              <p className="text-sm font-semibold text-red-700">
-                {overdueJobs.length} Restore Bike job{overdueJobs.length === 1 ? "" : "s"} running past 5 days —
-                check if finished
-              </p>
-              <p className="text-xs text-red-600 mt-1">
-                {overdueJobs
-                  .slice(0, 6)
-                  .map((j) => `${j.plateNo} (${j.daysRunning}d)`)
-                  .join(", ")}
-                {overdueJobs.length > 6 ? `, +${overdueJobs.length - 6} more` : ""}
-              </p>
-            </div>
-          </div>
-        </Link>
-      )}
-
-      {isManagement && overdueQcJobs.length > 0 && (
-        <Link
-          href="/repairs"
-          className="block bg-red-50 border border-red-200 rounded-xl p-5 hover:border-red-300 transition-colors"
-        >
-          <div className="flex items-start gap-3">
-            <div className="w-9 h-9 rounded-lg bg-red-500/10 flex items-center justify-center shrink-0">
-              <AlertTriangle size={17} className="text-red-600" />
-            </div>
-            <div className="min-w-0">
-              <p className="text-sm font-semibold text-red-700">
-                {overdueQcJobs.length} job{overdueQcJobs.length === 1 ? "" : "s"} waiting on QC past 3 days — check
-                with the branch PIC
-              </p>
-              <p className="text-xs text-red-600 mt-1">
-                {overdueQcJobs
-                  .slice(0, 6)
-                  .map((j) => `${j.plateNo} — ${j.model || "no model"} (${j.daysWaiting}d)`)
-                  .join(", ")}
-                {overdueQcJobs.length > 6 ? `, +${overdueQcJobs.length - 6} more` : ""}
-              </p>
-            </div>
-          </div>
-        </Link>
-      )}
-
-      {isManagement && qcReminderJobs.length > 0 && (
-        <Link
-          href="/repairs"
-          className="block bg-amber-50 border border-amber-200 rounded-xl p-5 hover:border-amber-300 transition-colors"
-        >
-          <div className="flex items-start gap-3">
-            <div className="w-9 h-9 rounded-lg bg-amber-500/10 flex items-center justify-center shrink-0">
-              <Clock size={17} className="text-amber-600" />
-            </div>
-            <div className="min-w-0">
-              <p className="text-sm font-semibold text-amber-700">
-                {qcReminderJobs.length} bike{qcReminderJobs.length === 1 ? "" : "s"} waiting on QC — due within 72
-                hours
-              </p>
-              <p className="text-xs text-amber-600 mt-1">
-                {qcReminderJobs
-                  .slice(0, 6)
-                  .map((j) => `${j.plateNo} — ${j.model || "no model"} (due ${formatDate(j.dueDate)})`)
-                  .join(", ")}
-                {qcReminderJobs.length > 6 ? `, +${qcReminderJobs.length - 6} more` : ""}
-              </p>
-            </div>
-          </div>
-        </Link>
-      )}
-
       {isManagement && <ServiceReminderBanner reminders={serviceReminders} />}
 
       {isManagement && (
@@ -344,7 +158,7 @@ export default async function AllBranchesOverview({
       )}
 
       {/* Today, at a glance. */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         <StatCard
           icon={ClipboardList}
           label="Jobsheet Today"
@@ -366,13 +180,6 @@ export default async function AllBranchesOverview({
           color="text-teal-700 bg-teal-500/10"
           href="/packages"
         />
-        <StatCard
-          icon={Wrench}
-          label="Restore Bike Today"
-          value={todayActivity.restoreBikeCount}
-          color="text-sky-700 bg-sky-500/10"
-          href="/repairs"
-        />
       </div>
 
       <RevenuePace
@@ -386,14 +193,13 @@ export default async function AllBranchesOverview({
         title={onlyBranch ? `Pace to Target — ${branchLabel(onlyBranch)}` : "Pace to Target"}
       />
 
-      {/* Current status, at a glance — claims, restore bike workflow, combo sales. */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      {/* Current status, at a glance — claims. */}
+      <div className="max-w-md">
         <ClaimStatusPieCard
           warranty={claimStatusBreakdown}
           delivery={deliveryClaimStatusBreakdown}
           subtitle={onlyBranch ? "This month" : "All branches, this month"}
         />
-        <RestoreBikeStatus counts={restoreBikeStatusCounts} overdueDetails={overdueRestoreBikeDetails} />
       </div>
 
       <PackageBreakdownCharts packageBreakdown={packageBreakdown} onlyBranch={onlyBranch} />

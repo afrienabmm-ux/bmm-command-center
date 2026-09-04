@@ -1,12 +1,12 @@
 "use client";
 
 import { Fragment, useEffect, useMemo, useState } from "react";
-import { Crown, Wrench, Smartphone, Download, ChevronDown, ChevronUp, ArrowUp, ArrowDown, Minus, Search, Target, BarChart3 } from "lucide-react";
+import { Crown, Smartphone, Download, ChevronDown, ChevronUp, ArrowUp, ArrowDown, Minus, Search, Target, BarChart3 } from "lucide-react";
 import { formatCurrency, formatShortDate, toCsv } from "@/lib/format";
 import { BRANCHES, branchLabel, type Branch, type BranchSelection } from "@/lib/branch";
 import type { MechanicPerformanceRowWithBranch } from "@/lib/reports-actions";
 import type { MechanicCommitmentRow } from "@/lib/mechanic-commitment-actions";
-import { MECHANIC_KPI_REVENUE, MECHANIC_KPI_RESTORE_BIKE_COUNT, MECHANIC_KPI_WORKING_DAYS } from "@/lib/types";
+import { MECHANIC_KPI_WORKING_DAYS } from "@/lib/types";
 
 const COLLAPSED_COUNT = 5;
 
@@ -66,13 +66,11 @@ function TrendBadge({ current, previous }: { current: number; previous: number |
 function RevenueRow({
   r,
   isTop,
-  isTopRestoreBike,
   prevRevenue,
   today,
 }: {
   r: MechanicPerformanceRowWithBranch;
   isTop: boolean;
-  isTopRestoreBike: boolean;
   prevRevenue: number | undefined;
   today: MechanicCommitmentRow | undefined;
 }) {
@@ -83,11 +81,6 @@ function RevenueRow({
         <span className="inline-flex items-center gap-1.5">
           {isTop && r.totalRevenue > 0 && <Crown size={14} className="text-amber-500" />}
           {r.fullName} <span className="text-neutral-500 font-normal">({r.shortCode})</span>
-          {isTopRestoreBike && (
-            <span className="flex items-center gap-1 text-xs font-medium text-red-700 bg-red-500/10 border border-red-500/20 rounded-full px-2 py-0.5">
-              <Wrench size={10} /> Top Restore Bike
-            </span>
-          )}
         </span>
       </td>
       <td className="px-5 py-3.5 text-neutral-600 whitespace-nowrap">{r.walkInCount} jobs</td>
@@ -97,7 +90,6 @@ function RevenueRow({
           <TodayProgressBar value={today?.revenue ?? 0} target={dailyTarget} />
         </div>
       </td>
-      <td className="px-5 py-3.5 text-neutral-600 whitespace-nowrap">{r.restoreBikeCount} jobs</td>
       <td className="px-5 py-3.5 text-neutral-600 whitespace-nowrap">
         {r.packageSetsSold} sets · {formatCurrency(r.packageRevenue)}
       </td>
@@ -198,13 +190,6 @@ export default function AllBranchesMechanicPerformanceClient({
   const visible = grouped ? filtered : showAll ? filtered : filtered.slice(0, COLLAPSED_COUNT);
   const hiddenCount = filtered.length - visible.length;
 
-  const topRestoreBikeId = filtered.reduce<{ id: string; revenue: number } | null>((top, r) => {
-    if (r.restoreBikeRevenue > 0 && (!top || r.restoreBikeRevenue > top.revenue)) {
-      return { id: r.mechanicId, revenue: r.restoreBikeRevenue };
-    }
-    return top;
-  }, null)?.id;
-
   // The crown marks the single top earner in the current sort — computed
   // from filtered[0] rather than a row's position in the table, since
   // grouping by branch means each branch's first row is no longer
@@ -244,14 +229,10 @@ export default function AllBranchesMechanicPerformanceClient({
         "Jobsheet Jobs",
         "Jobsheet Revenue (RM)",
         `Revenue ${dayLabel} (RM)`,
-        "Restore Bike Jobs",
-        "Restore Bike Revenue (RM)",
         "Package Sets",
         "Package Revenue (RM)",
         "New GenBlu Users",
         "Total Revenue (RM)",
-        "Revenue KPI Met (RM10k)",
-        "Bike Count KPI Met (2 bikes)",
       ],
       filtered.map((r) => {
         const today = commitmentByMechanicId[r.mechanicId];
@@ -261,14 +242,10 @@ export default function AllBranchesMechanicPerformanceClient({
           r.walkInCount,
           r.walkInRevenue.toFixed(2),
           (today?.revenue ?? 0).toFixed(2),
-          r.restoreBikeCount,
-          r.restoreBikeRevenue.toFixed(2),
           r.packageSetsSold,
           r.packageRevenue.toFixed(2),
           r.genbluCount,
           r.totalRevenue.toFixed(2),
-          r.restoreBikeRevenue >= MECHANIC_KPI_REVENUE ? "Yes" : "No",
-          r.restoreBikeCount >= MECHANIC_KPI_RESTORE_BIKE_COUNT ? "Yes" : "No",
         ];
       })
     );
@@ -291,7 +268,7 @@ export default function AllBranchesMechanicPerformanceClient({
           <p className="text-xs text-neutral-500 mt-0.5">
             {view === "packages"
               ? "Total packages sold per mechanic this month"
-              : `${isToday ? "Today's" : `${dayLabel}'s`} pace (each mechanic's own branch target ÷ ${MECHANIC_KPI_WORKING_DAYS} days ÷ headcount) plus this month's revenue by source · KPI is ${formatCurrency(MECHANIC_KPI_REVENUE)} Restore Bike revenue over ${MECHANIC_KPI_WORKING_DAYS} working days`}
+              : `${isToday ? "Today's" : `${dayLabel}'s`} pace (each mechanic's own branch target ÷ ${MECHANIC_KPI_WORKING_DAYS} days ÷ headcount) plus this month's revenue by source`}
           </p>
         </div>
         {view === "revenue" && todayRows.length > 0 && (
@@ -440,7 +417,6 @@ export default function AllBranchesMechanicPerformanceClient({
                   <th className="font-medium px-5 py-3 whitespace-nowrap">Mechanic</th>
                   <th className="font-medium px-5 py-3 whitespace-nowrap">Jobsheet</th>
                   <th className="font-medium px-5 py-3 whitespace-nowrap">Revenue {dayLabel}</th>
-                  <th className="font-medium px-5 py-3 whitespace-nowrap">Restore Bike</th>
                   <th className="font-medium px-5 py-3 whitespace-nowrap">Packages</th>
                   <th className="font-medium px-5 py-3 whitespace-nowrap">GenBlu</th>
                   <th className="font-medium px-5 py-3 whitespace-nowrap">Total Revenue</th>
@@ -454,7 +430,7 @@ export default function AllBranchesMechanicPerformanceClient({
                           <td className="px-5 py-2.5 text-emerald-800 font-semibold text-xs uppercase tracking-wide whitespace-nowrap">
                             {branchLabel(g.branch)} — Branch Total
                           </td>
-                          <td colSpan={5} />
+                          <td colSpan={4} />
                           <td className="px-5 py-2.5 text-emerald-800 font-semibold text-sm whitespace-nowrap">
                             {formatCurrency(g.rows.reduce((sum, r) => sum + r.totalRevenue, 0))}
                           </td>
@@ -464,7 +440,6 @@ export default function AllBranchesMechanicPerformanceClient({
                             key={r.mechanicId}
                             r={r}
                             isTop={r.mechanicId === topOverallId}
-                            isTopRestoreBike={r.mechanicId === topRestoreBikeId}
                             prevRevenue={prevRevenueByMechanicId[r.mechanicId]}
                             today={commitmentByMechanicId[r.mechanicId]}
                           />
@@ -476,14 +451,13 @@ export default function AllBranchesMechanicPerformanceClient({
                         key={r.mechanicId}
                         r={r}
                         isTop={r.mechanicId === topOverallId}
-                        isTopRestoreBike={r.mechanicId === topRestoreBikeId}
                         prevRevenue={prevRevenueByMechanicId[r.mechanicId]}
                         today={commitmentByMechanicId[r.mechanicId]}
                       />
                     ))}
                 {filtered.length === 0 && (
                   <tr>
-                    <td colSpan={7} className="px-5 py-10 text-center text-neutral-500 text-sm">
+                    <td colSpan={6} className="px-5 py-10 text-center text-neutral-500 text-sm">
                       No mechanics {branchFilter === "all" ? "yet" : `at ${branchLabel(branchFilter)} yet`}.
                     </td>
                   </tr>

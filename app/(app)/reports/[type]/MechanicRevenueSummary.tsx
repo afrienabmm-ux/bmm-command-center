@@ -3,7 +3,6 @@ import { formatCurrency } from "@/lib/format";
 type MechanicTotal = {
   fullName: string;
   shortCode: string;
-  restoreBikeRevenue: number;
   walkInRevenue: number;
   packageRevenue: number;
   totalRevenue: number;
@@ -22,7 +21,6 @@ export default function MechanicRevenueSummary({ mechanics }: { mechanics: Mecha
             <tr className="bg-neutral-50 text-left text-xs font-medium text-neutral-500 uppercase tracking-wide">
               <th className="px-4 py-2.5">Mechanic</th>
               <th className="px-4 py-2.5">Code</th>
-              <th className="px-4 py-2.5 text-right">Restore Bike</th>
               <th className="px-4 py-2.5 text-right">Walk-in</th>
               <th className="px-4 py-2.5 text-right">Services Combo</th>
               <th className="px-4 py-2.5 text-right">Total</th>
@@ -31,7 +29,7 @@ export default function MechanicRevenueSummary({ mechanics }: { mechanics: Mecha
           <tbody>
             {mechanics.length === 0 ? (
               <tr>
-                <td colSpan={6} className="px-4 py-4 text-center text-neutral-500">
+                <td colSpan={5} className="px-4 py-4 text-center text-neutral-500">
                   No data yet.
                 </td>
               </tr>
@@ -40,7 +38,6 @@ export default function MechanicRevenueSummary({ mechanics }: { mechanics: Mecha
                 <tr key={m.shortCode} className="border-t border-neutral-100">
                   <td className="px-4 py-2.5 whitespace-nowrap text-neutral-700">{m.fullName}</td>
                   <td className="px-4 py-2.5 whitespace-nowrap text-neutral-700">{m.shortCode}</td>
-                  <td className="px-4 py-2.5 text-right whitespace-nowrap text-neutral-700">{formatCurrency(m.restoreBikeRevenue)}</td>
                   <td className="px-4 py-2.5 text-right whitespace-nowrap text-neutral-700">{formatCurrency(m.walkInRevenue)}</td>
                   <td className="px-4 py-2.5 text-right whitespace-nowrap text-neutral-700">{formatCurrency(m.packageRevenue)}</td>
                   <td className="px-4 py-2.5 text-right whitespace-nowrap text-neutral-900 font-medium">{formatCurrency(m.totalRevenue)}</td>

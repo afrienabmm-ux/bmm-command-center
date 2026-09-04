@@ -38,7 +38,6 @@ export const dynamic = "force-dynamic";
 
 const TITLES: Record<string, string> = {
   jobsheet: "Jobsheet",
-  "restore-bike": "Restore Bike",
   "services-card": "Services Card",
   "genblu-new": "GenBlu — New Registration",
   "genblu-jobsheet": "GenBlu — Has Jobsheet",
@@ -111,18 +110,17 @@ export default async function ReportDetailPage({ params }: { params: Promise<{ t
   // much has each mechanic brought in overall" doesn't need adding up 12
   // rows by hand.
   let mechanicSummary:
-    | { fullName: string; shortCode: string; restoreBikeRevenue: number; walkInRevenue: number; packageRevenue: number; totalRevenue: number }[]
+    | { fullName: string; shortCode: string; walkInRevenue: number; packageRevenue: number; totalRevenue: number }[]
     | undefined;
 
-  if (type === "jobsheet" || type === "restore-bike") {
-    const jobType = type === "jobsheet" ? "Walk-in" : "Restore Bike";
+  if (type === "jobsheet") {
     const [active, completed, qc, mechanics] = await Promise.all([
       allBranches ? getAllBranchesActiveRepairJobs() : getActiveRepairJobs(selection),
       allBranches ? getAllBranchesCompletedRepairJobs() : getCompletedRepairJobs(selection),
       allBranches ? getAllBranchesQcRepairJobs() : getQcRepairJobs(selection),
       getAllMechanics(),
     ]);
-    const jobs: RepairJob[] = [...active, ...completed, ...qc].filter((j) => j.jobType === jobType);
+    const jobs: RepairJob[] = [...active, ...completed, ...qc].filter((j) => j.jobType === "Walk-in");
 
     columns = [
       { key: "jobNo", label: "Job No" },
@@ -384,7 +382,6 @@ export default async function ReportDetailPage({ params }: { params: Promise<{ t
       { key: "month", label: "Month" },
       { key: "fullName", label: "Mechanic" },
       { key: "shortCode", label: "Code" },
-      { key: "restoreBikeRevenue", label: "Restore Bike (RM)" },
       { key: "walkInRevenue", label: "Walk-in (RM)" },
       { key: "packageRevenue", label: "Services Combo (RM)" },
       { key: "totalRevenue", label: "Total (RM)" },
@@ -396,19 +393,17 @@ export default async function ReportDetailPage({ params }: { params: Promise<{ t
         month: m.label,
         fullName: r.fullName,
         shortCode: r.shortCode,
-        restoreBikeRevenue: r.restoreBikeRevenue.toFixed(2),
         walkInRevenue: r.walkInRevenue.toFixed(2),
         packageRevenue: r.packageRevenue.toFixed(2),
         totalRevenue: r.totalRevenue.toFixed(2),
       }))
     );
 
-    const totalsByMechanic = new Map<string, { fullName: string; shortCode: string; restoreBikeRevenue: number; walkInRevenue: number; packageRevenue: number; totalRevenue: number }>();
+    const totalsByMechanic = new Map<string, { fullName: string; shortCode: string; walkInRevenue: number; packageRevenue: number; totalRevenue: number }>();
     for (const m of monthRows) {
       for (const r of m.rows) {
         const key = r.shortCode;
-        const entry = totalsByMechanic.get(key) ?? { fullName: r.fullName, shortCode: r.shortCode, restoreBikeRevenue: 0, walkInRevenue: 0, packageRevenue: 0, totalRevenue: 0 };
-        entry.restoreBikeRevenue += r.restoreBikeRevenue;
+        const entry = totalsByMechanic.get(key) ?? { fullName: r.fullName, shortCode: r.shortCode, walkInRevenue: 0, packageRevenue: 0, totalRevenue: 0 };
         entry.walkInRevenue += r.walkInRevenue;
         entry.packageRevenue += r.packageRevenue;
         entry.totalRevenue += r.totalRevenue;
@@ -419,8 +414,8 @@ export default async function ReportDetailPage({ params }: { params: Promise<{ t
     summarySections = [
       {
         title: "Total Revenue by Mechanic (last 12 months)",
-        columns: ["Mechanic", "Code", "Restore Bike (RM)", "Walk-in (RM)", "Services Combo (RM)", "Total (RM)"],
-        rows: mechanicSummary.map((r) => [r.fullName, r.shortCode, r.restoreBikeRevenue.toFixed(2), r.walkInRevenue.toFixed(2), r.packageRevenue.toFixed(2), r.totalRevenue.toFixed(2)]),
+        columns: ["Mechanic", "Code", "Walk-in (RM)", "Services Combo (RM)", "Total (RM)"],
+        rows: mechanicSummary.map((r) => [r.fullName, r.shortCode, r.walkInRevenue.toFixed(2), r.packageRevenue.toFixed(2), r.totalRevenue.toFixed(2)]),
       },
     ];
   }

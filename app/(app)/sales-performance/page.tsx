@@ -1,4 +1,4 @@
-import { ClipboardList, Wallet, PackageCheck, Wrench } from "lucide-react";
+import { ClipboardList, Wallet, PackageCheck } from "lucide-react";
 import { requirePage, getActiveBranchSelection, canViewAllBranches } from "@/lib/current-user";
 import {
   getAllBranchesPerformance,
@@ -128,7 +128,7 @@ export default async function SalesPerformancePage({
         }
       />
       <div className="p-8 space-y-8">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           <StatCard
             icon={ClipboardList}
             label="Jobsheet Today"
@@ -149,13 +149,6 @@ export default async function SalesPerformancePage({
             value={todayActivity.packagesSoldCount}
             color="text-teal-700 bg-teal-500/10"
             href="/packages"
-          />
-          <StatCard
-            icon={Wrench}
-            label="Restore Bike Today"
-            value={todayActivity.restoreBikeCount}
-            color="text-sky-700 bg-sky-500/10"
-            href="/repairs"
           />
         </div>
 

@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { Crown, Trophy } from "lucide-react";
 import type { MechanicPerformanceRow } from "@/lib/reports-actions";
-import { MECHANIC_KPI_REVENUE } from "@/lib/types";
 import { formatCurrency } from "@/lib/format";
 
 const SHOWN = 5;
@@ -30,30 +29,24 @@ export default function BranchMechanicLeaderboard({ rows }: { rows: MechanicPerf
         <p className="text-sm text-neutral-500 text-center py-10">No mechanic activity yet this month.</p>
       ) : (
         <div className="divide-y divide-neutral-100">
-          {ranked.map((r, i) => {
-            const kpiMet = r.restoreBikeRevenue >= MECHANIC_KPI_REVENUE;
-            return (
-              <div key={r.mechanicId} className="flex items-center gap-3 px-5 py-3">
-                <span
-                  className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-semibold shrink-0 ${
-                    i === 0 ? "bg-amber-500/15 text-amber-700" : "bg-neutral-100 text-neutral-500"
-                  }`}
-                >
-                  {i === 0 ? <Crown size={12} /> : i + 1}
-                </span>
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium text-neutral-800 truncate">
-                    {r.shortCode}
-                  </p>
-                  <p className="text-xs text-neutral-500">
-                    {r.restoreBikeCount + r.walkInCount} jobs
-                    {kpiMet && <span className="text-emerald-600 font-medium"> · monthly KPI met</span>}
-                  </p>
-                </div>
-                <p className="text-sm font-semibold text-neutral-900 whitespace-nowrap">{formatCurrency(r.totalRevenue)}</p>
+          {ranked.map((r, i) => (
+            <div key={r.mechanicId} className="flex items-center gap-3 px-5 py-3">
+              <span
+                className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-semibold shrink-0 ${
+                  i === 0 ? "bg-amber-500/15 text-amber-700" : "bg-neutral-100 text-neutral-500"
+                }`}
+              >
+                {i === 0 ? <Crown size={12} /> : i + 1}
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-medium text-neutral-800 truncate">
+                  {r.shortCode}
+                </p>
+                <p className="text-xs text-neutral-500">{r.walkInCount} jobs</p>
               </div>
-            );
-          })}
+              <p className="text-sm font-semibold text-neutral-900 whitespace-nowrap">{formatCurrency(r.totalRevenue)}</p>
+            </div>
+          ))}
         </div>
       )}
     </div>

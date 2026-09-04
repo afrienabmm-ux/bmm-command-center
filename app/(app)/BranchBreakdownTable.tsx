@@ -1,4 +1,4 @@
-import { getBranchMonthSummary, getTopMechanic, getTopRestoreBikeMechanic, type TopMechanic } from "@/lib/reports-actions";
+import { getBranchMonthSummary, getTopMechanic, type TopMechanic } from "@/lib/reports-actions";
 import { getActiveRepairJobs } from "@/lib/repairs-actions";
 import { getWarrantyClaims } from "@/lib/claims-actions";
 import { BRANCHES, branchLabel, type Branch } from "@/lib/branch";
@@ -13,7 +13,6 @@ export type BranchBreakdownRow = {
   approvedClaims: number;
   activeRepairs: number;
   topMechanic: TopMechanic | null;
-  topRestoreBike: TopMechanic | null;
 };
 
 // Sum of every branch's achieved amount for one month — used to show the
@@ -26,12 +25,11 @@ export async function getAllBranchesAchievedTotal(year: number, month: number): 
 export async function getBranchBreakdown(year: number, month: number): Promise<BranchBreakdownRow[]> {
   return Promise.all(
     BRANCHES.map(async ({ value: branch }) => {
-      const [summary, claims, repairs, topMechanic, topRestoreBike] = await Promise.all([
+      const [summary, claims, repairs, topMechanic] = await Promise.all([
         getBranchMonthSummary(branch, year, month),
         getWarrantyClaims(branch),
         getActiveRepairJobs(branch),
         getTopMechanic(branch, year, month),
-        getTopRestoreBikeMechanic(branch, year, month),
       ]);
       return {
         branch,
@@ -41,7 +39,6 @@ export async function getBranchBreakdown(year: number, month: number): Promise<B
         approvedClaims: claims.filter((c) => c.status === "Proceed").length,
         activeRepairs: repairs.length,
         topMechanic,
-        topRestoreBike,
       };
     })
   );
@@ -63,7 +60,6 @@ export default function BranchBreakdownTable({ rows }: { rows: BranchBreakdownRo
               <th className="font-medium px-5 py-3 whitespace-nowrap">Approved Claims</th>
               <th className="font-medium px-5 py-3 whitespace-nowrap">Active Repairs</th>
               <th className="font-medium px-5 py-3 whitespace-nowrap">Top Overall (Revenue)</th>
-              <th className="font-medium px-5 py-3 whitespace-nowrap">Top Restore Bike</th>
             </tr>
           </thead>
           <tbody>
@@ -94,15 +90,6 @@ export default function BranchBreakdownTable({ rows }: { rows: BranchBreakdownRo
                   {b.topMechanic ? (
                     <span className="text-emerald-700 font-medium">
                       {b.topMechanic.fullName} ({b.topMechanic.shortCode}) — {formatCurrency(b.topMechanic.totalRevenue)}
-                    </span>
-                  ) : (
-                    <span className="text-neutral-500">—</span>
-                  )}
-                </td>
-                <td className="px-5 py-3.5 whitespace-nowrap">
-                  {b.topRestoreBike ? (
-                    <span className="text-red-700 font-medium">
-                      {b.topRestoreBike.fullName} ({b.topRestoreBike.shortCode}) — {formatCurrency(b.topRestoreBike.totalRevenue)}
                     </span>
                   ) : (
                     <span className="text-neutral-500">—</span>

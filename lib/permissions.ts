@@ -4,7 +4,6 @@ export const PAGE_DEFS = [
   { key: "dashboard", label: "Dashboard", href: "/" },
   { key: "walk-in", label: "Jobsheet", href: "/repairs/walk-in" },
   { key: "sales-performance", label: "Sales Performance", href: "/sales-performance" },
-  { key: "repairs", label: "Restore Bike", href: "/repairs" },
   { key: "genblu", label: "GenBlu Tracker", href: "/genblu" },
   { key: "warranty-claims", label: "Claims", href: "/warranty-claims" },
   { key: "mechanics", label: "Mechanics", href: "/mechanics" },

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ClipboardList, Wrench, Users, Smartphone, ShieldCheck, Truck, Wrench as MechanicIcon, TrendingUp, History } from "lucide-react";
+import { ClipboardList, Users, Smartphone, ShieldCheck, Truck, Wrench as MechanicIcon, TrendingUp, History } from "lucide-react";
 import { requirePage, requireApproved } from "@/lib/current-user";
 import { canViewLogs } from "@/lib/logs-access";
 import { SCOPED_REPORT_SLUGS } from "@/lib/permissions";
@@ -24,7 +24,6 @@ type ReportCard = {
 // row-breaking header.
 const CARDS: ReportCard[] = [
   { slug: "jobsheet", title: "Jobsheet", description: "Every Walk-in job, active and completed.", icon: ClipboardList, color: "text-red-600 bg-red-500/10", category: "Repairs" },
-  { slug: "restore-bike", title: "Restore Bike", description: "Every Restore Bike job, all stages.", icon: Wrench, color: "text-sky-600 bg-sky-500/10", category: "Repairs" },
   { slug: "services-card", title: "Services Card", description: "Customer spend, visits, and loyalty cards.", icon: Users, color: "text-rose-600 bg-rose-500/10", category: "Customer" },
   { slug: "genblu-new", title: "New Registration", description: "GenBlu registrations for brand new customers with no jobsheet yet.", icon: Smartphone, color: "text-pink-600 bg-pink-500/10", category: "Customer" },
   { slug: "genblu-jobsheet", title: "Has Jobsheet", description: "GenBlu registrations for customers who already had a jobsheet.", icon: Smartphone, color: "text-pink-600 bg-pink-500/10", category: "Customer" },
