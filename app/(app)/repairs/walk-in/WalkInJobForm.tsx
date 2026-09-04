@@ -689,12 +689,25 @@ export default function WalkInJobForm({
       // silently-failed registration.
       if (hasGenblu && !genbluAlreadyRegistered) {
         try {
-          const genbluResult = await ensureGenbluRegistrationAction({
+          let genbluResult = await ensureGenbluRegistrationAction({
             branch: effectiveBranch,
             customerName: customerName.trim(),
             customerPlateNo: plateNo.trim(),
             screenshot: genbluScreenshot,
           });
+          if (genbluResult && "warning" in genbluResult) {
+            if (!window.confirm(genbluResult.warning)) {
+              showError("Job not saved — pick a different GenBlu screenshot, or confirm to upload it anyway.");
+              return;
+            }
+            genbluResult = await ensureGenbluRegistrationAction({
+              branch: effectiveBranch,
+              customerName: customerName.trim(),
+              customerPlateNo: plateNo.trim(),
+              screenshot: genbluScreenshot,
+              confirmDuplicate: true,
+            });
+          }
           if (genbluResult && "error" in genbluResult) {
             showError(`Job not saved — ${genbluResult.error}`);
             return;

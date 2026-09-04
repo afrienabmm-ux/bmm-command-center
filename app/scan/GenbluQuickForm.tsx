@@ -85,7 +85,7 @@ export default function GenbluQuickForm({
   const selected = recentJobs.find((j) => j.jobId === selectedId) ?? null;
   const branchLocked = branchSelection !== "all";
 
-  function handleSubmit() {
+  function handleSubmit(confirmDuplicate = false) {
     if (!screenshot) {
       setError("Pick a screenshot to upload.");
       return;
@@ -101,7 +101,11 @@ export default function GenbluQuickForm({
     setError(null);
     setDone(false);
     startTransition(async () => {
-      const result = await attachGenbluScreenshotAction({ ...input, screenshot });
+      const result = await attachGenbluScreenshotAction({ ...input, screenshot, hasJobsheet, confirmDuplicate });
+      if ("warning" in result) {
+        if (window.confirm(result.warning)) handleSubmit(true);
+        return;
+      }
       if ("error" in result) {
         setError(result.error);
         return;
@@ -261,7 +265,7 @@ export default function GenbluQuickForm({
 
       <button
         type="button"
-        onClick={handleSubmit}
+        onClick={() => handleSubmit()}
         disabled={isPending || scanningName || !canSubmit}
         className="w-full bg-red-500 hover:bg-red-400 disabled:opacity-50 text-white text-sm font-medium px-4 py-2.5 rounded-lg transition-colors mt-4"
       >

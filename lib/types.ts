@@ -233,6 +233,11 @@ export type GenbluRegistration = {
   // the screenshot is uploaded — null if extraction failed or no
   // screenshot-derived value is on file yet (falls back to the estimate).
   pointsAccrued: number | null;
+  // Whether this registration was made for a customer who already had a
+  // jobsheet on file, or for a brand new customer with none yet — used to
+  // split the GenBlu Tracker report into "Has Jobsheet" vs "New
+  // Registration" report types.
+  source: "new_customer" | "has_jobsheet";
   createdAt: string;
 };
 

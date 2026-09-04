@@ -44,5 +44,5 @@ export function resolveAllowedPages(role: Role | null): PageKey[] {
 // just hiding its card). A role with no entry here gets the full list —
 // Sales Advisor has no entry at all since it has no Reports access.
 export const SCOPED_REPORT_SLUGS: Partial<Record<Role, string[]>> = {
-  "Front Desk": ["genblu", "services-card", "jobsheet"],
+  "Front Desk": ["genblu-new", "genblu-jobsheet", "services-card", "jobsheet"],
 };

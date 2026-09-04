@@ -1,5 +1,6 @@
 "use server";
 
+import { createHash } from "crypto";
 import { revalidatePath } from "next/cache";
 import { supabaseAdmin } from "./supabase-server";
 import { requireApproved, assertCanEditBranch } from "./current-user";
@@ -20,6 +21,7 @@ type Row = {
   customer_plate_no: string;
   screenshot_path: string | null;
   points_accrued: number | null;
+  source: "new_customer" | "has_jobsheet";
   created_at: string;
 };
 
@@ -33,6 +35,7 @@ function toReg(r: Row): GenbluRegistration {
     customerPlateNo: r.customer_plate_no,
     screenshotPath: r.screenshot_path,
     pointsAccrued: r.points_accrued,
+    source: r.source,
     createdAt: r.created_at,
   };
 }
@@ -76,6 +79,30 @@ async function findMatchingRegistration(
     .eq("branch", branch);
   const match = (data ?? []).find((r) => namesLikelyMatch(r.customer_name, customerName));
   return match ? { id: match.id, points_accrued: match.points_accrued } : null;
+}
+
+// A plain content hash of the uploaded file — catches the exact same photo
+// being uploaded a second time (the failure mode that caused real GenBlu
+// customers' points to get double-counted: the same "Points Accrued"
+// screenshot uploaded once at registration and again via Point Allocation).
+// Not a perceptual hash — a re-photograph of the same phone screen won't
+// match, only literally the same file bytes, which is exactly the "staff
+// picked the same photo from their gallery twice" case this guards against.
+function hashScreenshotBuffer(buffer: Buffer): string {
+  return createHash("sha256").update(buffer).digest("hex");
+}
+
+// Checked across BOTH tables — a customer's award can have been logged as
+// a registration/Tracker upload OR a Point Allocation transaction, and the
+// duplicate might land in either one, so both need checking regardless of
+// which action is currently saving.
+async function findDuplicateScreenshot(branch: Branch, hash: string): Promise<{ customerName: string; when: string } | null> {
+  const [{ data: regs }, { data: txns }] = await Promise.all([
+    supabaseAdmin.from("cc_genblu_registrations").select("customer_name, created_at").eq("branch", branch).eq("screenshot_hash", hash).limit(1),
+    supabaseAdmin.from("cc_genblu_transactions").select("customer_name, created_at").eq("branch", branch).eq("screenshot_hash", hash).limit(1),
+  ]);
+  const hit = regs?.[0] ?? txns?.[0];
+  return hit ? { customerName: hit.customer_name, when: hit.created_at } : null;
 }
 
 // Auto-registrations should credit whoever is actually logged in and doing
@@ -426,7 +453,10 @@ export async function ensureGenbluRegistrationAction(input: {
   customerName: string;
   customerPlateNo: string;
   screenshot?: File | null;
-}): Promise<{ error: string } | { created: boolean }> {
+  // Set once staff confirm "yes, upload it anyway" past a duplicate-photo
+  // warning — see findDuplicateScreenshot.
+  confirmDuplicate?: boolean;
+}): Promise<{ error: string } | { warning: string } | { created: boolean }> {
   const user = await requireApproved();
   assertCanEditBranch(user, input.branch);
 
@@ -443,9 +473,21 @@ export async function ensureGenbluRegistrationAction(input: {
   if (match) return { created: false };
 
   let screenshotPath: string | null = null;
+  let screenshotHash: string | null = null;
   let pointsAccrued: number | null = null;
   const screenshot = input.screenshot;
   if (screenshot && screenshot.size > 0) {
+    const buffer = Buffer.from(await screenshot.arrayBuffer());
+    const hash = hashScreenshotBuffer(buffer);
+    if (!input.confirmDuplicate) {
+      const duplicate = await findDuplicateScreenshot(input.branch, hash);
+      if (duplicate) {
+        return {
+          warning: `This looks like the same screenshot already uploaded for ${duplicate.customerName} — are you sure you want to upload it again?`,
+        };
+      }
+    }
+
     const ext = screenshot.name.split(".").pop() || "jpg";
     const path = `${input.branch}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
     // The name-match check and the storage upload don't depend on each
@@ -467,6 +509,7 @@ export async function ensureGenbluRegistrationAction(input: {
     }
     pointsAccrued = applyPointsReading(null, analysis?.pointsReading ?? null);
     screenshotPath = path;
+    screenshotHash = hash;
   }
 
   const { error } = await supabaseAdmin.from("cc_genblu_registrations").insert({
@@ -476,7 +519,11 @@ export async function ensureGenbluRegistrationAction(input: {
     customer_name: customerName,
     customer_plate_no: input.customerPlateNo.trim(),
     screenshot_path: screenshotPath,
+    screenshot_hash: screenshotHash,
     points_accrued: pointsAccrued,
+    // Always called from an existing jobsheet (Walk-in job form), never for
+    // a brand new customer with no jobsheet yet.
+    source: "has_jobsheet",
   });
   if (error) return { error: error.message };
   await logActivity(user, "Registered GenBlu (from jobsheet)", `${customerName} (${input.branch})`);
@@ -496,13 +543,30 @@ export async function attachGenbluScreenshotAction(input: {
   customerName: string;
   customerPlateNo: string;
   screenshot: File;
-}): Promise<{ error: string } | { updated: boolean }> {
+  // Which of GenbluQuickForm's two modes this came from — only used on a
+  // new registration; an existing one keeps whatever source it already has.
+  hasJobsheet: boolean;
+  // Set once staff confirm "yes, upload it anyway" past a duplicate-photo
+  // warning — see findDuplicateScreenshot.
+  confirmDuplicate?: boolean;
+}): Promise<{ error: string } | { warning: string } | { updated: boolean }> {
   const user = await requireApproved();
   assertCanEditBranch(user, input.branch);
 
   const customerName = input.customerName.trim();
   if (!customerName) return { error: "Customer name is required." };
   if (input.screenshot.size === 0) return { error: "Pick a screenshot to upload." };
+
+  const buffer = Buffer.from(await input.screenshot.arrayBuffer());
+  const hash = hashScreenshotBuffer(buffer);
+  if (!input.confirmDuplicate) {
+    const duplicate = await findDuplicateScreenshot(input.branch, hash);
+    if (duplicate) {
+      return {
+        warning: `This looks like the same screenshot already uploaded for ${duplicate.customerName} — are you sure you want to upload it again?`,
+      };
+    }
+  }
 
   const ext = input.screenshot.name.split(".").pop() || "jpg";
   const path = `${input.branch}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
@@ -541,7 +605,7 @@ export async function attachGenbluScreenshotAction(input: {
     const newTotal = applyPointsReading(match.points_accrued, pointsReading);
     const { error } = await supabaseAdmin
       .from("cc_genblu_registrations")
-      .update({ screenshot_path: path, points_accrued: newTotal })
+      .update({ screenshot_path: path, screenshot_hash: hash, points_accrued: newTotal })
       .eq("id", match.id);
     if (error) return { error: error.message };
   } else {
@@ -552,7 +616,9 @@ export async function attachGenbluScreenshotAction(input: {
       customer_name: customerName,
       customer_plate_no: input.customerPlateNo.trim(),
       screenshot_path: path,
+      screenshot_hash: hash,
       points_accrued: applyPointsReading(null, pointsReading),
+      source: input.hasJobsheet ? "has_jobsheet" : "new_customer",
     });
     if (error) return { error: error.message };
   }
@@ -734,12 +800,28 @@ export async function addGenbluTransactionAction(input: {
   branch: Branch;
   screenshot: File;
   serviceCoupon: boolean;
-}): Promise<{ error: string; rawText?: string } | { transaction: GenbluTransaction; rawText: string; trackerUpdated: boolean }> {
+  // Set once staff confirm "yes, upload it anyway" past a duplicate-photo
+  // warning — see findDuplicateScreenshot.
+  confirmDuplicate?: boolean;
+}): Promise<
+  | { error: string; rawText?: string }
+  | { warning: string }
+  | { transaction: GenbluTransaction; rawText: string; trackerUpdated: boolean }
+> {
   const user = await requireApproved();
   assertCanEditBranch(user, input.branch);
   if (input.screenshot.size === 0) return { error: "Pick a screenshot to upload." };
 
   const buffer = Buffer.from(await input.screenshot.arrayBuffer());
+  const hash = hashScreenshotBuffer(buffer);
+  if (!input.confirmDuplicate) {
+    const duplicate = await findDuplicateScreenshot(input.branch, hash);
+    if (duplicate) {
+      return {
+        warning: `This looks like the same screenshot already uploaded for ${duplicate.customerName} — are you sure you want to upload it again?`,
+      };
+    }
+  }
   const base64 = buffer.toString("base64");
   let text = "";
   try {
@@ -797,6 +879,7 @@ export async function addGenbluTransactionAction(input: {
       transaction_time: transactionTime,
       service_coupon: input.serviceCoupon,
       screenshot_path: path,
+      screenshot_hash: hash,
       uploaded_by: user.name,
     })
     .select("*")

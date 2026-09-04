@@ -28,6 +28,7 @@ import { todayInMalaysia, startOfWeekInMalaysia, endOfWeekInMalaysia } from "@/l
 import { formatShortDate, monthLabel } from "@/lib/format";
 import GenbluMonthlySummary from "../../genblu/GenbluMonthlySummary";
 import JobsheetRevenueSummary from "./JobsheetRevenueSummary";
+import MechanicRevenueSummary from "./MechanicRevenueSummary";
 import { getWarrantyClaims, getAllBranchesWarrantyClaims } from "@/lib/claims-actions";
 import { getDeliveryClaims, getAllBranchesDeliveryClaims } from "@/lib/delivery-claims-actions";
 import { getAllBranchesPerformance, getBranchPerformance } from "@/lib/reports-actions";
@@ -39,7 +40,8 @@ const TITLES: Record<string, string> = {
   jobsheet: "Jobsheet",
   "restore-bike": "Restore Bike",
   "services-card": "Services Card",
-  genblu: "GenBlu Tracker",
+  "genblu-new": "GenBlu — New Registration",
+  "genblu-jobsheet": "GenBlu — Has Jobsheet",
   "point-allocation": "Point Allocation",
   "warranty-claims": "Warranty Claims",
   "delivery-claims": "Delivery Claims",
@@ -88,6 +90,10 @@ export default async function ReportDetailPage({ params }: { params: Promise<{ t
   // Allocation's per-branch counts, Jobsheet's revenue by week/month),
   // just also captured when someone exports the report.
   let summarySections: { title: string; columns: string[]; rows: (string | number)[][] }[] | undefined;
+  // GenBlu reports only — total rows and how many actually have a
+  // screenshot on file, shown in the header so a mismatch (e.g. a
+  // registration with no proof ever uploaded) is visible at a glance.
+  let countSummary: string | undefined;
   // Jobsheet only — revenue totalled by week, by month, and (on the
   // combined All Branches view) by branch — shown next to the transaction
   // list the same way Point Allocation's summary is.
@@ -98,6 +104,13 @@ export default async function ReportDetailPage({ params }: { params: Promise<{ t
         branches?: { label: string; jobs: number; revenue: number }[];
         branchColumns?: { key: string; label: string }[];
       }
+    | undefined;
+  // Sales Performance only — same 12 months already fetched for the main
+  // table, totalled per mechanic instead of split out by month, so "how
+  // much has each mechanic brought in overall" doesn't need adding up 12
+  // rows by hand.
+  let mechanicSummary:
+    | { fullName: string; shortCode: string; restoreBikeRevenue: number; walkInRevenue: number; packageRevenue: number; totalRevenue: number }[]
     | undefined;
 
   if (type === "jobsheet" || type === "restore-bike") {
@@ -238,8 +251,12 @@ export default async function ReportDetailPage({ params }: { params: Promise<{ t
       cardNumber: c.cardNumber,
       issuedDate: c.issuedDate || "",
     }));
-  } else if (type === "genblu") {
-    const regs = allBranches ? await getAllBranchesGenbluRegistrations() : await getGenbluRegistrations(selection);
+  } else if (type === "genblu-new" || type === "genblu-jobsheet") {
+    const allRegs = allBranches ? await getAllBranchesGenbluRegistrations() : await getGenbluRegistrations(selection);
+    const wantSource = type === "genblu-jobsheet" ? "has_jobsheet" : "new_customer";
+    const regs = allRegs.filter((r) => r.source === wantSource);
+    const withScreenshot = regs.filter((r) => !!r.screenshotPath).length;
+    countSummary = `${regs.length} total · ${withScreenshot} with screenshot uploaded`;
     columns = [
       { key: "customerName", label: "Customer" },
       { key: "branch", label: "Branch" },
@@ -384,13 +401,34 @@ export default async function ReportDetailPage({ params }: { params: Promise<{ t
         totalRevenue: r.totalRevenue.toFixed(2),
       }))
     );
+
+    const totalsByMechanic = new Map<string, { fullName: string; shortCode: string; restoreBikeRevenue: number; walkInRevenue: number; packageRevenue: number; totalRevenue: number }>();
+    for (const m of monthRows) {
+      for (const r of m.rows) {
+        const key = r.shortCode;
+        const entry = totalsByMechanic.get(key) ?? { fullName: r.fullName, shortCode: r.shortCode, restoreBikeRevenue: 0, walkInRevenue: 0, packageRevenue: 0, totalRevenue: 0 };
+        entry.restoreBikeRevenue += r.restoreBikeRevenue;
+        entry.walkInRevenue += r.walkInRevenue;
+        entry.packageRevenue += r.packageRevenue;
+        entry.totalRevenue += r.totalRevenue;
+        totalsByMechanic.set(key, entry);
+      }
+    }
+    mechanicSummary = [...totalsByMechanic.values()].sort((a, b) => b.totalRevenue - a.totalRevenue);
+    summarySections = [
+      {
+        title: "Total Revenue by Mechanic (last 12 months)",
+        columns: ["Mechanic", "Code", "Restore Bike (RM)", "Walk-in (RM)", "Services Combo (RM)", "Total (RM)"],
+        rows: mechanicSummary.map((r) => [r.fullName, r.shortCode, r.restoreBikeRevenue.toFixed(2), r.walkInRevenue.toFixed(2), r.packageRevenue.toFixed(2), r.totalRevenue.toFixed(2)]),
+      },
+    ];
   }
 
   return (
     <div className="flex flex-col h-full">
       <PageHeader
         title={TITLES[type]}
-        subtitle={allBranches ? "All branches" : branchLabel(selection)}
+        subtitle={`${allBranches ? "All branches" : branchLabel(selection)}${countSummary ? ` — ${countSummary}` : ""}`}
         action={
           <Link href="/reports" className="flex items-center gap-1.5 text-sm font-medium text-neutral-600 hover:text-neutral-800">
             <ArrowLeft size={15} /> All Reports
@@ -398,7 +436,7 @@ export default async function ReportDetailPage({ params }: { params: Promise<{ t
         }
       />
       <div className="flex-1 overflow-y-auto p-8">
-        {monthlySummary || revenueSummary ? (
+        {monthlySummary || revenueSummary || mechanicSummary ? (
           <div className="flex flex-col lg:flex-row gap-6 items-start">
             <div className="shrink-0 w-full lg:w-auto">
               {monthlySummary && <GenbluMonthlySummary summary={monthlySummary} />}
@@ -410,6 +448,7 @@ export default async function ReportDetailPage({ params }: { params: Promise<{ t
                   branchColumns={revenueSummary.branchColumns}
                 />
               )}
+              {mechanicSummary && <MechanicRevenueSummary mechanics={mechanicSummary} />}
             </div>
             <div className="flex-1 min-w-0 w-full">
               <ReportTable

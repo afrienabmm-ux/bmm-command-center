@@ -22,14 +22,18 @@ export default function GenbluTransactionForm({ branchSelection }: { branchSelec
   const [isPending, startTransition] = useTransition();
   const locked = branchSelection !== "all";
 
-  function handleSubmit() {
+  function handleSubmit(confirmDuplicate = false) {
     if (!screenshot) {
       setError("Pick a screenshot to upload.");
       return;
     }
     setError(null);
     startTransition(async () => {
-      const res = await addGenbluTransactionAction({ branch, screenshot, serviceCoupon });
+      const res = await addGenbluTransactionAction({ branch, screenshot, serviceCoupon, confirmDuplicate });
+      if ("warning" in res) {
+        if (window.confirm(res.warning)) handleSubmit(true);
+        return;
+      }
       setRawText(res.rawText ?? null);
       if ("error" in res) {
         setError(res.error);
@@ -137,7 +141,7 @@ export default function GenbluTransactionForm({ branchSelection }: { branchSelec
 
         <button
           type="button"
-          onClick={handleSubmit}
+          onClick={() => handleSubmit()}
           disabled={isPending || !screenshot}
           className="w-full bg-red-500 hover:bg-red-400 disabled:opacity-50 text-white text-sm font-medium px-4 py-2.5 rounded-lg transition-colors"
         >
