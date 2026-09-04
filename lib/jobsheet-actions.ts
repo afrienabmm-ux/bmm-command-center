@@ -4,6 +4,7 @@
 // Next's RSC flight-protocol nesting limit on large strings; a normal HTTP
 // route has no such limit.
 import { requireApproved } from "./current-user";
+import { supabaseAdmin } from "./supabase-server";
 import { scanJobsheetImage, extractTextFromPdf } from "./vision";
 import { extractItemsWithAi } from "./ai-item-extract";
 import type { Branch } from "./branch";
@@ -493,12 +494,71 @@ function parseJobsheetText(text: string): ScannedJobsheet {
   };
 }
 
+type CatalogLookupEntry = { code: string; description: string; price: number };
+
+function normalizeCatalogCode(raw: string): string {
+  return raw.trim().toUpperCase().replace(/\s+/g, "");
+}
+
+// The full catalog, keyed by a normalized code — small enough (parts +
+// oils across every brand) to just load whole rather than querying once
+// per item, and this way every item in the same scan shares one lookup.
+async function loadCatalogLookup(): Promise<Map<string, CatalogLookupEntry>> {
+  const { data, error } = await supabaseAdmin.from("cc_catalog_products").select("code, product_name, spec, price");
+  if (error || !data) return new Map();
+  const lookup = new Map<string, CatalogLookupEntry>();
+  for (const row of data as { code: string; product_name: string; spec: string; price: number }[]) {
+    const code = normalizeCatalogCode(row.code ?? "");
+    if (!code) continue;
+    const description = row.spec ? `${row.product_name} — ${row.spec}` : row.product_name;
+    lookup.set(code, { code: row.code, description, price: Number(row.price) });
+  }
+  return lookup;
+}
+
+// A code read slightly wrong by OCR (a smudged digit, "0" vs "O", "1" vs
+// "I") still confidently identifies the same catalog part as long as it's
+// off by only a character or two — a real single OCR slip like that is far
+// more likely than two unrelated part codes just happening to collide, so
+// an exact match isn't required, just close enough.
+function findCatalogMatch(code: string, lookup: Map<string, CatalogLookupEntry>): CatalogLookupEntry | null {
+  const normalized = normalizeCatalogCode(code);
+  if (!normalized) return null;
+  const exact = lookup.get(normalized);
+  if (exact) return exact;
+  for (const [catalogCode, entry] of lookup) {
+    if (Math.abs(catalogCode.length - normalized.length) > 1) continue;
+    if (levenshtein(catalogCode, normalized) <= 1) return entry;
+  }
+  return null;
+}
+
+// Whenever a scanned item's code matches something in the catalog, the
+// catalog's own description and price replace whatever OCR read off the
+// photo — the catalog is exact, known-good data, while the description and
+// price columns on a real jobsheet photo are exactly the part of an item
+// row that's most prone to being misread (long product names, tiny print).
+// Quantity is left alone — it isn't stored in the catalog and OCR reads it
+// off a much shorter, simpler token than a full description.
+function applyCatalogData(items: ScannedJobsheetItem[], lookup: Map<string, CatalogLookupEntry>): ScannedJobsheetItem[] {
+  if (lookup.size === 0) return items;
+  return items.map((item) => {
+    const match = findCatalogMatch(item.code, lookup);
+    if (!match) return item;
+    return { code: match.code, description: match.description, quantity: item.quantity, price: match.price };
+  });
+}
+
 export async function scanJobsheet(
   base64File: string,
   mimeType: string
 ): Promise<{ data: ScannedJobsheet } | { error: string }> {
   await requireApproved();
   try {
+    // Loaded once up front and reused for whichever branch below runs —
+    // fetched in parallel with the OCR/PDF-text call rather than after it,
+    // since neither depends on the other.
+    const catalogLookupPromise = loadCatalogLookup();
     if (mimeType === "application/pdf") {
       const text = await extractTextFromPdf(base64File);
       if (!text.trim()) {
@@ -509,6 +569,7 @@ export async function scanJobsheet(
         const aiItems = await extractItemsWithAi(text);
         if (aiItems && aiItems.length > 0) parsed.items = aiItems;
       }
+      parsed.items = applyCatalogData(parsed.items, await catalogLookupPromise);
       return { data: parsed };
     }
     const { text, signatureDetected, signatureDebug } = await scanJobsheetImage(base64File);
@@ -525,6 +586,11 @@ export async function scanJobsheet(
       const aiItems = await extractItemsWithAi(text);
       if (aiItems && aiItems.length > 0) parsed.items = aiItems;
     }
+    // Whichever path found the items, a code that matches something in our
+    // own catalog gets that item's description/price filled in from there
+    // instead of trusting OCR's read of the tiny, easy-to-garble print next
+    // to it — see applyCatalogData.
+    parsed.items = applyCatalogData(parsed.items, await catalogLookupPromise);
     return { data: { ...parsed, signatureDetected, signatureDebug } };
   } catch (err) {
     const message = err instanceof Error ? err.message : "";
