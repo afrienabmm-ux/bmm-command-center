@@ -47,6 +47,7 @@ export default function GenbluClient({
   const [query, setQuery] = useState("");
   const [sourceFilter, setSourceFilter] = useState<"all" | "new_customer" | "has_jobsheet">("all");
   const [isPending, startTransition] = useTransition();
+  const [openRemarkId, setOpenRemarkId] = useState<string | null>(null);
 
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -166,12 +167,27 @@ export default function GenbluClient({
                   title={r.screenshotUrl ? "Double-click to view the uploaded screenshot" : undefined}
                 >
                   <td className="px-4 py-2.5 text-neutral-800 font-medium">
-                    <span className="inline-flex items-center gap-1.5">
+                    <span className="relative inline-flex items-center gap-1.5">
                       {r.customerName || "—"}
                       {r.nameMismatchRemark && (
-                        <span title={`Name mismatch: ${r.nameMismatchRemark}`}>
-                          <MessageSquareWarning size={13} className="text-amber-500 shrink-0" />
-                        </span>
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => setOpenRemarkId((cur) => (cur === r.id ? null : r.id))}
+                            className="shrink-0"
+                          >
+                            <MessageSquareWarning size={13} className="text-amber-500 shrink-0" />
+                          </button>
+                          {openRemarkId === r.id && (
+                            <>
+                              <div className="fixed inset-0 z-10" onClick={() => setOpenRemarkId(null)} />
+                              <div className="absolute left-0 top-full mt-1 z-20 w-56 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-normal text-amber-800 shadow-lg">
+                                <div className="font-semibold text-amber-900 mb-0.5">Name mismatch note</div>
+                                {r.nameMismatchRemark}
+                              </div>
+                            </>
+                          )}
+                        </>
                       )}
                     </span>
                   </td>
