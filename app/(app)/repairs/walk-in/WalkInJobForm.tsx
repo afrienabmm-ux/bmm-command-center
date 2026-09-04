@@ -776,7 +776,13 @@ export default function WalkInJobForm({
         // this is the non-blocking equivalent of that pause.
         await new Promise((resolve) => setTimeout(resolve, 3000));
       }
-      router.push(`${redirectTo}${redirectTo.includes("?") ? "&" : "?"}saved=1`);
+      // A real page load, not router.push — after two "new job" saves in a
+      // row, jobId stays undefined both times, so this form's key={jobId ??
+      // "new"} never changes and a soft client-side navigation would leave
+      // the same component instance (and all its typed-in state) on screen,
+      // looking exactly like nothing was saved. A hard reload guarantees a
+      // genuinely fresh, blank form — same as browsing back to the page.
+      window.location.href = `${redirectTo}${redirectTo.includes("?") ? "&" : "?"}saved=1`;
     });
   }
 

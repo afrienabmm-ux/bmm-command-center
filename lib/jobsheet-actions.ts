@@ -556,16 +556,18 @@ function applyCatalogData(items: ScannedJobsheetItem[], lookup: Map<string, Cata
 }
 
 // A row whose description mentions "FOC" or "Discount" is a deduction, not
-// a real stocked part — relabelled to the same "DISCOUNT FOC" wording used
-// when staff add one by hand from the catalog, so both ways of entering a
-// discount land in reports under one consistent name. The scanned
-// quantity/price are kept as-is (the actual amount deducted that visit) —
-// a real discount can be any amount, not always the catalog's default
-// RM-20, so it's never overwritten here the way a real part's price is.
+// a real stocked part — relabelled to the same generic "Discount" wording
+// used when staff add one by hand from the catalog, so both ways of
+// entering a discount land in reports under one consistent name. The
+// scanned quantity/price are kept as-is (the actual amount deducted that
+// visit) — a real discount can be any amount, so it's never overwritten
+// here the way a real part's price is. Not relabelled to the specific
+// "1ST MINYAK FOC DISCOUND" catalog entry, since that name names one
+// particular promo reason a scanned line has no way to confirm.
 function normalizeDiscountItems(items: ScannedJobsheetItem[]): ScannedJobsheetItem[] {
   return items.map((item) => {
     if (!/\bFOC\b/i.test(item.description) && !/\bDISCOUNT\b/i.test(item.description)) return item;
-    return { ...item, code: "", description: "DISCOUNT FOC" };
+    return { ...item, code: "", description: "Discount" };
   });
 }
 

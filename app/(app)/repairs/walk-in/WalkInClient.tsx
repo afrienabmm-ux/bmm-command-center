@@ -83,6 +83,16 @@ export default function WalkInClient({
   const [exportMenuOpen, setExportMenuOpen] = useState(false);
   const exportMenuRef = useRef<HTMLDivElement>(null);
 
+  // A slim second scrollbar mirrored above the table — this table is wide
+  // enough that its own horizontal scrollbar sits below a long list of
+  // rows, out of sight until scrolled all the way down. Dragging either
+  // one moves the same content; a ref guards against the two onScroll
+  // handlers feeding back into each other in an infinite loop.
+  const tableScrollRef = useRef<HTMLDivElement>(null);
+  const topScrollRef = useRef<HTMLDivElement>(null);
+  const [tableScrollWidth, setTableScrollWidth] = useState(0);
+  const syncingFrom = useRef<"top" | "table" | null>(null);
+
   useEffect(() => {
     if (!exportMenuOpen) return;
     function handleClick(e: MouseEvent) {
@@ -141,6 +151,42 @@ export default function WalkInClient({
   useEffect(() => {
     setSelectedIds(new Set());
   }, [tab, query]);
+
+  // Re-measures whenever the row count or column set changes (branch
+  // column toggling, tab switch) — those are the things that actually
+  // change how wide the table is — plus on window resize for a narrower
+  // viewport.
+  useEffect(() => {
+    const el = tableScrollRef.current;
+    if (!el) return;
+    const update = () => setTableScrollWidth(el.scrollWidth);
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(el);
+    window.addEventListener("resize", update);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", update);
+    };
+  }, [visible, showBranchColumn]);
+
+  function handleTopScroll() {
+    if (syncingFrom.current === "table") return;
+    syncingFrom.current = "top";
+    if (topScrollRef.current && tableScrollRef.current) {
+      tableScrollRef.current.scrollLeft = topScrollRef.current.scrollLeft;
+    }
+    syncingFrom.current = null;
+  }
+
+  function handleTableScroll() {
+    if (syncingFrom.current === "top") return;
+    syncingFrom.current = "table";
+    if (topScrollRef.current && tableScrollRef.current) {
+      topScrollRef.current.scrollLeft = tableScrollRef.current.scrollLeft;
+    }
+    syncingFrom.current = null;
+  }
 
   const allVisibleSelected = visible.length > 0 && visible.every((j) => selectedIds.has(j.id));
 
@@ -416,7 +462,12 @@ export default function WalkInClient({
       </div>
 
       <div className="bg-white border border-neutral-200 rounded-xl overflow-hidden">
-        <div className="overflow-x-auto">
+        {tableScrollWidth > 0 && (
+          <div ref={topScrollRef} onScroll={handleTopScroll} className="overflow-x-auto overflow-y-hidden border-b border-neutral-200" style={{ height: 14 }}>
+            <div style={{ width: tableScrollWidth, height: 1 }} />
+          </div>
+        )}
+        <div ref={tableScrollRef} onScroll={handleTableScroll} className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="text-left text-xs text-neutral-500 border-b border-neutral-200">
