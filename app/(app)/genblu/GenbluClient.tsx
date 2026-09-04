@@ -20,6 +20,7 @@ type RegWithUrl = {
   createdAt: string;
   points: number;
   pointsAreActual: boolean;
+  source: "new_customer" | "has_jobsheet";
 };
 
 export default function GenbluClient({
@@ -43,15 +44,17 @@ export default function GenbluClient({
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
   const [query, setQuery] = useState("");
+  const [sourceFilter, setSourceFilter] = useState<"all" | "new_customer" | "has_jobsheet">("all");
   const [isPending, startTransition] = useTransition();
 
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return registrations;
-    return registrations.filter(
-      (r) => r.customerName.toLowerCase().includes(q) || r.customerPlateNo.toLowerCase().includes(q)
-    );
-  }, [registrations, query]);
+    return registrations.filter((r) => {
+      if (sourceFilter !== "all" && r.source !== sourceFilter) return false;
+      if (q && !r.customerName.toLowerCase().includes(q) && !r.customerPlateNo.toLowerCase().includes(q)) return false;
+      return true;
+    });
+  }, [registrations, query, sourceFilter]);
 
   async function handleExport() {
     setExporting(true);
@@ -95,6 +98,18 @@ export default function GenbluClient({
           />
         </div>
         <div className="flex items-center gap-3 flex-wrap">
+        <div className="relative">
+          <select
+            value={sourceFilter}
+            onChange={(e) => setSourceFilter(e.target.value as "all" | "new_customer" | "has_jobsheet")}
+            className="appearance-none bg-white border border-neutral-200 hover:border-red-300 rounded-lg pl-3.5 pr-9 py-2 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50 focus:ring-2 focus:ring-red-100 transition-colors cursor-pointer"
+          >
+            <option value="all">All Registrations</option>
+            <option value="new_customer">New Registration</option>
+            <option value="has_jobsheet">Has Jobsheet</option>
+          </select>
+          <ChevronDown size={15} className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none" />
+        </div>
         <div className="flex items-center gap-2">
           <label className="text-xs font-medium text-neutral-500">From</label>
           <input

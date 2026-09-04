@@ -1,6 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Users, Image as ImageIcon } from "lucide-react";
 import { requirePage, getActiveBranchSelection } from "@/lib/current-user";
 import { SCOPED_REPORT_SLUGS } from "@/lib/permissions";
 import PageHeader from "@/components/PageHeader";
@@ -91,9 +91,10 @@ export default async function ReportDetailPage({ params }: { params: Promise<{ t
   // just also captured when someone exports the report.
   let summarySections: { title: string; columns: string[]; rows: (string | number)[][] }[] | undefined;
   // GenBlu reports only — total rows and how many actually have a
-  // screenshot on file, shown in the header so a mismatch (e.g. a
-  // registration with no proof ever uploaded) is visible at a glance.
-  let countSummary: string | undefined;
+  // screenshot on file, shown as stat boxes above the table so a mismatch
+  // (e.g. a registration with no proof ever uploaded) is visible at a
+  // glance instead of needing to scroll/count rows.
+  let genbluCounts: { total: number; withScreenshot: number } | undefined;
   // Jobsheet only — revenue totalled by week, by month, and (on the
   // combined All Branches view) by branch — shown next to the transaction
   // list the same way Point Allocation's summary is.
@@ -256,7 +257,7 @@ export default async function ReportDetailPage({ params }: { params: Promise<{ t
     const wantSource = type === "genblu-jobsheet" ? "has_jobsheet" : "new_customer";
     const regs = allRegs.filter((r) => r.source === wantSource);
     const withScreenshot = regs.filter((r) => !!r.screenshotPath).length;
-    countSummary = `${regs.length} total · ${withScreenshot} with screenshot uploaded`;
+    genbluCounts = { total: regs.length, withScreenshot };
     columns = [
       { key: "customerName", label: "Customer" },
       { key: "branch", label: "Branch" },
@@ -428,7 +429,7 @@ export default async function ReportDetailPage({ params }: { params: Promise<{ t
     <div className="flex flex-col h-full">
       <PageHeader
         title={TITLES[type]}
-        subtitle={`${allBranches ? "All branches" : branchLabel(selection)}${countSummary ? ` — ${countSummary}` : ""}`}
+        subtitle={allBranches ? "All branches" : branchLabel(selection)}
         action={
           <Link href="/reports" className="flex items-center gap-1.5 text-sm font-medium text-neutral-600 hover:text-neutral-800">
             <ArrowLeft size={15} /> All Reports
@@ -436,6 +437,24 @@ export default async function ReportDetailPage({ params }: { params: Promise<{ t
         }
       />
       <div className="flex-1 overflow-y-auto p-8">
+        {genbluCounts && (
+          <div className="grid grid-cols-2 gap-4 mb-6 max-w-md">
+            <div className="bg-white border border-neutral-200 rounded-xl p-5">
+              <div className="w-9 h-9 rounded-lg flex items-center justify-center mb-4 text-pink-600 bg-pink-500/10">
+                <Users size={17} />
+              </div>
+              <p className="text-2xl font-semibold text-neutral-900">{genbluCounts.total}</p>
+              <p className="text-xs text-neutral-500 mt-1">Total Registrations</p>
+            </div>
+            <div className="bg-white border border-neutral-200 rounded-xl p-5">
+              <div className="w-9 h-9 rounded-lg flex items-center justify-center mb-4 text-sky-600 bg-sky-500/10">
+                <ImageIcon size={17} />
+              </div>
+              <p className="text-2xl font-semibold text-neutral-900">{genbluCounts.withScreenshot}</p>
+              <p className="text-xs text-neutral-500 mt-1">With Screenshot Uploaded</p>
+            </div>
+          </div>
+        )}
         {monthlySummary || revenueSummary || mechanicSummary ? (
           <div className="flex flex-col lg:flex-row gap-6 items-start">
             <div className="shrink-0 w-full lg:w-auto">
