@@ -251,17 +251,34 @@ export default async function ReportDetailPage({ params }: { params: Promise<{ t
       issuedDate: c.issuedDate || "",
     }));
   } else if (type === "genblu-new" || type === "genblu-jobsheet") {
-    const allRegs = allBranches ? await getAllBranchesGenbluRegistrations() : await getGenbluRegistrations(selection);
+    const [allRegs, allTxns] = await Promise.all([
+      allBranches ? getAllBranchesGenbluRegistrations() : getGenbluRegistrations(selection),
+      allBranches ? getAllBranchesGenbluTransactions() : getGenbluTransactions(selection),
+    ]);
     const wantSource = type === "genblu-jobsheet" ? "has_jobsheet" : "new_customer";
     const regs = allRegs.filter((r) => r.source === wantSource);
     const withScreenshot = regs.filter((r) => !!r.screenshotPath).length;
     genbluCounts = { total: regs.length, withScreenshot };
+
+    // How many times this month each customer's own points-award screenshot
+    // was uploaded via Point Allocation — the actual "how often do they use
+    // GenBlu" signal, not just whether their one registration has a photo
+    // on file.
+    const monthPrefix = todayInMalaysia().slice(0, 7);
+    const usesThisMonthByName = new Map<string, number>();
+    for (const t of allTxns) {
+      if (!(t.transactionDate ?? "").startsWith(monthPrefix)) continue;
+      const key = t.customerName.trim().toLowerCase();
+      if (!key) continue;
+      usesThisMonthByName.set(key, (usesThisMonthByName.get(key) ?? 0) + 1);
+    }
+
     columns = [
       { key: "customerName", label: "Customer" },
       { key: "branch", label: "Branch" },
       { key: "customerPlateNo", label: "Plate No" },
       { key: "salespersonName", label: "Upload By" },
-      { key: "hasScreenshot", label: "Screenshot" },
+      { key: "usesThisMonth", label: "Uses This Month" },
       { key: "pointsAccrued", label: "Points" },
       { key: "createdAt", label: "Registered On" },
     ];
@@ -272,7 +289,7 @@ export default async function ReportDetailPage({ params }: { params: Promise<{ t
       branch: branchLabel(r.branch),
       customerPlateNo: r.customerPlateNo,
       salespersonName: r.salespersonName,
-      hasScreenshot: r.screenshotPath ? "Yes" : "No",
+      usesThisMonth: usesThisMonthByName.get(r.customerName.trim().toLowerCase()) ?? 0,
       pointsAccrued: r.pointsAccrued ?? "—",
       createdAt: r.createdAt.slice(0, 10),
     }));
