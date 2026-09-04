@@ -310,6 +310,10 @@ export default function WalkInJobForm({
   const genbluFileInputRef = useRef<HTMLInputElement>(null);
   const [wantsCombo, setWantsCombo] = useState(false);
   const [comboPackageId, setComboPackageId] = useState(packages[0]?.id ?? "");
+  // Optional — falls back to the jobsheet number when left blank, since a
+  // combo sold alongside a jobsheet is usually on the same receipt anyway.
+  // Only needed when the package was rung up on its own separate receipt.
+  const [comboReceiptId, setComboReceiptId] = useState("");
   const [isPending, startTransition] = useTransition();
   const { showError, showInfo, toastNode } = useToast();
   const [isScanning, setIsScanning] = useState(false);
@@ -740,7 +744,7 @@ export default function WalkInJobForm({
             branch: effectiveBranch,
             packageId: comboPackageId,
             mechanicId: mechanicId || null,
-            receiptId: jobsheetNo.trim() || null,
+            receiptId: comboReceiptId.trim() || jobsheetNo.trim() || null,
             saleDate: startedDate,
             customerName: customerName.trim(),
             customerPlateNo: plateNo.trim(),
@@ -1326,6 +1330,16 @@ export default function WalkInJobForm({
                 <ChevronDown size={15} className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none" />
               </div>
               {packages.length === 0 && <p className="text-xs text-neutral-500 mt-1">No packages set up yet.</p>}
+              <div className="mt-3">
+                <label className="block text-xs font-medium text-neutral-600 mb-1.5">Receipt No</label>
+                <input
+                  type="text"
+                  value={comboReceiptId}
+                  onChange={(e) => setComboReceiptId(e.target.value)}
+                  placeholder="Leave blank to use the jobsheet number"
+                  className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
+                />
+              </div>
             </div>
           )}
         </div>
