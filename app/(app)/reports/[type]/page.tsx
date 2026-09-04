@@ -5,7 +5,7 @@ import { requirePage, getActiveBranchSelection } from "@/lib/current-user";
 import { SCOPED_REPORT_SLUGS } from "@/lib/permissions";
 import PageHeader from "@/components/PageHeader";
 import ReportTable, { type ReportColumn } from "@/components/ReportTable";
-import { BRANCHES, branchLabel } from "@/lib/branch";
+import { BRANCHES, branchLabel, type Branch } from "@/lib/branch";
 import {
   getActiveRepairJobs,
   getAllBranchesActiveRepairJobs,
@@ -93,9 +93,10 @@ export default async function ReportDetailPage({ params }: { params: Promise<{ t
   // list the same way Point Allocation's summary is.
   let revenueSummary:
     | {
-        weeks: { label: string; total: number }[];
-        months: { label: string; total: number }[];
+        weeks: { label: string; total: number; byBranch?: Record<string, number> }[];
+        months: { label: string; total: number; byBranch?: Record<string, number> }[];
         branches?: { label: string; jobs: number; revenue: number }[];
+        branchColumns?: { key: string; label: string }[];
       }
     | undefined;
 
@@ -137,31 +138,44 @@ export default async function ReportDetailPage({ params }: { params: Promise<{ t
     }));
 
     if (type === "jobsheet") {
-      const weekTotals = new Map<string, number>();
-      const monthTotals = new Map<string, number>();
+      // Keyed by week-start/month, each holding a running total per branch
+      // plus "all" for the combined figure — one pass over the jobs either
+      // way, whether or not the per-branch columns end up shown.
+      const weekTotals = new Map<string, Record<string, number>>();
+      const monthTotals = new Map<string, Record<string, number>>();
+      function addTo(map: Map<string, Record<string, number>>, key: string, branch: Branch, amount: number) {
+        const entry = map.get(key) ?? {};
+        entry[branch] = (entry[branch] ?? 0) + amount;
+        entry.all = (entry.all ?? 0) + amount;
+        map.set(key, entry);
+      }
       for (const j of jobs) {
         const date = j.formDate || j.startedDate;
         if (!date) continue;
-        const weekKey = startOfWeekInMalaysia(date);
-        weekTotals.set(weekKey, (weekTotals.get(weekKey) ?? 0) + j.revenueAmount);
-        const monthKey = date.slice(0, 7);
-        monthTotals.set(monthKey, (monthTotals.get(monthKey) ?? 0) + j.revenueAmount);
+        addTo(weekTotals, startOfWeekInMalaysia(date), j.branch, j.revenueAmount);
+        addTo(monthTotals, date.slice(0, 7), j.branch, j.revenueAmount);
       }
+      // Branch breakdown only makes sense on the combined view — a
+      // single-branch selection only ever has the one branch anyway.
+      const branchList = allBranches ? BRANCHES.map((b) => b.value) : undefined;
       const weeks = [...weekTotals.entries()]
         .sort(([a], [b]) => a.localeCompare(b))
-        .map(([weekStart, total]) => ({
+        .map(([weekStart, byBranch]) => ({
           label: `${formatShortDate(weekStart)} – ${formatShortDate(endOfWeekInMalaysia(weekStart))}`,
-          total,
+          total: byBranch.all ?? 0,
+          byBranch: branchList ? Object.fromEntries(branchList.map((b) => [b, byBranch[b] ?? 0])) : undefined,
         }));
       const months = [...monthTotals.entries()]
         .sort(([a], [b]) => a.localeCompare(b))
-        .map(([key, total]) => {
+        .map(([key, byBranch]) => {
           const [y, m] = key.split("-").map(Number);
-          return { label: monthLabel(m, y), total };
+          return {
+            label: monthLabel(m, y),
+            total: byBranch.all ?? 0,
+            byBranch: branchList ? Object.fromEntries(branchList.map((b) => [b, byBranch[b] ?? 0])) : undefined,
+          };
         });
 
-      // Branch breakdown only makes sense on the combined view — a
-      // single-branch selection only ever has the one branch anyway.
       let branches: { label: string; jobs: number; revenue: number }[] | undefined;
       if (allBranches) {
         const perBranch = new Map<string, { jobs: number; revenue: number }>();
@@ -183,10 +197,20 @@ export default async function ReportDetailPage({ params }: { params: Promise<{ t
         });
       }
 
-      revenueSummary = { weeks, months, branches };
+      const branchColumns = branchList?.map((b) => ({ key: b, label: branchLabel(b) }));
+      revenueSummary = { weeks, months, branches, branchColumns };
+      const branchColumnLabels = branchColumns?.map((b) => b.label) ?? [];
       summarySections = [
-        { title: "Jobsheet Revenue by Week", columns: ["Week", "Revenue (RM)"], rows: weeks.map((w) => [w.label, w.total.toFixed(2)]) },
-        { title: "Jobsheet Revenue by Month", columns: ["Month", "Revenue (RM)"], rows: months.map((m) => [m.label, m.total.toFixed(2)]) },
+        {
+          title: "Jobsheet Revenue by Week",
+          columns: ["Week", ...branchColumnLabels, "Total (RM)"],
+          rows: weeks.map((w) => [w.label, ...(branchList ?? []).map((b) => (w.byBranch?.[b] ?? 0).toFixed(2)), w.total.toFixed(2)]),
+        },
+        {
+          title: "Jobsheet Revenue by Month",
+          columns: ["Month", ...branchColumnLabels, "Total (RM)"],
+          rows: months.map((m) => [m.label, ...(branchList ?? []).map((b) => (m.byBranch?.[b] ?? 0).toFixed(2)), m.total.toFixed(2)]),
+        },
         ...(branches
           ? [{ title: "Jobsheet Summary by Branch", columns: ["Branch", "Jobs", "Revenue (RM)"], rows: branches.map((b) => [b.label, b.jobs, b.revenue.toFixed(2)]) }]
           : []),
@@ -220,7 +244,7 @@ export default async function ReportDetailPage({ params }: { params: Promise<{ t
       { key: "customerName", label: "Customer" },
       { key: "branch", label: "Branch" },
       { key: "customerPlateNo", label: "Plate No" },
-      { key: "salespersonName", label: "Salesperson" },
+      { key: "salespersonName", label: "Upload By" },
       { key: "pointsAccrued", label: "Points" },
       { key: "createdAt", label: "Registered On" },
     ];
@@ -379,7 +403,12 @@ export default async function ReportDetailPage({ params }: { params: Promise<{ t
             <div className="shrink-0 w-full lg:w-auto">
               {monthlySummary && <GenbluMonthlySummary summary={monthlySummary} />}
               {revenueSummary && (
-                <JobsheetRevenueSummary weeks={revenueSummary.weeks} months={revenueSummary.months} branches={revenueSummary.branches} />
+                <JobsheetRevenueSummary
+                  weeks={revenueSummary.weeks}
+                  months={revenueSummary.months}
+                  branches={revenueSummary.branches}
+                  branchColumns={revenueSummary.branchColumns}
+                />
               )}
             </div>
             <div className="flex-1 min-w-0 w-full">
