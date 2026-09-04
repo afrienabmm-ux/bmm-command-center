@@ -9,7 +9,6 @@ export default function AllBranchesMechanicPerformanceTable({
   locked,
   prevRevenueByMechanicId,
   commitmentByMechanicId,
-  dailyTarget,
   targetByBranch,
   weekAchievedByBranch,
   selectedDate,
@@ -20,7 +19,6 @@ export default function AllBranchesMechanicPerformanceTable({
   locked?: boolean;
   prevRevenueByMechanicId: Record<string, number>;
   commitmentByMechanicId: Record<string, MechanicCommitmentRow>;
-  dailyTarget: number;
   targetByBranch: Record<Branch, number>;
   weekAchievedByBranch: Record<Branch, number>;
   selectedDate?: string;
@@ -33,7 +31,6 @@ export default function AllBranchesMechanicPerformanceTable({
       locked={locked}
       prevRevenueByMechanicId={prevRevenueByMechanicId}
       commitmentByMechanicId={commitmentByMechanicId}
-      dailyTarget={dailyTarget}
       targetByBranch={targetByBranch}
       weekAchievedByBranch={weekAchievedByBranch}
       selectedDate={selectedDate}

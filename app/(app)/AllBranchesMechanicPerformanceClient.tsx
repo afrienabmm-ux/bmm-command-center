@@ -69,15 +69,14 @@ function RevenueRow({
   isTopRestoreBike,
   prevRevenue,
   today,
-  dailyTarget,
 }: {
   r: MechanicPerformanceRowWithBranch;
   isTop: boolean;
   isTopRestoreBike: boolean;
   prevRevenue: number | undefined;
   today: MechanicCommitmentRow | undefined;
-  dailyTarget: number;
 }) {
+  const dailyTarget = today?.dailyTarget ?? 0;
   return (
     <tr className="border-b border-neutral-100 last:border-0 hover:bg-neutral-50">
       <td className="px-5 py-3.5 text-neutral-800 font-medium whitespace-nowrap">
@@ -125,7 +124,6 @@ export default function AllBranchesMechanicPerformanceClient({
   locked,
   prevRevenueByMechanicId,
   commitmentByMechanicId,
-  dailyTarget,
   targetByBranch,
   weekAchievedByBranch,
   selectedDate,
@@ -136,7 +134,6 @@ export default function AllBranchesMechanicPerformanceClient({
   locked?: boolean;
   prevRevenueByMechanicId: Record<string, number>;
   commitmentByMechanicId: Record<string, MechanicCommitmentRow>;
-  dailyTarget: number;
   targetByBranch: Record<Branch, number>;
   weekAchievedByBranch: Record<Branch, number>;
   selectedDate?: string;
@@ -221,6 +218,11 @@ export default function AllBranchesMechanicPerformanceClient({
   const behindCount = todayRows.length - onTrackCount;
   const teamRevenueToday = todayRows.reduce((s, c) => s + c.revenue, 0);
   const teamJobsToday = todayRows.reduce((s, c) => s + c.jobCount, 0);
+  // Each mechanic's own dailyTarget already accounts for their branch's
+  // monthly target and headcount — summing them gives the right team total
+  // even when the currently-filtered set spans branches with different
+  // targets and mechanic counts.
+  const teamDailyTarget = todayRows.reduce((s, c) => s + c.dailyTarget, 0);
 
   // This week's target/achieved (not the month's) — the working week the
   // currently selected day falls in — scoped to the same branch filter as
@@ -289,7 +291,7 @@ export default function AllBranchesMechanicPerformanceClient({
           <p className="text-xs text-neutral-500 mt-0.5">
             {view === "packages"
               ? "Total packages sold per mechanic this month"
-              : `${isToday ? "Today's" : `${dayLabel}'s`} pace (${formatCurrency(dailyTarget)}/day target) plus this month's revenue by source · KPI is ${formatCurrency(MECHANIC_KPI_REVENUE)} Restore Bike revenue over ${MECHANIC_KPI_WORKING_DAYS} working days`}
+              : `${isToday ? "Today's" : `${dayLabel}'s`} pace (each mechanic's own branch target ÷ ${MECHANIC_KPI_WORKING_DAYS} days ÷ headcount) plus this month's revenue by source · KPI is ${formatCurrency(MECHANIC_KPI_REVENUE)} Restore Bike revenue over ${MECHANIC_KPI_WORKING_DAYS} working days`}
           </p>
         </div>
         {view === "revenue" && todayRows.length > 0 && (
@@ -383,7 +385,7 @@ export default function AllBranchesMechanicPerformanceClient({
           <div className="bg-neutral-50 border border-neutral-200 rounded-lg p-3.5">
             <p className="text-[11px] font-medium text-neutral-500 tracking-wide">TEAM REVENUE {dayLabel.toUpperCase()}</p>
             <p className="text-xl font-semibold text-neutral-900 mt-1">{formatCurrency(teamRevenueToday)}</p>
-            <p className="text-xs text-neutral-400 mt-0.5">target {formatCurrency(dailyTarget * todayRows.length)}</p>
+            <p className="text-xs text-neutral-400 mt-0.5">target {formatCurrency(teamDailyTarget)}</p>
           </div>
           <div className="bg-neutral-50 border border-neutral-200 rounded-lg p-3.5">
             <p className="text-[11px] font-medium text-neutral-500 tracking-wide">JOBS {dayLabel.toUpperCase()}</p>
@@ -465,7 +467,6 @@ export default function AllBranchesMechanicPerformanceClient({
                             isTopRestoreBike={r.mechanicId === topRestoreBikeId}
                             prevRevenue={prevRevenueByMechanicId[r.mechanicId]}
                             today={commitmentByMechanicId[r.mechanicId]}
-                            dailyTarget={dailyTarget}
                           />
                         ))}
                       </Fragment>
@@ -478,7 +479,6 @@ export default function AllBranchesMechanicPerformanceClient({
                         isTopRestoreBike={r.mechanicId === topRestoreBikeId}
                         prevRevenue={prevRevenueByMechanicId[r.mechanicId]}
                         today={commitmentByMechanicId[r.mechanicId]}
-                        dailyTarget={dailyTarget}
                       />
                     ))}
                 {filtered.length === 0 && (

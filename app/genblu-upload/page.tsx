@@ -1,10 +1,7 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { getCurrentUser, requirePage, requirePageContext, getActiveBranchSelection, canViewAllBranches } from "@/lib/current-user";
-import { getAllBranchesActiveRepairJobs, getAllBranchesCompletedRepairJobs, getActiveRepairJobs, getCompletedRepairJobs } from "@/lib/repairs-actions";
-import type { Branch } from "@/lib/branch";
+import { getCurrentUser, requirePage, requirePageContext, getActiveBranchSelection } from "@/lib/current-user";
 import GenbluPanel from "../scan/GenbluPanel";
-import type { RecentJobsheetCustomer } from "../scan/GenbluQuickForm";
 import SavedToast from "../scan/SavedToast";
 import { Suspense } from "react";
 import { signOutAction } from "@/lib/auth-actions";
@@ -34,23 +31,8 @@ export default async function GenbluUploadPage() {
 
   await requirePage("genblu");
   const { user: currentUser } = await requirePageContext();
-  const locked = !canViewAllBranches(currentUser);
-  const ownBranch = locked ? (currentUser.homeBranch as Branch) : null;
 
-  const [branchSelection, allActiveJobs, completedJobs] = await Promise.all([
-    getActiveBranchSelection(currentUser),
-    ownBranch ? getActiveRepairJobs(ownBranch) : getAllBranchesActiveRepairJobs(),
-    ownBranch ? getCompletedRepairJobs(ownBranch) : getAllBranchesCompletedRepairJobs(),
-  ]);
-
-  // Most recent Walk-in jobs (active or completed) — lets the GenBlu form
-  // offer picking the customer's name off a known jobsheet instead of
-  // trusting OCR's read of the screenshot alone.
-  const recentJobs: RecentJobsheetCustomer[] = [...allActiveJobs, ...completedJobs]
-    .filter((j) => j.jobType === "Walk-in" && (!locked || j.branch === currentUser.homeBranch))
-    .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
-    .slice(0, 25)
-    .map((j) => ({ jobId: j.id, branch: j.branch, customerName: j.customerName, customerPlateNo: j.plateNo, date: j.createdAt }));
+  const branchSelection = await getActiveBranchSelection(currentUser);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-red-50 via-neutral-50 to-neutral-50">
@@ -75,7 +57,7 @@ export default async function GenbluUploadPage() {
         </form>
       </div>
       <div className="p-4">
-        <GenbluPanel recentJobs={recentJobs} branchSelection={branchSelection} onlyMode="link" />
+        <GenbluPanel recentJobs={[]} branchSelection={branchSelection} onlyMode="link" forceNewCustomer />
       </div>
     </div>
   );

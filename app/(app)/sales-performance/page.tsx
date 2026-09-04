@@ -170,7 +170,6 @@ export default async function SalesPerformancePage({
           locked={locked}
           prevRevenueByMechanicId={prevRevenueByMechanicId}
           commitmentByMechanicId={commitmentByMechanicId}
-          dailyTarget={commitment.revenueTarget}
           targetByBranch={targetByBranch}
           weekAchievedByBranch={weekAchievedByBranch}
           selectedDate={selectedDate}

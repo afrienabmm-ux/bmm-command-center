@@ -26,11 +26,16 @@ export type RecentJobsheetCustomer = {
 export default function GenbluQuickForm({
   recentJobs,
   branchSelection,
+  forceNewCustomer,
 }: {
   recentJobs: RecentJobsheetCustomer[];
   branchSelection: BranchSelection;
+  // Sales Advisor's only task is registering brand new customers who don't
+  // have a jobsheet yet — no toggle to even show them, just the "No
+  // Jobsheet — New Customer" fields, always.
+  forceNewCustomer?: boolean;
 }) {
-  const [hasJobsheet, setHasJobsheet] = useState(true);
+  const [hasJobsheet, setHasJobsheet] = useState(!forceNewCustomer);
   const [search, setSearch] = useState("");
   const [selectedId, setSelectedId] = useState(recentJobs[0]?.jobId ?? "");
   const [manualBranch, setManualBranch] = useState<Branch>(branchSelection === "all" ? "kapar" : branchSelection);
@@ -128,26 +133,28 @@ export default function GenbluQuickForm({
         {hasJobsheet ? "Pick the customer's jobsheet, then upload their points screenshot." : "Register a new customer who doesn't have a jobsheet, then upload their points screenshot."}
       </p>
 
-      <div className="flex gap-1 bg-neutral-100 border border-neutral-200 rounded-lg p-1 mb-4">
-        <button
-          type="button"
-          onClick={() => setHasJobsheet(true)}
-          className={`flex-1 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
-            hasJobsheet ? "bg-white text-red-700 shadow-sm" : "text-neutral-600"
-          }`}
-        >
-          Has Jobsheet
-        </button>
-        <button
-          type="button"
-          onClick={() => setHasJobsheet(false)}
-          className={`flex-1 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
-            !hasJobsheet ? "bg-white text-red-700 shadow-sm" : "text-neutral-600"
-          }`}
-        >
-          No Jobsheet — New Customer
-        </button>
-      </div>
+      {!forceNewCustomer && (
+        <div className="flex gap-1 bg-neutral-100 border border-neutral-200 rounded-lg p-1 mb-4">
+          <button
+            type="button"
+            onClick={() => setHasJobsheet(true)}
+            className={`flex-1 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+              hasJobsheet ? "bg-white text-red-700 shadow-sm" : "text-neutral-600"
+            }`}
+          >
+            Has Jobsheet
+          </button>
+          <button
+            type="button"
+            onClick={() => setHasJobsheet(false)}
+            className={`flex-1 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+              !hasJobsheet ? "bg-white text-red-700 shadow-sm" : "text-neutral-600"
+            }`}
+          >
+            No Jobsheet — New Customer
+          </button>
+        </div>
+      )}
 
       {hasJobsheet ? (
         recentJobs.length === 0 ? (

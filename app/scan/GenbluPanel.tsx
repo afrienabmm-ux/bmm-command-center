@@ -15,6 +15,7 @@ export default function GenbluPanel({
   branchSelection,
   defaultMode = "log",
   onlyMode,
+  forceNewCustomer,
 }: {
   recentJobs: RecentJobsheetCustomer[];
   branchSelection: BranchSelection;
@@ -23,6 +24,10 @@ export default function GenbluPanel({
   // to even show them. When set, this pins the panel to one mode and
   // skips rendering the tab switcher entirely.
   onlyMode?: "link" | "log";
+  // Sales Advisor only ever registers brand new customers with no
+  // jobsheet — passed through to GenbluQuickForm to hide its own
+  // Has Jobsheet / No Jobsheet toggle too.
+  forceNewCustomer?: boolean;
 }) {
   const [mode, setMode] = useState<"link" | "log">(onlyMode ?? defaultMode);
   const effectiveMode = onlyMode ?? mode;
@@ -52,7 +57,7 @@ export default function GenbluPanel({
       {effectiveMode === "log" ? (
         <GenbluTransactionForm branchSelection={branchSelection} />
       ) : (
-        <GenbluQuickForm recentJobs={recentJobs} branchSelection={branchSelection} />
+        <GenbluQuickForm recentJobs={recentJobs} branchSelection={branchSelection} forceNewCustomer={forceNewCustomer} />
       )}
     </div>
   );

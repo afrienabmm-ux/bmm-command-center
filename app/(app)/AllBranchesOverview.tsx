@@ -107,7 +107,7 @@ export default async function AllBranchesOverview({
     onlyBranch ? getActiveRepairJobs(onlyBranch) : getAllBranchesActiveRepairJobs(),
     isManagement
       ? getMechanicCommitment(onlyBranch)
-      : Promise.resolve({ date: "", revenueTarget: 0, rows: [] }),
+      : Promise.resolve({ date: "", dailyTargetByBranch: {} as Record<Branch, number>, rows: [] }),
     getTodayActivity(onlyBranch),
     getAllMechanics(),
     onlyBranch ? getBranchPerformance(onlyBranch, year, month) : Promise.resolve([]),
