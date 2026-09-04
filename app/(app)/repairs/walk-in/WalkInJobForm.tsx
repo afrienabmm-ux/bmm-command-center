@@ -1336,7 +1336,7 @@ export default function WalkInJobForm({
                   type="text"
                   value={comboReceiptId}
                   onChange={(e) => setComboReceiptId(e.target.value)}
-                  placeholder="Leave blank to use the jobsheet number"
+                  placeholder="Insert Receipt No"
                   className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
                 />
               </div>
