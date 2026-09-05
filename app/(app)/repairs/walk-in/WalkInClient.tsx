@@ -55,6 +55,18 @@ export default function WalkInClient({
   const [exportFilteredModalOpen, setExportFilteredModalOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [sortDir, setSortDir] = useState<"desc" | "asc">("desc");
+  // Job No. header is clickable too — lets the PIC line jobs up in
+  // number order instead of only by date, e.g. to spot a gap or find one
+  // fast when they already know roughly which number it was.
+  const [sortBy, setSortBy] = useState<"date" | "jobNo">("date");
+  function toggleJobNoSort() {
+    if (sortBy === "jobNo") {
+      setSortDir((d) => (d === "desc" ? "asc" : "desc"));
+    } else {
+      setSortBy("jobNo");
+      setSortDir("asc");
+    }
+  }
   // Filters by Job Date (the same field the "Job Date" column shows) —
   // a plain flat list with no way to narrow down to a specific day or
   // range made it easy to lose track of which rows were even from.
@@ -138,10 +150,13 @@ export default function WalkInClient({
       return true;
     });
     return [...filtered].sort((a, b) => {
+      if (sortBy === "jobNo") {
+        return sortDir === "desc" ? b.jobNo.localeCompare(a.jobNo) : a.jobNo.localeCompare(b.jobNo);
+      }
       const dateOf = (j: RepairJob) => j.completedDate || j.startedDate || j.createdAt || "";
       return sortDir === "desc" ? dateOf(b).localeCompare(dateOf(a)) : dateOf(a).localeCompare(dateOf(b));
     });
-  }, [jobs, query, sortDir, dateFrom, dateTo]);
+  }, [jobs, query, sortDir, sortBy, dateFrom, dateTo]);
   const allJobs = useMemo(() => [...active, ...completed], [active, completed]);
   const showBranchColumn = branchSelection === "all";
 
@@ -398,11 +413,14 @@ export default function WalkInClient({
             )
           )}
           <button
-            onClick={() => setSortDir((d) => (d === "desc" ? "asc" : "desc"))}
+            onClick={() => {
+              setSortBy("date");
+              setSortDir((d) => (d === "desc" ? "asc" : "desc"));
+            }}
             className="flex items-center gap-1.5 bg-white border border-neutral-200 hover:border-red-300 text-neutral-700 text-sm font-medium px-3 py-2 rounded-lg transition-colors whitespace-nowrap"
             title="Sort by date"
           >
-            <ArrowUpDown size={14} /> {sortDir === "desc" ? "Newest" : "Oldest"}
+            <ArrowUpDown size={14} /> {sortBy === "date" && sortDir === "asc" ? "Oldest" : "Newest"}
           </button>
           <button
             onClick={handleCopyPhoneLink}
@@ -496,7 +514,16 @@ export default function WalkInClient({
                     />
                   </th>
                 )}
-                <th className="font-medium px-5 py-3 whitespace-nowrap">Job No.</th>
+                <th className="font-medium px-5 py-3 whitespace-nowrap">
+                  <button
+                    type="button"
+                    onClick={toggleJobNoSort}
+                    className="flex items-center gap-1 hover:text-red-600 transition-colors"
+                    title="Sort by Job No."
+                  >
+                    Job No. <ArrowUpDown size={12} />
+                  </button>
+                </th>
                 <th className="font-medium px-5 py-3 whitespace-nowrap">Customer</th>
                 <th className="font-medium px-5 py-3 whitespace-nowrap">Plate No.</th>
                 <th className="font-medium px-5 py-3 whitespace-nowrap">Model</th>
