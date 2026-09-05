@@ -87,6 +87,8 @@ const PACKAGE_ITEM_CODES: Record<string, { codes: string[]; discountName: string
   "Pakej Ride Sempoi": { codes: ["90793-AH425", "1S7-E3340-09", "90793AY80300"], discountName: "Package Ride Sempoi" },
   "Rock Oil Guardian Plus Racing 15W-50": { codes: ["9O00000067", "1S7-E3340-09"], discountName: "Rock Oil Combo" },
   "Rock Oil Guardian Plus Racing 10W-40": { codes: ["9O00000066", "1S7-E3340-09"], discountName: "Rock Oil Combo" },
+  "Rock Oil Guardian 10W-50 Semi Synthetic": { codes: ["9O00000017", "1S7-E3340-09"], discountName: "Rock Oil Combo (Semi Synthetic)" },
+  "Rock Oil Guardian 10W-40 Semi Synthetic": { codes: ["9O00000016", "1S7-E3340-09"], discountName: "Rock Oil Combo (Semi Synthetic)" },
 };
 
 // A package with no mapping (a future/renamed combo not in the table
