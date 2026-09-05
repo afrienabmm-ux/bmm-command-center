@@ -656,7 +656,7 @@ export async function scanJobsheet(
     // since neither depends on the other.
     const catalogLookupPromise = loadCatalogLookup();
     if (mimeType === "application/pdf") {
-      const text = await extractTextFromPdf(base64File);
+      const { text, signatureDetected: pdfSignatureDetected, signatureDebug: pdfSignatureDebug } = await extractTextFromPdf(base64File);
       if (!text.trim()) {
         return { error: "Couldn't read any text from that file — try a clearer, well-lit photo." };
       }
@@ -671,7 +671,7 @@ export async function scanJobsheet(
       const { lookup: pdfLookup, discounts: pdfDiscounts } = await catalogLookupPromise;
       parsed.items = normalizeDiscountItems(parsed.items, pdfDiscounts);
       parsed.items = applyCatalogData(parsed.items, pdfLookup);
-      return { data: parsed };
+      return { data: { ...parsed, signatureDetected: pdfSignatureDetected, signatureDebug: pdfSignatureDebug } };
     }
     const { text, signatureDetected, signatureDebug } = await scanJobsheetImage(base64File);
     if (!text.trim()) {

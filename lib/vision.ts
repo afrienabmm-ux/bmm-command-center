@@ -503,6 +503,44 @@ async function detectSignature(buffer: Buffer, words: PositionedWord[], imageWid
   return { result: maxScore > INK_RESIDUAL_THRESHOLD, debug };
 }
 
+// PDF equivalent of detectSignature — there's no pixel buffer to crop and
+// score for ink texture (a PDF's text layer has no image data at all), so
+// this looks for the same thing a person would: is there any text at all
+// sitting in the box next to "Customer Signature" that isn't the label
+// itself or the DATE/TIME printed beside it. A real signature that reads
+// as legible-ish strokes (initials, a stylized name) shows up here as a
+// stray recognized word — as this exact template did, its very real
+// signature turning into the word "Aim" — but genuine illegible cursive
+// won't produce anything, so this only ever confirms a signature, never
+// rules one out; a null/false result still just means "couldn't tell",
+// same as the photo path.
+function detectPdfSignature(words: PositionedWord[]): SignatureCheck {
+  const label = findCustomerSignatureLabel(words);
+  if (!label) return { result: null, debug: "no 'Customer Signature' label found in the PDF's text" };
+
+  const boxWidth = label.height * 14;
+  const left = label.x - boxWidth * 0.3;
+  const right = label.x + boxWidth * 0.7;
+  const verticalMargin = label.height * 4;
+  const top = label.yCenter - verticalMargin;
+  const bottom = label.yCenter + verticalMargin;
+  const BOILERPLATE = /^(customer|signature|date|time)$/i;
+
+  const stray = words.find((w) => {
+    if (w === label) return false;
+    if (BOILERPLATE.test(w.text.replace(/[^a-z]/gi, ""))) return false;
+    return w.x >= left && w.x <= right && w.yCenter >= top && w.yCenter <= bottom;
+  });
+
+  const debug = `label@(${Math.round(label.x)},${Math.round(label.yCenter)}) box=[${Math.round(left)},${Math.round(top)}]-[${Math.round(right)},${Math.round(bottom)}] ${stray ? `found "${stray.text}"` : "no extra text found"}`;
+  // Absence of a stray word is NOT treated as "confirmed unsigned" (unlike
+  // the photo path's ink-residual check, which can commit to that because
+  // it's looking at real pixels) — most genuine cursive signatures produce
+  // no recognizable text at all, so a firm `false` here would wrongly flag
+  // plenty of actually-signed PDFs. Only a positive find is trustworthy.
+  return { result: stray ? true : null, debug };
+}
+
 export type JobsheetScanResult = { text: string; signatureDetected: boolean | null; signatureDebug: string };
 
 // Same OCR pipeline as extractTextFromImage, plus a best-effort signature
@@ -553,8 +591,12 @@ type VisionFileResponse = { responses?: { responses?: VisionFilePageResponse[]; 
 // regex in jobsheet-actions.ts expects them on the same line, like the
 // photo path already produces. So each word's own position is pulled out
 // and run through the same row-reconstruction used for photos, instead of
-// trusting Vision's own reading order.
-export async function extractTextFromPdf(base64Pdf: string): Promise<string> {
+// trusting Vision's own reading order. The same per-word positions are
+// also what detectPdfSignature runs on, so the label lookup only happens
+// once per page and both jobs get built from the identical parsed data.
+export async function extractTextFromPdf(
+  base64Pdf: string
+): Promise<{ text: string; signatureDetected: boolean | null; signatureDebug: string }> {
   const apiKey = process.env.GOOGLE_VISION_API_KEY;
   if (!apiKey) {
     throw new Error("PDF scanning needs Google Vision to be configured — please upload a photo (JPG or PNG) instead.");
@@ -587,10 +629,17 @@ export async function extractTextFromPdf(base64Pdf: string): Promise<string> {
     if (!fileResult || fileResult.error) {
       throw new Error("Couldn't read that PDF — please upload a photo (JPG or PNG) instead.");
     }
-    const perPageText = (fileResult.responses ?? []).map((pageResponse) => {
+    const perPageText: string[] = [];
+    let signatureDetected: boolean | null = null;
+    let signatureDebug = "no 'Customer Signature' label found in the PDF's text";
+    let signatureLabelFound = false;
+    for (const pageResponse of fileResult.responses ?? []) {
       const page = pageResponse.fullTextAnnotation?.pages?.[0];
       const fallback = pageResponse.fullTextAnnotation?.text ?? "";
-      if (!page?.width || !page?.height) return fallback;
+      if (!page?.width || !page?.height) {
+        perPageText.push(fallback);
+        continue;
+      }
       const { width, height } = page;
       const words: PositionedWord[] = [];
       for (const block of page.blocks ?? []) {
@@ -607,9 +656,19 @@ export async function extractTextFromPdf(base64Pdf: string): Promise<string> {
           }
         }
       }
-      return reconstructPdfRows(words, fallback);
-    });
-    return perPageText.join("\n").trim();
+      perPageText.push(reconstructPdfRows(words, fallback));
+      // First page whose "Customer Signature" label is actually found
+      // wins — a jobsheet is one page in practice, but a multi-page PDF
+      // shouldn't have an earlier page's missing label silently mask a
+      // later page's real result.
+      if (!signatureLabelFound && findCustomerSignatureLabel(words)) {
+        signatureLabelFound = true;
+        const check = detectPdfSignature(words);
+        signatureDetected = check.result;
+        signatureDebug = check.debug;
+      }
+    }
+    return { text: perPageText.join("\n").trim(), signatureDetected, signatureDebug };
   } catch (err) {
     if (err instanceof Error && err.message.startsWith("Couldn't read")) throw err;
     throw new Error("Couldn't read that PDF — please upload a photo (JPG or PNG) instead.");
