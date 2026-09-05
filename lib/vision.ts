@@ -486,9 +486,96 @@ export async function scanJobsheetImage(base64Image: string): Promise<JobsheetSc
   return { text, signatureDetected: signatureCheck.result, signatureDebug: signatureCheck.debug };
 }
 
-// PDFs aren't supported by the free local OCR path (no card-free way to
-// rasterize a PDF page server-side without extra heavy dependencies) —
-// callers should ask for a photo instead.
-export async function extractTextFromPdf(_base64Pdf: string): Promise<string> {
-  throw new Error("PDF scanning isn't supported — please upload a photo (JPG or PNG) instead.");
+type VisionNormVertex = { x?: number; y?: number };
+type VisionSymbol = { text?: string };
+type VisionWord = {
+  symbols?: VisionSymbol[];
+  boundingBox?: { normalizedVertices?: VisionNormVertex[] };
+};
+type VisionParagraph = { words?: VisionWord[] };
+type VisionBlock = { paragraphs?: VisionParagraph[] };
+type VisionPage = { width?: number; height?: number; blocks?: VisionBlock[] };
+type VisionFilePageResponse = {
+  fullTextAnnotation?: { text?: string; pages?: VisionPage[] };
+  error?: { message?: string };
+};
+type VisionFileResponse = { responses?: { responses?: VisionFilePageResponse[]; error?: { message?: string } }[] };
+
+// PDFs skip the whole rasterize-then-OCR dance (sharp/Tesseract can't read
+// PDF pages at all on this build) by handing the file straight to Google
+// Vision's files:annotate endpoint, which accepts PDF input directly and
+// returns each page's recognized text — no local rendering step needed.
+// Only works when Vision is configured; there's no OCR.space/Tesseract
+// fallback for PDF like there is for photos.
+//
+// A PDF's fullTextAnnotation.text alone reads in column-then-row order
+// (all the field labels first, then all their colon-prefixed values much
+// further down) rather than left-to-right per physical line, since a
+// "scan to PDF" app's text layer is laid out that way — every label:value
+// regex in jobsheet-actions.ts expects them on the same line, like the
+// photo path already produces. So each word's own position is pulled out
+// and run through the same row-reconstruction used for photos, instead of
+// trusting Vision's own reading order.
+export async function extractTextFromPdf(base64Pdf: string): Promise<string> {
+  const apiKey = process.env.GOOGLE_VISION_API_KEY;
+  if (!apiKey) {
+    throw new Error("PDF scanning needs Google Vision to be configured — please upload a photo (JPG or PNG) instead.");
+  }
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 45000);
+  try {
+    const res = await fetch(`https://vision.googleapis.com/v1/files:annotate?key=${apiKey}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      signal: controller.signal,
+      body: JSON.stringify({
+        requests: [
+          {
+            inputConfig: { content: base64Pdf, mimeType: "application/pdf" },
+            features: [{ type: "DOCUMENT_TEXT_DETECTION" }],
+            // A jobsheet is one page — a couple extra in case the PDF
+            // has a blank cover or a duplicate page; out-of-range pages
+            // are silently skipped by Vision rather than erroring.
+            pages: [1, 2, 3],
+          },
+        ],
+      }),
+    });
+    if (!res.ok) {
+      throw new Error("Couldn't read that PDF — please upload a photo (JPG or PNG) instead.");
+    }
+    const json = (await res.json()) as VisionFileResponse;
+    const fileResult = json.responses?.[0];
+    if (!fileResult || fileResult.error) {
+      throw new Error("Couldn't read that PDF — please upload a photo (JPG or PNG) instead.");
+    }
+    const perPageText = (fileResult.responses ?? []).map((pageResponse) => {
+      const page = pageResponse.fullTextAnnotation?.pages?.[0];
+      const fallback = pageResponse.fullTextAnnotation?.text ?? "";
+      if (!page?.width || !page?.height) return fallback;
+      const { width, height } = page;
+      const words: PositionedWord[] = [];
+      for (const block of page.blocks ?? []) {
+        for (const paragraph of block.paragraphs ?? []) {
+          for (const word of paragraph.words ?? []) {
+            const text = (word.symbols ?? []).map((s) => s.text ?? "").join("");
+            const vertices = word.boundingBox?.normalizedVertices;
+            if (!text || !vertices || vertices.length === 0) continue;
+            const ys = vertices.map((v) => (v.y ?? 0) * height);
+            const xs = vertices.map((v) => (v.x ?? 0) * width);
+            const top = Math.min(...ys);
+            const bottom = Math.max(...ys);
+            words.push({ text, x: Math.min(...xs), yCenter: (top + bottom) / 2, height: bottom - top || 20 });
+          }
+        }
+      }
+      return reconstructRowsFromWords(words, fallback);
+    });
+    return perPageText.join("\n").trim();
+  } catch (err) {
+    if (err instanceof Error && err.message.startsWith("Couldn't read")) throw err;
+    throw new Error("Couldn't read that PDF — please upload a photo (JPG or PNG) instead.");
+  } finally {
+    clearTimeout(timeout);
+  }
 }

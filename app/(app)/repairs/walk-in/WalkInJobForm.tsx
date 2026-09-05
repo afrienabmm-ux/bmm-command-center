@@ -892,12 +892,12 @@ export default function WalkInJobForm({
                 Scan Jobsheet
               </p>
               <p className={isScan ? "text-xs text-white/80 mt-0.5 mb-3" : "text-xs text-neutral-500 mt-0.5 mb-3"}>
-                Upload a clear JPG or PNG photo of the paper jobsheet — it'll fill in the boxes below for you to check before saving.
+                Upload a clear JPG/PNG photo or a PDF of the paper jobsheet — it'll fill in the boxes below for you to check before saving.
               </p>
               <input
                 ref={fileInputRef}
                 type="file"
-                accept="image/jpeg,image/png"
+                accept="image/jpeg,image/png,application/pdf"
                 // No "capture" attribute here on purpose — it used to force
                 // mobile straight into the camera app with no way back to
                 // pick an existing photo from the gallery, which admin
