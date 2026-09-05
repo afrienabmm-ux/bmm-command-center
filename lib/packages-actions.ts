@@ -179,7 +179,25 @@ export async function addPackageSaleAction(input: {
       .eq("receipt_id", receiptId)
       .limit(1);
     if (existingError) throw new Error(existingError.message);
-    if (existing && existing.length > 0) return;
+    if (existing && existing.length > 0) {
+      // Already on file — re-saving the jobsheet (e.g. a corrected
+      // customer name) should still keep this row in sync instead of
+      // leaving it frozen at whatever was true the first time.
+      const { error: updateError } = await supabaseAdmin
+        .from("cc_package_sales")
+        .update({
+          package_id: input.packageId,
+          mechanic_id: input.mechanicId,
+          sale_date: input.saleDate,
+          customer_name: input.customerName?.trim() ?? "",
+          customer_plate_no: input.customerPlateNo?.trim() ?? "",
+        })
+        .eq("id", existing[0].id);
+      if (updateError) throw new Error(updateError.message);
+      revalidatePath("/packages");
+      revalidatePath("/customers");
+      return;
+    }
   }
 
   const { error } = await supabaseAdmin.from("cc_package_sales").insert({
