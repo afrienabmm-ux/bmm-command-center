@@ -468,11 +468,35 @@ function parseJobsheetText(text: string): ScannedJobsheet {
     return tokens.length >= 2 && /^\d{1,2}$/.test(tokens[0]);
   }
 
+  // A discount/FOC row doesn't always print its own row number (it can
+  // read as a lone trailing line — "DISCOUNT FIRST SERVICE 1.00 20.00
+  // -20.00" — with no leading "3" the way real items have "1"/"2"), so it
+  // never qualifies as looksLikeItemRowStart and the normal qty*price=
+  // amount check above also doesn't fit it (a discount's own "price"
+  // column often prints as a positive deduction next to an already
+  // negative Nett Amt, not a qty*price product). Rather than trying to
+  // reverse-engineer that column layout, the negative amount itself is
+  // the tell: whichever token is furthest negative is the actual amount
+  // deducted, price is that number, quantity 1.
+  function tryParseDiscountLine(rawLine: string): ScannedJobsheetItem | null {
+    if (!/\bFOC\b/i.test(rawLine) && !/\bDISCOUNT\b/i.test(rawLine)) return null;
+    const tokens = rawLine.trim().split(/\s+/).filter(Boolean);
+    const negatives = tokens.filter((t) => /^-\d+(?:[.,:]\d+)?$/.test(t)).map(tokenToNumber);
+    if (negatives.length === 0) return null;
+    const price = Math.min(...negatives);
+    return { code: "", description: "Discount", quantity: 1, price };
+  }
+
   const lines = text.split("\n");
   for (let li = 0; li < lines.length; li++) {
     const single = tryParseItemLine(lines[li]);
     if (single) {
       items.push(single);
+      continue;
+    }
+    const discount = tryParseDiscountLine(lines[li]);
+    if (discount) {
+      items.push(discount);
       continue;
     }
     // A wide items table (this jobsheet template runs Item/Code/

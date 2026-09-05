@@ -94,6 +94,44 @@ function reconstructRowsFromWords(words: PositionedWord[], fallbackText: string)
     .join("\n");
 }
 
+// Same job as reconstructRowsFromWords (turn positioned words back into
+// physical rows) but for PDF text, which needs its own algorithm rather
+// than reusing that one: a PDF's text-layer coordinates come with
+// negligible noise (no phone-photo blur/skew), so two side-by-side
+// columns' rows sit only a couple px apart — comparing each word to a
+// row's running *average* position (as the photo version does) lets a
+// short chain of tightly-packed words (e.g. a label's own two/three
+// words) drag that average toward a neighboring column's row before the
+// word that's actually the closest real match gets its turn. Comparing
+// each word only to its immediate predecessor in sorted order avoids that
+// drift entirely — a real physical row's own words are still each only a
+// hair's-breadth apart, so nothing about genuine same-row grouping is
+// lost, but a whole cluster can no longer average its way into a
+// neighboring row that any single word in it wasn't actually close to.
+function reconstructPdfRows(words: PositionedWord[], fallbackText: string): string {
+  if (words.length === 0) return fallbackText;
+  const sorted = [...words].sort((a, b) => a.yCenter - b.yCenter);
+  const rows: PositionedWord[][] = [[sorted[0]]];
+  for (let i = 1; i < sorted.length; i++) {
+    const prev = sorted[i - 1];
+    const word = sorted[i];
+    const gap = Math.abs(word.yCenter - prev.yCenter);
+    if (gap < Math.min(word.height, prev.height) * 0.45) {
+      rows[rows.length - 1].push(word);
+    } else {
+      rows.push([word]);
+    }
+  }
+  return rows
+    .map((row) =>
+      row
+        .sort((a, b) => a.x - b.x)
+        .map((w) => w.text)
+        .join(" ")
+    )
+    .join("\n");
+}
+
 // A phone photo of a paper form has uneven lighting, shadows, and JPEG
 // noise that hurts OCR accuracy (either engine) much more than a clean
 // screenshot — grayscale + contrast stretch + a touch of sharpening
@@ -569,7 +607,7 @@ export async function extractTextFromPdf(base64Pdf: string): Promise<string> {
           }
         }
       }
-      return reconstructRowsFromWords(words, fallback);
+      return reconstructPdfRows(words, fallback);
     });
     return perPageText.join("\n").trim();
   } catch (err) {
