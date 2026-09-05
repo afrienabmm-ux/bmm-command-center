@@ -565,17 +565,30 @@ function normalizeCatalogCode(raw: string): string {
 // The full catalog, keyed by a normalized code — small enough (parts +
 // oils across every brand) to just load whole rather than querying once
 // per item, and this way every item in the same scan shares one lookup.
-async function loadCatalogLookup(): Promise<Map<string, CatalogLookupEntry>> {
+type DiscountCatalogEntry = { name: string; price: number };
+
+async function loadCatalogLookup(): Promise<{ lookup: Map<string, CatalogLookupEntry>; discounts: DiscountCatalogEntry[] }> {
   const { data, error } = await supabaseAdmin.from("cc_catalog_products").select("code, product_name, spec, price");
-  if (error || !data) return new Map();
+  if (error || !data) return { lookup: new Map(), discounts: [] };
   const lookup = new Map<string, CatalogLookupEntry>();
+  const discounts: DiscountCatalogEntry[] = [];
   for (const row of data as { code: string; product_name: string; spec: string; price: number }[]) {
     const code = normalizeCatalogCode(row.code ?? "");
-    if (!code) continue;
+    if (!code) {
+      // Discount/FOC catalog entries (e.g. "1ST MINYAK FOC DISCOUNT") are
+      // always entered with a blank code — the only way to tell a scanned
+      // discount row's amount apart from a coincidence is its price, so
+      // that's kept here for matchDiscountCatalog below instead of being
+      // dropped along with every other blank-code row.
+      if (/\bfoc\b/i.test(row.product_name) || /\bdiscount\b/i.test(row.product_name)) {
+        discounts.push({ name: row.product_name, price: Number(row.price) });
+      }
+      continue;
+    }
     const description = row.spec ? `${row.product_name} — ${row.spec}` : row.product_name;
     lookup.set(code, { code: row.code, description, price: Number(row.price) });
   }
-  return lookup;
+  return { lookup, discounts };
 }
 
 // A code read slightly wrong by OCR (a smudged digit, "0" vs "O", "1" vs
@@ -617,13 +630,18 @@ function applyCatalogData(items: ScannedJobsheetItem[], lookup: Map<string, Cata
 // entering a discount land in reports under one consistent name. The
 // scanned quantity/price are kept as-is (the actual amount deducted that
 // visit) — a real discount can be any amount, so it's never overwritten
-// here the way a real part's price is. Not relabelled to the specific
-// "1ST MINYAK FOC DISCOUND" catalog entry, since that name names one
-// particular promo reason a scanned line has no way to confirm.
-function normalizeDiscountItems(items: ScannedJobsheetItem[]): ScannedJobsheetItem[] {
+// here the way a real part's price is.
+//
+// If the scanned amount happens to match one of the catalog's own named
+// discount entries exactly (e.g. -20 for "1ST MINYAK FOC DISCOUNT"), that
+// specific name is used instead of the generic one — the exact price is a
+// strong enough signal to identify which promo it actually was, not just
+// that some deduction happened.
+function normalizeDiscountItems(items: ScannedJobsheetItem[], discountCatalog: DiscountCatalogEntry[]): ScannedJobsheetItem[] {
   return items.map((item) => {
     if (!/\bFOC\b/i.test(item.description) && !/\bDISCOUNT\b/i.test(item.description)) return item;
-    return { ...item, code: "", description: "Discount" };
+    const match = discountCatalog.find((d) => Math.abs(d.price - item.price) < 0.01);
+    return { ...item, code: "", description: match ? match.name : "Discount" };
   });
 }
 
@@ -650,8 +668,9 @@ export async function scanJobsheet(
       // Discount/FOC rows are checked first and their code cleared, so the
       // catalog match right after never mistakes one for a real part just
       // because a garbled leftover code happens to be close to one.
-      parsed.items = normalizeDiscountItems(parsed.items);
-      parsed.items = applyCatalogData(parsed.items, await catalogLookupPromise);
+      const { lookup: pdfLookup, discounts: pdfDiscounts } = await catalogLookupPromise;
+      parsed.items = normalizeDiscountItems(parsed.items, pdfDiscounts);
+      parsed.items = applyCatalogData(parsed.items, pdfLookup);
       return { data: parsed };
     }
     const { text, signatureDetected, signatureDebug } = await scanJobsheetImage(base64File);
@@ -673,8 +692,9 @@ export async function scanJobsheet(
     // their description/price filled in from a matching catalog code
     // instead of trusting OCR's read of the tiny, easy-to-garble print
     // next to it — see normalizeDiscountItems and applyCatalogData.
-    parsed.items = normalizeDiscountItems(parsed.items);
-    parsed.items = applyCatalogData(parsed.items, await catalogLookupPromise);
+    const { lookup, discounts } = await catalogLookupPromise;
+    parsed.items = normalizeDiscountItems(parsed.items, discounts);
+    parsed.items = applyCatalogData(parsed.items, lookup);
     return { data: { ...parsed, signatureDetected, signatureDebug } };
   } catch (err) {
     const message = err instanceof Error ? err.message : "";
