@@ -911,7 +911,8 @@ function WalkInRow({
   const [deleting, setDeleting] = useState(false);
   const [photoPending, setPhotoPending] = useState(false);
   const [resolving, setResolving] = useState(false);
-  const isSignatureError = job.signatureStatus === "not_detected" && !job.signatureIssueResolved;
+  const isSignatureError =
+    (job.signatureStatus === "not_detected" || job.signatureStatus === "unchecked") && !job.signatureIssueResolved;
 
   function handleResolveSignature() {
     setResolving(true);
