@@ -1,6 +1,12 @@
+import type { Metadata } from "next";
 import JoinForm from "./JoinForm";
 
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = {
+  title: "BMM E-Service Card",
+  appleWebApp: { capable: true, statusBarStyle: "default", title: "E-Service Card" },
+};
 
 export default function JoinPage() {
   return (
