@@ -12,8 +12,8 @@ export default function JoinPage() {
       <div className="w-full max-w-sm relative z-10">
         <div className="flex flex-col items-center mb-6">
           <img
-            src="/bmm-logo.png"
-            alt="Berjaya Mega Motors"
+            src="/bmm-eservice-card-logo.png"
+            alt="Berjaya Mega Motors — E-Service Card"
             className="w-16 h-16 rounded-full object-cover mb-3 ring-4 ring-white/30 shadow-lg animate-pop"
           />
           <p className="text-2xl font-bold text-white tracking-tight">Services Card</p>

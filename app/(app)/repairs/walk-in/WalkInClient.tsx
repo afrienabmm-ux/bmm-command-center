@@ -826,7 +826,7 @@ function StatusCell({
           No sign detected
         </span>
       )}
-      {signatureStatus === "unchecked" && (
+      {signatureStatus === "unchecked" && !signatureIssueResolved && (
         <span
           title="Scan couldn't check for a signature — staff confirmed by hand"
           className="text-[10px] font-medium px-2 py-0.5 rounded-full border bg-neutral-100 text-neutral-500 border-neutral-200"
