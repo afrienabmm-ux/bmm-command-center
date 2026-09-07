@@ -25,8 +25,8 @@ export default function GenbluSignupPage() {
         <div className="flex flex-col items-center mb-6">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src="/bmm-genblu-signup-logo.png"
-            alt="Berjaya Mega Motors — GenBlu Registration"
+            src="/bmm-logo.png"
+            alt="Berjaya Mega Motors"
             className="w-16 h-16 rounded-full object-cover mb-3 ring-4 ring-white/30 shadow-lg animate-pop"
           />
           <p className="text-2xl font-bold text-white tracking-tight">GenBlu Sign-Up</p>
