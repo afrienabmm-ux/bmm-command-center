@@ -748,6 +748,18 @@ export default function WalkInJobForm({
 
     const finalRevenue = items.length > 0 ? itemsTotal : Number(revenueAmount) || 0;
 
+    // A jobsheet this large is rare enough that it's usually a typo (an
+    // extra zero on a quantity or price) rather than a real RM1,000+
+    // repair — a quick "are you sure" catches that before it's saved,
+    // without blocking the rare case where the amount really is correct.
+    const HIGH_AMOUNT_THRESHOLD = 1000;
+    if (finalRevenue > HIGH_AMOUNT_THRESHOLD) {
+      const proceed = window.confirm(
+        `This jobsheet totals ${formatCurrency(finalRevenue)} — that's unusually high. Please double-check the items and prices before saving.\n\nClick OK to save anyway, or Cancel to go back and check.`
+      );
+      if (!proceed) return;
+    }
+
     startTransition(async () => {
       // Verify (and register) GenBlu BEFORE saving the job — if the
       // uploaded screenshot doesn't match the customer's name, the job
