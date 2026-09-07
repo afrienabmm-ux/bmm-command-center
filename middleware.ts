@@ -3,9 +3,10 @@ import { createServerClient } from "@supabase/ssr";
 import { REMEMBER_ME_COOKIE, REMEMBER_ME_MAX_AGE } from "./lib/auth-cookie";
 
 const PUBLIC_PATHS = ["/login", "/signup", "/forgot-password"];
-// Customer-facing membership sign-up — no staff login needed, so every
-// path under /join is public regardless of query string.
-const PUBLIC_PREFIXES = ["/join"];
+// Customer-facing membership sign-up (/join) and the salesperson-facing
+// GenBlu sign-up link (/genblu-signup) — neither needs a staff login, so
+// every path under either is public regardless of query string.
+const PUBLIC_PREFIXES = ["/join", "/genblu-signup"];
 
 export async function middleware(request: NextRequest) {
   let response = NextResponse.next({ request });
@@ -41,8 +42,8 @@ export async function middleware(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   const { pathname } = request.nextUrl;
-  const isJoinPage = PUBLIC_PREFIXES.some((p) => pathname.startsWith(p));
-  const isPublic = PUBLIC_PATHS.includes(pathname) || isJoinPage;
+  const isPublicPrefixPage = PUBLIC_PREFIXES.some((p) => pathname.startsWith(p));
+  const isPublic = PUBLIC_PATHS.includes(pathname) || isPublicPrefixPage;
 
   // The old shared "Field Scanner" account (no-login /scan link) is no
   // longer auto-signed-in — mechanics now get their own individual login
@@ -63,13 +64,13 @@ export async function middleware(request: NextRequest) {
   }
 
   // /login and /signup bounce a signed-in user straight to the dashboard,
-  // but /join stays open even when signed in — staff should be able to
-  // open their own sign-up link to demo or test it.
-  if (user && isPublic && !isJoinPage) {
+  // but /join and /genblu-signup stay open even when signed in — staff
+  // should be able to open their own public links to demo or test them.
+  if (user && isPublic && !isPublicPrefixPage) {
     return NextResponse.redirect(new URL("/", request.url));
   }
 
-  if (isJoinPage) {
+  if (isPublicPrefixPage) {
     return response;
   }
 
