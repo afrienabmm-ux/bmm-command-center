@@ -110,19 +110,18 @@ export async function getPackageSalesBreakdown(year: number, month: number): Pro
 
 export type TodayActivity = { jobsheetCount: number; restoreBikeCount: number; packagesSoldCount: number };
 
-// How many jobsheets, Restore Bike jobs, and Services Combo sales were
-// added today — a rolling daily snapshot, not a month total, so it's
-// naturally different every morning rather than accumulating. "Added" =
-// created_at (or sale_date, for packages) is today, which stays true
-// regardless of whatever happens to the job's status afterward.
+// How many jobsheets, Restore Bike jobs, and Services Combo sales are
+// dated today — a rolling daily snapshot, not a month total, so it's
+// naturally different every morning rather than accumulating. Counted by
+// the job's own Job Date (started_date), not when it was actually entered
+// into the system — a jobsheet for an earlier date that a PIC only gets
+// around to uploading today shouldn't inflate "today"'s count, and one
+// genuinely dated today should count even if it's entered a day late.
 export async function getTodayActivity(onlyBranch?: Branch): Promise<TodayActivity> {
   await requireApproved();
   const todayStr = todayInMalaysia();
-  // Malaysia midnight, expressed as the correct UTC instant — not the
-  // host's own midnight, which is 8 hours off from Malaysia on Vercel (UTC).
-  const startOfDay = new Date(`${todayStr}T00:00:00+08:00`);
 
-  let jobsQuery = supabaseAdmin.from("cc_repair_jobs").select("job_type").gte("created_at", startOfDay.toISOString());
+  let jobsQuery = supabaseAdmin.from("cc_repair_jobs").select("job_type").eq("started_date", todayStr);
   if (onlyBranch) jobsQuery = jobsQuery.eq("branch", onlyBranch);
 
   let packagesQuery = supabaseAdmin.from("cc_package_sales").select("id", { count: "exact", head: true }).eq("sale_date", todayStr);
