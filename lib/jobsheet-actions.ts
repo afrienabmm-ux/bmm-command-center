@@ -5,7 +5,7 @@
 // route has no such limit.
 import { requireApproved } from "./current-user";
 import { supabaseAdmin } from "./supabase-server";
-import { scanJobsheetImage, extractTextFromPdf } from "./vision";
+import { scanJobsheetImage, scanJobsheetPdf } from "./vision";
 import { extractItemsWithAi } from "./ai-item-extract";
 import type { Branch } from "./branch";
 
@@ -651,29 +651,17 @@ export async function scanJobsheet(
 ): Promise<{ data: ScannedJobsheet } | { error: string }> {
   await requireApproved();
   try {
-    // Loaded once up front and reused for whichever branch below runs —
-    // fetched in parallel with the OCR/PDF-text call rather than after it,
-    // since neither depends on the other.
+    // Loaded once up front and reused below — fetched in parallel with
+    // the OCR call rather than after it, since neither depends on the
+    // other.
     const catalogLookupPromise = loadCatalogLookup();
-    if (mimeType === "application/pdf") {
-      const { text, signatureDetected: pdfSignatureDetected, signatureDebug: pdfSignatureDebug } = await extractTextFromPdf(base64File);
-      if (!text.trim()) {
-        return { error: "Couldn't read any text from that file — try a clearer, well-lit photo." };
-      }
-      const parsed = parseJobsheetText(text);
-      if (parsed.items.length === 0) {
-        const aiItems = await extractItemsWithAi(text);
-        if (aiItems && aiItems.length > 0) parsed.items = aiItems;
-      }
-      // Discount/FOC rows are checked first and their code cleared, so the
-      // catalog match right after never mistakes one for a real part just
-      // because a garbled leftover code happens to be close to one.
-      const { lookup: pdfLookup, discounts: pdfDiscounts } = await catalogLookupPromise;
-      parsed.items = normalizeDiscountItems(parsed.items, pdfDiscounts);
-      parsed.items = applyCatalogData(parsed.items, pdfLookup);
-      return { data: { ...parsed, signatureDetected: pdfSignatureDetected, signatureDebug: pdfSignatureDebug } };
-    }
-    const { text, signatureDetected, signatureDebug } = await scanJobsheetImage(base64File);
+    // A PDF is rendered to an image first (see scanJobsheetPdf/
+    // rasterizePdfFirstPage in vision.ts) so it can go through the exact
+    // same OCR and ink-residual signature check as a phone photo, instead
+    // of a separate PDF-only text pipeline with its own weaker,
+    // text-based signature guess.
+    const { text, signatureDetected, signatureDebug } =
+      mimeType === "application/pdf" ? await scanJobsheetPdf(base64File) : await scanJobsheetImage(base64File);
     if (!text.trim()) {
       return { error: "Couldn't read any text from that file — try a clearer, well-lit photo." };
     }

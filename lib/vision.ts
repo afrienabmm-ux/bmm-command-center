@@ -94,44 +94,6 @@ function reconstructRowsFromWords(words: PositionedWord[], fallbackText: string)
     .join("\n");
 }
 
-// Same job as reconstructRowsFromWords (turn positioned words back into
-// physical rows) but for PDF text, which needs its own algorithm rather
-// than reusing that one: a PDF's text-layer coordinates come with
-// negligible noise (no phone-photo blur/skew), so two side-by-side
-// columns' rows sit only a couple px apart — comparing each word to a
-// row's running *average* position (as the photo version does) lets a
-// short chain of tightly-packed words (e.g. a label's own two/three
-// words) drag that average toward a neighboring column's row before the
-// word that's actually the closest real match gets its turn. Comparing
-// each word only to its immediate predecessor in sorted order avoids that
-// drift entirely — a real physical row's own words are still each only a
-// hair's-breadth apart, so nothing about genuine same-row grouping is
-// lost, but a whole cluster can no longer average its way into a
-// neighboring row that any single word in it wasn't actually close to.
-function reconstructPdfRows(words: PositionedWord[], fallbackText: string): string {
-  if (words.length === 0) return fallbackText;
-  const sorted = [...words].sort((a, b) => a.yCenter - b.yCenter);
-  const rows: PositionedWord[][] = [[sorted[0]]];
-  for (let i = 1; i < sorted.length; i++) {
-    const prev = sorted[i - 1];
-    const word = sorted[i];
-    const gap = Math.abs(word.yCenter - prev.yCenter);
-    if (gap < Math.min(word.height, prev.height) * 0.45) {
-      rows[rows.length - 1].push(word);
-    } else {
-      rows.push([word]);
-    }
-  }
-  return rows
-    .map((row) =>
-      row
-        .sort((a, b) => a.x - b.x)
-        .map((w) => w.text)
-        .join(" ")
-    )
-    .join("\n");
-}
-
 // A phone photo of a paper form has uneven lighting, shadows, and JPEG
 // noise that hurts OCR accuracy (either engine) much more than a clean
 // screenshot — grayscale + contrast stretch + a touch of sharpening
@@ -503,44 +465,6 @@ async function detectSignature(buffer: Buffer, words: PositionedWord[], imageWid
   return { result: maxScore > INK_RESIDUAL_THRESHOLD, debug };
 }
 
-// PDF equivalent of detectSignature — there's no pixel buffer to crop and
-// score for ink texture (a PDF's text layer has no image data at all), so
-// this looks for the same thing a person would: is there any text at all
-// sitting in the box next to "Customer Signature" that isn't the label
-// itself or the DATE/TIME printed beside it. A real signature that reads
-// as legible-ish strokes (initials, a stylized name) shows up here as a
-// stray recognized word — as this exact template did, its very real
-// signature turning into the word "Aim" — but genuine illegible cursive
-// won't produce anything, so this only ever confirms a signature, never
-// rules one out; a null/false result still just means "couldn't tell",
-// same as the photo path.
-function detectPdfSignature(words: PositionedWord[]): SignatureCheck {
-  const label = findCustomerSignatureLabel(words);
-  if (!label) return { result: null, debug: "no 'Customer Signature' label found in the PDF's text" };
-
-  const boxWidth = label.height * 14;
-  const left = label.x - boxWidth * 0.3;
-  const right = label.x + boxWidth * 0.7;
-  const verticalMargin = label.height * 4;
-  const top = label.yCenter - verticalMargin;
-  const bottom = label.yCenter + verticalMargin;
-  const BOILERPLATE = /^(customer|signature|date|time)$/i;
-
-  const stray = words.find((w) => {
-    if (w === label) return false;
-    if (BOILERPLATE.test(w.text.replace(/[^a-z]/gi, ""))) return false;
-    return w.x >= left && w.x <= right && w.yCenter >= top && w.yCenter <= bottom;
-  });
-
-  const debug = `label@(${Math.round(label.x)},${Math.round(label.yCenter)}) box=[${Math.round(left)},${Math.round(top)}]-[${Math.round(right)},${Math.round(bottom)}] ${stray ? `found "${stray.text}"` : "no extra text found"}`;
-  // Absence of a stray word is NOT treated as "confirmed unsigned" (unlike
-  // the photo path's ink-residual check, which can commit to that because
-  // it's looking at real pixels) — most genuine cursive signatures produce
-  // no recognizable text at all, so a firm `false` here would wrongly flag
-  // plenty of actually-signed PDFs. Only a positive find is trustworthy.
-  return { result: stray ? true : null, debug };
-}
-
 export type JobsheetScanResult = { text: string; signatureDetected: boolean | null; signatureDebug: string };
 
 // Same OCR pipeline as extractTextFromImage, plus a best-effort signature
@@ -562,117 +486,57 @@ export async function scanJobsheetImage(base64Image: string): Promise<JobsheetSc
   return { text, signatureDetected: signatureCheck.result, signatureDebug: signatureCheck.debug };
 }
 
-type VisionNormVertex = { x?: number; y?: number };
-type VisionSymbol = { text?: string };
-type VisionWord = {
-  symbols?: VisionSymbol[];
-  boundingBox?: { normalizedVertices?: VisionNormVertex[] };
-};
-type VisionParagraph = { words?: VisionWord[] };
-type VisionBlock = { paragraphs?: VisionParagraph[] };
-type VisionPage = { width?: number; height?: number; blocks?: VisionBlock[] };
-type VisionFilePageResponse = {
-  fullTextAnnotation?: { text?: string; pages?: VisionPage[] };
-  error?: { message?: string };
-};
-type VisionFileResponse = { responses?: { responses?: VisionFilePageResponse[]; error?: { message?: string } }[] };
-
-// PDFs skip the whole rasterize-then-OCR dance (sharp/Tesseract can't read
-// PDF pages at all on this build) by handing the file straight to Google
-// Vision's files:annotate endpoint, which accepts PDF input directly and
-// returns each page's recognized text — no local rendering step needed.
-// Only works when Vision is configured; there's no OCR.space/Tesseract
-// fallback for PDF like there is for photos.
+// Renders a scanned PDF's first page to a real image, so it can go
+// through the exact same pipeline a phone photo does (scanJobsheetImage
+// below) — the same OCR, the same row-reconstruction already tuned
+// against many real jobsheets, and critically, a real ink-residual
+// signature check instead of a text-based guess. A PDF has no pixels of
+// its own to inspect (that's the whole reason the previous approach had
+// to ask Vision to read the PDF's text directly and could only ever
+// confirm a signature that happened to read as legible text) — rendering
+// it once up front turns "scanned PDF" into "just another photo" for
+// every step after this one.
 //
-// A PDF's fullTextAnnotation.text alone reads in column-then-row order
-// (all the field labels first, then all their colon-prefixed values much
-// further down) rather than left-to-right per physical line, since a
-// "scan to PDF" app's text layer is laid out that way — every label:value
-// regex in jobsheet-actions.ts expects them on the same line, like the
-// photo path already produces. So each word's own position is pulled out
-// and run through the same row-reconstruction used for photos, instead of
-// trusting Vision's own reading order. The same per-word positions are
-// also what detectPdfSignature runs on, so the label lookup only happens
-// once per page and both jobs get built from the identical parsed data.
-export async function extractTextFromPdf(
-  base64Pdf: string
-): Promise<{ text: string; signatureDetected: boolean | null; signatureDebug: string }> {
-  const apiKey = process.env.GOOGLE_VISION_API_KEY;
-  if (!apiKey) {
-    throw new Error("PDF scanning needs Google Vision to be configured — please upload a photo (JPG or PNG) instead.");
-  }
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 45000);
+// pdfjs-dist's own worker/wasm loading (built for a browser) doesn't
+// apply here — imported directly and driven synchronously in this same
+// process instead. Its JBIG2/JPEG2000 decoders load their .wasm files
+// from `wasmUrl` at runtime, which Next's automatic bundler can't see (no
+// static import to trace) — see PDFJS_TRACE_INCLUDES in next.config.ts,
+// which force-includes those files in the deployed function the same way
+// tesseract.js's language data already needed to be.
+async function rasterizePdfFirstPage(base64Pdf: string): Promise<Buffer> {
+  const [pdfjsLib, canvasLib, path, url] = await Promise.all([
+    import("pdfjs-dist/legacy/build/pdf.mjs"),
+    import("@napi-rs/canvas"),
+    import("path"),
+    import("url"),
+  ]);
+  const wasmUrl = url.pathToFileURL(path.join(process.cwd(), "node_modules/pdfjs-dist/wasm") + path.sep).href;
+
+  const doc = await pdfjsLib.getDocument({ data: new Uint8Array(Buffer.from(base64Pdf, "base64")), wasmUrl }).promise;
+  const page = await doc.getPage(1);
+  // Matches the width preprocessForOcr upscales a small photo to — plenty
+  // of resolution for OCR and for the ink-residual check's own crops
+  // without ballooning render time.
+  const nativeViewport = page.getViewport({ scale: 1 });
+  const scale = 1600 / nativeViewport.width;
+  const viewport = page.getViewport({ scale });
+  const canvas = canvasLib.createCanvas(viewport.width, viewport.height);
+  const ctx = canvas.getContext("2d");
+  await page.render({
+    canvas: canvas as unknown as HTMLCanvasElement,
+    canvasContext: ctx as unknown as CanvasRenderingContext2D,
+    viewport,
+  }).promise;
+  return canvas.toBuffer("image/png");
+}
+
+export async function scanJobsheetPdf(base64Pdf: string): Promise<JobsheetScanResult> {
+  let imageBuffer: Buffer;
   try {
-    const res = await fetch(`https://vision.googleapis.com/v1/files:annotate?key=${apiKey}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      signal: controller.signal,
-      body: JSON.stringify({
-        requests: [
-          {
-            inputConfig: { content: base64Pdf, mimeType: "application/pdf" },
-            features: [{ type: "DOCUMENT_TEXT_DETECTION" }],
-            // A jobsheet is one page — a couple extra in case the PDF
-            // has a blank cover or a duplicate page; out-of-range pages
-            // are silently skipped by Vision rather than erroring.
-            pages: [1, 2, 3],
-          },
-        ],
-      }),
-    });
-    if (!res.ok) {
-      throw new Error("Couldn't read that PDF — please upload a photo (JPG or PNG) instead.");
-    }
-    const json = (await res.json()) as VisionFileResponse;
-    const fileResult = json.responses?.[0];
-    if (!fileResult || fileResult.error) {
-      throw new Error("Couldn't read that PDF — please upload a photo (JPG or PNG) instead.");
-    }
-    const perPageText: string[] = [];
-    let signatureDetected: boolean | null = null;
-    let signatureDebug = "no 'Customer Signature' label found in the PDF's text";
-    let signatureLabelFound = false;
-    for (const pageResponse of fileResult.responses ?? []) {
-      const page = pageResponse.fullTextAnnotation?.pages?.[0];
-      const fallback = pageResponse.fullTextAnnotation?.text ?? "";
-      if (!page?.width || !page?.height) {
-        perPageText.push(fallback);
-        continue;
-      }
-      const { width, height } = page;
-      const words: PositionedWord[] = [];
-      for (const block of page.blocks ?? []) {
-        for (const paragraph of block.paragraphs ?? []) {
-          for (const word of paragraph.words ?? []) {
-            const text = (word.symbols ?? []).map((s) => s.text ?? "").join("");
-            const vertices = word.boundingBox?.normalizedVertices;
-            if (!text || !vertices || vertices.length === 0) continue;
-            const ys = vertices.map((v) => (v.y ?? 0) * height);
-            const xs = vertices.map((v) => (v.x ?? 0) * width);
-            const top = Math.min(...ys);
-            const bottom = Math.max(...ys);
-            words.push({ text, x: Math.min(...xs), yCenter: (top + bottom) / 2, height: bottom - top || 20 });
-          }
-        }
-      }
-      perPageText.push(reconstructPdfRows(words, fallback));
-      // First page whose "Customer Signature" label is actually found
-      // wins — a jobsheet is one page in practice, but a multi-page PDF
-      // shouldn't have an earlier page's missing label silently mask a
-      // later page's real result.
-      if (!signatureLabelFound && findCustomerSignatureLabel(words)) {
-        signatureLabelFound = true;
-        const check = detectPdfSignature(words);
-        signatureDetected = check.result;
-        signatureDebug = check.debug;
-      }
-    }
-    return { text: perPageText.join("\n").trim(), signatureDetected, signatureDebug };
-  } catch (err) {
-    if (err instanceof Error && err.message.startsWith("Couldn't read")) throw err;
+    imageBuffer = await rasterizePdfFirstPage(base64Pdf);
+  } catch {
     throw new Error("Couldn't read that PDF — please upload a photo (JPG or PNG) instead.");
-  } finally {
-    clearTimeout(timeout);
   }
+  return scanJobsheetImage(imageBuffer.toString("base64"));
 }
