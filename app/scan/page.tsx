@@ -17,6 +17,8 @@ import {
   getRepairJobById,
 } from "@/lib/repairs-actions";
 import { getAllMechanics, getMechanics } from "@/lib/mechanics-actions";
+import { getGenbluRegistrations, getAllBranchesGenbluRegistrations } from "@/lib/genblu-actions";
+import { namesLikelyMatch } from "@/lib/name-matching";
 import type { Branch } from "@/lib/branch";
 import { getAllCatalogProducts } from "@/lib/catalog-actions";
 import { getPackages } from "@/lib/packages-actions";
@@ -60,15 +62,17 @@ export default async function ScanPage({ searchParams }: { searchParams: Promise
   // database load on every single phone-page visit. Only Management/
   // Administrator opening this page still needs the all-branches version.
   const ownBranch = locked ? (currentUser.homeBranch as Branch) : null;
-  const [branchSelection, allActiveJobs, completedJobs, mechanics, catalogProducts, packages, editingJob] = await Promise.all([
-    getActiveBranchSelection(currentUser),
-    ownBranch ? getActiveRepairJobs(ownBranch) : getAllBranchesActiveRepairJobs(),
-    ownBranch ? getCompletedRepairJobs(ownBranch) : getAllBranchesCompletedRepairJobs(),
-    ownBranch ? getMechanics(ownBranch) : getAllMechanics(),
-    getAllCatalogProducts(),
-    getPackages(),
-    jobId ? getRepairJobById(jobId) : null,
-  ]);
+  const [branchSelection, allActiveJobs, completedJobs, mechanics, catalogProducts, packages, editingJob, genbluRegistrations] =
+    await Promise.all([
+      getActiveBranchSelection(currentUser),
+      ownBranch ? getActiveRepairJobs(ownBranch) : getAllBranchesActiveRepairJobs(),
+      ownBranch ? getCompletedRepairJobs(ownBranch) : getAllBranchesCompletedRepairJobs(),
+      ownBranch ? getMechanics(ownBranch) : getAllMechanics(),
+      getAllCatalogProducts(),
+      getPackages(),
+      jobId ? getRepairJobById(jobId) : null,
+      ownBranch ? getGenbluRegistrations(ownBranch) : getAllBranchesGenbluRegistrations(),
+    ]);
 
   // Any active Walk-in job without an End Date yet is a candidate to pick
   // here — this is what lets a PIC set the End Date from their phone and
@@ -113,9 +117,15 @@ export default async function ScanPage({ searchParams }: { searchParams: Promise
 
   // Most recent Walk-in jobs (active or completed) — lets the GenBlu form
   // offer picking the customer's name off a known jobsheet instead of
-  // trusting OCR's read of the screenshot alone.
+  // trusting OCR's read of the screenshot alone. A customer already
+  // registered (same branch) is left off this list entirely — there's
+  // nothing left to do for them here, and leaving them in just made it
+  // easy to pick someone already done by mistake.
   const recentJobs: RecentJobsheetCustomer[] = [...allActiveJobs, ...completedJobs]
     .filter((j) => j.jobType === "Walk-in" && (!locked || j.branch === currentUser.homeBranch))
+    .filter(
+      (j) => !genbluRegistrations.some((r) => r.branch === j.branch && namesLikelyMatch(r.customerName, j.customerName))
+    )
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
     .slice(0, 25)
     .map((j) => ({ jobId: j.id, branch: j.branch, customerName: j.customerName, customerPlateNo: j.plateNo, date: j.createdAt }));
