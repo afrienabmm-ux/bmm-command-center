@@ -505,13 +505,23 @@ export async function scanJobsheetImage(base64Image: string): Promise<JobsheetSc
 // which force-includes those files in the deployed function the same way
 // tesseract.js's language data already needed to be.
 async function rasterizePdfFirstPage(base64Pdf: string): Promise<Buffer> {
-  const [pdfjsLib, canvasLib, path, url] = await Promise.all([
+  const [pdfjsLib, canvasLib, path] = await Promise.all([
     import("pdfjs-dist/legacy/build/pdf.mjs"),
     import("@napi-rs/canvas"),
     import("path"),
-    import("url"),
   ]);
-  const wasmUrl = url.pathToFileURL(path.join(process.cwd(), "node_modules/pdfjs-dist/wasm") + path.sep).href;
+  // A plain filesystem path, not a file:// URL — pdfjs's own Node data
+  // factory (used automatically when it detects it's running under Node)
+  // reads this straight via `fs.readFile(url)`, which needs an ordinary
+  // path string. A file:// string looks equally plausible (browsers want
+  // exactly that), but fs.readFile doesn't parse the scheme out of a
+  // string — it treats the whole thing as one literal filename — so a
+  // wasmUrl built as a URL silently fails to resolve to any real file at
+  // read time (this is also why it depends on the OS: on Windows the
+  // bogus path can still stumble onto content that half-renders; on
+  // Vercel's Linux runtime it fails outright and the JBIG2-encoded scan
+  // image never decodes, leaving the whole page blank).
+  const wasmUrl = path.join(process.cwd(), "node_modules/pdfjs-dist/wasm") + "/";
 
   const doc = await pdfjsLib.getDocument({ data: new Uint8Array(Buffer.from(base64Pdf, "base64")), wasmUrl }).promise;
   const page = await doc.getPage(1);
