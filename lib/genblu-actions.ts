@@ -146,11 +146,24 @@ type PointsReading = { value: number; isBalance: boolean };
 // in roughly the same column — so when word positions are available, find
 // it that way first, and only fall back to a text-only guess when they're
 // not (e.g. the Tesseract engine hands back less reliable boxes).
+// A brand-new customer's points figure is "0" — at the small font size
+// this card prints it at, OCR (especially off a real camera photo of the
+// screen rather than a clean digital screenshot) very readily misreads
+// the lone digit as the letter "O" instead. Normalizing O/o to 0 before
+// checking whether a candidate word is numeric catches that specific,
+// common-for-this-page misread without opening the door to any other
+// letter being mistaken for a digit.
+function normalizeDigitLookalikes(token: string): string {
+  return token.replace(/[Oo]/g, "0");
+}
+
 function findPointsAboveLabel(words: PositionedWord[]): number | null {
   const rewardIdx = words.findIndex((w) => /^reward$/i.test(w.text));
   if (rewardIdx === -1) return null;
   const label = words[rewardIdx];
-  const numeric = words.filter((w) => /^[\d,]+$/.test(w.text) && w.yCenter < label.yCenter - label.height * 0.3);
+  const numeric = words.filter(
+    (w) => /^[\d,]+$/.test(normalizeDigitLookalikes(w.text)) && w.yCenter < label.yCenter - label.height * 0.3
+  );
   if (numeric.length === 0) return null;
   // Same column as the label first (a big card's number sits above its own
   // caption, not the neighboring card's) — widen to "anything above" only
@@ -158,18 +171,26 @@ function findPointsAboveLabel(words: PositionedWord[]): number | null {
   const sameColumn = numeric.filter((w) => Math.abs(w.x - label.x) < label.height * 6);
   const pool = sameColumn.length > 0 ? sameColumn : numeric;
   const closest = pool.reduce((a, b) => (b.yCenter > a.yCenter ? b : a));
-  const num = Number(closest.text.replace(/,/g, ""));
+  const num = Number(normalizeDigitLookalikes(closest.text).replace(/,/g, ""));
   return Number.isNaN(num) ? null : num;
 }
 
 function extractPointsAccrued(text: string, words: PositionedWord[] = []): PointsReading | null {
+  // Tried before the plain text regex below, not after — the home screen
+  // this feeds a "Reward" label only exists on, and the whole reason
+  // findPointsAboveLabel exists (see its own comment) is that the naive
+  // text regex can grab the neighboring "membership expires on" card's
+  // date instead of the real points figure. Checking position first means
+  // that safeguard actually gets a chance to run, rather than the text
+  // regex already having (wrongly) matched something before it's tried.
+  const fromPosition = findPointsAboveLabel(words);
+  if (fromPosition !== null) return { value: fromPosition, isBalance: true };
+
   const labeled = text.match(/points[^\d]{0,20}(\d[\d,]{0,6})/i);
   if (labeled) {
     const num = Number(labeled[1].replace(/,/g, ""));
     if (!Number.isNaN(num)) return { value: num, isBalance: false };
   }
-  const fromPosition = findPointsAboveLabel(words);
-  if (fromPosition !== null) return { value: fromPosition, isBalance: true };
 
   // Text-only fallback — same expiry-stripping safety net as before, for
   // whenever word positions aren't available at all.
@@ -217,15 +238,33 @@ function extractHomeScreenCustomerName(text: string): string | null {
     .map((l) => l.trim())
     .filter(Boolean);
   const isNameLine = (l: string) => /^[A-Za-z][A-Za-z .'-]{1,}$/.test(l);
+  // Once a name line is already found, a further wrapped line above it
+  // has to match the app's own all-caps display style for the name — a
+  // real photo of the screen (glare, the header illustration, a cracked
+  // screen protector) can misread a stray line above it as ordinary
+  // letters-only text too (background text behind the phone bleeding
+  // through, an odd glyph from the header graphic), and those come back
+  // lowercase/mixed-case rather than matching the name's own casing.
+  const isUppercaseNameLine = (l: string) => /^[A-Z][A-Z .'-]{1,}$/.test(l);
   const phoneIdx = lines.findIndex((l) => /^\d{2,4}[-\s]\d{3,4}[-\s]\d{3,4}$/.test(l));
 
   if (phoneIdx > 0) {
+    // A camera photo of the screen (as opposed to a clean digital
+    // screenshot) often has one stray misread character sitting directly
+    // between the name and the phone number — a smudge or glare artifact
+    // in the header graphic behind them, not real content. Tolerated once
+    // (bounded to a short, 1-2 character line) before giving up entirely.
+    let start = phoneIdx - 1;
+    if (start >= 0 && !isNameLine(lines[start]) && lines[start].length <= 2) start--;
+
     // A long name sometimes wraps across two lines on the app's home
-    // screen — walk backward from the phone number, joining every
-    // consecutive name-shaped line above it, not just the one right next
-    // to it (which grabbed only the first word of a wrapped name).
+    // screen — walk backward from there, joining every consecutive
+    // name-shaped line above it, not just the one right next to it (which
+    // grabbed only the first word of a wrapped name).
     const nameLines: string[] = [];
-    for (let i = phoneIdx - 1; i >= 0 && nameLines.length < 3 && isNameLine(lines[i]); i--) {
+    for (let i = start; i >= 0 && nameLines.length < 3; i--) {
+      const matches = nameLines.length === 0 ? isNameLine(lines[i]) : isUppercaseNameLine(lines[i]);
+      if (!matches) break;
       nameLines.unshift(lines[i]);
     }
     if (nameLines.length > 0) return nameLines.join(" ");
