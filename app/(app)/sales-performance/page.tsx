@@ -86,7 +86,7 @@ export default async function SalesPerformancePage({
     // round trip — the matching target has to already be on hand.
     Promise.all(BRANCHES.map(({ value }) => getMonthlyTarget(value, year, month))),
     Promise.all(BRANCHES.map(({ value }) => getBranchAchievedInRange(value, weekStart, weekEnd))),
-    getRevenuePace(year, month, onlyBranch),
+    getRevenuePace(year, month, onlyBranch, day),
     getTodayActivity(onlyBranch),
     getPackageSalesBreakdown(year, month),
   ]);
@@ -138,7 +138,7 @@ export default async function SalesPerformancePage({
           />
           <StatCard
             icon={Wallet}
-            label="Service Revenue Today"
+            label={revenuePace.isRealToday ? "Service Revenue Today" : `Service Revenue — Day ${day}`}
             value={formatCurrency(serviceRevenueToday)}
             color="text-emerald-700 bg-emerald-500/10"
             href="/repairs/walk-in"

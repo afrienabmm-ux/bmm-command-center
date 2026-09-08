@@ -46,6 +46,10 @@ export type BranchRevenuePace = {
 
 export type RevenuePace = {
   today: number;
+  // False when `today` above is a past day picked via Sales Performance's
+  // Day selector rather than the real Malaysia clock date — lets the UI
+  // avoid labelling a replayed past day's numbers as "today".
+  isRealToday: boolean;
   totalDays: number;
   totalWorkingDays: number;
   combinedTarget: number;
@@ -65,7 +69,16 @@ type SaleWithPrice = { branch: Branch; sale_date: string | null; cc_packages: { 
 // one branch instead of the company-wide combined view — same shape
 // either way, so the RevenuePace component doesn't need to know which
 // mode it's in.
-export async function getRevenuePace(year: number, month: number, onlyBranch?: Branch): Promise<RevenuePace> {
+export async function getRevenuePace(
+  year: number,
+  month: number,
+  onlyBranch?: Branch,
+  // Sales Performance's Day selector — lets the GM replay this whole
+  // section (achieved-so-far, behind-amount, the chart's default marker)
+  // as of any past day in the month. Omitted by the Dashboard's own call
+  // site, which always means the real clock's today, same as before.
+  selectedDay?: number
+): Promise<RevenuePace> {
   await requireApproved();
   const { from, to, totalDays } = monthRange(year, month);
 
@@ -76,7 +89,9 @@ export async function getRevenuePace(year: number, month: number, onlyBranch?: B
   const [todayYear, todayMonthNum, todayDate] = todayInMalaysia().split("-").map(Number);
   const isCurrentMonth = year === todayYear && month === todayMonthNum;
   const isPastMonth = year < todayYear || (year === todayYear && month < todayMonthNum);
-  const today = isCurrentMonth ? todayDate : isPastMonth ? totalDays : 0;
+  const realToday = isCurrentMonth ? todayDate : isPastMonth ? totalDays : 0;
+  const today = selectedDay ? Math.min(selectedDay, totalDays) : realToday;
+  const isRealToday = today === realToday;
 
   const [{ data: targets, error: targetsErr }, { data: jobs, error: jobsErr }, { data: sales, error: salesErr }] = await Promise.all([
     supabaseAdmin
@@ -177,6 +192,7 @@ export async function getRevenuePace(year: number, month: number, onlyBranch?: B
 
   return {
     today,
+    isRealToday,
     totalDays,
     totalWorkingDays,
     combinedTarget,

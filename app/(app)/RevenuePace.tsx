@@ -16,7 +16,7 @@ const PAD_X = 24;
 // line keeps going to month-end so you can see where it's headed.
 function RevenueRunRateChart({ data, title }: { data: RevenuePaceData; title: string }) {
   const [containerRef, containerWidth] = useContainerWidth(640);
-  const { dailyPoints, today, totalDays } = data;
+  const { dailyPoints, today, totalDays, isRealToday } = data;
   // The marker sits on "today" until you move the mouse over the chart —
   // then it follows your cursor so you can check any day, not just today's.
   const [hoverDay, setHoverDay] = useState<number | null>(null);
@@ -120,7 +120,7 @@ function RevenueRunRateChart({ data, title }: { data: RevenuePaceData; title: st
           >
             <p className="font-semibold text-neutral-900">
               Day {markerDay}
-              {markerDay === today && !hoverDay ? " (today)" : ""}
+              {markerDay === today && !hoverDay && isRealToday ? " (today)" : ""}
             </p>
             {markerDay <= today && (
               <p className="text-neutral-600 mt-1">
@@ -137,7 +137,17 @@ function RevenueRunRateChart({ data, title }: { data: RevenuePaceData; title: st
   );
 }
 
-function BranchRevenueCard({ pace, revenueToday }: { pace: BranchRevenuePace; revenueToday: number }) {
+function BranchRevenueCard({
+  pace,
+  revenueToday,
+  asOfDay,
+  isRealToday,
+}: {
+  pace: BranchRevenuePace;
+  revenueToday: number;
+  asOfDay: number;
+  isRealToday: boolean;
+}) {
   const pct = pace.target > 0 ? Math.min(100, Math.round((pace.achieved / pace.target) * 100)) : 0;
   const markerPct = pace.target > 0 ? Math.min(100, Math.round((pace.expectedByToday / pace.target) * 100)) : 0;
 
@@ -174,8 +184,12 @@ function BranchRevenueCard({ pace, revenueToday }: { pace: BranchRevenuePace; re
             <div className="absolute top-0 bottom-0 w-px bg-neutral-800/60" style={{ left: `${markerPct}%` }} />
           </div>
           <div className="flex items-center justify-between mt-1.5">
-            <p className="text-xs text-neutral-500">marker = should be {formatCurrency(pace.expectedByToday)} by today</p>
-            <p className="text-xs text-neutral-400 whitespace-nowrap">{formatCurrency(revenueToday)} today</p>
+            <p className="text-xs text-neutral-500">
+              marker = should be {formatCurrency(pace.expectedByToday)} by {isRealToday ? "today" : `Day ${asOfDay}`}
+            </p>
+            <p className="text-xs text-neutral-400 whitespace-nowrap">
+              {formatCurrency(revenueToday)} {isRealToday ? "today" : `on Day ${asOfDay}`}
+            </p>
           </div>
           <div className="mt-3 bg-neutral-50 rounded-lg px-3 py-2">
             <p className="text-xs text-neutral-600">
@@ -198,7 +212,13 @@ export default function RevenuePace({ data, title = "Revenue Run-Rate — all br
           className={`mt-3 grid ${data.branches.length === 1 ? "grid-cols-1" : "grid-cols-1 md:grid-cols-3"} gap-4`}
         >
           {data.branches.map((b) => (
-            <BranchRevenueCard key={b.branch} pace={b} revenueToday={b.revenueToday} />
+            <BranchRevenueCard
+              key={b.branch}
+              pace={b}
+              revenueToday={b.revenueToday}
+              asOfDay={data.today}
+              isRealToday={data.isRealToday}
+            />
           ))}
         </div>
       </div>
