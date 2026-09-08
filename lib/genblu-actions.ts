@@ -201,6 +201,43 @@ function applyPointsReading(current: number | null, reading: PointsReading | nul
   return reading.isBalance ? reading.value : (current ?? 0) + reading.value;
 }
 
+// Registering (or updating) a Tracker entry with a screenshot showing a
+// genuine award ("Points Accrued: X", not a synced home-screen balance —
+// see PointsReading above) is the same real-world event as logging a Point
+// Allocation, so it's mirrored into cc_genblu_transactions too — otherwise
+// the Tracker's running total moves but the Allocation log never shows
+// where those points actually came from, and the two views don't tally.
+// A balance reading is deliberately excluded: it's syncing a total that
+// may already include awards logged elsewhere (or logged before this
+// system existed), not a new award happening right now.
+//
+// Only ever INSERTS a transaction row — never touches cc_genblu_registrations
+// itself, since the caller already applied this same reading to the
+// Tracker row directly (via applyPointsReading). Doing both would double
+// the points on the Tracker card.
+async function logTrackerAwardAsTransaction(input: {
+  branch: Branch;
+  customerName: string;
+  screenshotPath: string;
+  screenshotHash: string;
+  points: number;
+  uploadedBy: string;
+}): Promise<void> {
+  await supabaseAdmin.from("cc_genblu_transactions").insert({
+    branch: input.branch,
+    customer_name: input.customerName,
+    membership_number: null,
+    product_category: null,
+    points: input.points,
+    transaction_date: null,
+    transaction_time: null,
+    service_coupon: false,
+    screenshot_path: input.screenshotPath,
+    screenshot_hash: input.screenshotHash,
+    uploaded_by: input.uploadedBy,
+  });
+}
+
 // The GenBlu app screenshot should show the same customer's name — read it
 // with the same OCR used for jobsheet scans, check it appears somewhere on
 // the screenshot, and pull out the real points balance while we're at it
@@ -360,8 +397,12 @@ export async function addGenbluRegistrationAction(formData: FormData): Promise<{
   }
 
   let screenshotPath: string | null = null;
+  let screenshotHash: string | null = null;
   let pointsAccrued: number | null = null;
+  let awardReading: PointsReading | null = null;
   if (screenshot && screenshot.size > 0) {
+    const buffer = Buffer.from(await screenshot.arrayBuffer());
+    screenshotHash = hashScreenshotBuffer(buffer);
     const ext = screenshot.name.split(".").pop() || "jpg";
     const path = `${branch}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
     // OCR and the storage upload don't depend on each other — run them
@@ -377,6 +418,7 @@ export async function addGenbluRegistrationAction(formData: FormData): Promise<{
     if (uploadResult.error) return { error: `Couldn't upload the screenshot: ${uploadResult.error.message}` };
     screenshotPath = path;
     pointsAccrued = applyPointsReading(null, reading);
+    awardReading = reading;
   }
 
   const { error } = await supabaseAdmin.from("cc_genblu_registrations").insert({
@@ -386,9 +428,22 @@ export async function addGenbluRegistrationAction(formData: FormData): Promise<{
     customer_name: customerName,
     customer_plate_no: customerPlateNo,
     screenshot_path: screenshotPath,
+    screenshot_hash: screenshotHash,
     points_accrued: pointsAccrued,
   });
   if (error) return { error: error.message };
+  // Same screenshot proves an actual award event, not just a Tracker
+  // update — mirror it into Point Allocation too, so the two views tally.
+  if (awardReading && !awardReading.isBalance && screenshotPath && screenshotHash) {
+    await logTrackerAwardAsTransaction({
+      branch,
+      customerName,
+      screenshotPath,
+      screenshotHash,
+      points: awardReading.value,
+      uploadedBy: salespersonName,
+    });
+  }
   await logActivity(user, "Added GenBlu registration", `${customerName} (${branch})`);
   revalidatePath("/genblu");
 }
@@ -511,6 +566,7 @@ export async function ensureGenbluRegistrationAction(input: {
   let screenshotPath: string | null = null;
   let screenshotHash: string | null = null;
   let pointsAccrued: number | null = null;
+  let awardReading: PointsReading | null = null;
   const screenshot = input.screenshot;
   if (screenshot && screenshot.size > 0) {
     const buffer = Buffer.from(await screenshot.arrayBuffer());
@@ -548,6 +604,7 @@ export async function ensureGenbluRegistrationAction(input: {
       };
     }
     pointsAccrued = applyPointsReading(null, analysis?.pointsReading ?? null);
+    awardReading = analysis?.pointsReading ?? null;
     screenshotPath = path;
     screenshotHash = hash;
   }
@@ -567,6 +624,18 @@ export async function ensureGenbluRegistrationAction(input: {
     source: "has_jobsheet",
   });
   if (error) return { error: error.message };
+  // Same screenshot proves an actual award event, not just a Tracker
+  // update — mirror it into Point Allocation too, so the two views tally.
+  if (awardReading && !awardReading.isBalance && screenshotPath && screenshotHash) {
+    await logTrackerAwardAsTransaction({
+      branch: input.branch,
+      customerName,
+      screenshotPath,
+      screenshotHash,
+      points: awardReading.value,
+      uploadedBy: user.name,
+    });
+  }
   await logActivity(user, "Registered GenBlu (from jobsheet)", `${customerName} (${input.branch})`);
   revalidatePath("/genblu");
   return { created: true };
@@ -672,6 +741,19 @@ export async function attachGenbluScreenshotAction(input: {
     if (error) return { error: error.message };
   }
 
+  // Same screenshot proves an actual award event, not just a Tracker
+  // update — mirror it into Point Allocation too, so the two views tally.
+  if (pointsReading && !pointsReading.isBalance) {
+    await logTrackerAwardAsTransaction({
+      branch: input.branch,
+      customerName,
+      screenshotPath: path,
+      screenshotHash: hash,
+      points: pointsReading.value,
+      uploadedBy: user.name,
+    });
+  }
+
   await logActivity(user, "Uploaded GenBlu screenshot", `${customerName} (${input.branch})`);
   revalidatePath("/genblu");
   return { updated: true };
@@ -744,6 +826,7 @@ export async function submitPublicGenbluRegistrationAction(input: {
     };
   }
 
+  const pointsReading = analysis?.pointsReading ?? null;
   const { error } = await supabaseAdmin.from("cc_genblu_registrations").insert({
     branch: input.branch,
     salesperson_name: salespersonName,
@@ -752,11 +835,24 @@ export async function submitPublicGenbluRegistrationAction(input: {
     customer_plate_no: customerPlateNo,
     screenshot_path: path,
     screenshot_hash: hash,
-    points_accrued: applyPointsReading(null, analysis?.pointsReading ?? null),
+    points_accrued: applyPointsReading(null, pointsReading),
     source: "new_customer",
     name_mismatch_remark: input.nameMismatchRemark?.trim() || null,
   });
   if (error) return { error: error.message };
+
+  // Same screenshot proves an actual award event, not just a Tracker
+  // update — mirror it into Point Allocation too, so the two views tally.
+  if (pointsReading && !pointsReading.isBalance) {
+    await logTrackerAwardAsTransaction({
+      branch: input.branch,
+      customerName,
+      screenshotPath: path,
+      screenshotHash: hash,
+      points: pointsReading.value,
+      uploadedBy: salespersonName,
+    });
+  }
 
   revalidatePath("/genblu");
   return { registered: true };
