@@ -117,14 +117,17 @@ export type TodayActivity = { jobsheetCount: number; restoreBikeCount: number; p
 // into the system — a jobsheet for an earlier date that a PIC only gets
 // around to uploading today shouldn't inflate "today"'s count, and one
 // genuinely dated today should count even if it's entered a day late.
-export async function getTodayActivity(onlyBranch?: Branch): Promise<TodayActivity> {
+// Sales Performance's Day selector passes a past date here to replay that
+// day's snapshot instead of today's — the Dashboard's own call site omits
+// it and keeps showing the real today, same as before.
+export async function getTodayActivity(onlyBranch?: Branch, dateStr?: string): Promise<TodayActivity> {
   await requireApproved();
-  const todayStr = todayInMalaysia();
+  const targetDate = dateStr ?? todayInMalaysia();
 
-  let jobsQuery = supabaseAdmin.from("cc_repair_jobs").select("job_type").eq("started_date", todayStr);
+  let jobsQuery = supabaseAdmin.from("cc_repair_jobs").select("job_type").eq("started_date", targetDate);
   if (onlyBranch) jobsQuery = jobsQuery.eq("branch", onlyBranch);
 
-  let packagesQuery = supabaseAdmin.from("cc_package_sales").select("id", { count: "exact", head: true }).eq("sale_date", todayStr);
+  let packagesQuery = supabaseAdmin.from("cc_package_sales").select("id", { count: "exact", head: true }).eq("sale_date", targetDate);
   if (onlyBranch) packagesQuery = packagesQuery.eq("branch", onlyBranch);
 
   const [{ data, error }, { count: packagesSoldCount, error: pkgError }] = await Promise.all([jobsQuery, packagesQuery]);

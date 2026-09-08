@@ -87,7 +87,7 @@ export default async function SalesPerformancePage({
     Promise.all(BRANCHES.map(({ value }) => getMonthlyTarget(value, year, month))),
     Promise.all(BRANCHES.map(({ value }) => getBranchAchievedInRange(value, weekStart, weekEnd))),
     getRevenuePace(year, month, onlyBranch, day),
-    getTodayActivity(onlyBranch),
+    getTodayActivity(onlyBranch, selectedDate),
     getPackageSalesBreakdown(year, month),
   ]);
 
@@ -131,7 +131,7 @@ export default async function SalesPerformancePage({
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           <StatCard
             icon={ClipboardList}
-            label="Jobsheet Today"
+            label={revenuePace.isRealToday ? "Jobsheet Today" : `Jobsheet — Day ${day}`}
             value={todayActivity.jobsheetCount}
             color="text-red-700 bg-red-500/10"
             href="/repairs/walk-in"
@@ -145,7 +145,7 @@ export default async function SalesPerformancePage({
           />
           <StatCard
             icon={PackageCheck}
-            label="Services Combo Today"
+            label={revenuePace.isRealToday ? "Services Combo Today" : `Services Combo — Day ${day}`}
             value={todayActivity.packagesSoldCount}
             color="text-teal-700 bg-teal-500/10"
             href="/packages"
