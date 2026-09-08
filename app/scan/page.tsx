@@ -121,13 +121,18 @@ export default async function ScanPage({ searchParams }: { searchParams: Promise
   // registered (same branch) is left off this list entirely — there's
   // nothing left to do for them here, and leaving them in just made it
   // easy to pick someone already done by mistake.
+  //
+  // Capped generously rather than to just the last couple of days —
+  // GenbluQuickForm's own search box needs a deep enough pool to actually
+  // find an older jobsheet by plate number when staff search for one; the
+  // default (unfiltered) dropdown is what narrows down to the last 2 days.
   const recentJobs: RecentJobsheetCustomer[] = [...allActiveJobs, ...completedJobs]
     .filter((j) => j.jobType === "Walk-in" && (!locked || j.branch === currentUser.homeBranch))
     .filter(
       (j) => !genbluRegistrations.some((r) => r.branch === j.branch && namesLikelyMatch(r.customerName, j.customerName))
     )
     .sort((a, b) => (b.startedDate ?? b.createdAt).localeCompare(a.startedDate ?? a.createdAt))
-    .slice(0, 25)
+    .slice(0, 500)
     .map((j) => ({
       jobId: j.id,
       branch: j.branch,

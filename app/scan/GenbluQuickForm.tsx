@@ -75,7 +75,17 @@ export default function GenbluQuickForm({
 
   const filteredJobs = useMemo(() => {
     const q = search.trim().toLowerCase();
-    if (!q) return recentJobs;
+    // With no search typed, only the last 2 days show — the point of
+    // this list is picking today's (or yesterday's late) customer, not
+    // scrolling through everyone. Typing a plate or name reaches back
+    // through the whole list regardless of age, since a search is
+    // deliberate — staff already know who/what they're looking for.
+    if (!q) {
+      const twoDaysAgo = new Date();
+      twoDaysAgo.setDate(twoDaysAgo.getDate() - 2);
+      const cutoff = twoDaysAgo.toISOString().slice(0, 10);
+      return recentJobs.filter((j) => j.date >= cutoff);
+    }
     return recentJobs.filter(
       (j) => j.customerName.toLowerCase().includes(q) || j.customerPlateNo.toLowerCase().includes(q)
     );
