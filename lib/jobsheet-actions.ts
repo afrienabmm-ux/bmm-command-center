@@ -297,12 +297,18 @@ function parseJobsheetText(text: string): ScannedJobsheet {
   const nextMileageKm = f.nextMileageKm ?? "";
   const serviceType = f.serviceType ?? "";
   const nextServiceDate = f.nextServiceDate ? (toIsoDate(f.nextServiceDate) ?? "") : "";
-  // User ID is only ever a 3-digit number ("004") or a 2-letter code
-  // ("NI") — anything else caught by the label match is OCR noise
-  // (trailing text from the next field bleeding onto the same line), not
-  // a real ID, so it's dropped rather than filled in wrong.
+  // User ID is only ever a 3-digit number ("004"), a 2-letter code ("NI"),
+  // or a branch-prefixed code ("S-ST") — anything else caught by the label
+  // match is OCR noise (trailing text from the next field bleeding onto
+  // the same line), not a real ID, so it's dropped rather than filled in
+  // wrong. The dash form is checked first since a stray space either side
+  // of the dash ("S - ST", not uncommon) would otherwise stop the plain
+  // 2-letter pattern one character in and never reach it.
   const rawUserId = f.jobsheetUserId ?? "";
-  const jobsheetUserId = rawUserId.match(/^\d{3}\b/)?.[0] ?? rawUserId.match(/^[A-Za-z]{2}\b/)?.[0] ?? "";
+  const dashUserId = rawUserId.match(/^([A-Za-z0-9]{1,4})\s*-\s*([A-Za-z0-9]{1,4})\b/);
+  const jobsheetUserId = dashUserId
+    ? `${dashUserId[1]}-${dashUserId[2]}`
+    : (rawUserId.match(/^\d{3}\b/)?.[0] ?? rawUserId.match(/^[A-Za-z]{2}\b/)?.[0] ?? "");
 
   let branch: Branch | null = null;
   const upper = text.toUpperCase();
