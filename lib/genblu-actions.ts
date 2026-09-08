@@ -124,6 +124,20 @@ function condensedName(name: string): string {
   return name.toLowerCase().replace(/[^a-z0-9]/g, "");
 }
 
+// Only the front of the name has to show up on the screenshot, not the
+// whole thing — a real customer's name differs from what's typed on the
+// jobsheet more often in the middle or at the end (a missing middle
+// initial, "SUGUMARAN" vs "K SUGUMARAN", a dropped "BIN"/"BINTI") without
+// being a different person at all, while the given name up front is the
+// part that's actually reliable. Two words (or the whole name, if it's
+// only one word) is enough to still catch a genuinely different customer
+// — two unrelated people sharing just a first name is common, sharing
+// their first two names is not.
+function frontNameForMatch(name: string): string {
+  const words = name.trim().split(/\s+/).filter(Boolean).slice(0, 2);
+  return condensedName(words.join(" "));
+}
+
 // Two different GenBlu screens can carry a points number, and they mean
 // opposite things:
 //  - A "Points Accrued" confirmation screen is proof of one award (points
@@ -221,7 +235,7 @@ async function analyzeGenbluScreenshot(
   const buffer = Buffer.from(await screenshot.arrayBuffer());
   const base64 = buffer.toString("base64");
   const { text, words } = await extractTextAndWordsFromImage(base64);
-  const condensed = condensedName(customerName);
+  const condensed = frontNameForMatch(customerName);
   const nameMatches = !condensed || condensedName(text).includes(condensed);
   return { nameMatches, pointsReading: extractPointsAccrued(text, words) };
 }

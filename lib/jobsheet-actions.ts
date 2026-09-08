@@ -74,8 +74,12 @@ function extractPhoneNumber(raw: string): string {
   for (let windowSize = 1; windowSize <= 3; windowSize++) {
     for (let i = 0; i + windowSize <= tokens.length; i++) {
       const slice = tokens.slice(i, i + windowSize);
-      if (!slice.every((t) => /^\d+$/.test(t))) continue;
-      const found = findPhoneNumber(slice.join(""));
+      // A token can also be a phone number already printed with its own
+      // dash ("019-8933248") — allowed alongside the plain all-digit
+      // tokens above, with the dash stripped before joining so the merged
+      // candidate is pure digits like findPhoneNumber expects.
+      if (!slice.every((t) => /^\d+(-\d+)*$/.test(t))) continue;
+      const found = findPhoneNumber(slice.map((t) => t.replace(/-/g, "")).join(""));
       if (found) return found;
     }
   }
