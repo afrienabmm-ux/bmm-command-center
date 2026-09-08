@@ -126,9 +126,18 @@ export default async function ScanPage({ searchParams }: { searchParams: Promise
     .filter(
       (j) => !genbluRegistrations.some((r) => r.branch === j.branch && namesLikelyMatch(r.customerName, j.customerName))
     )
-    .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+    .sort((a, b) => (b.startedDate ?? b.createdAt).localeCompare(a.startedDate ?? a.createdAt))
     .slice(0, 25)
-    .map((j) => ({ jobId: j.id, branch: j.branch, customerName: j.customerName, customerPlateNo: j.plateNo, date: j.createdAt }));
+    .map((j) => ({
+      jobId: j.id,
+      branch: j.branch,
+      customerName: j.customerName,
+      customerPlateNo: j.plateNo,
+      // The jobsheet's own Job Date, not when it was uploaded — a job
+      // dated a few days ago that a PIC only gets around to entering
+      // today shouldn't show up looking like it just happened.
+      date: j.startedDate ?? j.createdAt,
+    }));
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-red-50 via-neutral-50 to-neutral-50">
