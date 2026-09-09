@@ -230,6 +230,7 @@ async function logTrackerAwardAsTransaction(input: {
   productCategory?: string | null;
   transactionDate?: string | null;
   transactionTime?: string | null;
+  serviceCoupon?: boolean;
 }): Promise<void> {
   await supabaseAdmin.from("cc_genblu_transactions").insert({
     branch: input.branch,
@@ -239,7 +240,7 @@ async function logTrackerAwardAsTransaction(input: {
     points: input.points,
     transaction_date: input.transactionDate ?? null,
     transaction_time: input.transactionTime ?? null,
-    service_coupon: false,
+    service_coupon: input.serviceCoupon ?? false,
     screenshot_path: input.screenshotPath,
     screenshot_hash: input.screenshotHash,
     uploaded_by: input.uploadedBy,
@@ -265,6 +266,13 @@ async function analyzeGenbluScreenshot(
   productCategory: string | null;
   transactionDate: string | null;
   transactionTime: string | null;
+  // The name as it's actually printed on the screenshot (same "Awarded
+  // to"/header read a Point Allocation upload uses) — the Allocation entry
+  // this mirrors into should carry whichever account the screenshot itself
+  // shows, not necessarily the customer name typed on the jobsheet (a
+  // spouse's account, a middle name spelled differently, etc.). Falls back
+  // to the typed name if nothing could be read off the photo.
+  screenshotCustomerName: string;
 }> {
   const buffer = Buffer.from(await screenshot.arrayBuffer());
   const base64 = buffer.toString("base64");
@@ -278,6 +286,7 @@ async function analyzeGenbluScreenshot(
     productCategory: extractProductCategory(text),
     transactionDate: extractTransactionDate(text),
     transactionTime: extractTransactionTime(text),
+    screenshotCustomerName: extractTransactionCustomerName(text) || customerName,
   };
 }
 
@@ -462,7 +471,7 @@ export async function addGenbluRegistrationAction(formData: FormData): Promise<{
   if (analysis?.pointsReading && !analysis.pointsReading.isBalance && screenshotPath && screenshotHash) {
     await logTrackerAwardAsTransaction({
       branch,
-      customerName,
+      customerName: analysis.screenshotCustomerName,
       screenshotPath,
       screenshotHash,
       points: analysis.pointsReading.value,
@@ -690,7 +699,7 @@ export async function ensureGenbluRegistrationAction(input: {
   if (analysis?.pointsReading && !analysis.pointsReading.isBalance && screenshotPath && screenshotHash) {
     await logTrackerAwardAsTransaction({
       branch: input.branch,
-      customerName,
+      customerName: analysis.screenshotCustomerName,
       screenshotPath,
       screenshotHash,
       points: analysis.pointsReading.value,
@@ -728,6 +737,11 @@ export async function attachGenbluScreenshotAction(input: {
   // set, the upload goes through even though the screenshot's name doesn't
   // match the customer, instead of being blocked.
   nameMismatchRemark?: string;
+  // Only meaningful for the mirrored Allocation entry (see
+  // logTrackerAwardAsTransaction) — whether this visit's points were
+  // redeemed via a service coupon, same checkbox the dedicated Point
+  // Allocation upload has.
+  serviceCoupon?: boolean;
 }): Promise<{ error: string } | { warning: string } | { nameMismatch: true; message: string } | { updated: boolean }> {
   const user = await requireApproved();
   assertCanEditBranch(user, input.branch);
@@ -811,7 +825,7 @@ export async function attachGenbluScreenshotAction(input: {
   if (pointsReading && !pointsReading.isBalance) {
     await logTrackerAwardAsTransaction({
       branch: input.branch,
-      customerName,
+      customerName: analysis?.screenshotCustomerName ?? customerName,
       screenshotPath: path,
       screenshotHash: hash,
       points: pointsReading.value,
@@ -820,6 +834,7 @@ export async function attachGenbluScreenshotAction(input: {
       productCategory: analysis?.productCategory,
       transactionDate: analysis?.transactionDate,
       transactionTime: analysis?.transactionTime,
+      serviceCoupon: input.serviceCoupon,
     });
   }
 
@@ -915,7 +930,7 @@ export async function submitPublicGenbluRegistrationAction(input: {
   if (pointsReading && !pointsReading.isBalance) {
     await logTrackerAwardAsTransaction({
       branch: input.branch,
-      customerName,
+      customerName: analysis?.screenshotCustomerName ?? customerName,
       screenshotPath: path,
       screenshotHash: hash,
       points: pointsReading.value,

@@ -18,7 +18,7 @@ import {
   ChevronDown,
 } from "lucide-react";
 import { addRepairJobAction, updateRepairJobAction } from "@/lib/repairs-actions";
-import { checkGenbluRegisteredAction, ensureGenbluRegistrationAction } from "@/lib/genblu-actions";
+import { checkGenbluRegisteredAction, ensureGenbluRegistrationAction, attachGenbluScreenshotAction } from "@/lib/genblu-actions";
 import { addPackageSaleAction } from "@/lib/packages-actions";
 import type { ScannedJobsheet } from "@/lib/jobsheet-actions";
 import type { RepairJob } from "@/lib/types";
@@ -346,6 +346,13 @@ export default function WalkInJobForm({
   const [genbluCheckPending, setGenbluCheckPending] = useState(false);
   const [genbluScreenshot, setGenbluScreenshot] = useState<File | null>(null);
   const genbluFileInputRef = useRef<HTMLInputElement>(null);
+  // For a customer already on the Tracker — logging this visit's points
+  // right here means staff never has to leave the Jobsheet screen and go
+  // find the separate GenBlu Allocations tab just to upload the same
+  // screenshot they're already holding.
+  const [genbluAllocationScreenshot, setGenbluAllocationScreenshot] = useState<File | null>(null);
+  const genbluAllocationFileInputRef = useRef<HTMLInputElement>(null);
+  const [genbluServiceCoupon, setGenbluServiceCoupon] = useState(false);
   const [wantsCombo, setWantsCombo] = useState(false);
   const [comboPackageId, setComboPackageId] = useState(packages[0]?.id ?? "");
   // Optional — falls back to the jobsheet number when left blank, since a
@@ -816,6 +823,63 @@ export default function WalkInJobForm({
         }
       }
 
+      // A returning customer, already on the Tracker — this visit's own
+      // points screenshot (optional) logs a Point Allocation entry right
+      // here, same verification dance as a new registration above, so
+      // staff never has to open the separate GenBlu Allocations tab.
+      if (hasGenblu && genbluAlreadyRegistered && genbluAllocationScreenshot) {
+        try {
+          let attachResult = await attachGenbluScreenshotAction({
+            branch: effectiveBranch,
+            customerName: customerName.trim(),
+            customerPlateNo: plateNo.trim(),
+            screenshot: genbluAllocationScreenshot,
+            hasJobsheet: true,
+            serviceCoupon: genbluServiceCoupon,
+          });
+          if (attachResult && "warning" in attachResult) {
+            if (!window.confirm(attachResult.warning)) {
+              showError("Job not saved — pick a different GenBlu screenshot, or confirm to upload it anyway.");
+              return;
+            }
+            attachResult = await attachGenbluScreenshotAction({
+              branch: effectiveBranch,
+              customerName: customerName.trim(),
+              customerPlateNo: plateNo.trim(),
+              screenshot: genbluAllocationScreenshot,
+              hasJobsheet: true,
+              serviceCoupon: genbluServiceCoupon,
+              confirmDuplicate: true,
+            });
+          }
+          if (attachResult && "nameMismatch" in attachResult) {
+            const remark = window.prompt(attachResult.message);
+            if (!remark || !remark.trim()) {
+              showError("Job not saved — add a short note explaining the name mismatch, or pick a different screenshot.");
+              return;
+            }
+            attachResult = await attachGenbluScreenshotAction({
+              branch: effectiveBranch,
+              customerName: customerName.trim(),
+              customerPlateNo: plateNo.trim(),
+              screenshot: genbluAllocationScreenshot,
+              hasJobsheet: true,
+              serviceCoupon: genbluServiceCoupon,
+              nameMismatchRemark: remark.trim(),
+            });
+          }
+          if (attachResult && "error" in attachResult) {
+            showError(`Job not saved — ${attachResult.error}`);
+            return;
+          }
+        } catch {
+          showError(
+            "Job not saved — couldn't verify the GenBlu screenshot (the check took too long). Please try again."
+          );
+          return;
+        }
+      }
+
       if (isEdit && job) {
         const result = await updateRepairJobAction(job.id, job.branch, payload);
         if (result && "error" in result) {
@@ -847,19 +911,6 @@ export default function WalkInJobForm({
       }
 
       if (hasGenblu) {
-        if (genbluAlreadyRegistered) {
-          // Already in the tracker — just match them up, no screenshot needed.
-          try {
-            await ensureGenbluRegistrationAction({
-              branch: effectiveBranch,
-              customerName: customerName.trim(),
-              customerPlateNo: plateNo.trim(),
-              screenshot: null,
-            });
-          } catch {
-            // Non-fatal — the job is already saved either way.
-          }
-        }
         showInfo(
           `${customerName.trim()} earned ${Math.round(finalRevenue).toLocaleString()} GenBlu points (${formatCurrency(finalRevenue)}) from this job.`
         );
@@ -1386,9 +1437,41 @@ export default function WalkInJobForm({
               ) : genbluCheckPending ? (
                 <p className="text-xs text-neutral-500">Checking the GenBlu Tracker…</p>
               ) : genbluAlreadyRegistered ? (
-                <p className="text-xs text-emerald-700">
-                  Already registered in the GenBlu Tracker — no need to upload the screenshot again.
-                </p>
+                <div>
+                  <p className="text-xs text-emerald-700 mb-2">
+                    Already registered in the GenBlu Tracker — no need to re-upload their sign-up screenshot.
+                  </p>
+                  <input
+                    ref={genbluAllocationFileInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => setGenbluAllocationScreenshot(e.target.files?.[0] ?? null)}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => genbluAllocationFileInputRef.current?.click()}
+                    className="flex items-center gap-1.5 bg-neutral-50 hover:bg-neutral-100 border border-neutral-200 text-neutral-700 text-sm font-medium px-3.5 py-2 rounded-lg transition-colors"
+                  >
+                    <Upload size={14} />{" "}
+                    {genbluAllocationScreenshot ? genbluAllocationScreenshot.name : "Log GenBlu Points for This Visit (optional)"}
+                  </button>
+                  {genbluAllocationScreenshot && (
+                    <label className="flex items-center gap-1.5 mt-2 text-xs text-neutral-600">
+                      <input
+                        type="checkbox"
+                        checked={genbluServiceCoupon}
+                        onChange={(e) => setGenbluServiceCoupon(e.target.checked)}
+                        className="rounded border-neutral-300"
+                      />
+                      Redeemed via Service Coupon
+                    </label>
+                  )}
+                  <p className="text-xs text-neutral-500 mt-1.5">
+                    Upload the points-earned screenshot from this visit to log it under GenBlu Allocations —
+                    leave blank if there's nothing to log yet.
+                  </p>
+                </div>
               ) : (
                 <div>
                   <input
