@@ -523,18 +523,26 @@ export async function updateGenbluRegistrationAction(
     customer_plate_no: customerPlateNo,
   };
 
+  let newScreenshotPath: string | null = null;
+  let newScreenshotHash: string | null = null;
+  let analysis: Awaited<ReturnType<typeof analyzeGenbluScreenshot>> | null = null;
   if (input.screenshot && input.screenshot.size > 0) {
+    const buffer = Buffer.from(await input.screenshot.arrayBuffer());
+    newScreenshotHash = hashScreenshotBuffer(buffer);
     const ext = input.screenshot.name.split(".").pop() || "jpg";
     const path = `${branch}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
     // OCR and the storage upload don't depend on each other — run them
     // together.
-    const [analysis, uploadResult] = await Promise.all([
+    const [result, uploadResult] = await Promise.all([
       // Points extraction is a bonus, not a requirement — don't block the save.
       analyzeGenbluScreenshot(input.screenshot, customerName).catch(() => null),
       supabaseAdmin.storage.from(BUCKET).upload(path, input.screenshot, { contentType: input.screenshot.type || "image/jpeg" }),
     ]);
     if (uploadResult.error) return { error: `Couldn't upload the screenshot: ${uploadResult.error.message}` };
+    analysis = result;
+    newScreenshotPath = path;
     update.screenshot_path = path;
+    update.screenshot_hash = newScreenshotHash;
     update.points_accrued = applyPointsReading(existing?.points_accrued ?? null, analysis?.pointsReading ?? null);
     // A freshly uploaded screenshot re-settles whether the name actually
     // matches — clears a stale mismatch note if it now does, instead of
@@ -568,6 +576,24 @@ export async function updateGenbluRegistrationAction(
 
   const { error } = await supabaseAdmin.from("cc_genblu_registrations").update(update).eq("id", id);
   if (error) return { error: error.message };
+  // A newly uploaded screenshot showing a genuine award is the same real
+  // event whether it came in through Add or Edit — mirror it into Point
+  // Allocation here too, so editing an existing Tracker entry with a fresh
+  // screenshot tallies the same way adding one does.
+  if (analysis?.pointsReading && !analysis.pointsReading.isBalance && newScreenshotPath && newScreenshotHash) {
+    await logTrackerAwardAsTransaction({
+      branch,
+      customerName: analysis.screenshotCustomerName,
+      screenshotPath: newScreenshotPath,
+      screenshotHash: newScreenshotHash,
+      points: analysis.pointsReading.value,
+      uploadedBy: salespersonName,
+      membershipNumber: analysis.membershipNumber,
+      productCategory: analysis.productCategory,
+      transactionDate: analysis.transactionDate,
+      transactionTime: analysis.transactionTime,
+    });
+  }
   await logActivity(user, "Updated GenBlu registration", `${customerName} (${branch})`);
   revalidatePath("/genblu");
 }
