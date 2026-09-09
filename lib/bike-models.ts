@@ -1,9 +1,9 @@
 // Model names don't carry their cc in a consistent way (Y15ZR is 150cc,
 // NMAX 155 is 155cc, XMAX is 250cc), so there's no reliable way to compute
 // this from the text alone — instead this lists the specific big-bike
-// model names (Yamaha, Honda, Modenas) that ARE over 250cc, checked as
+// model names (Yamaha, Honda, Modenas) that are 250cc or above, checked as
 // substrings of whatever the PIC typed. Anything not on this list is
-// treated as 250cc-or-below, since that covers the overwhelming majority
+// treated as 249cc-or-below, since that covers the overwhelming majority
 // of what's sold (kapcai and scooters) — staff can still flip the
 // checkbox by hand if a customer's bike isn't recognized here.
 // Deliberately full, unambiguous tokens only — no bare "r1"/"r3"/"r6",
@@ -37,8 +37,12 @@ const OVER_250CC_MODELS = [
   "xsr 900",
   "niken",
   "tricity 300",
-  // Honda — CBR250RR/Forza 250 stay off this list (250cc exactly is not
-  // "more than 250").
+  // Honda
+  "cbr250rr",
+  "forza300",
+  "forza 300",
+  "forza250",
+  "forza 250",
   "cb300",
   "cbr300",
   "cb400",
@@ -53,8 +57,6 @@ const OVER_250CC_MODELS = [
   "rebel 300",
   "rebel500",
   "rebel 500",
-  "forza300",
-  "forza 300",
   "nc750",
   "africa twin",
   "goldwing",
@@ -62,7 +64,9 @@ const OVER_250CC_MODELS = [
   "crf300",
   "x-adv",
   "xadv",
-  // Modenas — Dominar 250 stays off this list for the same reason.
+  // Modenas
+  "dominar250",
+  "dominar 250",
   "dominar400",
   "dominar 400",
 ];
