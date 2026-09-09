@@ -41,13 +41,21 @@ export default function CustomersClient({
   const [salespersonFilter, setSalespersonFilter] = useState("");
   const showAllBranches = branchSelection === "all";
 
-  const salespeople = useMemo(
-    () =>
-      Array.from(new Set(customers.map((c) => c.salespersonName).filter((n) => n.trim() !== ""))).sort((a, b) =>
-        a.localeCompare(b)
-      ),
-    [customers]
-  );
+  // Grouped case-insensitively — a name typed "Farah" and one typed
+  // "FARAH" (staff entry vs. however a partner's forwarded record happens
+  // to be cased) are the same salesperson, not two separate filter
+  // options each showing only half their cards. Keeps whichever casing
+  // was seen first as the one shown in the dropdown.
+  const salespeople = useMemo(() => {
+    const byKey = new Map<string, string>();
+    for (const c of customers) {
+      const name = c.salespersonName.trim();
+      if (!name) continue;
+      const key = name.toLowerCase();
+      if (!byKey.has(key)) byKey.set(key, name);
+    }
+    return Array.from(byKey.values()).sort((a, b) => a.localeCompare(b));
+  }, [customers]);
 
   function handleCopyLink() {
     const url = `${window.location.origin}/join`;
@@ -67,7 +75,7 @@ export default function CustomersClient({
           c.plateNo.toLowerCase().includes(q) ||
           c.customerPhone.toLowerCase().includes(q)
       )
-      .filter((c) => !salespersonFilter || c.salespersonName === salespersonFilter);
+      .filter((c) => !salespersonFilter || c.salespersonName.trim().toLowerCase() === salespersonFilter.trim().toLowerCase());
     return [...filtered].sort((a, b) => {
       const cmp = sortBy === "name" ? a.customerName.localeCompare(b.customerName) : a.issuedDate.localeCompare(b.issuedDate);
       return sortDir === "desc" ? -cmp : cmp;
