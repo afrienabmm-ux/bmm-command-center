@@ -34,8 +34,16 @@ export default async function GenbluPage({
   const year = params.year ? Number(params.year) : todayYear;
   const month = params.month ? Number(params.month) : todayMonth;
 
+  // The Tracker/New Registration tabs default to the last 6 months —
+  // otherwise this page re-signs a screenshot URL for every registration
+  // ever made on every single load, which only gets slower as the Tracker
+  // grows. CSV export and the duplicate/name-match checks elsewhere in
+  // genblu-actions.ts are untouched by this — they call the same functions
+  // with no sinceDate and still see full history.
+  const sinceDate = new Date(todayYear, todayMonth - 1 - 6, 1).toISOString().slice(0, 10);
+
   const [registrations, mechanics, pointsByName, monthlySummary, allTransactions] = await Promise.all([
-    showAllBranches ? getAllBranchesGenbluRegistrations() : getGenbluRegistrations(branch),
+    showAllBranches ? getAllBranchesGenbluRegistrations(sinceDate) : getGenbluRegistrations(branch, sinceDate),
     getAllMechanics(),
     getGenbluPointsByName(),
     getGenbluMonthlySummary(year, month),
@@ -71,7 +79,7 @@ export default async function GenbluPage({
     <div className="flex flex-col h-full">
       <PageHeader
         title="GenBlu"
-        subtitle={`${showAllBranches ? "All Branches" : branchLabel(branch)} — ${registrations.length} registered, ${transactions.length} allocations this month`}
+        subtitle={`${showAllBranches ? "All Branches" : branchLabel(branch)} — ${registrations.length} registered in the last 6 months, ${transactions.length} allocations this month`}
       />
       <div className="p-8">
         <GenbluTabs

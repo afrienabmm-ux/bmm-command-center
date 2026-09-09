@@ -1,7 +1,7 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
-import { Plus, Download, X, Pencil, Trash2, Search, Award, ChevronDown, MessageSquareWarning } from "lucide-react";
+import { useEffect, useMemo, useState, useTransition } from "react";
+import { Plus, Download, X, Pencil, Trash2, Search, Award, ChevronDown, ChevronUp, MessageSquareWarning } from "lucide-react";
 import { addGenbluRegistrationAction, updateGenbluRegistrationAction, deleteGenbluRegistrationAction } from "@/lib/genblu-actions";
 import { exportGenbluCsv, exportAllBranchesGenbluCsv } from "@/lib/export-actions";
 import { BRANCHES, branchLabel, type Branch, type BranchSelection } from "@/lib/branch";
@@ -23,6 +23,13 @@ type RegWithUrl = {
   source: "new_customer" | "has_jobsheet";
   nameMismatchRemark: string | null;
 };
+
+// The page already limits what's fetched to the last 6 months (see
+// app/(app)/genblu/page.tsx), but that can still be hundreds of rows for a
+// busy branch — collapsing the on-screen table behind "View All" is what
+// actually keeps a normal visit to this page (nobody scrolling to the very
+// bottom) fast to render, same pattern as the Dashboard's Services Combo list.
+const COLLAPSED_COUNT = 50;
 
 export default function GenbluClient({
   registrations,
@@ -48,6 +55,7 @@ export default function GenbluClient({
   const [sourceFilter, setSourceFilter] = useState<"all" | "new_customer" | "has_jobsheet">("all");
   const [isPending, startTransition] = useTransition();
   const [openRemarkId, setOpenRemarkId] = useState<string | null>(null);
+  const [showAll, setShowAll] = useState(false);
 
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -57,6 +65,13 @@ export default function GenbluClient({
       return true;
     });
   }, [registrations, query, sourceFilter]);
+
+  useEffect(() => {
+    setShowAll(false);
+  }, [query, sourceFilter]);
+
+  const visibleRows = showAll ? visible : visible.slice(0, COLLAPSED_COUNT);
+  const hiddenCount = visible.length - visibleRows.length;
 
   async function handleExport() {
     setExporting(true);
@@ -159,7 +174,7 @@ export default function GenbluClient({
               </tr>
             </thead>
             <tbody>
-              {visible.map((r) => (
+              {visibleRows.map((r) => (
                 <tr
                   key={r.id}
                   className={`border-t border-neutral-100 ${r.screenshotUrl ? "cursor-pointer hover:bg-neutral-50" : ""}`}
@@ -254,6 +269,24 @@ export default function GenbluClient({
             </tbody>
           </table>
         </div>
+        {visible.length > COLLAPSED_COUNT && (
+          <div className="px-4 py-3 border-t border-neutral-100">
+            <button
+              onClick={() => setShowAll((v) => !v)}
+              className="flex items-center gap-1.5 text-sm font-medium text-red-600 hover:text-red-700 transition-colors"
+            >
+              {showAll ? (
+                <>
+                  <ChevronUp size={15} /> Show Less
+                </>
+              ) : (
+                <>
+                  <ChevronDown size={15} /> View All ({visible.length - COLLAPSED_COUNT} more)
+                </>
+              )}
+            </button>
+          </div>
+        )}
       </div>
 
       {modalOpen && (

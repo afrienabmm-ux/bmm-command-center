@@ -372,21 +372,25 @@ export async function scanGenbluScreenshotForNameAction(
   }
 }
 
-export async function getGenbluRegistrations(branch: Branch): Promise<GenbluRegistration[]> {
+// sinceDate (an ISO date, e.g. "2026-03-01") bounds the query to
+// registrations created on or after it — left undefined for every caller
+// that genuinely needs full history (CSV export, the duplicate/name-match
+// checks), and passed only by the /genblu Tracker page's own default view,
+// which doesn't need to load and re-sign a screenshot URL for every
+// registration ever made just to render "recent activity".
+export async function getGenbluRegistrations(branch: Branch, sinceDate?: string): Promise<GenbluRegistration[]> {
   await requireApproved();
-  const { data, error } = await supabaseAdmin
-    .from("cc_genblu_registrations")
-    .select("*")
-    .eq("branch", branch)
-    .order("created_at", { ascending: false });
+  let query = supabaseAdmin.from("cc_genblu_registrations").select("*").eq("branch", branch);
+  if (sinceDate) query = query.gte("created_at", sinceDate);
+  const { data, error } = await query.order("created_at", { ascending: false });
   if (error) throw new Error(error.message);
   return (data as Row[]).map(toReg);
 }
 
 // Same as getGenbluRegistrations, but merged across all 3 branches for the
 // "All Branches" combined view.
-export async function getAllBranchesGenbluRegistrations(): Promise<GenbluRegistration[]> {
-  const perBranch = await Promise.all(BRANCHES.map(({ value }) => getGenbluRegistrations(value)));
+export async function getAllBranchesGenbluRegistrations(sinceDate?: string): Promise<GenbluRegistration[]> {
+  const perBranch = await Promise.all(BRANCHES.map(({ value }) => getGenbluRegistrations(value, sinceDate)));
   return perBranch.flat().sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
 }
 
