@@ -643,6 +643,10 @@ export async function ensureGenbluRegistrationAction(input: {
   // set, the registration goes through even though the screenshot's name
   // doesn't match the customer, instead of the upload being blocked.
   nameMismatchRemark?: string;
+  // Only meaningful for the mirrored Allocation entry (see
+  // logTrackerAwardAsTransaction) — whether this points award was
+  // redeemed via a service coupon.
+  serviceCoupon?: boolean;
 }): Promise<{ error: string } | { warning: string } | { nameMismatch: true; message: string } | { created: boolean }> {
   const user = await requireApproved();
   assertCanEditBranch(user, input.branch);
@@ -734,6 +738,7 @@ export async function ensureGenbluRegistrationAction(input: {
       productCategory: analysis.productCategory,
       transactionDate: analysis.transactionDate,
       transactionTime: analysis.transactionTime,
+      serviceCoupon: input.serviceCoupon,
     });
   }
   await logActivity(user, "Registered GenBlu (from jobsheet)", `${customerName} (${input.branch})`);

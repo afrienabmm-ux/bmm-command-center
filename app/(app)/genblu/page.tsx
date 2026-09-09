@@ -65,6 +65,8 @@ export default async function GenbluPage({
     ),
   ]);
 
+  const newRegistrations = withUrls.filter((r) => r.source === "new_customer");
+
   return (
     <div className="flex flex-col h-full">
       <PageHeader
@@ -74,10 +76,20 @@ export default async function GenbluPage({
       <div className="p-8">
         <GenbluTabs
           registeredCount={registrations.length}
+          newRegistrationCount={newRegistrations.length}
           allocationCount={transactions.length}
           tracker={
             <GenbluClient
               registrations={withUrls}
+              mechanics={mechanics}
+              branch={branch}
+              branchSelection={branchSelection}
+              locked={!canViewAllBranches(user)}
+            />
+          }
+          newRegistrations={
+            <GenbluClient
+              registrations={newRegistrations}
               mechanics={mechanics}
               branch={branch}
               branchSelection={branchSelection}

@@ -780,6 +780,7 @@ export default function WalkInJobForm({
             customerName: customerName.trim(),
             customerPlateNo: plateNo.trim(),
             screenshot: genbluScreenshot,
+            serviceCoupon: genbluServiceCoupon,
           });
           if (genbluResult && "warning" in genbluResult) {
             if (!window.confirm(genbluResult.warning)) {
@@ -791,6 +792,7 @@ export default function WalkInJobForm({
               customerName: customerName.trim(),
               customerPlateNo: plateNo.trim(),
               screenshot: genbluScreenshot,
+              serviceCoupon: genbluServiceCoupon,
               confirmDuplicate: true,
             });
           }
@@ -808,6 +810,7 @@ export default function WalkInJobForm({
               customerName: customerName.trim(),
               customerPlateNo: plateNo.trim(),
               screenshot: genbluScreenshot,
+              serviceCoupon: genbluServiceCoupon,
               nameMismatchRemark: remark.trim(),
             });
           }
@@ -1488,9 +1491,20 @@ export default function WalkInJobForm({
                   >
                     <Upload size={14} /> {genbluScreenshot ? genbluScreenshot.name : "Upload GenBlu Screenshot"}
                   </button>
+                  {genbluScreenshot && (
+                    <label className="flex items-center gap-1.5 mt-2 text-xs text-neutral-600">
+                      <input
+                        type="checkbox"
+                        checked={genbluServiceCoupon}
+                        onChange={(e) => setGenbluServiceCoupon(e.target.checked)}
+                        className="rounded border-neutral-300"
+                      />
+                      Redeemed via Service Coupon
+                    </label>
+                  )}
                   <p className="text-xs text-neutral-500 mt-1.5">
                     New customer — upload their GenBlu screenshot now so it shows up automatically in the GenBlu
-                    Tracker once this job is saved.
+                    Tracker <em>and</em> GenBlu Allocations once this job is saved.
                   </p>
                 </div>
               )}
