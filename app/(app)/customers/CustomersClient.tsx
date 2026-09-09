@@ -1,7 +1,7 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
-import { Plus, Search, Pencil, Trash2, CreditCard, X, Link2, Check, ArrowUpDown, ChevronDown, Wrench, ArrowLeftRight } from "lucide-react";
+import { useEffect, useMemo, useState, useTransition } from "react";
+import { Plus, Search, Pencil, Trash2, CreditCard, X, Link2, Check, ArrowUpDown, ChevronDown, ChevronUp, Wrench, ArrowLeftRight } from "lucide-react";
 import { addCustomerCardAction, updateCustomerCardAction, deleteCustomerCardAction, setCardStampsAction } from "@/lib/customers-actions";
 import { BRANCHES, branchLabel, type Branch, type BranchSelection } from "@/lib/branch";
 import { formatDate } from "@/lib/format";
@@ -10,6 +10,12 @@ import type { CustomerCard } from "@/lib/types";
 import ModalPortal from "@/components/ModalPortal";
 import { isOver250ccModel } from "@/lib/bike-models";
 import { SALESPEOPLE_BY_BRANCH } from "@/lib/services-card-salespeople";
+
+// The page already limits what's fetched to the last 6 months (see
+// app/(app)/customers/page.tsx), but that can still be hundreds of cards
+// for a busy branch — collapsing the on-screen table behind "View All" is
+// what keeps a normal visit here fast to render regardless.
+const COLLAPSED_COUNT = 50;
 
 export default function CustomersClient({
   customers,
@@ -39,6 +45,7 @@ export default function CustomersClient({
   const [sortDir, setSortDir] = useState<"desc" | "asc">("desc");
   const [showCardNumber, setShowCardNumber] = useState(false);
   const [salespersonFilter, setSalespersonFilter] = useState("");
+  const [showAll, setShowAll] = useState(false);
   const showAllBranches = branchSelection === "all";
 
   // Grouped case-insensitively — a name typed "Farah" and one typed
@@ -81,6 +88,12 @@ export default function CustomersClient({
       return sortDir === "desc" ? -cmp : cmp;
     });
   }, [customers, query, salespersonFilter, sortBy, sortDir]);
+
+  useEffect(() => {
+    setShowAll(false);
+  }, [query, salespersonFilter, sortBy, sortDir]);
+
+  const visibleRows = showAll ? visible : visible.slice(0, COLLAPSED_COUNT);
 
   function handleDelete() {
     if (!deleting) return;
@@ -187,7 +200,7 @@ export default function CustomersClient({
             </tr>
           </thead>
           <tbody>
-            {visible.map((c) => (
+            {visibleRows.map((c) => (
               <tr key={c.id} className="border-t border-neutral-100">
                 <td className="px-4 py-3 font-medium text-neutral-800">
                   {c.customerName}
@@ -250,6 +263,24 @@ export default function CustomersClient({
             )}
           </tbody>
         </table>
+        {visible.length > COLLAPSED_COUNT && (
+          <div className="px-4 py-3 border-t border-neutral-100">
+            <button
+              onClick={() => setShowAll((v) => !v)}
+              className="flex items-center gap-1.5 text-sm font-medium text-red-600 hover:text-red-700 transition-colors"
+            >
+              {showAll ? (
+                <>
+                  <ChevronUp size={15} /> Show Less
+                </>
+              ) : (
+                <>
+                  <ChevronDown size={15} /> View All ({visible.length - COLLAPSED_COUNT} more)
+                </>
+              )}
+            </button>
+          </div>
+        )}
       </div>
 
       {cardModalFor && (

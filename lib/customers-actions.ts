@@ -48,21 +48,27 @@ function toCard(r: CardRow): CustomerCard {
 
 // Services Cards are a plain manual database now — added and ticked by
 // admin only, never aggregated from jobsheet or Services Combo history.
-export async function getCustomers(branch: Branch): Promise<CustomerCard[]> {
+//
+// sinceDate (an ISO date) bounds the query to cards issued on or after
+// it — left undefined for every caller that needs full history (the
+// Reports page's Services Card report), and passed only by the /customers
+// page's own default view, which doesn't need to load and render every
+// card ever issued just to show recent activity. The public "check my
+// card" lookup (customer-registration-actions.ts) queries this table
+// directly by phone/plate and is untouched either way.
+export async function getCustomers(branch: Branch, sinceDate?: string): Promise<CustomerCard[]> {
   await requireApproved();
-  const { data, error } = await supabaseAdmin
-    .from("cc_customer_cards")
-    .select("*")
-    .eq("branch", branch)
-    .order("created_at", { ascending: false });
+  let query = supabaseAdmin.from("cc_customer_cards").select("*").eq("branch", branch);
+  if (sinceDate) query = query.gte("created_at", sinceDate);
+  const { data, error } = await query.order("created_at", { ascending: false });
   if (error) throw new Error(error.message);
   return (data as CardRow[]).map(toCard);
 }
 
 // Same as getCustomers, but merged across all 3 branches for the "All
 // Branches" combined view.
-export async function getAllBranchesCustomers(): Promise<CustomerCard[]> {
-  const perBranch = await Promise.all(BRANCHES.map(({ value }) => getCustomers(value)));
+export async function getAllBranchesCustomers(sinceDate?: string): Promise<CustomerCard[]> {
+  const perBranch = await Promise.all(BRANCHES.map(({ value }) => getCustomers(value, sinceDate)));
   return perBranch.flat().sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
 
