@@ -9,6 +9,7 @@ import { todayInMalaysia, daysSinceInMalaysia } from "./malaysia-time";
 import type { RepairJob, RepairJobItem, RepairStatus, JobType, ApprovalStatus, QcResult } from "./types";
 import { DEAL_TYPES } from "./types";
 import { BRANCHES, type Branch } from "./branch";
+import { normalizeName } from "./name-matching";
 
 type ItemRow = { id: string; code: string; description: string; quantity: number; price: number };
 
@@ -663,6 +664,54 @@ export async function addRepairJobAction(input: {
   return { id: data.id };
 }
 
+// Keeps a customer's GenBlu Tracker registration (and their name on any
+// Point Allocation entries already logged) matching the jobsheet after a
+// PIC fixes a typo'd name or corrects a plate number there — without this,
+// a GenBlu record created off the old, wrong value would just keep
+// showing it forever, with no way to fix it short of also editing GenBlu
+// directly. Matched on the OLD name only, and only exactly (not the
+// looser namesLikelyMatch used elsewhere) — this WRITES the match's name,
+// so a wrong pick here would silently rename an unrelated customer, a
+// worse outcome than just skipping a sync this loose match can't be sure
+// about. Best-effort: the jobsheet edit itself has already succeeded by
+// the time this runs, so a lookup failure here shouldn't undo that.
+async function syncGenbluCustomerDetails(
+  branch: Branch,
+  oldCustomerName: string,
+  newCustomerName: string,
+  newPlateNo: string
+): Promise<void> {
+  try {
+    const oldName = normalizeName(oldCustomerName);
+    if (!oldName) return;
+
+    const { data: reg } = await supabaseAdmin
+      .from("cc_genblu_registrations")
+      .select("id, customer_name, customer_plate_no")
+      .eq("branch", branch);
+    const matchedReg = (reg ?? []).find((r) => normalizeName(r.customer_name) === oldName);
+    if (matchedReg && (matchedReg.customer_name !== newCustomerName || matchedReg.customer_plate_no !== newPlateNo)) {
+      await supabaseAdmin
+        .from("cc_genblu_registrations")
+        .update({ customer_name: newCustomerName, customer_plate_no: newPlateNo })
+        .eq("id", matchedReg.id);
+    }
+
+    if (oldName !== normalizeName(newCustomerName)) {
+      const { data: txns } = await supabaseAdmin
+        .from("cc_genblu_transactions")
+        .select("id, customer_name")
+        .eq("branch", branch);
+      const matchedTxnIds = (txns ?? []).filter((t) => normalizeName(t.customer_name) === oldName).map((t) => t.id);
+      if (matchedTxnIds.length > 0) {
+        await supabaseAdmin.from("cc_genblu_transactions").update({ customer_name: newCustomerName }).in("id", matchedTxnIds);
+      }
+    }
+  } catch {
+    // Non-fatal — the jobsheet save itself already succeeded.
+  }
+}
+
 export async function updateRepairJobAction(
   id: string,
   branch: Branch,
@@ -729,6 +778,12 @@ export async function updateRepairJobAction(
     .from("cc_repair_job_items")
     .select("code, description, quantity, price")
     .eq("job_id", id);
+
+  // Read before the update below overwrites them — needed to look up this
+  // customer's GenBlu records by their OLD name/plate (see
+  // syncGenbluCustomerDetails after the save) and to know whether either
+  // actually changed at all.
+  const { data: priorJob } = await supabaseAdmin.from("cc_repair_jobs").select("customer_name, plate_no").eq("id", id).single();
 
   const update: Record<string, unknown> = {
     customer_name: input.customerName,
@@ -798,9 +853,17 @@ export async function updateRepairJobAction(
 
   await replaceJobItems(id, items);
   await deductCatalogStockForNewItems(branch, (existingItems as ItemInput[] | null) ?? [], items);
+  // A GenBlu Tracker/Allocation record is created from whatever name and
+  // plate the jobsheet had at that moment — if the PIC later fixes a typo
+  // here, those records should follow, not keep showing the stale value
+  // forever with no way to correct it short of editing GenBlu directly too.
+  if (input.jobType === "Walk-in" && priorJob && (priorJob.customer_name !== input.customerName || priorJob.plate_no !== input.plateNo)) {
+    await syncGenbluCustomerDetails(branch, priorJob.customer_name, input.customerName, input.plateNo);
+  }
   await logActivity(user, `Updated ${input.jobType} job`, `${input.customerName || input.plateNo} (${branch})`);
   revalidatePath("/repairs");
   revalidatePath("/repairs/walk-in");
+  revalidatePath("/genblu");
   revalidatePath("/catalog");
   revalidatePath("/");
 }

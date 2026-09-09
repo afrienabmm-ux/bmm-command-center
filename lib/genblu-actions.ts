@@ -496,38 +496,70 @@ export async function updateGenbluRegistrationAction(
 
   const salespersonName = input.salespersonName.trim();
   const customerPlateNo = input.customerPlateNo.trim();
+  const customerName = input.customerName.trim();
   if (!salespersonName || !customerPlateNo) {
     return { error: "Fill in the salesperson name and plate number." };
   }
 
+  const { data: existing } = await supabaseAdmin
+    .from("cc_genblu_registrations")
+    .select("customer_name, screenshot_path, name_mismatch_remark, points_accrued")
+    .eq("id", id)
+    .single();
+
   const update: Record<string, string | number | null> = {
     salesperson_name: salespersonName,
     salesperson_code: input.salespersonCode.trim().toUpperCase(),
-    customer_name: input.customerName.trim(),
+    customer_name: customerName,
     customer_plate_no: customerPlateNo,
   };
 
   if (input.screenshot && input.screenshot.size > 0) {
     const ext = input.screenshot.name.split(".").pop() || "jpg";
     const path = `${branch}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
-    // OCR, the storage upload, and reading the existing points total are
-    // all independent of each other — run them together.
-    const [reading, uploadResult, existing] = await Promise.all([
-      analyzeGenbluScreenshot(input.screenshot, input.customerName)
-        .then((a) => a.pointsReading)
-        // Points extraction is a bonus, not a requirement — don't block the save.
-        .catch(() => null),
+    // OCR and the storage upload don't depend on each other — run them
+    // together.
+    const [analysis, uploadResult] = await Promise.all([
+      // Points extraction is a bonus, not a requirement — don't block the save.
+      analyzeGenbluScreenshot(input.screenshot, customerName).catch(() => null),
       supabaseAdmin.storage.from(BUCKET).upload(path, input.screenshot, { contentType: input.screenshot.type || "image/jpeg" }),
-      supabaseAdmin.from("cc_genblu_registrations").select("points_accrued").eq("id", id).single().then((r) => r.data),
     ]);
     if (uploadResult.error) return { error: `Couldn't upload the screenshot: ${uploadResult.error.message}` };
     update.screenshot_path = path;
-    update.points_accrued = applyPointsReading(existing?.points_accrued ?? null, reading);
+    update.points_accrued = applyPointsReading(existing?.points_accrued ?? null, analysis?.pointsReading ?? null);
+    // A freshly uploaded screenshot re-settles whether the name actually
+    // matches — clears a stale mismatch note if it now does, instead of
+    // leaving an old explanation sitting on a record that no longer needs
+    // one just because the photo was refreshed.
+    if (analysis?.nameMatches) update.name_mismatch_remark = null;
+  } else if (
+    existing?.name_mismatch_remark &&
+    existing.screenshot_path &&
+    normalizeName(customerName) !== normalizeName(existing.customer_name)
+  ) {
+    // The name itself was corrected (a typo fix, most commonly — "Bin" vs
+    // "Binti", a dropped word) and there's already a mismatch note on file
+    // from whatever the name looked like at the time it was first flagged.
+    // Re-reading the existing screenshot against the corrected name is the
+    // only way to tell whether that flag is still accurate or just stale —
+    // otherwise a fixed typo keeps showing an old warning that no longer
+    // reflects the record as it stands now.
+    try {
+      const { data: file } = await supabaseAdmin.storage.from(BUCKET).download(existing.screenshot_path);
+      if (file) {
+        const buffer = Buffer.from(await file.arrayBuffer());
+        const { text } = await extractTextAndWordsFromImage(buffer.toString("base64"));
+        const condensed = frontNameForMatch(customerName);
+        if (!condensed || condensedName(text).includes(condensed)) update.name_mismatch_remark = null;
+      }
+    } catch {
+      // Best-effort — leave the existing remark as-is if the re-check fails.
+    }
   }
 
   const { error } = await supabaseAdmin.from("cc_genblu_registrations").update(update).eq("id", id);
   if (error) return { error: error.message };
-  await logActivity(user, "Updated GenBlu registration", `${input.customerName.trim()} (${branch})`);
+  await logActivity(user, "Updated GenBlu registration", `${customerName} (${branch})`);
   revalidatePath("/genblu");
 }
 
