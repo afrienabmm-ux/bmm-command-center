@@ -102,5 +102,13 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|.*\\.(?:png|jpg|jpeg|svg|gif|webp|ico)$).*)"],
+  // /api routes are excluded — they're called by external servers with no
+  // session cookie at all (a partner's Sales Dashboard hitting
+  // /api/genblu-intake or /api/genblu-new-registrations), and this
+  // middleware's cookie-based check would otherwise redirect every such
+  // request to /login before it ever reaches the route handler. Each API
+  // route under app/api authenticates its own callers instead (requireApproved()
+  // for staff-only ones like /api/scan-jobsheet, a shared secret/API key for
+  // the externally-called ones).
+  matcher: ["/((?!api/|_next/static|_next/image|favicon.ico|.*\\.(?:png|jpg|jpeg|svg|gif|webp|ico)$).*)"],
 };
