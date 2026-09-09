@@ -198,7 +198,14 @@ export default function GenbluClient({
                   <td className="px-4 py-2.5 text-neutral-500 whitespace-nowrap">{formatDate(r.createdAt)}</td>
                   <td className="px-4 py-2.5 text-neutral-600 whitespace-nowrap">{branchLabel(r.branch)}</td>
                   <td className="px-4 py-2.5">
-                    {r.points > 0 &&
+                    {/* A real screenshot reading (pointsAreActual) shows even
+                        when it's genuinely 0 — a brand-new member with a
+                        confirmed zero balance is real data, not "nothing to
+                        show". The estimated-from-spending fallback still
+                        hides at 0 though, since that case means there's no
+                        screenshot AND no matching job spend either — nothing
+                        actually known yet, not a confirmed zero. */}
+                    {(r.pointsAreActual || r.points > 0) &&
                       (r.pointsAreActual ? (
                         <span
                           className="inline-flex items-center gap-1 text-xs font-medium text-amber-700 bg-amber-500/10 border border-amber-500/20 rounded-full px-2 py-0.5 whitespace-nowrap"
