@@ -15,7 +15,8 @@ export const runtime = "nodejs";
 export const maxDuration = 15;
 
 const SECRET = process.env.SERVICES_CARD_INTAKE_SECRET;
-const MAX_ELIGIBLE_CC = 250;
+// 249cc and below only — a 250cc bike itself is NOT eligible.
+const MAX_ELIGIBLE_CC = 249;
 
 interface ServicesCardPayload {
   id: string;
@@ -84,7 +85,7 @@ export async function POST(req: Request): Promise<Response> {
     return Response.json({ error: "engine_cc is required and must be a positive number" }, { status: 400 });
   }
   if (body.engine_cc > MAX_ELIGIBLE_CC) {
-    return Response.json({ error: `bikes over ${MAX_ELIGIBLE_CC}cc aren't eligible for a services card`, ok: false }, { status: 422 });
+    return Response.json({ error: `bikes ${MAX_ELIGIBLE_CC + 1}cc and above aren't eligible for a services card`, ok: false }, { status: 422 });
   }
 
   // Idempotency — a retry can arrive after a response we never saw, so the
