@@ -3,10 +3,12 @@ import { createServerClient } from "@supabase/ssr";
 import { REMEMBER_ME_COOKIE, REMEMBER_ME_MAX_AGE } from "./lib/auth-cookie";
 
 const PUBLIC_PATHS = ["/login", "/signup", "/forgot-password"];
-// Customer-facing membership sign-up (/join) and the salesperson-facing
-// GenBlu sign-up link (/genblu-signup) — neither needs a staff login, so
-// every path under either is public regardless of query string.
-const PUBLIC_PREFIXES = ["/join", "/genblu-signup"];
+// Customer-facing membership sign-up — no staff login needed, so every
+// path under it is public regardless of query string. The equivalent
+// salesperson-facing GenBlu link (/genblu-signup) was retired once the
+// Sales Dashboard took over collecting new GenBlu registrations (see
+// app/api/genblu-intake).
+const PUBLIC_PREFIXES = ["/join"];
 
 export async function middleware(request: NextRequest) {
   let response = NextResponse.next({ request });
@@ -64,8 +66,8 @@ export async function middleware(request: NextRequest) {
   }
 
   // /login and /signup bounce a signed-in user straight to the dashboard,
-  // but /join and /genblu-signup stay open even when signed in — staff
-  // should be able to open their own public links to demo or test them.
+  // but /join stays open even when signed in — staff should be able to
+  // open their own public link to demo or test it.
   if (user && isPublic && !isPublicPrefixPage) {
     return NextResponse.redirect(new URL("/", request.url));
   }

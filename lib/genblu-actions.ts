@@ -878,108 +878,12 @@ export async function attachGenbluScreenshotAction(input: {
   return { updated: true };
 }
 
-// Public — called from /genblu-signup, which has no staff login. Sales
-// Advisors were sharing one login for /genblu-upload, so every
-// registration got attributed to whichever account happened to be signed
-// in rather than the salesperson who actually made the sale — this link
-// instead asks each of them to type their own name, the same way they'd
-// sign a paper form. Always a brand-new registration (no jobsheet
-// context to match against, unlike attachGenbluScreenshotAction above).
-export async function scanPublicGenbluScreenshotForNameAction(
-  screenshot: File
-): Promise<{ customerName: string | null; pointsPreview: string | null }> {
-  try {
-    const buffer = Buffer.from(await screenshot.arrayBuffer());
-    const base64 = buffer.toString("base64");
-    const { text, words } = await extractTextAndWordsFromImage(base64);
-    return {
-      customerName: extractHomeScreenCustomerName(text),
-      pointsPreview: pointsPreviewText(extractPointsAccrued(text, words)),
-    };
-  } catch {
-    return { customerName: null, pointsPreview: null };
-  }
-}
-
-export async function submitPublicGenbluRegistrationAction(input: {
-  branch: Branch;
-  salespersonName: string;
-  salespersonCode: string;
-  customerName: string;
-  customerPlateNo: string;
-  screenshot: File;
-  confirmDuplicate?: boolean;
-  nameMismatchRemark?: string;
-}): Promise<{ error: string } | { warning: string } | { nameMismatch: true; message: string } | { registered: true }> {
-  const salespersonName = input.salespersonName.trim();
-  const customerName = input.customerName.trim();
-  const customerPlateNo = input.customerPlateNo.trim();
-  if (!salespersonName) return { error: "Enter your name." };
-  if (!customerName) return { error: "Enter the customer's name." };
-  if (!customerPlateNo) return { error: "Enter the customer's plate number." };
-  if (input.screenshot.size === 0) return { error: "Pick a screenshot to upload." };
-
-  const buffer = Buffer.from(await input.screenshot.arrayBuffer());
-  const hash = hashScreenshotBuffer(buffer);
-  if (!input.confirmDuplicate) {
-    const duplicate = await findDuplicateScreenshot(input.branch, hash);
-    if (duplicate) {
-      return {
-        warning: `This looks like the same screenshot already uploaded for ${duplicate.customerName} — are you sure you want to upload it again?`,
-      };
-    }
-  }
-
-  const ext = input.screenshot.name.split(".").pop() || "jpg";
-  const path = `${input.branch}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
-  const [analysis, uploadResult] = await Promise.all([
-    analyzeGenbluScreenshot(input.screenshot, customerName).catch(() => null),
-    supabaseAdmin.storage.from(BUCKET).upload(path, input.screenshot, { contentType: input.screenshot.type || "image/jpeg" }),
-  ]);
-  if (uploadResult.error) return { error: `Couldn't upload the screenshot: ${uploadResult.error.message}` };
-  const nameMatches = analysis?.nameMatches ?? true;
-  if (!nameMatches && !input.nameMismatchRemark?.trim()) {
-    return {
-      nameMismatch: true,
-      message: `The name on the screenshot doesn't match "${customerName}" — add a quick note explaining why (e.g. "wife's GenBlu") to continue.`,
-    };
-  }
-
-  const pointsReading = analysis?.pointsReading ?? null;
-  const { error } = await supabaseAdmin.from("cc_genblu_registrations").insert({
-    branch: input.branch,
-    salesperson_name: salespersonName,
-    salesperson_code: input.salespersonCode.trim().toUpperCase() || initialsFromName(salespersonName),
-    customer_name: customerName,
-    customer_plate_no: customerPlateNo,
-    screenshot_path: path,
-    screenshot_hash: hash,
-    points_accrued: applyPointsReading(null, pointsReading),
-    source: "new_customer",
-    name_mismatch_remark: input.nameMismatchRemark?.trim() || null,
-  });
-  if (error) return { error: error.message };
-
-  // Same screenshot proves an actual award event, not just a Tracker
-  // update — mirror it into Point Allocation too, so the two views tally.
-  if (pointsReading && !pointsReading.isBalance) {
-    await logTrackerAwardAsTransaction({
-      branch: input.branch,
-      customerName: analysis?.screenshotCustomerName ?? customerName,
-      screenshotPath: path,
-      screenshotHash: hash,
-      points: pointsReading.value,
-      uploadedBy: salespersonName,
-      membershipNumber: analysis?.membershipNumber,
-      productCategory: analysis?.productCategory,
-      transactionDate: analysis?.transactionDate,
-      transactionTime: analysis?.transactionTime,
-    });
-  }
-
-  revalidatePath("/genblu");
-  return { registered: true };
-}
+// The public, no-login /genblu-signup page (and the two server actions
+// that backed it, scanPublicGenbluScreenshotForNameAction and
+// submitPublicGenbluRegistrationAction) was retired once the Sales
+// Dashboard took over collecting new GenBlu registrations directly and
+// forwarding them here — see app/api/genblu-intake. New registrations
+// from a salesperson now always arrive that way instead.
 
 const TRANSACTIONS_BUCKET = "genblu-screenshots";
 
