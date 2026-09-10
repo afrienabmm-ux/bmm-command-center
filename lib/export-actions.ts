@@ -31,12 +31,13 @@ export async function exportGenbluCsv(branch: Branch, fromDate?: string, toDate?
     return true;
   });
   const rows = filtered.map((r) => [
+    r.customerName,
     r.salespersonName,
     r.salespersonCode,
     r.customerPlateNo,
     formatDate(r.createdAt),
   ]);
-  return toCsv(["Salesperson", "Code", "Customer Plate No", "Date"], rows);
+  return toCsv(["Customer Name", "Salesperson", "Code", "Customer Plate No", "Date"], rows);
 }
 
 export async function exportAllBranchesGenbluCsv(fromDate?: string, toDate?: string): Promise<string> {
@@ -49,11 +50,12 @@ export async function exportAllBranchesGenbluCsv(fromDate?: string, toDate?: str
     return true;
   });
   const rows = filtered.map((r) => [
+    r.customerName,
     r.salespersonName,
     r.salespersonCode,
     r.customerPlateNo,
     branchLabel(r.branch),
     formatDate(r.createdAt),
   ]);
-  return toCsv(["Salesperson", "Code", "Customer Plate No", "Branch", "Date"], rows);
+  return toCsv(["Customer Name", "Salesperson", "Code", "Customer Plate No", "Branch", "Date"], rows);
 }
