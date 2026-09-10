@@ -44,6 +44,19 @@ function mapBranch(label: string): Branch | null {
   return BRANCH_LABEL_MAP[label.trim().toLowerCase()] ?? null;
 }
 
+// Their side sends phone numbers as typed on their own dashboard — spaces,
+// dashes, and sometimes the "60" country code prefix ("60 17-921 2141").
+// Every number entered directly in this app is plain digits starting with
+// "0" (local format, e.g. "0179212141"), so forwarded ones are normalized
+// to match: strip every non-digit character, then drop just the leading
+// "6" when what's left starts with the "60" country code — "6017..."
+// becomes "017...", the same number in local form.
+function normalizePhone(raw: string): string {
+  const digits = raw.replace(/\D/g, "");
+  if (digits.startsWith("60") && digits.length >= 10) return digits.slice(1);
+  return digits;
+}
+
 function signatureValid(rawBody: string, provided: string): boolean {
   if (!SECRET) return false;
   const expected = createHmac("sha256", SECRET).update(rawBody).digest("hex");
@@ -100,7 +113,7 @@ export async function POST(req: Request): Promise<Response> {
     return Response.json({ ok: true, duplicate: true, card_number: existing.card_number });
   }
 
-  const customerPhone = body.customer_phone?.trim() ?? "";
+  const customerPhone = normalizePhone(body.customer_phone?.trim() ?? "");
   if (customerPhone) {
     const { data: phoneMatch } = await supabaseAdmin
       .from("cc_customer_cards")
