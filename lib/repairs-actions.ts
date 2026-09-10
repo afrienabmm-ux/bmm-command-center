@@ -416,6 +416,66 @@ export async function getUpcomingServiceReminders(onlyBranch?: Branch): Promise<
     .sort((a, b) => a.daysUntil - b.daysUntil);
 }
 
+export type SuspiciousJob = {
+  id: string;
+  branch: Branch;
+  jobNo: string;
+  customerName: string;
+  plateNo: string;
+  revenueAmount: number;
+  startedDate: string | null;
+  reasons: string[];
+};
+
+// RM — a normal Walk-in job (oil, small parts, labour) rarely reaches
+// this on its own; one that does is worth a second look, not necessarily
+// wrong.
+const SUSPICIOUS_REVENUE_THRESHOLD = 1000;
+
+// Plain, explainable red flags a GM can actually act on by opening the
+// job and checking — deliberately not a fuzzy "anomaly score". Bounded to
+// the last 3 months (this runs on every dashboard load, for whoever's
+// allowed to see it) — a year-old data problem isn't "check this today"
+// material.
+export async function getSuspiciousWalkInJobs(onlyBranch?: Branch): Promise<SuspiciousJob[]> {
+  await requireApproved();
+  const branches = onlyBranch ? [onlyBranch] : BRANCHES.map((b) => b.value);
+  const today = todayInMalaysia();
+  const [y, m, d] = today.split("-").map(Number);
+  const sinceDate = new Date(y, m - 1 - 3, d).toISOString().slice(0, 10);
+
+  const { data, error } = await supabaseAdmin
+    .from("cc_repair_jobs")
+    .select("id, branch, job_no, customer_name, plate_no, revenue_amount, started_date, mechanic_id, created_at")
+    .eq("job_type", "Walk-in")
+    .in("branch", branches)
+    .gte("created_at", sinceDate);
+  if (error) throw new Error(error.message);
+
+  const flagged: SuspiciousJob[] = [];
+  for (const r of data ?? []) {
+    const revenue = Number(r.revenue_amount);
+    const reasons: string[] = [];
+    if (revenue > SUSPICIOUS_REVENUE_THRESHOLD) reasons.push(`Cost RM ${revenue.toLocaleString()} — unusually high`);
+    if (!r.started_date) reasons.push("Job Date not set");
+    if (!r.mechanic_id) reasons.push("No mechanic assigned");
+    if (!(r.customer_name as string)?.trim()) reasons.push("Customer name missing");
+    if (!(r.plate_no as string)?.trim()) reasons.push("Plate number missing");
+    if (reasons.length === 0) continue;
+    flagged.push({
+      id: r.id as string,
+      branch: r.branch as Branch,
+      jobNo: r.job_no as string,
+      customerName: r.customer_name as string,
+      plateNo: r.plate_no as string,
+      revenueAmount: revenue,
+      startedDate: r.started_date as string | null,
+      reasons,
+    });
+  }
+  return flagged.sort((a, b) => b.revenueAmount - a.revenueAmount);
+}
+
 type ItemInput = { code?: string; description: string; quantity: number; price: number };
 
 function itemsTotal(items: ItemInput[]): number {

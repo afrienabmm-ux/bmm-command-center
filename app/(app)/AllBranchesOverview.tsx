@@ -6,7 +6,7 @@ import StatCard from "@/components/StatCard";
 import CombinedTargetEditor from "./CombinedTargetEditor";
 import BranchBreakdownTable, { getBranchBreakdown, getAllBranchesAchievedTotal } from "./BranchBreakdownTable";
 import MonthlyTrends from "./MonthlyTrends";
-import { getUpcomingServiceReminders } from "@/lib/repairs-actions";
+import { getUpcomingServiceReminders, getSuspiciousWalkInJobs } from "@/lib/repairs-actions";
 import { getBranchMonthSummary, getBranchPerformance, getMonthlyTargetHistory } from "@/lib/reports-actions";
 import { getMonthlyTrends } from "@/lib/trends-actions";
 import { getRevenuePace } from "@/lib/revenue-pace-actions";
@@ -24,6 +24,7 @@ import PackageBreakdownCharts from "./PackageBreakdownCharts";
 import ClaimStatusPieCard from "./ClaimStatusPieCard";
 import BranchMechanicLeaderboard from "./BranchMechanicLeaderboard";
 import ServiceReminderBanner from "./ServiceReminderBanner";
+import SuspiciousJobsBanner from "./SuspiciousJobsBanner";
 
 // Rolls (year, month) back one month, correctly crossing a year boundary.
 function previousMonth(year: number, month: number): { year: number; month: number } {
@@ -54,6 +55,7 @@ export default async function AllBranchesOverview({
   const [
     rows,
     serviceReminders,
+    suspiciousJobs,
     prevAchieved,
     trendPoints,
     revenuePace,
@@ -70,6 +72,7 @@ export default async function AllBranchesOverview({
     // below) — skipping the query entirely for everyone else saves a real
     // database round-trip on every dashboard load, not just a hidden render.
     isManagement ? getUpcomingServiceReminders(onlyBranch) : Promise.resolve([]),
+    isManagement ? getSuspiciousWalkInJobs(onlyBranch) : Promise.resolve([]),
     onlyBranch
       ? getBranchMonthSummary(onlyBranch, prev.year, prev.month).then((s) => s.achievedAmount)
       : getAllBranchesAchievedTotal(prev.year, prev.month),
@@ -151,6 +154,8 @@ export default async function AllBranchesOverview({
       </div>
 
       {/* Alerts — anything that needs action or a heads-up, most urgent first. */}
+      {isManagement && <SuspiciousJobsBanner jobs={suspiciousJobs} showBranch={!onlyBranch} />}
+
       {isManagement && <ServiceReminderBanner reminders={serviceReminders} />}
 
       {isManagement && (
