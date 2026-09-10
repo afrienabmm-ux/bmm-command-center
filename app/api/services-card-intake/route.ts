@@ -140,7 +140,12 @@ export async function POST(req: Request): Promise<Response> {
     customer_name: body.customer_name,
     customer_phone: customerPhone,
     card_number: cardNumber,
-    salesperson_name: body.salesperson,
+    // Lowercased, matching the convention every name in this column uses
+    // (see lib/services-card-salespeople.ts) — their dashboard's own
+    // casing for a salesperson's name won't always match ours otherwise,
+    // and the Services Card filter/dropdown both key off this being
+    // consistent.
+    salesperson_name: body.salesperson.trim().toLowerCase(),
     plate_no: body.plate_no,
     model: body.model ?? "",
     bought_bike_here: true,

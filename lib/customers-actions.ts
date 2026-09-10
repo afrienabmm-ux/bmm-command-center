@@ -114,7 +114,10 @@ export async function addCustomerCardAction(input: {
     customer_name: customerName,
     customer_phone: customerPhone,
     card_number: cardNumber,
-    salesperson_name: input.salespersonName.trim(),
+    // Lowercased so a name typed by hand (the "Other" option) can't
+    // reintroduce the same "FARAH" vs "farah" split the filter dropdown
+    // already had to be fixed for once.
+    salesperson_name: input.salespersonName.trim().toLowerCase(),
     plate_no: input.plateNo.trim(),
     model: input.model.trim(),
     bought_bike_here: input.boughtBikeHere,
@@ -186,7 +189,7 @@ export async function updateCustomerCardAction(
       customer_name: customerName,
       customer_phone: customerPhone,
       card_number: input.cardNumber.trim(),
-      salesperson_name: input.salespersonName.trim(),
+      salesperson_name: input.salespersonName.trim().toLowerCase(),
       plate_no: input.plateNo.trim(),
       model: input.model.trim(),
       bought_bike_here: input.boughtBikeHere,

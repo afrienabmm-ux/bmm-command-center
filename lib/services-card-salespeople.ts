@@ -4,7 +4,7 @@ import type { Branch } from "./branch";
 // dropdown. "Other (type manually)" is always offered alongside the list
 // so a name missing from it can still be typed in by hand.
 export const SALESPEOPLE_BY_BRANCH: Partial<Record<Branch, string[]>> = {
-  kapar: ["FARAH", "AWIN", "ADRIANA", "AISYAH", "LINA", "FAHMI", "JIMMY"],
-  puncak_alam: ["LINA", "FAZLIN", "VINCENT", "SHAFIQ", "IRFAN"],
-  setia_alam: ["NAJWA", "IMAN", "RAYMOND"],
+  kapar: ["farah", "awin", "adriana", "aisya", "lina", "fahmi", "jimmy"],
+  puncak_alam: ["lina", "fazlin", "vincent", "shafiq", "irfan"],
+  setia_alam: ["najwa", "iman", "raymond"],
 };
