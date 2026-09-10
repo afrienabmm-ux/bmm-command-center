@@ -35,11 +35,13 @@ export default async function AllBranchesOverview({
   year,
   month,
   isManagement,
+  showSuspiciousJobs,
   branchSelection,
 }: {
   year: number;
   month: number;
   isManagement: boolean;
+  showSuspiciousJobs: boolean;
   branchSelection: BranchSelection;
 }) {
   const prev = previousMonth(year, month);
@@ -72,7 +74,7 @@ export default async function AllBranchesOverview({
     // below) — skipping the query entirely for everyone else saves a real
     // database round-trip on every dashboard load, not just a hidden render.
     isManagement ? getUpcomingServiceReminders(onlyBranch) : Promise.resolve([]),
-    isManagement ? getSuspiciousWalkInJobs(onlyBranch) : Promise.resolve([]),
+    showSuspiciousJobs ? getSuspiciousWalkInJobs(onlyBranch) : Promise.resolve([]),
     onlyBranch
       ? getBranchMonthSummary(onlyBranch, prev.year, prev.month).then((s) => s.achievedAmount)
       : getAllBranchesAchievedTotal(prev.year, prev.month),
@@ -154,7 +156,7 @@ export default async function AllBranchesOverview({
       </div>
 
       {/* Alerts — anything that needs action or a heads-up, most urgent first. */}
-      {isManagement && <SuspiciousJobsBanner jobs={suspiciousJobs} showBranch={!onlyBranch} />}
+      {showSuspiciousJobs && <SuspiciousJobsBanner jobs={suspiciousJobs} showBranch={!onlyBranch} />}
 
       {isManagement && <ServiceReminderBanner reminders={serviceReminders} />}
 

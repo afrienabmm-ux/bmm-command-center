@@ -45,6 +45,11 @@ export default async function CommandCenterPage({
           year={year}
           month={month}
           isManagement={isManagementLevel(user.role)}
+          // The Suspicious Jobsheets banner is only for this one account
+          // (Afriena, IT Support) rather than every Management login — set
+          // in SUSPICIOUS_JOBS_ALERT_EMAIL, the same single-account
+          // pattern FIELD_SCANNER_EMAIL already uses elsewhere.
+          showSuspiciousJobs={user.email === process.env.SUSPICIOUS_JOBS_ALERT_EMAIL}
           branchSelection={branchSelection}
         />
       </div>
