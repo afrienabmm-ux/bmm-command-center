@@ -77,8 +77,13 @@ export default function WalkInClient({
   // flat list was the whole complaint. Active/Errors still show
   // everything regardless of date, since a job started days ago still
   // needs to stay visible until it's actually done. "See All" (below)
-  // clears this back to the full list.
+  // clears this back to the full list. Skipped entirely while deep-linked
+  // to a specific job (see the highlight effect below) — otherwise this
+  // effect fires right after that one switches to Completed and immediately
+  // resets the date range back to today, hiding an older highlighted job
+  // again the moment it's found.
   useEffect(() => {
+    if (highlightId) return;
     if (tab === "completed") {
       const today = todayInMalaysia();
       setDateFrom(today);
@@ -87,7 +92,7 @@ export default function WalkInClient({
       setDateFrom("");
       setDateTo("");
     }
-  }, [tab]);
+  }, [tab, highlightId]);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
   const [bulkDeleting, setBulkDeleting] = useState(false);
