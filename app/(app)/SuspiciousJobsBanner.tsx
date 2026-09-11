@@ -27,7 +27,7 @@ export default function SuspiciousJobsBanner({ jobs, showBranch }: { jobs: Suspi
             {jobs.slice(0, 6).map((j) => (
               <div key={j.id} className="text-xs text-amber-700">
                 <Link
-                  href={`/repairs/walk-in?job=${j.id}`}
+                  href={`/repairs/walk-in?highlight=${j.id}`}
                   className="font-medium hover:underline"
                   onClick={() => {
                     // Opening a specific flagged job counts as reviewing it —
@@ -46,7 +46,13 @@ export default function SuspiciousJobsBanner({ jobs, showBranch }: { jobs: Suspi
             ))}
             {jobs.length > 6 && <p className="text-[11px] text-amber-500">+{jobs.length - 6} more</p>}
           </div>
-          <Link href="/repairs/walk-in" className="inline-block text-xs font-medium text-amber-700 hover:text-amber-800 mt-2 underline">
+          <Link
+            href={jobs.length === 1 ? `/repairs/walk-in?highlight=${jobs[0].id}` : "/repairs/walk-in"}
+            className="inline-block text-xs font-medium text-amber-700 hover:text-amber-800 mt-2 underline"
+            onClick={() => {
+              if (jobs.length === 1) dismissSuspiciousJobAction(jobs[0].id);
+            }}
+          >
             View in Jobsheet
           </Link>
         </div>

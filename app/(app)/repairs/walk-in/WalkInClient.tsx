@@ -134,8 +134,14 @@ export default function WalkInClient({
   useEffect(() => {
     if (!highlightId) return;
     if (active.some((j) => j.id === highlightId)) setTab("active");
-    else if (completed.some((j) => j.id === highlightId)) setTab("completed");
-    else if (errors.some((j) => j.id === highlightId)) setTab("errors");
+    else if (completed.some((j) => j.id === highlightId)) {
+      setTab("completed");
+      // Completed defaults to today only (see the effect above) — a job
+      // highlighted from an older alert would otherwise land on a tab
+      // that's just filtered it back out again.
+      setDateFrom("");
+      setDateTo("");
+    } else if (errors.some((j) => j.id === highlightId)) setTab("errors");
     setQuery("");
   }, [highlightId, active, completed, errors]);
 
