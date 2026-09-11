@@ -111,6 +111,38 @@ async function preprocessForOcr(buffer: Buffer): Promise<Buffer> {
   return pipeline.grayscale().normalize().sharpen().jpeg({ quality: 85 }).toBuffer();
 }
 
+const DEFAULT_MAX_STORED_PHOTO_BYTES = 500 * 1024;
+
+// Shrinks a jobsheet photo for long-term storage, entirely separate from
+// preprocessForOcr above — the OCR pass always reads the original,
+// untouched upload (see scan-jobsheet/route.ts), so how much this archived
+// copy gets compressed can never affect scan accuracy. Kept in color and at
+// a size still clearly readable by eye later, unlike the OCR copy which is
+// grayscale and tuned for text recognition rather than looking right to a
+// person.
+//
+// Quality is stepped down first — free (no visible change until fairly
+// low), before shrinking the actual dimensions, which is more noticeable.
+// Falls back to the smallest attempt if even that can't get under the
+// target (an unusually busy/detailed photo) rather than looping forever.
+export async function compressPhotoForStorage(buffer: Buffer, maxBytes: number = DEFAULT_MAX_STORED_PHOTO_BYTES): Promise<Buffer> {
+  const oriented = await sharp(buffer, { failOn: "none" }).rotate().toBuffer();
+  const metadata = await sharp(oriented).metadata();
+  let width = Math.min(metadata.width ?? 1600, 1600);
+
+  let best = oriented;
+  for (const quality of [80, 70, 60, 50]) {
+    best = await sharp(oriented).resize({ width, withoutEnlargement: true }).jpeg({ quality }).toBuffer();
+    if (best.length <= maxBytes) return best;
+  }
+  while (width > 600) {
+    width = Math.round(width * 0.75);
+    best = await sharp(oriented).resize({ width, withoutEnlargement: true }).jpeg({ quality: 60 }).toBuffer();
+    if (best.length <= maxBytes) return best;
+  }
+  return best;
+}
+
 type OcrSpaceWord = { WordText?: string; Left?: number; Top?: number; Width?: number; Height?: number };
 type OcrSpaceResponse = {
   IsErroredOnProcessing?: boolean;
