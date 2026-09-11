@@ -1,6 +1,8 @@
+"use client";
+
 import Link from "next/link";
 import { AlertTriangle } from "lucide-react";
-import type { SuspiciousJob } from "@/lib/repairs-actions";
+import { dismissSuspiciousJobAction, type SuspiciousJob } from "@/lib/repairs-actions";
 import { branchLabel } from "@/lib/branch";
 
 // Plain, explainable red flags on recent Walk-in jobs (see
@@ -24,7 +26,18 @@ export default function SuspiciousJobsBanner({ jobs, showBranch }: { jobs: Suspi
           <div className="mt-2 space-y-1.5">
             {jobs.slice(0, 6).map((j) => (
               <div key={j.id} className="text-xs text-amber-700">
-                <Link href={`/repairs/walk-in?job=${j.id}`} className="font-medium hover:underline">
+                <Link
+                  href={`/repairs/walk-in?job=${j.id}`}
+                  className="font-medium hover:underline"
+                  onClick={() => {
+                    // Opening a specific flagged job counts as reviewing it —
+                    // dismissed here so it doesn't keep reappearing on every
+                    // future dashboard visit. Fired without awaiting: this is
+                    // client-side navigation (no page unload), so the request
+                    // still completes in the background.
+                    dismissSuspiciousJobAction(j.id);
+                  }}
+                >
                   {j.jobNo || "(no job no.)"} — {j.customerName || j.plateNo || "Unnamed"}
                   {showBranch ? ` (${branchLabel(j.branch)})` : ""}
                 </Link>

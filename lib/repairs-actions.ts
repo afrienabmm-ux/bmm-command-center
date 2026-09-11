@@ -446,10 +446,11 @@ export async function getSuspiciousWalkInJobs(onlyBranch?: Branch): Promise<Susp
 
   const { data, error } = await supabaseAdmin
     .from("cc_repair_jobs")
-    .select("id, branch, job_no, customer_name, plate_no, revenue_amount, started_date, mechanic_id, created_at")
+    .select("id, branch, job_no, customer_name, plate_no, revenue_amount, started_date, mechanic_id, created_at, suspicious_dismissed_at")
     .eq("job_type", "Walk-in")
     .in("branch", branches)
-    .gte("created_at", sinceDate);
+    .gte("created_at", sinceDate)
+    .is("suspicious_dismissed_at", null);
   if (error) throw new Error(error.message);
 
   const flagged: SuspiciousJob[] = [];
@@ -474,6 +475,18 @@ export async function getSuspiciousWalkInJobs(onlyBranch?: Branch): Promise<Susp
     });
   }
   return flagged.sort((a, b) => b.revenueAmount - a.revenueAmount);
+}
+
+// Called when a job is opened from the "worth a second look" banner —
+// treated as the reviewer having checked it and found it fine, so it
+// shouldn't keep coming back on every future visit.
+export async function dismissSuspiciousJobAction(jobId: string): Promise<void> {
+  await requireApproved();
+  const { error } = await supabaseAdmin
+    .from("cc_repair_jobs")
+    .update({ suspicious_dismissed_at: new Date().toISOString() })
+    .eq("id", jobId);
+  if (error) throw new Error(error.message);
 }
 
 type ItemInput = { code?: string; description: string; quantity: number; price: number };
