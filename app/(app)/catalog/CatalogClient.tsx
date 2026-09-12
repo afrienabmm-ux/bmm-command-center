@@ -307,7 +307,12 @@ function AddProductModal({ brand, branch, onClose }: { brand: CatalogBrand; bran
         category: category.trim(),
         productName: productName.trim(),
         spec: spec.trim(),
-        price: Math.max(0, Number(price) || 0),
+        // A real stocked product should never price at or below zero, but
+        // Workshop covers discount/FOC/package-promo line items (see
+        // CATALOG_BRANDS), which are only ever meaningful as a negative
+        // amount — clamping those to 0 would silently turn a discount into
+        // a free line worth nothing.
+        price: brand === "Workshop" ? Number(price) || 0 : Math.max(0, Number(price) || 0),
         code: code.trim(),
         branch,
         quantity: Math.max(0, Number(quantity) || 0),

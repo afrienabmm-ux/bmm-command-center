@@ -276,8 +276,12 @@ export type Package = {
 
 export const LOW_STOCK_THRESHOLD = 10;
 
-export type CatalogBrand = "Yamalube" | "Rock Oil" | "Motul" | "Yamaha Spare Parts";
-export const CATALOG_BRANDS: CatalogBrand[] = ["Yamalube", "Rock Oil", "Motul", "Yamaha Spare Parts"];
+// "Workshop" covers internal line items that aren't a real stocked product
+// (labour charges, discounts/FOC, package promos) — see migration
+// 20260902110000_catalog_workshop_brand.sql, which added it to the
+// database's own brand check constraint.
+export type CatalogBrand = "Yamalube" | "Rock Oil" | "Motul" | "Yamaha Spare Parts" | "Workshop";
+export const CATALOG_BRANDS: CatalogBrand[] = ["Yamalube", "Rock Oil", "Motul", "Yamaha Spare Parts", "Workshop"];
 export type CatalogProduct = {
   id: string;
   brand: CatalogBrand;

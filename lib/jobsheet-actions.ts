@@ -578,19 +578,24 @@ function normalizeCatalogCode(raw: string): string {
 type DiscountCatalogEntry = { name: string; price: number };
 
 async function loadCatalogLookup(): Promise<{ lookup: Map<string, CatalogLookupEntry>; discounts: DiscountCatalogEntry[] }> {
-  const { data, error } = await supabaseAdmin.from("cc_catalog_products").select("code, product_name, spec, price");
+  const { data, error } = await supabaseAdmin.from("cc_catalog_products").select("code, product_name, spec, price, brand");
   if (error || !data) return { lookup: new Map(), discounts: [] };
   const lookup = new Map<string, CatalogLookupEntry>();
   const discounts: DiscountCatalogEntry[] = [];
-  for (const row of data as { code: string; product_name: string; spec: string; price: number }[]) {
+  for (const row of data as { code: string; product_name: string; spec: string; price: number; brand: string }[]) {
     const code = normalizeCatalogCode(row.code ?? "");
     if (!code) {
-      // Discount/FOC catalog entries (e.g. "1ST MINYAK FOC DISCOUNT") are
-      // always entered with a blank code — the only way to tell a scanned
-      // discount row's amount apart from a coincidence is its price, so
-      // that's kept here for matchDiscountCatalog below instead of being
-      // dropped along with every other blank-code row.
-      if (/\bfoc\b/i.test(row.product_name) || /\bdiscount\b/i.test(row.product_name)) {
+      // Discount/FOC/package-promo catalog entries ("1ST MINYAK FOC
+      // DISCOUNT", "Package Otai Santai", "Rock Oil Combo", ...) are always
+      // entered under the "Workshop" brand with a blank code (see
+      // CATALOG_BRANDS in lib/types.ts) — that combination, not the name
+      // itself, is what actually marks a row as one of these; the previous
+      // "name contains foc/discount" check missed every entry that isn't
+      // literally named that, which was most of them. The only way to tell
+      // a scanned discount row's amount apart from a coincidence is its
+      // price, so that's kept here for matchDiscountCatalog below instead
+      // of being dropped along with every other blank-code row.
+      if (row.brand === "Workshop") {
         discounts.push({ name: row.product_name, price: Number(row.price) });
       }
       continue;
@@ -643,13 +648,21 @@ function applyCatalogData(items: ScannedJobsheetItem[], lookup: Map<string, Cata
 // here the way a real part's price is.
 //
 // If the scanned amount happens to match one of the catalog's own named
-// discount entries exactly (e.g. -20 for "1ST MINYAK FOC DISCOUNT"), that
-// specific name is used instead of the generic one — the exact price is a
-// strong enough signal to identify which promo it actually was, not just
-// that some deduction happened.
+// discount entries exactly (e.g. -20 for "1ST MINYAK FOC DISCOUNT", or
+// -22.80 for "Major Service Combo"), that specific name is used instead of
+// the generic one — the exact price is a strong enough signal to identify
+// which promo it actually was, not just that some deduction happened.
+//
+// A negative amount is what actually marks a row as this kind of
+// deduction in the first place — not whether OCR happened to read a word
+// like "discount" off it. Most of these promo/combo names ("Package Otai
+// Santai", "Rock Oil Combo", "Major Service Combo", ...) don't contain
+// either word, so gating on that text (the previous check) meant this
+// whole pass only ever fired for the one or two rows literally printed
+// "...DISCOUNT" and silently left every other combo/package row alone.
 function normalizeDiscountItems(items: ScannedJobsheetItem[], discountCatalog: DiscountCatalogEntry[]): ScannedJobsheetItem[] {
   return items.map((item) => {
-    if (!/\bFOC\b/i.test(item.description) && !/\bDISCOUNT\b/i.test(item.description)) return item;
+    if (item.price >= 0) return item;
     const match = discountCatalog.find((d) => Math.abs(d.price - item.price) < 0.01);
     return { ...item, code: "", description: match ? match.name : "Discount" };
   });
