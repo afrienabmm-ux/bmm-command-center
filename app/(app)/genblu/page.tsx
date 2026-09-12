@@ -73,6 +73,11 @@ export default async function GenbluPage({
     ),
   ]);
 
+  // The Tracker tab is for registrations tied to an actual jobsheet — the
+  // "new_customer" ones (forwarded from the Sales Dashboard, no jobsheet
+  // involved) already have their own dedicated "New Registration" tab, so
+  // they're excluded here rather than counted in both places.
+  const trackerRegistrations = withUrls.filter((r) => r.source === "has_jobsheet");
   const newRegistrations = withUrls.filter((r) => r.source === "new_customer");
 
   return (
@@ -83,12 +88,12 @@ export default async function GenbluPage({
       />
       <div className="p-8">
         <GenbluTabs
-          registeredCount={registrations.length}
+          registeredCount={trackerRegistrations.length}
           newRegistrationCount={newRegistrations.length}
           allocationCount={transactions.length}
           tracker={
             <GenbluClient
-              registrations={withUrls}
+              registrations={trackerRegistrations}
               mechanics={mechanics}
               branch={branch}
               branchSelection={branchSelection}
