@@ -9,7 +9,7 @@ import { BRANCHES, type Branch } from "./branch";
 import { extractTextFromImage, extractTextAndWordsFromImage, type PositionedWord } from "./vision";
 import { extractGenbluEventWithAi } from "./ai-genblu-extract";
 import { logActivity } from "./activity-log";
-import { normalizeName, namesLikelyMatch } from "./name-matching";
+import { normalizeName, namesLikelyMatch, expandNameConnectors } from "./name-matching";
 
 const BUCKET = "genblu-screenshots";
 
@@ -110,8 +110,13 @@ function condensedName(name: string): string {
 // only one word) is enough to still catch a genuinely different customer
 // — two unrelated people sharing just a first name is common, sharing
 // their first two names is not.
+//
+// Expanded through expandNameConnectors before slicing — a name typed with
+// the short "BT"/"B" form (common on a quick jobsheet/registration entry)
+// otherwise never matches the GenBlu app's own screen, which spells out
+// "BINTI"/"BIN" in full, and gets wrongly flagged as a different customer.
 function frontNameForMatch(name: string): string {
-  const words = name.trim().split(/\s+/).filter(Boolean).slice(0, 2);
+  const words = expandNameConnectors(name).split(/\s+/).filter(Boolean).slice(0, 2);
   return condensedName(words.join(" "));
 }
 
