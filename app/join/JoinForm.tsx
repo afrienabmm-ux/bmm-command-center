@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { useSearchParams } from "next/navigation";
-import { Search, Phone, Sparkles, Wrench } from "lucide-react";
+import { Search, Phone, Sparkles, Wrench, Loader2 } from "lucide-react";
 import { lookupCustomerCardAction, type MembershipLookup } from "@/lib/customer-registration-actions";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { stampCardSize, rewardForStamp, nextReward } from "@/lib/membership";
@@ -132,14 +132,21 @@ export default function JoinForm() {
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<MembershipLookup | null>(null);
   const [isPending, startTransition] = useTransition();
+  // True only for the one automatic ?plate= lookup below, from the moment
+  // it starts until it resolves — the search form/button's own "Looking
+  // up…" state is a different, separate thing (a customer manually
+  // pressing Find My Card). Kept true from render 0 (via the lazy
+  // useState initializer, not an effect) so a plate-deep-linked visit
+  // never paints the search form for even one frame.
+  const [autoLookupInProgress, setAutoLookupInProgress] = useState(() => !!searchParams.get("plate")?.trim());
 
   // Deep-linked from the Sales Dashboard's QR code right after a GenBlu
   // registration (?plate=VRJ9526) — look that plate up automatically so the
-  // card shows straight away with nothing to type. Takes priority over a
-  // restored session below, since arriving with a plate in the link is a
-  // fresh, explicit request for that specific card. Any other visit (no
-  // plate param, or the lookup finds nothing) falls through to the normal
-  // manual-entry screen, same as before.
+  // card shows straight away with nothing to type or watch load. Takes
+  // priority over a restored session below, since arriving with a plate in
+  // the link is a fresh, explicit request for that specific card. Any other
+  // visit (no plate param, or the lookup finds nothing) falls through to
+  // the normal manual-entry screen, same as before.
   useEffect(() => {
     const plateParam = searchParams.get("plate")?.trim();
     if (plateParam) {
@@ -147,10 +154,12 @@ export default function JoinForm() {
         const res = await lookupCustomerCardAction(plateParam);
         if ("error" in res) {
           setError(res.error);
+          setAutoLookupInProgress(false);
           return;
         }
         setResult(res);
         writeSession({ result: res });
+        setAutoLookupInProgress(false);
       });
       return;
     }
@@ -177,6 +186,15 @@ export default function JoinForm() {
     localStorage.removeItem(LOOKUP_STORAGE_KEY);
     setResult(null);
     setPhone("");
+  }
+
+  if (autoLookupInProgress) {
+    return (
+      <div className="flex flex-col items-center justify-center py-10">
+        <Loader2 size={22} className="text-red-400 animate-spin" />
+        <p className="text-xs text-neutral-400 mt-3">Finding your card…</p>
+      </div>
+    );
   }
 
   if (result) {
