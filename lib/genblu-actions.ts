@@ -153,8 +153,11 @@ function normalizeDigitLookalikes(token: string): string {
   return token.replace(/[Oo]/g, "0");
 }
 
+// The GenBlu app can be set to Bahasa Malaysia — "Reward Points" becomes
+// "Mata Ganjaran" (literally "points reward"), so "ganjaran" (Malay for
+// "reward") is anchored on the same way "reward" is for the English screen.
 function findPointsAboveLabel(words: PositionedWord[]): number | null {
-  const rewardIdx = words.findIndex((w) => /^reward$/i.test(w.text));
+  const rewardIdx = words.findIndex((w) => /^(reward|ganjaran)$/i.test(w.text));
   if (rewardIdx === -1) return null;
   const label = words[rewardIdx];
   const numeric = words.filter(
@@ -182,7 +185,7 @@ function extractPointsAccrued(text: string, words: PositionedWord[] = []): Point
   const fromPosition = findPointsAboveLabel(words);
   if (fromPosition !== null) return { value: fromPosition, isBalance: true };
 
-  const labeled = text.match(/points[^\d]{0,20}(\d[\d,]{0,6})/i);
+  const labeled = text.match(/(?:points|ganjaran)[^\d]{0,20}(\d[\d,]{0,6})/i);
   if (labeled) {
     const num = Number(labeled[1].replace(/,/g, ""));
     if (!Number.isNaN(num)) return { value: num, isBalance: false };
