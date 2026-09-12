@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
+import { useSearchParams } from "next/navigation";
 import { Search, Phone, Sparkles, Wrench } from "lucide-react";
 import { lookupCustomerCardAction, type MembershipLookup } from "@/lib/customer-registration-actions";
 import { formatCurrency, formatDate } from "@/lib/format";
@@ -126,16 +127,37 @@ const primaryButtonClass =
   "w-full flex items-center justify-center gap-1.5 bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-semibold px-4 py-3 rounded-xl transition-all shadow-lg shadow-red-500/20 active:scale-[0.98]";
 
 export default function JoinForm() {
-  const [phone, setPhone] = useState("");
+  const searchParams = useSearchParams();
+  const [phone, setPhone] = useState(() => searchParams.get("plate")?.trim() ?? "");
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<MembershipLookup | null>(null);
   const [isPending, startTransition] = useTransition();
 
-  // A still-fresh lookup survives a page refresh — the customer only has
-  // to type their number once every 3 hours.
+  // Deep-linked from the Sales Dashboard's QR code right after a GenBlu
+  // registration (?plate=VRJ9526) — look that plate up automatically so the
+  // card shows straight away with nothing to type. Takes priority over a
+  // restored session below, since arriving with a plate in the link is a
+  // fresh, explicit request for that specific card. Any other visit (no
+  // plate param, or the lookup finds nothing) falls through to the normal
+  // manual-entry screen, same as before.
   useEffect(() => {
+    const plateParam = searchParams.get("plate")?.trim();
+    if (plateParam) {
+      startTransition(async () => {
+        const res = await lookupCustomerCardAction(plateParam);
+        if ("error" in res) {
+          setError(res.error);
+          return;
+        }
+        setResult(res);
+        writeSession({ result: res });
+      });
+      return;
+    }
     const stored = readSession();
     if (stored) setResult(stored.result);
+    // Only ever meant to run once, right after mount.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   function handleLookup() {

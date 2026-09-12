@@ -6,6 +6,15 @@ function normalizePhone(phone: string): string {
   return phone.replace(/\D/g, "");
 }
 
+// The Sales Dashboard's QR link always sends a plate in capitals with no
+// spaces ("VRJ9526"), which won't match a plate saved here with a space
+// ("VRJ 9526") via a plain case-insensitive equality check — comparing
+// with spaces and casing stripped from both sides is what actually makes
+// the two agree.
+function normalizePlate(plate: string): string {
+  return plate.replace(/\s+/g, "").toUpperCase();
+}
+
 export type MembershipLookup = {
   customerName: string;
   cardNumber: string;
@@ -74,7 +83,16 @@ async function findCardByPhoneOrPlate(query: string) {
 
   const { data: byPlate, error: plateError } = await supabaseAdmin.from("cc_customer_cards").select(cols).ilike("plate_no", query).limit(1);
   if (plateError) throw new Error(plateError.message);
-  return byPlate && byPlate.length > 0 ? byPlate[0] : null;
+  if (byPlate && byPlate.length > 0) return byPlate[0];
+
+  // The exact match above can miss a plate that differs only by spacing
+  // (see normalizePlate) — small table, so comparing every plate this way
+  // is cheap, and only ever runs once the faster exact match has failed.
+  const normalizedQuery = normalizePlate(query);
+  if (!normalizedQuery) return null;
+  const { data: all, error: allError } = await supabaseAdmin.from("cc_customer_cards").select(cols);
+  if (allError) throw new Error(allError.message);
+  return (all ?? []).find((c) => normalizePlate(c.plate_no) === normalizedQuery) ?? null;
 }
 
 // Public — called from /join, which has no staff login. Every card is now
