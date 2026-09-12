@@ -350,6 +350,39 @@ function pointsPreviewText(reading: PointsReading | null): string | null {
     : `${reading.value.toLocaleString()} points awarded`;
 }
 
+export type GenbluHomeScreenScan = {
+  customerName: string | null;
+  points: number | null;
+  // True when the points figure read off the screen is a running account
+  // balance rather than a one-time award amount — the app shows both,
+  // worded almost identically, and a caller displaying this needs to know
+  // which one it's showing.
+  pointsIsBalance: boolean | null;
+  membershipNumber: string | null;
+};
+
+// Shared by the staff-facing action below and the external /api/genblu-scan
+// endpoint (see that route for why an outside caller needs this at all) —
+// no staff-session check here, since that's not meaningful for a
+// server-to-server API call; each caller enforces whatever auth actually
+// applies to it.
+async function analyzeGenbluHomeScreen(buffer: Buffer): Promise<GenbluHomeScreenScan> {
+  const base64 = buffer.toString("base64");
+  const { text, words } = await extractTextAndWordsFromImage(base64);
+  const pointsReading = extractPointsAccrued(text, words);
+  return {
+    customerName: extractHomeScreenCustomerName(text),
+    points: pointsReading?.value ?? null,
+    pointsIsBalance: pointsReading?.isBalance ?? null,
+    // Best-effort: this label search was built against the app's
+    // Transaction Details screen (see extractMembershipNumber), not this
+    // home screen specifically — included anyway since the same "Membership
+    // Number: ..." label is a plausible match here too, and there's no
+    // better home-screen-specific extractor of our own to fall back to.
+    membershipNumber: extractMembershipNumber(text),
+  };
+}
+
 // Called as soon as a mechanic picks a screenshot in the "No Jobsheet — New
 // Customer" flow, so the name field can fill itself in instead of asking
 // staff to retype what's already on the screen they just uploaded — and so
@@ -361,15 +394,23 @@ export async function scanGenbluScreenshotForNameAction(
   await requireApproved();
   try {
     const buffer = Buffer.from(await screenshot.arrayBuffer());
-    const base64 = buffer.toString("base64");
-    const { text, words } = await extractTextAndWordsFromImage(base64);
+    const scan = await analyzeGenbluHomeScreen(buffer);
     return {
-      customerName: extractHomeScreenCustomerName(text),
-      pointsPreview: pointsPreviewText(extractPointsAccrued(text, words)),
+      customerName: scan.customerName,
+      pointsPreview: pointsPreviewText(
+        scan.points === null ? null : { value: scan.points, isBalance: scan.pointsIsBalance ?? false }
+      ),
     };
   } catch {
     return { customerName: null, pointsPreview: null };
   }
+}
+
+// Called by app/api/genblu-scan/route.ts — the actual scanning logic a
+// partner's own app can call instead of running its own (weaker) OCR on a
+// GenBlu home-screen screenshot.
+export async function analyzeGenbluHomeScreenForApi(buffer: Buffer): Promise<GenbluHomeScreenScan> {
+  return analyzeGenbluHomeScreen(buffer);
 }
 
 // sinceDate (an ISO date, e.g. "2026-03-01") bounds the query to
