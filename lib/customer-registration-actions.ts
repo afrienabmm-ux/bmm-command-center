@@ -85,14 +85,31 @@ async function findCardByPhoneOrPlate(query: string) {
   if (plateError) throw new Error(plateError.message);
   if (byPlate && byPlate.length > 0) return byPlate[0];
 
-  // The exact match above can miss a plate that differs only by spacing
-  // (see normalizePlate) — small table, so comparing every plate this way
-  // is cheap, and only ever runs once the faster exact match has failed.
-  const normalizedQuery = normalizePlate(query);
-  if (!normalizedQuery) return null;
+  // Neither exact match hit — the query might just be formatted
+  // differently than what's on file (a dash in a phone number, a missing
+  // space in a plate). Compare every card's own value with that kind of
+  // punctuation stripped instead; small table, so fetching every row once
+  // here (only after both faster exact matches have already failed) is
+  // cheap.
+  const normalizedPhoneQuery = normalizePhone(query);
+  const normalizedPlateQuery = normalizePlate(query);
+  if (!normalizedPhoneQuery && !normalizedPlateQuery) return null;
+
   const { data: all, error: allError } = await supabaseAdmin.from("cc_customer_cards").select(cols);
   if (allError) throw new Error(allError.message);
-  return (all ?? []).find((c) => normalizePlate(c.plate_no) === normalizedQuery) ?? null;
+
+  // Guarded to a plausible phone length so a short plate's own digits
+  // (e.g. "6005" out of "SPA6005") can't coincidentally match part of an
+  // unrelated customer's phone number.
+  if (normalizedPhoneQuery.length >= 9) {
+    const phoneMatch = (all ?? []).find((c) => normalizePhone(c.customer_phone) === normalizedPhoneQuery);
+    if (phoneMatch) return phoneMatch;
+  }
+  if (normalizedPlateQuery) {
+    const plateMatch = (all ?? []).find((c) => normalizePlate(c.plate_no) === normalizedPlateQuery);
+    if (plateMatch) return plateMatch;
+  }
+  return null;
 }
 
 // Public — called from /join, which has no staff login. Every card is now
