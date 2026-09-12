@@ -233,6 +233,10 @@ export type MechanicPackageAchievement = {
   shortCode: string;
   setsSold: number;
   revenue: number;
+  // Which combo(s) made up setsSold this month, e.g. "Rock Oil Combo x2,
+  // Package Otai Santai" — the $ total alone doesn't say what was actually
+  // sold, which is exactly what a PIC checking this report wants to know.
+  packagesSold: string;
 };
 
 const cachedMechanicPackageAchievements = cache(
@@ -246,23 +250,32 @@ const cachedMechanicPackageAchievements = cache(
       supabaseAdmin.from("cc_mechanics").select("id, full_name, short_code").eq("branch", branch),
       supabaseAdmin
         .from("cc_package_sales")
-        .select("mechanic_id, cc_packages(price)")
+        .select("mechanic_id, cc_packages(name, price)")
         .gte("sale_date", from)
         .lte("sale_date", to),
     ]);
     if (mErr) throw new Error(mErr.message);
     if (sErr) throw new Error(sErr.message);
 
-    type SaleWithPrice = { mechanic_id: string | null; cc_packages: { price: number } | null };
+    type SaleWithPrice = { mechanic_id: string | null; cc_packages: { name: string; price: number } | null };
 
     return (mechanics ?? []).map((m) => {
       const own = ((sales ?? []) as unknown as SaleWithPrice[]).filter((s) => s.mechanic_id === m.id);
+      const countByName = new Map<string, number>();
+      for (const s of own) {
+        const name = s.cc_packages?.name ?? "—";
+        countByName.set(name, (countByName.get(name) ?? 0) + 1);
+      }
+      const packagesSold = [...countByName.entries()]
+        .map(([name, count]) => (count > 1 ? `${name} x${count}` : name))
+        .join(", ");
       return {
         mechanicId: m.id,
         fullName: m.full_name,
         shortCode: m.short_code,
         setsSold: own.length,
         revenue: own.reduce((sum, s) => sum + Number(s.cc_packages?.price ?? 0), 0),
+        packagesSold,
       };
     });
   }
@@ -385,6 +398,7 @@ export type MechanicPerformanceRow = {
   walkInCount: number;
   packageRevenue: number;
   packageSetsSold: number;
+  packagesSold: string;
   genbluCount: number;
   totalRevenue: number;
 };
@@ -419,6 +433,7 @@ export async function getBranchPerformance(
       walkInCount: a.walkInCount,
       packageRevenue: pkg?.revenue ?? 0,
       packageSetsSold: pkg?.setsSold ?? 0,
+      packagesSold: pkg?.packagesSold ?? "",
       genbluCount: genblu?.genbluCount ?? 0,
       // Jobsheet (Walk-in) revenue only — Restore Bike and Services Combo
       // are shown in their own columns but don't count toward this figure,

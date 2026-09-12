@@ -403,10 +403,11 @@ export default async function ReportDetailPage({ params }: { params: Promise<{ t
       { key: "shortCode", label: "Code" },
       { key: "walkInRevenue", label: "Walk-in (RM)" },
       { key: "packageRevenue", label: "Services Combo (RM)" },
+      { key: "packagesSold", label: "Combos Sold" },
       { key: "totalRevenue", label: "Total (RM)" },
     ];
     monthField = "month";
-    searchFields = ["fullName", "shortCode"];
+    searchFields = ["fullName", "shortCode", "packagesSold"];
     rows = monthRows.flatMap((m) =>
       m.rows.map((r) => ({
         month: m.label,
@@ -414,6 +415,7 @@ export default async function ReportDetailPage({ params }: { params: Promise<{ t
         shortCode: r.shortCode,
         walkInRevenue: r.walkInRevenue.toFixed(2),
         packageRevenue: r.packageRevenue.toFixed(2),
+        packagesSold: r.packagesSold || "—",
         totalRevenue: r.totalRevenue.toFixed(2),
       }))
     );
