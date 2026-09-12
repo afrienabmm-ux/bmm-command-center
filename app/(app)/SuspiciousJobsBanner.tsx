@@ -1,7 +1,9 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, ChevronDown } from "lucide-react";
 import { dismissSuspiciousJobAction, type SuspiciousJob } from "@/lib/repairs-actions";
 import { branchLabel } from "@/lib/branch";
 
@@ -11,7 +13,26 @@ import { branchLabel } from "@/lib/branch";
 // just a shortlist worth a second look, same spirit as the Service
 // Reminder banner right above it.
 export default function SuspiciousJobsBanner({ jobs, showBranch }: { jobs: SuspiciousJob[]; showBranch: boolean }) {
+  const router = useRouter();
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const pickerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!pickerOpen) return;
+    function handleClick(e: MouseEvent) {
+      if (pickerRef.current && !pickerRef.current.contains(e.target as Node)) setPickerOpen(false);
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [pickerOpen]);
+
   if (jobs.length === 0) return null;
+
+  function goToJob(job: SuspiciousJob) {
+    setPickerOpen(false);
+    dismissSuspiciousJobAction(job.id);
+    router.push(`/repairs/walk-in?highlight=${job.id}`);
+  }
 
   return (
     <div className="bg-amber-50 border border-amber-200 rounded-xl p-5">
@@ -46,15 +67,44 @@ export default function SuspiciousJobsBanner({ jobs, showBranch }: { jobs: Suspi
             ))}
             {jobs.length > 6 && <p className="text-[11px] text-amber-500">+{jobs.length - 6} more</p>}
           </div>
-          <Link
-            href={jobs.length === 1 ? `/repairs/walk-in?highlight=${jobs[0].id}` : "/repairs/walk-in"}
-            className="inline-block text-xs font-medium text-amber-700 hover:text-amber-800 mt-2 underline"
-            onClick={() => {
-              if (jobs.length === 1) dismissSuspiciousJobAction(jobs[0].id);
-            }}
-          >
-            View in Jobsheet
-          </Link>
+          {jobs.length === 1 ? (
+            <Link
+              href={`/repairs/walk-in?highlight=${jobs[0].id}`}
+              className="inline-block text-xs font-medium text-amber-700 hover:text-amber-800 mt-2 underline"
+              onClick={() => dismissSuspiciousJobAction(jobs[0].id)}
+            >
+              View in Jobsheet
+            </Link>
+          ) : (
+            <div className="relative mt-2" ref={pickerRef}>
+              <button
+                type="button"
+                onClick={() => setPickerOpen((v) => !v)}
+                className="inline-flex items-center gap-1 text-xs font-medium text-amber-700 hover:text-amber-800 underline"
+              >
+                View in Jobsheet
+                <ChevronDown size={12} className={`transition-transform ${pickerOpen ? "rotate-180" : ""}`} />
+              </button>
+              {pickerOpen && (
+                <div className="absolute z-20 top-full left-0 mt-1 bg-white border border-neutral-200 rounded-lg shadow-lg py-1 w-64">
+                  <p className="px-3 py-1.5 text-[11px] font-medium text-neutral-400 uppercase tracking-wide">
+                    Which one?
+                  </p>
+                  {jobs.map((j) => (
+                    <button
+                      key={j.id}
+                      type="button"
+                      onClick={() => goToJob(j)}
+                      className="w-full text-left px-3 py-2 text-xs text-neutral-700 hover:bg-neutral-50 hover:text-neutral-900 transition-colors"
+                    >
+                      {j.jobNo || "(no job no.)"} — {j.customerName || j.plateNo || "Unnamed"}
+                      {showBranch ? ` (${branchLabel(j.branch)})` : ""}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </div>
