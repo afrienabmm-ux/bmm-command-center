@@ -25,21 +25,17 @@ export default function JoinPage() {
           allowed to; anchoring from the top avoids that and reads closer to
           how a native app screen is laid out besides. */}
       <div className="w-full max-w-sm h-full relative z-10 flex flex-col">
-        <div className="flex flex-col items-center mb-6 shrink-0">
+        <div className="flex flex-col items-center mb-3 shrink-0">
           <img
             src="/bmm-eservice-card-logo.png"
             alt="Berjaya Mega Motors — E-Service Card"
-            className="w-16 h-16 rounded-full object-cover mb-3 ring-4 ring-white/30 shadow-lg animate-pop"
+            className="w-11 h-11 rounded-full object-cover mb-1.5 ring-4 ring-white/30 shadow-lg animate-pop"
           />
-          <p className="text-2xl font-bold text-white tracking-tight">Services Card</p>
-          <p className="text-xs text-white/70 text-center mt-1">BERJAYA MEGA MOTORS</p>
+          <p className="text-lg font-bold text-white tracking-tight">Services Card</p>
+          <p className="text-[11px] text-white/70 text-center">BERJAYA MEGA MOTORS</p>
         </div>
 
-        <div className="bg-white/95 backdrop-blur rounded-3xl p-6 shadow-2xl min-h-0 overflow-y-auto">
-          <h1 className="text-lg font-bold text-neutral-900 mb-1.5">Check your services card 🏍️</h1>
-          <p className="text-xs text-neutral-500 mb-5">
-            Enter the phone number or plate number on file to see your card and stamp progress.
-          </p>
+        <div className="bg-white/95 backdrop-blur rounded-3xl p-5 shadow-2xl min-h-0 overflow-y-auto">
           <JoinForm />
         </div>
       </div>

@@ -78,22 +78,22 @@ function StampProgress({ stamps }: { stamps: number[] }) {
   const upcoming = nextReward(count);
   const justEarned = rewardForStamp(count);
   return (
-    <div className="bg-white border border-neutral-200 rounded-xl p-4 mt-4">
-      <div className="flex items-center justify-between mb-3">
+    <div className="bg-white border border-neutral-200 rounded-xl p-3 mt-3">
+      <div className="flex items-center justify-between mb-2">
         <p className="text-[11px] font-semibold text-neutral-700 uppercase tracking-wide">Your Stamp Card</p>
         <p className="text-xs font-bold text-red-600">
           {count}/{size}
         </p>
       </div>
-      <div className="flex items-center gap-1.5 flex-wrap">
+      <div className="flex items-center gap-1 flex-wrap">
         {Array.from({ length: size }).map((_, i) => {
           const stampNo = i + 1;
           const reward = rewardForStamp(stampNo);
           const filled = stamps.includes(stampNo);
           return (
-            <div key={i} className="flex flex-col items-center gap-1 w-[18%]">
+            <div key={i} className="flex flex-col items-center gap-0.5 w-[18%]">
               <div
-                className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 ${
+                className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${
                   filled
                     ? "bg-gradient-to-br from-red-500 to-rose-600 text-white shadow-sm"
                     : reward
@@ -101,14 +101,14 @@ function StampProgress({ stamps }: { stamps: number[] }) {
                       : "bg-neutral-100 text-neutral-300 border border-neutral-200"
                 }`}
               >
-                {filled ? <Wrench size={14} /> : <span className="text-[10px] font-semibold">{stampNo}</span>}
+                {filled ? <Wrench size={13} /> : <span className="text-[10px] font-semibold">{stampNo}</span>}
               </div>
-              {reward && <p className="text-[8px] text-neutral-500 text-center leading-tight">{reward}</p>}
+              {reward && <p className="text-[7px] text-neutral-500 text-center leading-tight">{reward}</p>}
             </div>
           );
         })}
       </div>
-      <p className="text-[11px] text-neutral-400 mt-3 text-center">
+      <p className="text-[11px] text-neutral-400 mt-2 text-center">
         {justEarned
           ? `🎉 You've earned: ${justEarned} — redeem it at the counter!`
           : upcoming
@@ -159,8 +159,8 @@ export default function JoinForm() {
 
   if (result) {
     return (
-      <div className="py-2">
-        <p className="text-sm text-neutral-600 text-center mb-4">
+      <div>
+        <p className="text-sm text-neutral-600 text-center mb-3">
           Hi <span className="font-semibold text-neutral-900">{result.customerName.trim()}</span>!
         </p>
         <TierCard
@@ -170,46 +170,54 @@ export default function JoinForm() {
           memberSince={formatDate(result.issuedDate)}
         />
         {result.expiryDate && (
-          <p className="text-[11px] text-neutral-400 text-center mt-2">Expires {formatDate(result.expiryDate)}</p>
+          <p className="text-[11px] text-neutral-400 text-center mt-1.5">Expires {formatDate(result.expiryDate)}</p>
         )}
-        <div className="grid grid-cols-2 gap-3 mt-4">
-          <div className="bg-gradient-to-br from-red-50 to-rose-50 border border-red-100 rounded-xl py-3 text-center">
-            <p className="text-lg font-bold text-neutral-900">{result.visitCount}</p>
+        <div className="grid grid-cols-2 gap-2.5 mt-3">
+          <div className="bg-gradient-to-br from-red-50 to-rose-50 border border-red-100 rounded-xl py-2 text-center">
+            <p className="text-base font-bold text-neutral-900">{result.visitCount}</p>
             <p className="text-[11px] text-neutral-500">Visits</p>
           </div>
-          <div className="bg-gradient-to-br from-red-50 to-rose-50 border border-red-100 rounded-xl py-3 text-center">
-            <p className="text-lg font-bold text-neutral-900">{formatCurrency(result.totalSpend)}</p>
+          <div className="bg-gradient-to-br from-red-50 to-rose-50 border border-red-100 rounded-xl py-2 text-center">
+            <p className="text-base font-bold text-neutral-900">{formatCurrency(result.totalSpend)}</p>
             <p className="text-[11px] text-neutral-500">Total Spend</p>
           </div>
         </div>
         <StampProgress stamps={result.stamps} />
-        <p className="text-xs text-neutral-400 text-center mt-4">Show this screen at the counter</p>
-        <button onClick={handleReset} className="text-xs font-medium text-neutral-500 hover:text-neutral-700 mt-4 w-full text-center">
-          Check another number
-        </button>
+        <div className="flex items-center justify-between mt-3">
+          <p className="text-[11px] text-neutral-400">Show this screen at the counter</p>
+          <button onClick={handleReset} className="text-[11px] font-medium text-neutral-500 hover:text-neutral-700">
+            Check another number
+          </button>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-3.5">
-      <div className="relative">
-        <Phone size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-400" />
-        <input
-          type="text"
-          autoCapitalize="characters"
-          value={phone}
-          onChange={(e) => setPhone(e.target.value)}
-          placeholder="Phone Number / Plate No."
-          className={inputClass}
-        />
+    <div>
+      <h1 className="text-lg font-bold text-neutral-900 mb-1.5">Check your services card 🏍️</h1>
+      <p className="text-xs text-neutral-500 mb-5">
+        Enter the phone number or plate number on file to see your card and stamp progress.
+      </p>
+      <div className="space-y-3.5">
+        <div className="relative">
+          <Phone size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-400" />
+          <input
+            type="text"
+            autoCapitalize="characters"
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+            placeholder="Phone Number / Plate No."
+            className={inputClass}
+          />
+        </div>
+
+        {error && <p className="text-sm text-red-700">{error}</p>}
+
+        <button onClick={handleLookup} disabled={isPending || !phone.trim()} className={primaryButtonClass}>
+          <Search size={14} /> {isPending ? "Looking up…" : "Find My Card"}
+        </button>
       </div>
-
-      {error && <p className="text-sm text-red-700">{error}</p>}
-
-      <button onClick={handleLookup} disabled={isPending || !phone.trim()} className={primaryButtonClass}>
-        <Search size={14} /> {isPending ? "Looking up…" : "Find My Card"}
-      </button>
     </div>
   );
 }
