@@ -7,7 +7,7 @@ import CombinedTargetEditor from "./CombinedTargetEditor";
 import BranchBreakdownTable, { getBranchBreakdown, getAllBranchesAchievedTotal } from "./BranchBreakdownTable";
 import MonthlyTrends from "./MonthlyTrends";
 import { getUpcomingServiceReminders, getSuspiciousWalkInJobs } from "@/lib/repairs-actions";
-import { getBranchMonthSummary, getBranchPerformance, getMonthlyTargetHistory } from "@/lib/reports-actions";
+import { getBranchMonthSummary, getBranchPerformance } from "@/lib/reports-actions";
 import { getMonthlyTrends } from "@/lib/trends-actions";
 import { getRevenuePace } from "@/lib/revenue-pace-actions";
 import RevenuePace from "./RevenuePace";
@@ -61,7 +61,6 @@ export default async function AllBranchesOverview({
     prevAchieved,
     trendPoints,
     revenuePace,
-    monthlyTargetHistory,
     claimStatusBreakdown,
     deliveryClaimStatusBreakdown,
     packageBreakdown,
@@ -80,7 +79,6 @@ export default async function AllBranchesOverview({
       : getAllBranchesAchievedTotal(prev.year, prev.month),
     getMonthlyTrends(year, month, 6, onlyBranch),
     getRevenuePace(year, month, onlyBranch),
-    getMonthlyTargetHistory(year, month, onlyBranch),
     getWarrantyClaimStatusBreakdown(year, month, onlyBranch),
     getDeliveryClaimStatusBreakdown(year, month, onlyBranch),
     getPackageSalesBreakdown(year, month),
@@ -109,6 +107,18 @@ export default async function AllBranchesOverview({
   const pct = totals.target > 0 ? Math.min(100, Math.round((totals.achieved / totals.target) * 100)) : 0;
 
   const serviceRevenueToday = revenuePace.branches.reduce((sum, b) => sum + b.revenueToday, 0);
+
+  // Same achieved-vs-target figures the trend chart above already fetched
+  // (one range query per table, covering all 6 months) — reused here
+  // instead of running getMonthlyTargetHistory's separate month-by-month,
+  // branch-by-branch fetch, which recomputed the exact same numbers via
+  // ~50 extra database round-trips.
+  const monthlyTargetHistory = trendPoints.map((t) => ({
+    year: t.year,
+    month: t.month,
+    achieved: t.achievedAmount,
+    target: t.targetAmount,
+  }));
 
   // Month-over-month change vs the same combined-achieved figure last month.
   // No badge when there's nothing to compare against (e.g. a brand new month).
