@@ -1,15 +1,32 @@
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
-import { requirePage } from "@/lib/current-user";
+import { requirePage, getActiveBranchSelection } from "@/lib/current-user";
 import { todayInMalaysia } from "@/lib/malaysia-time";
-import { getGenbluMonthlyReport, type GenbluReportMetric } from "@/lib/genblu-report-actions";
+import { getGenbluReportHistoryInRange, type GenbluReportMetric, type GenbluReportPayload } from "@/lib/genblu-report-actions";
+import { branchLabel, type Branch } from "@/lib/branch";
 import PageHeader from "@/components/PageHeader";
-import MonthPicker from "@/components/MonthPicker";
+import GenbluRateExportButton from "./GenbluRateExportButton";
+import DateRangePicker from "./DateRangePicker";
 
 export const dynamic = "force-dynamic";
 
 function pad(n: number): string {
   return String(n).padStart(2, "0");
+}
+
+// The Sales Dashboard sends branch as its own plain label ("Kapar", "Setia
+// Alam", "Puncak Alam") rather than our internal branch value — same
+// mapping as app/api/genblu-intake's BRANCH_LABEL_MAP, just the reverse
+// direction (our value -> their label) so the branch switcher at the top
+// of the app can filter rows they sent.
+const PARTNER_LABEL: Record<Branch, string> = {
+  kapar: "kapar",
+  setia_alam: "setia alam",
+  puncak_alam: "puncak alam",
+};
+
+function matchesBranch(rowBranch: string | undefined, branch: Branch): boolean {
+  return (rowBranch ?? "").trim().toLowerCase() === PARTNER_LABEL[branch];
 }
 
 function pctColor(pct: number | undefined, target: number | undefined): string {
@@ -41,26 +58,49 @@ function MetricCells({ row, targets }: { row: GenbluReportMetric; targets?: { in
 export default async function GenbluSalesRatePage({
   searchParams,
 }: {
-  searchParams: Promise<{ year?: string; month?: string }>;
+  searchParams: Promise<{ from?: string; to?: string }>;
 }) {
-  await requirePage("reports");
-  const [todayYear, todayMonth] = todayInMalaysia().split("-").map(Number);
+  const user = await requirePage("reports");
+  const selection = await getActiveBranchSelection(user);
+  const allBranches = selection === "all";
+  const today = todayInMalaysia();
+  const [todayYear, todayMonth] = today.split("-").map(Number);
   const params = await searchParams;
-  const year = params.year ? Number(params.year) : todayYear;
-  const month = params.month ? Number(params.month) : todayMonth;
-  const monthKey = `${year}-${pad(month)}`;
+  // Defaults to "start of this month through today" — a real from/to pair
+  // in the URL (via DateRangePicker) narrows that down to any window,
+  // a single week included.
+  const from = params.from ?? `${todayYear}-${pad(todayMonth)}-01`;
+  const to = params.to ?? today;
 
-  const monthly = await getGenbluMonthlyReport(monthKey);
-  const report = monthly?.report;
+  // Every delivery the Sales Dashboard sent inside that window, newest
+  // first — the report shown is whichever one arrived most recently
+  // within it, i.e. "as of" that date range.
+  const history = await getGenbluReportHistoryInRange(from, to);
+  const monthly = history[0];
+  const fullReport = monthly?.report;
+
+  // Scoped down to just the selected branch — same branch switcher every
+  // other page respects. "All Branches" keeps showing everything exactly
+  // as the Sales Dashboard sent it.
+  const report: GenbluReportPayload | undefined = fullReport && !allBranches
+    ? {
+        ...fullReport,
+        total: fullReport.branches?.find((b) => matchesBranch(b.branch ?? b.name, selection)) ?? fullReport.total,
+        branches: fullReport.branches?.filter((b) => matchesBranch(b.branch ?? b.name, selection)),
+        salespeople: fullReport.salespeople?.filter((p) => matchesBranch(p.branch, selection)),
+      }
+    : fullReport;
+  const totalLabel = allBranches ? "All Branches" : branchLabel(selection);
 
   return (
     <div className="flex flex-col h-full">
       <PageHeader
         title="GenBlu Registration Rate"
-        subtitle="Bikes sold vs. GenBlu installed and e-coupon usage — sent monthly by the Sales Dashboard"
+        subtitle="Bikes sold vs. GenBlu installed and e-coupon usage — sent by the Sales Dashboard"
         action={
           <div className="flex items-center gap-3">
-            <MonthPicker year={year} month={month} basePath="/reports/genblu-rate" />
+            <DateRangePicker from={from} to={to} />
+            {report && <GenbluRateExportButton monthKey={`${from} to ${to}`} report={report} />}
             <Link href="/reports" className="flex items-center gap-1.5 text-sm font-medium text-neutral-600 hover:text-neutral-800">
               <ArrowLeft size={15} /> All Reports
             </Link>
@@ -70,7 +110,7 @@ export default async function GenbluSalesRatePage({
       <div className="flex-1 overflow-y-auto p-8 space-y-6">
         {!report ? (
           <div className="bg-white border border-neutral-200 rounded-xl p-10 text-center text-neutral-500 text-sm">
-            No report received from the Sales Dashboard for {monthKey} yet.
+            No report received from the Sales Dashboard between {from} and {to}.
           </div>
         ) : (
           <>
@@ -91,16 +131,18 @@ export default async function GenbluSalesRatePage({
                     Points target: <span className="font-semibold text-neutral-900">{report.targets.points}</span>
                   </span>
                 )}
-                <span className="text-xs text-neutral-400 ml-auto">
-                  Received {new Date(monthly.receivedAt).toLocaleString("en-MY", { dateStyle: "medium", timeStyle: "short" })}
-                </span>
+                {monthly && (
+                  <span className="text-xs text-neutral-400 ml-auto">
+                    Received {new Date(monthly.receivedAt).toLocaleString("en-MY", { dateStyle: "medium", timeStyle: "short" })}
+                  </span>
+                )}
               </div>
             )}
 
             {report.total && (
               <div className="bg-white border border-neutral-200 rounded-xl overflow-hidden">
                 <div className="px-5 py-3 border-b border-neutral-200 bg-neutral-50">
-                  <p className="text-sm font-semibold text-neutral-900">All Branches</p>
+                  <p className="text-sm font-semibold text-neutral-900">{totalLabel}</p>
                 </div>
                 <table className="w-full text-sm">
                   <thead>
@@ -121,7 +163,7 @@ export default async function GenbluSalesRatePage({
               </div>
             )}
 
-            {report.branches && report.branches.length > 0 && (
+            {allBranches && report.branches && report.branches.length > 0 && (
               <div className="bg-white border border-neutral-200 rounded-xl overflow-hidden">
                 <div className="px-5 py-3 border-b border-neutral-200 bg-neutral-50">
                   <p className="text-sm font-semibold text-neutral-900">By Branch</p>
@@ -158,7 +200,7 @@ export default async function GenbluSalesRatePage({
                   <thead>
                     <tr className="text-left text-xs text-neutral-500 border-b border-neutral-200">
                       <th className="font-medium px-5 py-2.5">Salesperson</th>
-                      <th className="font-medium px-5 py-2.5">Branch</th>
+                      {allBranches && <th className="font-medium px-5 py-2.5">Branch</th>}
                       <th className="font-medium px-5 py-2.5">Bikes Sold</th>
                       <th className="font-medium px-5 py-2.5">GenBlu Installed</th>
                       <th className="font-medium px-5 py-2.5">Install %</th>
@@ -170,7 +212,7 @@ export default async function GenbluSalesRatePage({
                     {report.salespeople.map((p, i) => (
                       <tr key={`${p.name}-${i}`} className="hover:bg-neutral-50">
                         <td className="px-5 py-2.5 text-neutral-900 font-medium whitespace-nowrap">{p.name ?? "—"}</td>
-                        <td className="px-5 py-2.5 text-neutral-700 whitespace-nowrap">{p.branch ?? "—"}</td>
+                        {allBranches && <td className="px-5 py-2.5 text-neutral-700 whitespace-nowrap">{p.branch ?? "—"}</td>}
                         <MetricCells row={p} targets={report.targets} />
                       </tr>
                     ))}

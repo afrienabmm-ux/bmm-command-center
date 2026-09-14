@@ -8,8 +8,12 @@
 // bikes_sold/genblu_installed/install_pct/ecoupon_used/ecoupon_pct) is
 // entirely theirs to define — stored as-is in cc_genblu_reports.report
 // rather than normalized into columns, so a field they add later doesn't
-// need a migration here to show up. Only a month is ever kept per report:
-// a fresh delivery for the same X-Report-Month replaces the last one.
+// need a migration here to show up.
+//
+// Every delivery is kept as its own dated row (not overwritten in place)
+// so the report page can show how the month's numbers moved from one
+// delivery to the next — a week-by-week view, if that's how often the
+// Sales Dashboard chooses to resend for the same X-Report-Month.
 import { createHmac, timingSafeEqual } from "crypto";
 import { supabaseAdmin } from "@/lib/supabase-server";
 
@@ -59,7 +63,7 @@ export async function POST(req: Request): Promise<Response> {
 
   const { error } = await supabaseAdmin
     .from("cc_genblu_reports")
-    .upsert({ month: reportMonth, report: body, received_at: new Date().toISOString() }, { onConflict: "month" });
+    .insert({ month: reportMonth, report: body, received_at: new Date().toISOString() });
   if (error) {
     return Response.json({ error: error.message }, { status: 500 });
   }

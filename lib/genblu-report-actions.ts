@@ -27,20 +27,32 @@ export type GenbluReportPayload = {
   [key: string]: unknown;
 };
 
-export type GenbluMonthlyReport = {
+export type GenbluReportSnapshot = {
+  id: string;
   month: string;
   receivedAt: string;
   report: GenbluReportPayload;
 };
 
-export async function getGenbluMonthlyReport(month: string): Promise<GenbluMonthlyReport | null> {
+// Every delivery from the Sales Dashboard is kept as its own dated row
+// (see app/api/genblu-report-intake) rather than overwritten — this
+// returns every snapshot received between two dates (inclusive), newest
+// first, so the report page can show "as of" a specific week instead of
+// only ever the latest number for the whole month. `to` is treated as the
+// end of that calendar day, not midnight at its start.
+export async function getGenbluReportHistoryInRange(fromDate: string, toDate: string): Promise<GenbluReportSnapshot[]> {
   await requireApproved();
   const { data, error } = await supabaseAdmin
     .from("cc_genblu_reports")
-    .select("month, report, received_at")
-    .eq("month", month)
-    .maybeSingle();
+    .select("id, month, report, received_at")
+    .gte("received_at", `${fromDate}T00:00:00`)
+    .lte("received_at", `${toDate}T23:59:59`)
+    .order("received_at", { ascending: false });
   if (error) throw new Error(error.message);
-  if (!data) return null;
-  return { month: data.month, receivedAt: data.received_at, report: data.report as GenbluReportPayload };
+  return (data ?? []).map((r) => ({
+    id: r.id as string,
+    month: r.month as string,
+    receivedAt: r.received_at as string,
+    report: r.report as GenbluReportPayload,
+  }));
 }
