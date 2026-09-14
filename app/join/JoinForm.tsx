@@ -61,7 +61,7 @@ function TierCard({
       <p className="text-xl font-bold tracking-widest mt-1">{cardNumber}</p>
       <div className="flex items-end justify-between mt-4 relative z-10">
         <div className="min-w-0">
-          <p className="text-xs opacity-90 truncate uppercase tracking-wide">{name}</p>
+          <p className="text-xs opacity-90 uppercase tracking-wide leading-snug">{name}</p>
           {plateNo && <p className="text-[10px] opacity-70 truncate uppercase tracking-wide mt-0.5">{plateNo}</p>}
         </div>
         {memberSince && <p className="text-[10px] opacity-70 shrink-0 ml-2">Since {memberSince}</p>}
