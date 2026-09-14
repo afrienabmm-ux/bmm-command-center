@@ -237,6 +237,12 @@ export type GenbluRegistration = {
   // begin with, or the mismatch was never confirmed past.
   nameMismatchRemark: string | null;
   createdAt: string;
+  // Set only for a registration forwarded by the Sales Dashboard's own
+  // salesperson (via /api/genblu-intake) — null for one entered directly
+  // by our own staff. The one reliable way to tell "salesman" and "admin"
+  // uploads apart, since a salesperson's own name (their side) and a staff
+  // account's name (ours) aren't distinguishable by format alone.
+  externalSourceId: string | null;
 };
 
 // One row per GenBlu points award, read from the app screenshot via OCR —

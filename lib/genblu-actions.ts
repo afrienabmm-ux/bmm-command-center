@@ -25,6 +25,7 @@ type Row = {
   source: "new_customer" | "has_jobsheet";
   name_mismatch_remark: string | null;
   created_at: string;
+  external_source_id: string | null;
 };
 
 function toReg(r: Row): GenbluRegistration {
@@ -40,6 +41,7 @@ function toReg(r: Row): GenbluRegistration {
     source: r.source,
     nameMismatchRemark: r.name_mismatch_remark,
     createdAt: r.created_at,
+    externalSourceId: r.external_source_id,
   };
 }
 

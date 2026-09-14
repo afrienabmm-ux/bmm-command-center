@@ -1,6 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Users, Image as ImageIcon } from "lucide-react";
+import { ArrowLeft, Users, Image as ImageIcon, Smartphone, UserCog } from "lucide-react";
 import { requirePage, getActiveBranchSelection } from "@/lib/current-user";
 import { SCOPED_REPORT_SLUGS } from "@/lib/permissions";
 import PageHeader from "@/components/PageHeader";
@@ -90,8 +90,12 @@ export default async function ReportDetailPage({ params }: { params: Promise<{ t
   // GenBlu reports only — total rows and how many actually have a
   // screenshot on file, shown as stat boxes above the table so a mismatch
   // (e.g. a registration with no proof ever uploaded) is visible at a
-  // glance instead of needing to scroll/count rows.
-  let genbluCounts: { total: number; withScreenshot: number } | undefined;
+  // glance instead of needing to scroll/count rows. bySalesman/byAdmin
+  // splits that same total by who actually uploaded it — a salesperson
+  // forwarding it from the Sales Dashboard vs one of our own staff
+  // entering it directly — so the two very different sources aren't
+  // blended into one undifferentiated count.
+  let genbluCounts: { total: number; withScreenshot: number; bySalesman: number; byAdmin: number } | undefined;
   // Jobsheet only — revenue totalled by week, by month, and (on the
   // combined All Branches view) by branch — shown next to the transaction
   // list the same way Point Allocation's summary is.
@@ -255,7 +259,8 @@ export default async function ReportDetailPage({ params }: { params: Promise<{ t
     const wantSource = type === "genblu-jobsheet" ? "has_jobsheet" : "new_customer";
     const regs = allRegs.filter((r) => r.source === wantSource);
     const withScreenshot = regs.filter((r) => !!r.screenshotPath).length;
-    genbluCounts = { total: regs.length, withScreenshot };
+    const bySalesman = regs.filter((r) => r.externalSourceId).length;
+    genbluCounts = { total: regs.length, withScreenshot, bySalesman, byAdmin: regs.length - bySalesman };
 
     // How many times this month each customer's own points-award screenshot
     // was uploaded via Point Allocation — the actual "how often do they use
@@ -275,17 +280,26 @@ export default async function ReportDetailPage({ params }: { params: Promise<{ t
       { key: "branch", label: "Branch" },
       { key: "customerPlateNo", label: "Plate No" },
       { key: "salespersonName", label: "Upload By" },
+      { key: "uploadedByType", label: "Uploaded By" },
       { key: "usesThisMonth", label: "Uses This Month" },
       { key: "pointsAccrued", label: "Points" },
       { key: "createdAt", label: "Registered On" },
     ];
     dateField = "createdAt";
-    searchFields = ["customerName", "customerPlateNo", "salespersonName"];
+    // Typing "salesman" or "admin" into the search box filters by this new
+    // column too, alongside name/plate/upload-by-name — the simplest way to
+    // divide the list by uploader without a brand new filter control.
+    searchFields = ["customerName", "customerPlateNo", "salespersonName", "uploadedByType"];
     rows = regs.map((r) => ({
       customerName: r.customerName,
       branch: branchLabel(r.branch),
       customerPlateNo: r.customerPlateNo,
       salespersonName: r.salespersonName,
+      // Only the Sales Dashboard's own intake sets an external source id —
+      // anything entered directly in our app (by one of our own staff) has
+      // none, so that's the one reliable signal to tell "Salesman" and
+      // "Admin" uploads apart.
+      uploadedByType: r.externalSourceId ? "Salesman" : "Admin",
       usesThisMonth: usesThisMonthByName.get(r.customerName.trim().toLowerCase()) ?? 0,
       pointsAccrued: r.pointsAccrued ?? "—",
       createdAt: r.createdAt.slice(0, 10),
@@ -451,7 +465,7 @@ export default async function ReportDetailPage({ params }: { params: Promise<{ t
       />
       <div className="flex-1 overflow-y-auto p-8">
         {genbluCounts && (
-          <div className="grid grid-cols-2 gap-4 mb-6 max-w-md">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6 max-w-3xl">
             <div className="bg-white border border-neutral-200 rounded-xl p-5">
               <div className="w-9 h-9 rounded-lg flex items-center justify-center mb-4 text-pink-600 bg-pink-500/10">
                 <Users size={17} />
@@ -465,6 +479,20 @@ export default async function ReportDetailPage({ params }: { params: Promise<{ t
               </div>
               <p className="text-2xl font-semibold text-neutral-900">{genbluCounts.withScreenshot}</p>
               <p className="text-xs text-neutral-500 mt-1">With Screenshot Uploaded</p>
+            </div>
+            <div className="bg-white border border-neutral-200 rounded-xl p-5">
+              <div className="w-9 h-9 rounded-lg flex items-center justify-center mb-4 text-violet-600 bg-violet-500/10">
+                <Smartphone size={17} />
+              </div>
+              <p className="text-2xl font-semibold text-neutral-900">{genbluCounts.bySalesman}</p>
+              <p className="text-xs text-neutral-500 mt-1">Uploaded By Salesman</p>
+            </div>
+            <div className="bg-white border border-neutral-200 rounded-xl p-5">
+              <div className="w-9 h-9 rounded-lg flex items-center justify-center mb-4 text-amber-600 bg-amber-500/10">
+                <UserCog size={17} />
+              </div>
+              <p className="text-2xl font-semibold text-neutral-900">{genbluCounts.byAdmin}</p>
+              <p className="text-xs text-neutral-500 mt-1">Uploaded By Admin</p>
             </div>
           </div>
         )}
