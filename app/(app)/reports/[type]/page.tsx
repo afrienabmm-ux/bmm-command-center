@@ -38,7 +38,7 @@ export const dynamic = "force-dynamic";
 
 const TITLES: Record<string, string> = {
   jobsheet: "Jobsheet",
-  "services-card": "Services Card",
+  "services-card": "E-Service Card",
   "genblu-new": "GenBlu — New Registration",
   "genblu-jobsheet": "GenBlu — Has Jobsheet",
   "point-allocation": "Point Allocation",

@@ -166,7 +166,7 @@ export default function CustomersClient({
               onClick={() => setCardModalFor("new")}
               className="flex items-center gap-1.5 bg-red-500 hover:bg-red-400 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors whitespace-nowrap"
             >
-              <Plus size={15} /> New Services Card
+              <Plus size={15} /> New E-Service Card
             </button>
           )}
         </div>
@@ -191,7 +191,7 @@ export default function CustomersClient({
                   title="Switch between stamp progress and card number"
                   className="flex items-center gap-1 uppercase tracking-wide text-neutral-500 hover:text-red-600 transition-colors"
                 >
-                  {showCardNumber ? "Card No." : "Services Card"}
+                  {showCardNumber ? "Card No." : "E-Service Card"}
                   <ArrowLeftRight size={11} />
                 </button>
               </th>
@@ -236,16 +236,16 @@ export default function CustomersClient({
                       <button
                         onClick={() => setCardModalFor(c)}
                         className="text-neutral-400 hover:text-red-600 transition-colors p-1"
-                        title="Edit services card"
-                        aria-label="Edit services card"
+                        title="Edit e-service card"
+                        aria-label="Edit e-service card"
                       >
                         <Pencil size={14} />
                       </button>
                       <button
                         onClick={() => setDeleting(c)}
                         className="text-neutral-400 hover:text-red-600 transition-colors p-1"
-                        title="Delete services card"
-                        aria-label="Delete services card"
+                        title="Delete e-service card"
+                        aria-label="Delete e-service card"
                       >
                         <Trash2 size={14} />
                       </button>
@@ -257,7 +257,7 @@ export default function CustomersClient({
             {visible.length === 0 && (
               <tr>
                 <td colSpan={7} className="px-4 py-10 text-center text-neutral-500">
-                  {customers.length === 0 ? "No services cards yet." : "No customers match your search."}
+                  {customers.length === 0 ? "No e-service cards yet." : "No customers match your search."}
                 </td>
               </tr>
             )}
@@ -297,9 +297,9 @@ export default function CustomersClient({
       {deleting && (
         <ModalPortal><div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 px-4">
           <div className="bg-white border border-neutral-200 rounded-xl w-full max-w-sm p-6">
-            <h2 className="text-sm font-semibold text-neutral-900 mb-2">Delete this services card?</h2>
+            <h2 className="text-sm font-semibold text-neutral-900 mb-2">Delete this e-service card?</h2>
             <p className="text-sm text-neutral-600 mb-6">
-              <span className="text-neutral-800 font-medium">{deleting.customerName}</span>&apos;s services card
+              <span className="text-neutral-800 font-medium">{deleting.customerName}</span>&apos;s e-service card
               will be permanently removed. This can&apos;t be undone.
             </p>
             <div className="flex items-center justify-end gap-3">
@@ -406,7 +406,7 @@ function CardModal({
       <div className="bg-white border border-neutral-200 rounded-xl w-full max-w-sm p-6">
         <div className="flex items-center justify-between mb-5">
           <h2 className="text-sm font-semibold text-neutral-900">
-            {existing ? "Edit Services Card" : "New Services Card"}
+            {existing ? "Edit E-Service Card" : "New E-Service Card"}
           </h2>
           <button onClick={onClose} className="text-neutral-400 hover:text-neutral-700" aria-label="Close">
             <X size={16} />

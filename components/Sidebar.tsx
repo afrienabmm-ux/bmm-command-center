@@ -38,7 +38,7 @@ const mainLinks: NavLink[] = [
   { href: "/sales-performance", label: "Sales Performance", icon: TrendingUp, page: "sales-performance", color: "text-sky-500" },
   { href: "/genblu", label: "GenBlu Tracker", icon: Smartphone, page: "genblu", color: "text-pink-500" },
   { href: "/warranty-claims", label: "Claims", icon: ShieldCheck, page: "warranty-claims", color: "text-amber-500" },
-  { href: "/customers", label: "Services Card", icon: Users, page: "customers", color: "text-rose-600" },
+  { href: "/customers", label: "E-Service Card", icon: Users, page: "customers", color: "text-rose-600" },
   { href: "/reports", label: "Reports", icon: FileBarChart, page: "reports", color: "text-indigo-500" },
 ];
 

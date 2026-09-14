@@ -54,7 +54,7 @@ function TierCard({
       <div className="absolute -right-8 -top-8 w-32 h-32 bg-white/10 rounded-full" />
       <div className="absolute -right-1 bottom-1 w-20 h-20 bg-white/10 rounded-full" />
       <div className="flex items-center justify-between relative z-10">
-        <p className="text-[10px] font-semibold tracking-widest uppercase opacity-80">BMM Services Card</p>
+        <p className="text-[10px] font-semibold tracking-widest uppercase opacity-80">BMM E-Service Card</p>
         <Sparkles size={16} className="opacity-90" />
       </div>
       <p className="text-[10px] uppercase tracking-widest opacity-70 mt-7">Member</p>
@@ -235,7 +235,7 @@ export default function JoinForm() {
 
   return (
     <div>
-      <h1 className="text-lg font-bold text-neutral-900 mb-1.5">Check your services card 🏍️</h1>
+      <h1 className="text-lg font-bold text-neutral-900 mb-1.5">Check your e-service card 🏍️</h1>
       <p className="text-xs text-neutral-500 mb-5">
         Enter the phone number or plate number on file to see your card and stamp progress.
       </p>
