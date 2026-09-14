@@ -128,9 +128,10 @@ export default async function GenbluSalesRatePage({
                     E-coupon target: <span className="font-semibold text-neutral-900">{report.targets.ecoupon_pct}%</span>
                   </span>
                 )}
-                {report.targets.points !== undefined && (
+                {(report.targets.ecoupon_points ?? report.targets.points) !== undefined && (
                   <span className="text-xs bg-white border border-neutral-200 rounded-lg px-3 py-1.5 text-neutral-600">
-                    Points target: <span className="font-semibold text-neutral-900">{report.targets.points}</span>
+                    Points target:{" "}
+                    <span className="font-semibold text-neutral-900">{report.targets.ecoupon_points ?? report.targets.points}</span>
                   </span>
                 )}
                 {monthly && (

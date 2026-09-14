@@ -20,7 +20,11 @@ export type GenbluReportPersonRow = GenbluReportMetric & { name?: string; branch
 
 export type GenbluReportPayload = {
   month?: string;
-  targets?: { install_pct?: number; ecoupon_pct?: number; points?: number };
+  // Confirmed against a real payload 2026-09-14: the points target field
+  // is actually "ecoupon_points", not "points" as first guessed from the
+  // Sales Dashboard's prose description — kept both so an older or future
+  // payload using either spelling still displays.
+  targets?: { install_pct?: number; ecoupon_pct?: number; points?: number; ecoupon_points?: number };
   total?: GenbluReportMetric;
   branches?: GenbluReportBranchRow[];
   salespeople?: GenbluReportPersonRow[];
