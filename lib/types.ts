@@ -81,12 +81,12 @@ export type DeliveryClaim = {
   createdAt: string;
 };
 
-export type JobType = "Restore Bike" | "Walk-in";
-export const JOB_TYPES: JobType[] = ["Restore Bike", "Walk-in"];
-// "QC" sits between a mechanic finishing the repair (End Date stamped) and
-// "Completed" — Restore Bike jobs land there first and need the branch
-// PIC to pass them before they're truly done. Walk-in jobs skip QC
-// entirely and go straight to Completed.
+export type JobType = "Walk-in";
+export const JOB_TYPES: JobType[] = ["Walk-in"];
+// "QC" is no longer reachable (it was a Restore Bike-only stage) but stays
+// in the union — it's still a real value on old rows, and RepairStatus is
+// shared by code (STATUS_STYLES maps, etc.) that has to render whatever
+// status a row actually has, past or present.
 export type RepairStatus = "Pending" | "In Progress" | "QC" | "Completed";
 export const REPAIR_STATUSES: RepairStatus[] = ["Pending", "In Progress", "QC", "Completed"];
 export type ApprovalStatus = "Pending" | "Approved" | "Not Approved";
@@ -196,9 +196,6 @@ export type RepairJob = {
   remark: string;
 };
 
-export const RESTORE_BIKE_CONDITIONS = ["L", "H"] as const;
-export type RestoreBikeCondition = (typeof RESTORE_BIKE_CONDITIONS)[number];
-
 // Heavy is a purely manual flag — the "Big / heavy item repair" checkbox on
 // the job form — so a PIC can always assign any mechanic unless they've
 // explicitly marked the job heavy.
@@ -206,14 +203,11 @@ export function isHeavyRepairJob(job: { isBigItem: boolean }): boolean {
   return job.isBigItem;
 }
 
-export const DEAL_TYPES = ["Trade In", "Tarik", "Jual"] as const;
-
-// Every mechanic's monthly KPI: RM10,000 in Restore Bike revenue and at
-// least 2 Restore Bike jobs completed.
+// RM400/day per mechanic — the daily pace reference the weekly commitment
+// tracker below is built from.
 export const MECHANIC_KPI_REVENUE = 10000;
-export const MECHANIC_KPI_RESTORE_BIKE_COUNT = 2;
-// The RM10,000 monthly target spread over a 25-day working month — RM400/day
-// minimum, used as a pace reference rather than a separate pass/fail KPI.
+// A 25-day working month, used as a pace reference (target ÷ this) rather
+// than a separate pass/fail KPI.
 export const MECHANIC_KPI_WORKING_DAYS = 25;
 export const MECHANIC_KPI_DAILY_TARGET = Math.round(MECHANIC_KPI_REVENUE / MECHANIC_KPI_WORKING_DAYS);
 // Branches run a 6-day working week (closed Sundays), so the weekly

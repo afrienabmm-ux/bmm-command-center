@@ -108,41 +108,36 @@ export async function getPackageSalesBreakdown(year: number, month: number): Pro
   );
 }
 
-export type TodayActivity = { jobsheetCount: number; restoreBikeCount: number; packagesSoldCount: number };
+export type TodayActivity = { jobsheetCount: number; packagesSoldCount: number };
 
-// How many jobsheets, Restore Bike jobs, and Services Combo sales are
-// dated today — a rolling daily snapshot, not a month total, so it's
-// naturally different every morning rather than accumulating. Counted by
-// the job's own Job Date (started_date), not when it was actually entered
-// into the system — a jobsheet for an earlier date that a PIC only gets
-// around to uploading today shouldn't inflate "today"'s count, and one
-// genuinely dated today should count even if it's entered a day late.
-// Sales Performance's Day selector passes a past date here to replay that
-// day's snapshot instead of today's — the Dashboard's own call site omits
-// it and keeps showing the real today, same as before.
+// How many jobsheets and Services Combo sales are dated today — a rolling
+// daily snapshot, not a month total, so it's naturally different every
+// morning rather than accumulating. Counted by the job's own Job Date
+// (started_date), not when it was actually entered into the system — a
+// jobsheet for an earlier date that a PIC only gets around to uploading
+// today shouldn't inflate "today"'s count, and one genuinely dated today
+// should count even if it's entered a day late. Sales Performance's Day
+// selector passes a past date here to replay that day's snapshot instead
+// of today's — the Dashboard's own call site omits it and keeps showing
+// the real today, same as before.
 export async function getTodayActivity(onlyBranch?: Branch, dateStr?: string): Promise<TodayActivity> {
   await requireApproved();
   const targetDate = dateStr ?? todayInMalaysia();
 
-  let jobsQuery = supabaseAdmin.from("cc_repair_jobs").select("job_type").eq("started_date", targetDate);
+  let jobsQuery = supabaseAdmin
+    .from("cc_repair_jobs")
+    .select("id", { count: "exact", head: true })
+    .eq("started_date", targetDate)
+    .eq("job_type", "Walk-in");
   if (onlyBranch) jobsQuery = jobsQuery.eq("branch", onlyBranch);
 
   let packagesQuery = supabaseAdmin.from("cc_package_sales").select("id", { count: "exact", head: true }).eq("sale_date", targetDate);
   if (onlyBranch) packagesQuery = packagesQuery.eq("branch", onlyBranch);
 
-  const [{ data, error }, { count: packagesSoldCount, error: pkgError }] = await Promise.all([jobsQuery, packagesQuery]);
+  const [{ count: jobsheetCount, error }, { count: packagesSoldCount, error: pkgError }] = await Promise.all([jobsQuery, packagesQuery]);
   if (error) throw new Error(error.message);
   if (pkgError) throw new Error(pkgError.message);
 
-  const jobCounts = (data ?? []).reduce(
-    (acc, row) => {
-      if (row.job_type === "Walk-in") acc.jobsheetCount += 1;
-      else if (row.job_type === "Restore Bike") acc.restoreBikeCount += 1;
-      return acc;
-    },
-    { jobsheetCount: 0, restoreBikeCount: 0 }
-  );
-
-  return { ...jobCounts, packagesSoldCount: packagesSoldCount ?? 0 };
+  return { jobsheetCount: jobsheetCount ?? 0, packagesSoldCount: packagesSoldCount ?? 0 };
 }
 

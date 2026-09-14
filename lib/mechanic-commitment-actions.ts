@@ -38,7 +38,6 @@ export type MechanicCommitmentRow = {
   // weekly total that only looks right by Saturday.
   revenue: number;
   jobCount: number;
-  restoreBikeCount: number;
   // Consecutive working days up to and including today with at least one
   // job started — still resets each week (Monday), same streak concept as
   // before, just no longer tied to the weekly revenue total.
@@ -124,7 +123,6 @@ export async function getMechanicCommitment(branch?: Branch, targetDate?: string
     const weekOwn = (jobs ?? []).filter((j) => j.mechanic_id === m.id);
     const todayOwn = weekOwn.filter((j) => j.started_date === today);
     const revenue = todayOwn.reduce((s, j) => s + Number(j.revenue_amount), 0);
-    const restoreBikeCount = todayOwn.filter((j) => j.job_type === "Restore Bike").length;
     const dailyTarget = dailyTargetByBranch[mechanicBranch] ?? 0;
 
     let streakDays = 0;
@@ -143,7 +141,6 @@ export async function getMechanicCommitment(branch?: Branch, targetDate?: string
       branch: mechanicBranch,
       revenue,
       jobCount: todayOwn.length,
-      restoreBikeCount,
       streakDays,
       dailyTarget,
       onTrack: revenue >= dailyTarget,

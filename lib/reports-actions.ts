@@ -372,22 +372,6 @@ export async function getTopMechanic(branch: Branch, year: number, month: number
   return top;
 }
 
-// Same as getTopMechanic, but ranked by Restore Bike revenue only.
-export async function getTopRestoreBikeMechanic(
-  branch: Branch,
-  year: number,
-  month: number
-): Promise<TopMechanic | null> {
-  const achievements = await getMechanicAchievements(branch, year, month);
-  let top: TopMechanic | null = null;
-  for (const a of achievements) {
-    if (a.restoreBikeRevenue > 0 && (!top || a.restoreBikeRevenue > top.totalRevenue)) {
-      top = { fullName: a.fullName, shortCode: a.shortCode, totalRevenue: a.restoreBikeRevenue };
-    }
-  }
-  return top;
-}
-
 export type MechanicPerformanceRow = {
   mechanicId: string;
   fullName: string;

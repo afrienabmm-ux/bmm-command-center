@@ -7,7 +7,6 @@ import { requireApproved, requireManagement, assertCanEditBranch } from "./curre
 import { logActivity } from "./activity-log";
 import { todayInMalaysia, daysSinceInMalaysia } from "./malaysia-time";
 import type { RepairJob, RepairJobItem, RepairStatus, JobType, ApprovalStatus, QcResult } from "./types";
-import { DEAL_TYPES } from "./types";
 import { BRANCHES, type Branch } from "./branch";
 import { normalizeName } from "./name-matching";
 
@@ -236,28 +235,6 @@ export async function getAllBranchesCompletedRepairJobs(): Promise<RepairJob[]> 
   return perBranch.flat().sort((a, b) => (b.completedDate ?? "").localeCompare(a.completedDate ?? ""));
 }
 
-// Restore Bike jobs waiting on the branch PIC's QC pass/fail — the
-// mechanic's repair is done (completed_date is when that happened, and
-// doubles as when the QC clock starts).
-export async function getQcRepairJobs(branch: Branch): Promise<RepairJob[]> {
-  await requireApproved();
-  const { data, error } = await supabaseAdmin
-    .from("cc_repair_jobs")
-    .select(SELECT_WITH_ITEMS)
-    .eq("branch", branch)
-    .eq("status", "QC")
-    .order("completed_date", { ascending: false });
-  if (error) throw new Error(error.message);
-  return (data as unknown as Row[]).map(toJob);
-}
-
-// QC jobs across all 3 branches — for the "All Branches" view.
-export async function getAllBranchesQcRepairJobs(): Promise<RepairJob[]> {
-  await requireApproved();
-  const perBranch = await Promise.all(BRANCHES.map((b) => getQcRepairJobs(b.value)));
-  return perBranch.flat();
-}
-
 // Looked up by id alone (no branch filter) — used by the full-page edit
 // route, which only has the job id from the URL.
 export async function getRepairJobById(id: string): Promise<RepairJob | null> {
@@ -269,103 +246,6 @@ export async function getRepairJobById(id: string): Promise<RepairJob | null> {
     .maybeSingle();
   if (error) throw new Error(error.message);
   return data ? toJob(data as unknown as Row) : null;
-}
-
-// Active Restore Bike jobs that have been running more than 5 days since
-// they started — surfaced as an in-app alert, no external notification.
-export async function getOverdueRestoreBikeJobs(branch: Branch): Promise<RepairJob[]> {
-  const active = await getActiveRepairJobs(branch);
-  return active.filter((j) => {
-    if (j.jobType !== "Restore Bike" || !j.startedDate) return false;
-    return daysSinceInMalaysia(j.startedDate) > 5;
-  });
-}
-
-export type OverdueRestoreBikeJob = RepairJob & { daysRunning: number };
-
-// Same overdue check, merged across all 3 branches by default (or just
-// onlyBranch, for the single-branch dashboard view).
-export async function getAllBranchesOverdueRestoreBikeJobs(onlyBranch?: Branch): Promise<OverdueRestoreBikeJob[]> {
-  const branches = onlyBranch ? [onlyBranch] : BRANCHES.map((b) => b.value);
-  const perBranch = await Promise.all(branches.map((value) => getOverdueRestoreBikeJobs(value)));
-  return perBranch
-    .flat()
-    .map((j) => ({
-      ...j,
-      daysRunning: j.startedDate ? daysSinceInMalaysia(j.startedDate) : 0,
-    }))
-    .sort((a, b) => b.daysRunning - a.daysRunning);
-}
-
-// Restore Bike jobs sitting at Pending approval — the GM's own to-do
-// list. Any active job counts, whether or not a mechanic's been assigned
-// yet, since approval is what unblocks the Start button either way.
-export async function getAllBranchesPendingApprovalJobs(onlyBranch?: Branch): Promise<RepairJob[]> {
-  await requireApproved();
-  const active = onlyBranch ? await getActiveRepairJobs(onlyBranch) : await getAllBranchesActiveRepairJobs();
-  return active.filter((j) => j.jobType === "Restore Bike" && j.approvalStatus === "Pending");
-}
-
-// The flip side of the list above — jobs the GM just approved but the
-// branch PIC hasn't started yet. Surfaced as a dashboard notice so the PIC
-// finds out without having to keep checking the Restore Bike list.
-export async function getAllBranchesApprovedReadyToStartJobs(onlyBranch?: Branch): Promise<RepairJob[]> {
-  await requireApproved();
-  const active = onlyBranch ? await getActiveRepairJobs(onlyBranch) : await getAllBranchesActiveRepairJobs();
-  return active.filter((j) => j.jobType === "Restore Bike" && j.approvalStatus === "Approved" && !j.startedDate);
-}
-
-// QC jobs that have been waiting more than 3 days since the repair
-// finished — the PIC's own overdue alert, same shape as the mechanics'
-// 5-day one above.
-export async function getOverdueQcJobs(branch: Branch): Promise<RepairJob[]> {
-  const qc = await getQcRepairJobs(branch);
-  return qc.filter((j) => {
-    if (!j.completedDate) return false;
-    return daysSinceInMalaysia(j.completedDate) > 3;
-  });
-}
-
-export type OverdueQcJob = RepairJob & { daysWaiting: number };
-
-// Same overdue check, merged across all 3 branches by default (or just
-// onlyBranch, for the single-branch dashboard view).
-export async function getAllBranchesOverdueQcJobs(onlyBranch?: Branch): Promise<OverdueQcJob[]> {
-  const branches = onlyBranch ? [onlyBranch] : BRANCHES.map((b) => b.value);
-  const perBranch = await Promise.all(branches.map((value) => getOverdueQcJobs(value)));
-  return perBranch
-    .flat()
-    .map((j) => ({
-      ...j,
-      daysWaiting: j.completedDate ? daysSinceInMalaysia(j.completedDate) : 0,
-    }))
-    .sort((a, b) => b.daysWaiting - a.daysWaiting);
-}
-
-export type QcReminderJob = RepairJob & { daysWaiting: number; dueDate: string };
-
-// QC jobs still inside their 72-hour (3-day) window — the "reminder"
-// counterpart to getAllBranchesOverdueQcJobs above. Shown as soon as a job
-// lands in QC (End Date clicked) and stops once it's either passed/failed
-// or crosses into the overdue list, so the PIC sees one banner or the
-// other, never both for the same job.
-export async function getAllBranchesQcReminderJobs(onlyBranch?: Branch): Promise<QcReminderJob[]> {
-  const branches = onlyBranch ? [onlyBranch] : BRANCHES.map((b) => b.value);
-  const perBranch = await Promise.all(branches.map((value) => getQcRepairJobs(value)));
-  return perBranch
-    .flat()
-    .filter((j) => j.completedDate)
-    .map((j) => {
-      const completedDate = j.completedDate as string;
-      const daysWaiting = daysSinceInMalaysia(completedDate);
-      // Due 3 days after the job finished — stepped in UTC so the date
-      // string can't drift a day, same reason as daysSinceInMalaysia.
-      const due = new Date(`${completedDate.slice(0, 10)}T00:00:00Z`);
-      due.setUTCDate(due.getUTCDate() + 3);
-      return { ...j, daysWaiting, dueDate: due.toISOString().slice(0, 10) };
-    })
-    .filter((j) => j.daysWaiting <= 3)
-    .sort((a, b) => a.dueDate.localeCompare(b.dueDate));
 }
 
 export type ServiceReminder = {
@@ -560,44 +440,6 @@ async function deductCatalogStockForNewItems(branch: Branch, oldItems: ItemInput
   );
 }
 
-// "Bike Arrived" quick-add: creates a bare Restore Bike job stamped with
-// today's arrival date, skipping the usual mechanic-assignment check since
-// there's no mechanic yet — the PIC fills in the rest (plate, mechanic,
-// etc.) on the edit form that opens right after.
-export async function quickAddRestoreBikeArrivalAction(branch: Branch): Promise<{ id: string }> {
-  const user = await requireApproved();
-  assertCanEditBranch(user, branch);
-
-  const { count } = await supabaseAdmin
-    .from("cc_repair_jobs")
-    .select("*", { count: "exact", head: true })
-    .eq("branch", branch);
-  const jobNo = `RJ-${JOB_NO_BRANCH_CODE[branch]}-${String((count ?? 0) + 1).padStart(4, "0")}`;
-
-  const { data, error } = await supabaseAdmin
-    .from("cc_repair_jobs")
-    .insert({
-      branch,
-      job_no: jobNo,
-      customer_name: "",
-      plate_no: "",
-      job_type: "Restore Bike",
-      mechanic_id: null,
-      description: "",
-      revenue_amount: 0,
-      deal_type: DEAL_TYPES[0],
-      status: "Pending",
-      arrived_date: todayInMalaysia(),
-    })
-    .select("id")
-    .single();
-  if (error) throw new Error(error.message);
-
-  await logActivity(user, "Added Restore Bike arrival", `${jobNo} (${branch})`);
-  revalidatePath("/repairs");
-  return { id: data.id };
-}
-
 export async function addRepairJobAction(input: {
   branch: Branch;
   customerName: string;
@@ -649,12 +491,7 @@ export async function addRepairJobAction(input: {
   const user = await requireApproved();
   assertCanEditBranch(user, input.branch);
   const items = input.items ?? [];
-  const assignmentCheck = await assertMechanicAssignment(
-    input.mechanicId,
-    input.isBigItem ?? false,
-    undefined,
-    input.jobType !== "Restore Bike"
-  );
+  const assignmentCheck = await assertMechanicAssignment(input.mechanicId, input.isBigItem ?? false, undefined, true);
   if (assignmentCheck && "error" in assignmentCheck) return assignmentCheck;
 
   // Walk-in jobs carry their own job number from the paper jobsheet
@@ -838,12 +675,7 @@ export async function updateRepairJobAction(
   const user = await requireApproved();
   assertCanEditBranch(user, branch);
   const items = input.items ?? [];
-  const assignmentCheck = await assertMechanicAssignment(
-    input.mechanicId,
-    input.isBigItem ?? false,
-    id,
-    input.jobType !== "Restore Bike"
-  );
+  const assignmentCheck = await assertMechanicAssignment(input.mechanicId, input.isBigItem ?? false, id, true);
   if (assignmentCheck && "error" in assignmentCheck) return assignmentCheck;
   const revenueAmount = items.length > 0 ? itemsTotal(items) : input.revenueAmount;
 
@@ -941,170 +773,6 @@ export async function updateRepairJobAction(
   revalidatePath("/");
 }
 
-// GM approval only — a branch PIC can see the status but not set it
-// themselves, since "the repair start is gated on GM approval" only means
-// something if the PIC can't just approve their own job. Not branch-locked
-// like most other actions here — a Management approval isn't scoped to
-// one branch.
-export async function updateRepairApprovalAction(id: string, approvalStatus: ApprovalStatus): Promise<void> {
-  const approver = await requireManagement();
-  const { data: job } = await supabaseAdmin.from("cc_repair_jobs").select("job_no").eq("id", id).single();
-  const { error } = await supabaseAdmin.from("cc_repair_jobs").update({ approval_status: approvalStatus }).eq("id", id);
-  if (error) throw new Error(error.message);
-  await logActivity(approver, "Set Restore Bike approval", `${job?.job_no ?? id} → ${approvalStatus}`);
-  revalidatePath("/repairs");
-  revalidatePath("/repairs/walk-in");
-  revalidatePath("/");
-}
-
-export type RestoreBikeWorkflowStage = "quotation" | "stockOrder" | "stockArrive" | "started" | "completed";
-
-const WORKFLOW_STAGE_COLUMNS: Record<
-  RestoreBikeWorkflowStage,
-  "quotation_date" | "stock_order_date" | "stock_arrive_date" | "started_date" | "completed_date"
-> = {
-  quotation: "quotation_date",
-  stockOrder: "stock_order_date",
-  stockArrive: "stock_arrive_date",
-  started: "started_date",
-  completed: "completed_date",
-};
-
-// Click-to-stamp workflow milestones on the Restore Bike list — no need to
-// open the full edit form. Clicking sets today's date; clicking an
-// already-stamped one clears it back to unset. "Started" is gated on the
-// job's existing Approval status (Approved) rather than a separate GM
-// stamp. "Completed" (really "repair finished") doesn't hard-block, but
-// refuses to set a date if the job hasn't started yet — the caller shows
-// that as a warning. It also doesn't mark the job Completed directly
-// anymore — it moves to QC, and setQcResultAction below is what finally
-// completes it (or sends it back) once the branch PIC signs off.
-// Returns { error } instead of throwing — a thrown Error from a Server
-// Action gets mangled into an unhelpful "Minified React error #441" on the
-// client in production builds, instead of surfacing the message. Returning
-// a plain value sidesteps that entirely (same pattern as the GenBlu
-// actions below).
-export async function setRestoreBikeWorkflowDateAction(
-  id: string,
-  branch: Branch,
-  stage: RestoreBikeWorkflowStage,
-  value: string | null
-): Promise<{ error: string } | void> {
-  const user = await requireApproved();
-  assertCanEditBranch(user, branch);
-
-  let existing: {
-    approval_status?: ApprovalStatus;
-    started_date?: string | null;
-    stock_order_date?: string | null;
-    stock_arrive_date?: string | null;
-    qc_fail_reason?: string | null;
-    qc_fail_followup_date?: string | null;
-  } | null = null;
-  if (stage === "started" || stage === "completed") {
-    const { data, error: fetchError } = await supabaseAdmin
-      .from("cc_repair_jobs")
-      .select("approval_status, started_date, stock_order_date, stock_arrive_date, qc_fail_reason, qc_fail_followup_date")
-      .eq("id", id)
-      .single();
-    if (fetchError) return { error: fetchError.message };
-    existing = data;
-    if (value !== null && stage === "started" && existing?.approval_status !== "Approved") {
-      return { error: "This job needs GM approval before the repair can start." };
-    }
-    if (value !== null && stage === "started" && (!existing?.stock_order_date || !existing?.stock_arrive_date)) {
-      return { error: "Set the Stock Order date and Stock Arrival date before starting the repair." };
-    }
-    if (value !== null && stage === "completed" && !existing?.started_date) {
-      return { error: "The job hasn't started yet." };
-    }
-    if (value !== null && stage === "completed" && existing?.qc_fail_reason && !existing?.qc_fail_followup_date) {
-      return { error: "Follow up on the QC failure reason before sending this back for QC again." };
-    }
-  }
-
-  const column = WORKFLOW_STAGE_COLUMNS[stage];
-  const update: Record<string, string | null> = { [column]: value };
-  // Status is no longer a manual choice — it just follows the Start/End
-  // stamps: Start sets In Progress, End sets Completed, clearing either
-  // steps back down. This keeps Status from drifting out of sync with the
-  // stamps a PIC actually clicks.
-  if (stage === "started") {
-    update.status = value ? "In Progress" : "Pending";
-  }
-  if (stage === "completed") {
-    update.status = value ? "QC" : existing?.started_date ? "In Progress" : "Pending";
-  }
-
-  const { error } = await supabaseAdmin.from("cc_repair_jobs").update(update).eq("id", id);
-  if (error) return { error: error.message };
-  await logActivity(user, `Set Restore Bike ${stage}`, `${id} → ${value ?? "cleared"}`);
-  revalidatePath("/repairs");
-  revalidatePath("/");
-}
-
-// The Assign button on the Restore Bike list — picks a mechanic for a job
-// that was added via Main Listing without one. Same busy/heavy-repair
-// rules as everywhere else a mechanic gets set (assertMechanicAssignment),
-// just as its own lightweight action instead of going through the full
-// edit form.
-export async function assignMechanicAction(id: string, branch: Branch, mechanicId: string): Promise<{ error: string } | void> {
-  const user = await requireApproved();
-  assertCanEditBranch(user, branch);
-
-  const { data: job, error: fetchError } = await supabaseAdmin.from("cc_repair_jobs").select("is_big_item").eq("id", id).single();
-  if (fetchError) return { error: fetchError.message };
-
-  const assignmentCheck = await assertMechanicAssignment(mechanicId, job.is_big_item, id);
-  if (assignmentCheck && "error" in assignmentCheck) return assignmentCheck;
-
-  const { error } = await supabaseAdmin.from("cc_repair_jobs").update({ mechanic_id: mechanicId }).eq("id", id);
-  if (error) return { error: error.message };
-  await logActivity(user, "Assigned mechanic", `job ${id} (${branch})`);
-  revalidatePath("/repairs");
-  revalidatePath("/");
-}
-
-// The branch PIC's QC call on a Restore Bike job sitting in the QC tab.
-// Passing moves it to Completed for good; failing sends it back to the
-// mechanic to redo (clears the End Date so it reappears in Active) but
-// keeps the "Failed" result and the PIC's reason visible on the job,
-// instead of silently wiping them — a reason is required for Fail so
-// there's always a record of why. Also clears any old follow-up stamp —
-// each failure needs its own follow-up, not a leftover one from last time.
-export async function setQcResultAction(
-  id: string,
-  branch: Branch,
-  result: QcResult,
-  failReason?: string
-): Promise<{ error: string } | void> {
-  const user = await requireApproved();
-  assertCanEditBranch(user, branch);
-
-  if (result === "Failed" && !failReason?.trim()) {
-    return { error: "A reason is required when failing QC." };
-  }
-
-  const today = todayInMalaysia();
-  const update =
-    result === "Passed"
-      ? { status: "Completed", qc_result: "Passed", qc_date: today, qc_fail_reason: null, qc_fail_followup_date: null }
-      : {
-          status: "In Progress",
-          completed_date: null,
-          qc_result: "Failed",
-          qc_date: today,
-          qc_fail_reason: failReason!.trim(),
-          qc_fail_followup_date: null,
-        };
-
-  const { error } = await supabaseAdmin.from("cc_repair_jobs").update(update).eq("id", id);
-  if (error) return { error: error.message };
-  await logActivity(user, "Set QC result", `job ${id} → ${result}${failReason ? `: ${failReason.trim()}` : ""}`);
-  revalidatePath("/repairs");
-  revalidatePath("/");
-}
-
 // Click-to-stamp confirmation that the PIC actually looked into why the
 // bike failed QC — required before the repair can be re-submitted to QC
 // (see the "completed" stage check in setRestoreBikeWorkflowDateAction),
@@ -1122,28 +790,6 @@ export async function resolveSignatureIssueAction(id: string, branch: Branch): P
   if (error) return { error: error.message };
   await logActivity(user, "Confirmed jobsheet signature", `job ${id}`);
   revalidatePath("/repairs/walk-in");
-}
-
-// Restore Bike — free-text note, edited directly from the list rather
-// than through the full edit form, same as the other click-to-edit cells.
-export async function updateRepairRemarkAction(id: string, branch: Branch, remark: string): Promise<{ error: string } | void> {
-  const user = await requireApproved();
-  assertCanEditBranch(user, branch);
-  const { error } = await supabaseAdmin.from("cc_repair_jobs").update({ remark: remark.trim() }).eq("id", id);
-  if (error) return { error: error.message };
-  await logActivity(user, "Set Restore Bike remark", `job ${id}`);
-  revalidatePath("/repairs");
-  revalidatePath("/");
-}
-
-export async function setQcFailFollowupAction(id: string, branch: Branch, value: string | null): Promise<{ error: string } | void> {
-  const user = await requireApproved();
-  assertCanEditBranch(user, branch);
-  const { error } = await supabaseAdmin.from("cc_repair_jobs").update({ qc_fail_followup_date: value }).eq("id", id);
-  if (error) return { error: error.message };
-  await logActivity(user, "Set QC fail follow-up", `job ${id} → ${value ?? "cleared"}`);
-  revalidatePath("/repairs");
-  revalidatePath("/");
 }
 
 // Click-to-stamp End Date for Walk-in jobs — status isn't a manual choice
@@ -1172,96 +818,6 @@ export async function deleteRepairJobAction(id: string, branch: Branch): Promise
   revalidatePath("/repairs");
   revalidatePath("/repairs/walk-in");
   revalidatePath("/");
-}
-
-const RESTORE_BIKE_PHOTO_BUCKET = "restore-bike-photos";
-
-const MAX_RESTORE_BIKE_PHOTOS = 5;
-
-// Restore Bike only — up to 5 photos of the bike, stored the same way as
-// GenBlu screenshots (private bucket, paths only in the DB; resolved to
-// time-limited signed URLs whenever they need to be shown). Uploads add to
-// whatever's already on the job rather than replacing it, capped at 5
-// total.
-export async function uploadRestoreBikeImagesAction(
-  jobId: string,
-  branch: Branch,
-  formData: FormData
-): Promise<{ error: string } | void> {
-  const user = await requireApproved();
-  assertCanEditBranch(user, branch);
-
-  const files = formData.getAll("images").filter((f): f is File => f instanceof File && f.size > 0);
-  if (files.length === 0) return { error: "No photos were uploaded." };
-
-  const { data: existing, error: fetchError } = await supabaseAdmin
-    .from("cc_repair_jobs")
-    .select("image_paths")
-    .eq("id", jobId)
-    .single();
-  if (fetchError) return { error: fetchError.message };
-
-  const existingPaths: string[] = existing.image_paths ?? [];
-  const room = MAX_RESTORE_BIKE_PHOTOS - existingPaths.length;
-  if (room <= 0) return { error: `Already has ${MAX_RESTORE_BIKE_PHOTOS} photos — remove one before adding more.` };
-
-  // Uploaded together instead of one-at-a-time — each photo's path is
-  // already unique (timestamp + random suffix), so there's no ordering
-  // dependency between them.
-  const toUpload = files.slice(0, room);
-  const uploads = await Promise.all(
-    toUpload.map(async (file) => {
-      const ext = file.name.split(".").pop() || "jpg";
-      const path = `${branch}/${jobId}-${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
-      const { error: uploadError } = await supabaseAdmin.storage
-        .from(RESTORE_BIKE_PHOTO_BUCKET)
-        .upload(path, file, { contentType: file.type || "image/jpeg" });
-      return { path, uploadError };
-    })
-  );
-  const failed = uploads.find((u) => u.uploadError);
-  if (failed) return { error: `Couldn't upload the photo: ${failed.uploadError!.message}` };
-  const newPaths = uploads.map((u) => u.path);
-
-  const { error } = await supabaseAdmin
-    .from("cc_repair_jobs")
-    .update({ image_paths: [...existingPaths, ...newPaths] })
-    .eq("id", jobId);
-  if (error) return { error: error.message };
-  await logActivity(user, "Uploaded Restore Bike photos", `job ${jobId} (${newPaths.length} photo${newPaths.length === 1 ? "" : "s"})`);
-  revalidatePath("/repairs");
-  revalidatePath("/repairs/walk-in");
-}
-
-export async function removeRestoreBikeImageAction(jobId: string, branch: Branch, path: string): Promise<{ error: string } | void> {
-  const user = await requireApproved();
-  assertCanEditBranch(user, branch);
-
-  const { data: existing, error: fetchError } = await supabaseAdmin
-    .from("cc_repair_jobs")
-    .select("image_paths")
-    .eq("id", jobId)
-    .single();
-  if (fetchError) return { error: fetchError.message };
-
-  const nextPaths = ((existing.image_paths as string[]) ?? []).filter((p) => p !== path);
-  const { error } = await supabaseAdmin.from("cc_repair_jobs").update({ image_paths: nextPaths }).eq("id", jobId);
-  if (error) return { error: error.message };
-  await logActivity(user, "Removed Restore Bike photo", `job ${jobId}`);
-  await supabaseAdmin.storage.from(RESTORE_BIKE_PHOTO_BUCKET).remove([path]);
-  revalidatePath("/repairs");
-  revalidatePath("/repairs/walk-in");
-}
-
-export async function getRestoreBikeImageUrl(path: string): Promise<string | null> {
-  const { data, error } = await supabaseAdmin.storage.from(RESTORE_BIKE_PHOTO_BUCKET).createSignedUrl(path, 60 * 60);
-  if (error) return null;
-  return data.signedUrl;
-}
-
-export async function getRestoreBikeImageUrls(paths: string[]): Promise<string[]> {
-  const urls = await Promise.all(paths.map((p) => getRestoreBikeImageUrl(p)));
-  return urls.filter((u): u is string => u !== null);
 }
 
 const JOBSHEET_PHOTO_BUCKET = "jobsheet-photos";
