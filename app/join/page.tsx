@@ -1,7 +1,15 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
+import { Loader2 } from "lucide-react";
 import JoinForm from "./JoinForm";
 
-export const dynamic = "force-dynamic";
+// No server-side data fetching here at all — the actual card lookup
+// happens client-side inside JoinForm via a server action call, keyed off
+// whatever the customer types (or a ?plate= link). This shell is the same
+// for every visitor, so it can be built once and served instantly from the
+// CDN instead of re-rendered on the server (and possibly a cold serverless
+// start) on every single visit — that was needless latency on a page a
+// customer opens right there at the counter.
 
 export const metadata: Metadata = {
   title: "BMM E-Service Card",
@@ -31,12 +39,27 @@ export default function JoinPage() {
             alt="Berjaya Mega Motors — E-Service Card"
             className="w-11 h-11 rounded-full object-cover mb-1.5 ring-4 ring-white/30 shadow-lg animate-pop"
           />
-          <p className="text-lg font-bold text-white tracking-tight">Services Card</p>
+          <p className="text-lg font-bold text-white tracking-tight">E-Service Card</p>
           <p className="text-[11px] text-white/70 text-center">BERJAYA MEGA MOTORS</p>
         </div>
 
         <div className="bg-white/95 backdrop-blur rounded-3xl p-5 shadow-2xl min-h-0 overflow-y-auto">
-          <JoinForm />
+          {/* JoinForm reads the ?plate= link via useSearchParams, which
+              Next.js requires a Suspense boundary around for this page to
+              still prerender statically — without it, the build falls back
+              to rendering this page fresh per request instead, defeating
+              the whole point of dropping force-dynamic above. The fallback
+              only ever shows for the brief instant before the client JS
+              takes over, so it's kept minimal on purpose. */}
+          <Suspense
+            fallback={
+              <div className="flex flex-col items-center justify-center py-10">
+                <Loader2 size={22} className="text-red-400 animate-spin" />
+              </div>
+            }
+          >
+            <JoinForm />
+          </Suspense>
         </div>
       </div>
     </div>
