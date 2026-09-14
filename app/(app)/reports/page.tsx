@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ClipboardList, Users, Smartphone, ShieldCheck, Truck, Wrench as MechanicIcon, TrendingUp, History } from "lucide-react";
+import { ClipboardList, CreditCard, Smartphone, ShieldCheck, Truck, Wrench as MechanicIcon, TrendingUp, History } from "lucide-react";
 import { requirePage, requireApproved } from "@/lib/current-user";
 import { canViewLogs } from "@/lib/logs-access";
 import { SCOPED_REPORT_SLUGS } from "@/lib/permissions";
@@ -24,7 +24,7 @@ type ReportCard = {
 // row-breaking header.
 const CARDS: ReportCard[] = [
   { slug: "jobsheet", title: "Jobsheet", description: "Every Walk-in job, active and completed.", icon: ClipboardList, color: "text-red-600 bg-red-500/10", category: "Repairs" },
-  { slug: "services-card", title: "E-Service Card", description: "Customer spend, visits, and loyalty cards.", icon: Users, color: "text-rose-600 bg-rose-500/10", category: "Customer" },
+  { slug: "services-card", title: "E-Service Card", description: "Customer spend, visits, and loyalty cards.", icon: CreditCard, color: "text-rose-600 bg-rose-500/10", category: "Customer" },
   { slug: "genblu-new", title: "New Registration", description: "GenBlu registrations for brand new customers with no jobsheet yet.", icon: Smartphone, color: "text-pink-600 bg-pink-500/10", category: "Customer" },
   { slug: "genblu-jobsheet", title: "Has Jobsheet", description: "GenBlu registrations for customers who already had a jobsheet.", icon: Smartphone, color: "text-pink-600 bg-pink-500/10", category: "Customer" },
   { slug: "point-allocation", title: "Point Allocation", description: "Every GenBlu points transaction logged, with monthly counts.", icon: Smartphone, color: "text-fuchsia-600 bg-fuchsia-500/10", category: "Customer" },
