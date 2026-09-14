@@ -7,6 +7,7 @@ import { branchLabel, type Branch } from "@/lib/branch";
 import PageHeader from "@/components/PageHeader";
 import GenbluRateExportButton from "./GenbluRateExportButton";
 import DateRangePicker from "./DateRangePicker";
+import ReloadButton from "./ReloadButton";
 
 export const dynamic = "force-dynamic";
 
@@ -100,6 +101,7 @@ export default async function GenbluSalesRatePage({
         action={
           <div className="flex items-center gap-3">
             <DateRangePicker from={from} to={to} />
+            <ReloadButton />
             {report && <GenbluRateExportButton monthKey={`${from} to ${to}`} report={report} />}
             <Link href="/reports" className="flex items-center gap-1.5 text-sm font-medium text-neutral-600 hover:text-neutral-800">
               <ArrowLeft size={15} /> All Reports
