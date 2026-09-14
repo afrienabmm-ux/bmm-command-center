@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Download, Search, X } from "lucide-react";
 import { toCsv } from "@/lib/format";
 import { logClientActivityAction } from "@/lib/activity-log";
@@ -24,6 +24,7 @@ export default function ReportTable({
   imageField,
   summarySections,
   selectFilters,
+  forcedQuery,
 }: {
   columns: ReportColumn[];
   rows: Record<string, string | number>[];
@@ -53,8 +54,21 @@ export default function ReportTable({
   // rendered here, only stitched onto the front of the CSV so exporting
   // the report also captures them.
   summarySections?: { title: string; columns: string[]; rows: (string | number)[][] }[];
+  // Overwrites the search box from outside this component — e.g. a
+  // clickable stat card above the table that wants clicking it to filter
+  // the rows below, without needing to lift this component's whole filter
+  // state up into its parent. Each distinct value (even the same string
+  // clicked twice) re-applies, so the search box stays in sync with
+  // whichever card was clicked most recently.
+  forcedQuery?: string;
 }) {
   const [query, setQuery] = useState("");
+  useEffect(() => {
+    if (forcedQuery !== undefined) setQuery(forcedQuery);
+    // Only ever meant to react to forcedQuery changing, not query itself
+    // (which would fight typing in the search box directly).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [forcedQuery]);
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [month, setMonth] = useState("all");

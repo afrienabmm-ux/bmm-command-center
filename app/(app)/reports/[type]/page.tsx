@@ -1,6 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Users, Image as ImageIcon, Smartphone, UserCog } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { requirePage, getActiveBranchSelection } from "@/lib/current-user";
 import { SCOPED_REPORT_SLUGS } from "@/lib/permissions";
 import PageHeader from "@/components/PageHeader";
@@ -26,6 +26,7 @@ import { todayInMalaysia, startOfWeekInMalaysia, endOfWeekInMalaysia } from "@/l
 import { formatShortDate, monthLabel } from "@/lib/format";
 import GenbluMonthlySummary from "../../genblu/GenbluMonthlySummary";
 import JobsheetRevenueSummary from "./JobsheetRevenueSummary";
+import GenbluCountsAndTable from "./GenbluCountsAndTable";
 import MechanicRevenueSummary from "./MechanicRevenueSummary";
 import { getWarrantyClaims, getAllBranchesWarrantyClaims } from "@/lib/claims-actions";
 import { getDeliveryClaims, getAllBranchesDeliveryClaims } from "@/lib/delivery-claims-actions";
@@ -286,15 +287,17 @@ export default async function ReportDetailPage({ params }: { params: Promise<{ t
       { key: "createdAt", label: "Registered On" },
     ];
     dateField = "createdAt";
-    // Typing "salesman" or "admin" into the search box filters by this new
-    // column too, alongside name/plate/upload-by-name — the simplest way to
-    // divide the list by uploader without a brand new filter control.
-    searchFields = ["customerName", "customerPlateNo", "salespersonName", "uploadedByType"];
+    // Typing "salesman"/"admin"/"yes" into the search box filters by these
+    // hidden fields too, alongside name/plate/upload-by-name — the same
+    // mechanism the stat cards above the table drive by clicking instead
+    // (see GenbluCountsAndTable).
+    searchFields = ["customerName", "customerPlateNo", "salespersonName", "uploadedByType", "hasScreenshot"];
     rows = regs.map((r) => ({
       customerName: r.customerName,
       branch: branchLabel(r.branch),
       customerPlateNo: r.customerPlateNo,
       salespersonName: r.salespersonName,
+      hasScreenshot: r.screenshotPath ? "yes" : "no",
       // Only the Sales Dashboard's own intake sets an external source id —
       // anything entered directly in our app (by one of our own staff) has
       // none, so that's the one reliable signal to tell "Salesman" and
@@ -464,39 +467,16 @@ export default async function ReportDetailPage({ params }: { params: Promise<{ t
         }
       />
       <div className="flex-1 overflow-y-auto p-8">
-        {genbluCounts && (
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6 max-w-3xl">
-            <div className="bg-white border border-neutral-200 rounded-xl p-5">
-              <div className="w-9 h-9 rounded-lg flex items-center justify-center mb-4 text-pink-600 bg-pink-500/10">
-                <Users size={17} />
-              </div>
-              <p className="text-2xl font-semibold text-neutral-900">{genbluCounts.total}</p>
-              <p className="text-xs text-neutral-500 mt-1">Total Registrations</p>
-            </div>
-            <div className="bg-white border border-neutral-200 rounded-xl p-5">
-              <div className="w-9 h-9 rounded-lg flex items-center justify-center mb-4 text-sky-600 bg-sky-500/10">
-                <ImageIcon size={17} />
-              </div>
-              <p className="text-2xl font-semibold text-neutral-900">{genbluCounts.withScreenshot}</p>
-              <p className="text-xs text-neutral-500 mt-1">With Screenshot Uploaded</p>
-            </div>
-            <div className="bg-white border border-neutral-200 rounded-xl p-5">
-              <div className="w-9 h-9 rounded-lg flex items-center justify-center mb-4 text-violet-600 bg-violet-500/10">
-                <Smartphone size={17} />
-              </div>
-              <p className="text-2xl font-semibold text-neutral-900">{genbluCounts.bySalesman}</p>
-              <p className="text-xs text-neutral-500 mt-1">Uploaded By Salesman</p>
-            </div>
-            <div className="bg-white border border-neutral-200 rounded-xl p-5">
-              <div className="w-9 h-9 rounded-lg flex items-center justify-center mb-4 text-amber-600 bg-amber-500/10">
-                <UserCog size={17} />
-              </div>
-              <p className="text-2xl font-semibold text-neutral-900">{genbluCounts.byAdmin}</p>
-              <p className="text-xs text-neutral-500 mt-1">Uploaded By Admin</p>
-            </div>
-          </div>
-        )}
-        {monthlySummary || revenueSummary || mechanicSummary ? (
+        {genbluCounts ? (
+          <GenbluCountsAndTable
+            counts={genbluCounts}
+            columns={columns}
+            rows={rows}
+            dateField={dateField}
+            searchFields={searchFields}
+            filename={`bmm-report-${type}`}
+          />
+        ) : monthlySummary || revenueSummary || mechanicSummary ? (
           <div className="flex flex-col lg:flex-row gap-6 items-start">
             <div className="shrink-0 w-full lg:w-auto">
               {monthlySummary && <GenbluMonthlySummary summary={monthlySummary} />}
