@@ -13,10 +13,29 @@ export type GenbluReportMetric = {
   install_pct?: number;
   ecoupon_used?: number;
   ecoupon_pct?: number;
+  // A bike whose loan was booked in an earlier month but got registered
+  // this month has no single day within THIS month to attribute to a
+  // week — it's counted here, in the monthly figures, but deliberately
+  // left out of every week's own total. Only ever present on a monthly
+  // total/branch/salesperson row, never on a week's.
+  bikes_sold_carried_in?: number;
 };
 
 export type GenbluReportBranchRow = GenbluReportMetric & { branch?: string; name?: string };
 export type GenbluReportPersonRow = GenbluReportMetric & { name?: string; branch?: string };
+
+// One Monday-to-Saturday week (branches are closed Sundays) inside the
+// month — same total/branches/salespeople shape as the whole-month
+// figures, just scoped to that week's own days.
+export type GenbluReportWeek = {
+  week?: number;
+  start?: string;
+  end?: string;
+  label?: string;
+  total?: GenbluReportMetric;
+  branches?: GenbluReportBranchRow[];
+  salespeople?: GenbluReportPersonRow[];
+};
 
 export type GenbluReportPayload = {
   month?: string;
@@ -28,6 +47,9 @@ export type GenbluReportPayload = {
   total?: GenbluReportMetric;
   branches?: GenbluReportBranchRow[];
   salespeople?: GenbluReportPersonRow[];
+  // Confirmed against real data 2026-09-14: the field is "weekly", not
+  // "weeks" as first guessed.
+  weekly?: GenbluReportWeek[];
   [key: string]: unknown;
 };
 

@@ -5,9 +5,10 @@ import { todayInMalaysia } from "@/lib/malaysia-time";
 import { getGenbluReportHistoryInRange, type GenbluReportMetric, type GenbluReportPayload } from "@/lib/genblu-report-actions";
 import { branchLabel, type Branch } from "@/lib/branch";
 import PageHeader from "@/components/PageHeader";
+import MonthPicker from "@/components/MonthPicker";
 import GenbluRateExportButton from "./GenbluRateExportButton";
-import DateRangePicker from "./DateRangePicker";
 import ReloadButton from "./ReloadButton";
+import WeekSelector from "./WeekSelector";
 
 export const dynamic = "force-dynamic";
 
@@ -59,39 +60,51 @@ function MetricCells({ row, targets }: { row: GenbluReportMetric; targets?: { in
 export default async function GenbluSalesRatePage({
   searchParams,
 }: {
-  searchParams: Promise<{ from?: string; to?: string }>;
+  searchParams: Promise<{ year?: string; month?: string; week?: string }>;
 }) {
   const user = await requirePage("reports");
   const selection = await getActiveBranchSelection(user);
   const allBranches = selection === "all";
-  const today = todayInMalaysia();
-  const [todayYear, todayMonth] = today.split("-").map(Number);
+  const [todayYear, todayMonth] = todayInMalaysia().split("-").map(Number);
   const params = await searchParams;
-  // Defaults to "start of this month through today" — a real from/to pair
-  // in the URL (via DateRangePicker) narrows that down to any window,
-  // a single week included.
-  const from = params.from ?? `${todayYear}-${pad(todayMonth)}-01`;
-  const to = params.to ?? today;
+  const year = params.year ? Number(params.year) : todayYear;
+  const month = params.month ? Number(params.month) : todayMonth;
+  const monthKey = `${year}-${pad(month)}`;
+  const monthStart = `${monthKey}-01`;
+  const monthEnd = `${monthKey}-${pad(new Date(year, month, 0).getDate())}`;
 
-  // Every delivery the Sales Dashboard sent inside that window, newest
-  // first — the report shown is whichever one arrived most recently
-  // within it, i.e. "as of" that date range.
-  const history = await getGenbluReportHistoryInRange(from, to);
+  // Only the most recent delivery for the month matters now — earlier
+  // deliveries were superseded snapshots, not separate weeks (weeks live
+  // inside each delivery's own "weekly" field instead; see WeekSelector).
+  const history = await getGenbluReportHistoryInRange(monthStart, monthEnd);
   const monthly = history[0];
   const fullReport = monthly?.report;
+  const weeks = fullReport?.weekly ?? [];
 
-  // Scoped down to just the selected branch — same branch switcher every
-  // other page respects. "All Branches" keeps showing everything exactly
-  // as the Sales Dashboard sent it.
-  const report: GenbluReportPayload | undefined = fullReport && !allBranches
+  const selectedWeekNum = params.week ? Number(params.week) : null;
+  const selectedWeek = selectedWeekNum !== null ? weeks.find((w) => w.week === selectedWeekNum) : undefined;
+  // Whichever scope is currently in view — one specific week, or the
+  // whole month — before the branch switcher narrows it further.
+  const scopeSource = selectedWeek ?? fullReport;
+
+  const scoped = scopeSource && !allBranches
     ? {
-        ...fullReport,
-        total: fullReport.branches?.find((b) => matchesBranch(b.branch ?? b.name, selection)) ?? fullReport.total,
-        branches: fullReport.branches?.filter((b) => matchesBranch(b.branch ?? b.name, selection)),
-        salespeople: fullReport.salespeople?.filter((p) => matchesBranch(p.branch, selection)),
+        total: scopeSource.branches?.find((b) => matchesBranch(b.branch ?? b.name, selection)) ?? scopeSource.total,
+        branches: scopeSource.branches?.filter((b) => matchesBranch(b.branch ?? b.name, selection)),
+        salespeople: scopeSource.salespeople?.filter((p) => matchesBranch(p.branch, selection)),
       }
-    : fullReport;
-  const totalLabel = allBranches ? "All Branches" : branchLabel(selection);
+    : scopeSource;
+
+  const branchLabelText = allBranches ? "All Branches" : branchLabel(selection);
+  const totalLabel = selectedWeek ? `${branchLabelText} — ${selectedWeek.label ?? `Week ${selectedWeek.week}`}` : branchLabelText;
+  const targets = fullReport?.targets;
+  // Only meaningful for the whole month — a carried-in bike, by definition,
+  // never belongs to any single week.
+  const carriedIn = !selectedWeek ? scoped?.total?.bikes_sold_carried_in : undefined;
+
+  const exportPayload: GenbluReportPayload | undefined = scoped
+    ? { total: scoped.total, branches: scoped.branches, salespeople: scoped.salespeople }
+    : undefined;
 
   return (
     <div className="flex flex-col h-full">
@@ -100,9 +113,13 @@ export default async function GenbluSalesRatePage({
         subtitle="Bikes sold vs. GenBlu installed and e-coupon usage — sent by the Sales Dashboard"
         action={
           <div className="flex items-center gap-3">
-            <DateRangePicker from={from} to={to} />
+            <MonthPicker year={year} month={month} basePath="/reports/genblu-rate" />
+            <WeekSelector
+              weeks={weeks.filter((w): w is { week: number; label: string } => w.week !== undefined).map((w) => ({ week: w.week, label: w.label ?? `Week ${w.week}` }))}
+              selectedWeek={selectedWeekNum}
+            />
             <ReloadButton />
-            {report && <GenbluRateExportButton monthKey={`${from} to ${to}`} report={report} />}
+            {exportPayload && <GenbluRateExportButton monthKey={selectedWeek?.label ?? monthKey} report={exportPayload} />}
             <Link href="/reports" className="flex items-center gap-1.5 text-sm font-medium text-neutral-600 hover:text-neutral-800">
               <ArrowLeft size={15} /> All Reports
             </Link>
@@ -110,28 +127,27 @@ export default async function GenbluSalesRatePage({
         }
       />
       <div className="flex-1 overflow-y-auto p-8 space-y-6">
-        {!report ? (
+        {!scoped ? (
           <div className="bg-white border border-neutral-200 rounded-xl p-10 text-center text-neutral-500 text-sm">
-            No report received from the Sales Dashboard between {from} and {to}.
+            No report received from the Sales Dashboard for {monthKey} yet.
           </div>
         ) : (
           <>
-            {report.targets && (
+            {targets && (
               <div className="flex items-center gap-4 flex-wrap">
-                {report.targets.install_pct !== undefined && (
+                {targets.install_pct !== undefined && (
                   <span className="text-xs bg-white border border-neutral-200 rounded-lg px-3 py-1.5 text-neutral-600">
-                    Install target: <span className="font-semibold text-neutral-900">{report.targets.install_pct}%</span>
+                    Install target: <span className="font-semibold text-neutral-900">{targets.install_pct}%</span>
                   </span>
                 )}
-                {report.targets.ecoupon_pct !== undefined && (
+                {targets.ecoupon_pct !== undefined && (
                   <span className="text-xs bg-white border border-neutral-200 rounded-lg px-3 py-1.5 text-neutral-600">
-                    E-coupon target: <span className="font-semibold text-neutral-900">{report.targets.ecoupon_pct}%</span>
+                    E-coupon target: <span className="font-semibold text-neutral-900">{targets.ecoupon_pct}%</span>
                   </span>
                 )}
-                {(report.targets.ecoupon_points ?? report.targets.points) !== undefined && (
+                {(targets.ecoupon_points ?? targets.points) !== undefined && (
                   <span className="text-xs bg-white border border-neutral-200 rounded-lg px-3 py-1.5 text-neutral-600">
-                    Points target:{" "}
-                    <span className="font-semibold text-neutral-900">{report.targets.ecoupon_points ?? report.targets.points}</span>
+                    Points target: <span className="font-semibold text-neutral-900">{targets.ecoupon_points ?? targets.points}</span>
                   </span>
                 )}
                 {monthly && (
@@ -142,7 +158,14 @@ export default async function GenbluSalesRatePage({
               </div>
             )}
 
-            {report.total && (
+            {!!carriedIn && (
+              <p className="text-xs text-neutral-500 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                Includes {carriedIn} bike{carriedIn === 1 ? "" : "s"} sold in an earlier month but registered this month — these aren't
+                attributed to any single week below.
+              </p>
+            )}
+
+            {scoped.total && (
               <div className="bg-white border border-neutral-200 rounded-xl overflow-hidden">
                 <div className="px-5 py-3 border-b border-neutral-200 bg-neutral-50">
                   <p className="text-sm font-semibold text-neutral-900">{totalLabel}</p>
@@ -159,14 +182,14 @@ export default async function GenbluSalesRatePage({
                   </thead>
                   <tbody>
                     <tr>
-                      <MetricCells row={report.total} targets={report.targets} />
+                      <MetricCells row={scoped.total} targets={targets} />
                     </tr>
                   </tbody>
                 </table>
               </div>
             )}
 
-            {allBranches && report.branches && report.branches.length > 0 && (
+            {allBranches && scoped.branches && scoped.branches.length > 0 && (
               <div className="bg-white border border-neutral-200 rounded-xl overflow-hidden">
                 <div className="px-5 py-3 border-b border-neutral-200 bg-neutral-50">
                   <p className="text-sm font-semibold text-neutral-900">By Branch</p>
@@ -183,10 +206,10 @@ export default async function GenbluSalesRatePage({
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-neutral-100">
-                    {report.branches.map((b, i) => (
+                    {scoped.branches.map((b, i) => (
                       <tr key={b.branch ?? b.name ?? i} className="hover:bg-neutral-50">
                         <td className="px-5 py-2.5 text-neutral-900 font-medium whitespace-nowrap">{b.branch ?? b.name ?? "—"}</td>
-                        <MetricCells row={b} targets={report.targets} />
+                        <MetricCells row={b} targets={targets} />
                       </tr>
                     ))}
                   </tbody>
@@ -194,7 +217,7 @@ export default async function GenbluSalesRatePage({
               </div>
             )}
 
-            {report.salespeople && report.salespeople.length > 0 && (
+            {scoped.salespeople && scoped.salespeople.length > 0 && (
               <div className="bg-white border border-neutral-200 rounded-xl overflow-hidden">
                 <div className="px-5 py-3 border-b border-neutral-200 bg-neutral-50">
                   <p className="text-sm font-semibold text-neutral-900">By Salesperson</p>
@@ -212,11 +235,11 @@ export default async function GenbluSalesRatePage({
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-neutral-100">
-                    {report.salespeople.map((p, i) => (
+                    {scoped.salespeople.map((p, i) => (
                       <tr key={`${p.name}-${i}`} className="hover:bg-neutral-50">
                         <td className="px-5 py-2.5 text-neutral-900 font-medium whitespace-nowrap">{p.name ?? "—"}</td>
                         {allBranches && <td className="px-5 py-2.5 text-neutral-700 whitespace-nowrap">{p.branch ?? "—"}</td>}
-                        <MetricCells row={p} targets={report.targets} />
+                        <MetricCells row={p} targets={targets} />
                       </tr>
                     ))}
                   </tbody>
@@ -227,7 +250,7 @@ export default async function GenbluSalesRatePage({
             <details className="text-xs text-neutral-400">
               <summary className="cursor-pointer select-none hover:text-neutral-600">Raw data received</summary>
               <pre className="mt-2 bg-neutral-50 border border-neutral-200 rounded-lg p-4 overflow-x-auto text-neutral-600">
-                {JSON.stringify(report, null, 2)}
+                {JSON.stringify(selectedWeek ?? fullReport, null, 2)}
               </pre>
             </details>
           </>
