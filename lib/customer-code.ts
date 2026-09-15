@@ -17,23 +17,31 @@ export function checkCustomerCode(raw: string): CustomerCodeCheck {
   return "invalid";
 }
 
-// Short label for the report's Reason column — same three-way split as
-// customerCodeIssueMessage below, just condensed to match the branches'
-// own manually-kept error sheet's style ("NO IC" / "WRONG NUMBER PHONE").
-// A too-many-digits typo gets called out separately rather than lumped in
-// with "WRONG NUMBER PHONE", since it usually isn't a phone number at all.
+// A Malaysian mobile number: 01 (or 601/+601) followed by 8-9 more digits —
+// 10 or 11 digits total. Distinguishes an actual phone number from an
+// under-length IC typo that just happens to also be short (e.g. a missing
+// digit in the middle of an otherwise IC-shaped entry) — those aren't
+// phone-shaped at all and shouldn't be labelled as if they were.
+function looksLikePhone(digitsOnly: string): boolean {
+  return /^01\d{7,9}$/.test(digitsOnly) || /^601\d{7,9}$/.test(digitsOnly);
+}
+
+// Short label for the report's Reason column, matching the branches' own
+// manually-kept error sheet's style ("NO IC" / "WRONG NUMBER PHONE").
 export function customerCodeReason(raw: string): string {
   const trimmed = raw.trim();
   if (!trimmed) return "NO IC";
   const digitsOnly = trimmed.replace(/[\s-]/g, "");
-  if (/^\d+$/.test(digitsOnly) && digitsOnly.length > 12) return "MORE THAN 12 DIGIT";
-  return "WRONG NUMBER PHONE";
+  if (!/^\d+$/.test(digitsOnly)) return "INVALID FORMAT";
+  const n = digitsOnly.length;
+  if (n > 12) return "MORE THAN 12 DIGIT";
+  if (looksLikePhone(digitsOnly)) return "WRONG NUMBER PHONE";
+  return "LESS THAN 12 DIGIT";
 }
 
-// A more specific explanation for the live form warning — "is this a
-// phone number?" is misleading for e.g. a 13-digit IC with one extra typo
-// digit, which isn't phone-shaped at all. Says exactly what's off instead
-// of guessing the same way every time.
+// Longer, conversational version for the live form warning — says exactly
+// what's off instead of guessing "is this a phone number?" every time,
+// which is misleading for e.g. a 13-digit IC with one extra typo digit.
 export function customerCodeIssueMessage(raw: string): string {
   const trimmed = raw.trim();
   const digitsOnly = trimmed.replace(/[\s-]/g, "");
@@ -44,5 +52,8 @@ export function customerCodeIssueMessage(raw: string): string {
   if (n > 12) {
     return `IC number should be exactly 12 digits — this has ${n}, ${n - 12 === 1 ? "one too many" : `${n - 12} too many`}. Please check for a typo.`;
   }
-  return `IC number should be exactly 12 digits — this has ${n}. Is this a phone number by mistake, or a digit missing?`;
+  if (looksLikePhone(digitsOnly)) {
+    return `IC number should be exactly 12 digits — this has ${n}. Is this a phone number by mistake?`;
+  }
+  return `IC number should be exactly 12 digits — this has ${n}, ${12 - n === 1 ? "one short" : `${12 - n} short`}. Please check for a missing digit.`;
 }
