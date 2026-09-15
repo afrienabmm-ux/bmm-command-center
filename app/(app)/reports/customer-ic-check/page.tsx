@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { requirePage } from "@/lib/current-user";
-import { getCustomerCodeErrors, saveCustomerCodeCorrectionAction } from "@/lib/repairs-actions";
+import { getCustomerCodeErrors, amendCustomerCodeAction } from "@/lib/repairs-actions";
 import { branchLabel, type Branch } from "@/lib/branch";
 import PageHeader from "@/components/PageHeader";
 import ReportTable, { type ReportColumn } from "@/components/ReportTable";
@@ -35,14 +35,14 @@ export default async function CustomerIcCheckPage() {
 
   async function saveIc(row: Record<string, string | number>, newValue: string) {
     "use server";
-    return saveCustomerCodeCorrectionAction(String(row.id), row.rawBranch as Branch, newValue);
+    return amendCustomerCodeAction(String(row.id), row.rawBranch as Branch, newValue);
   }
 
   return (
     <div className="flex flex-col h-full">
       <PageHeader
         title="Customer Code"
-        subtitle="Every Walk-in jobsheet whose Customer Code isn't a valid IC number — all branches, all time. Click IC Number Untuk Amend to note the correct one for follow-up (this is a report note only — it doesn't change the actual jobsheet)."
+        subtitle="Every Walk-in jobsheet whose Customer Code isn't a valid IC number — all branches, all time. Click IC Number Untuk Amend to fix it directly on the jobsheet."
         action={
           <Link href="/reports" className="flex items-center gap-1.5 text-sm font-medium text-neutral-600 hover:text-neutral-800">
             <ArrowLeft size={15} /> All Reports
@@ -64,7 +64,7 @@ export default async function CustomerIcCheckPage() {
           ]}
           editableField="icNumber"
           onEditValue={saveIc}
-          editHint="Report note only — this does not change the actual jobsheet."
+          editHint="This updates the actual Customer Code on the jobsheet."
           emptyDisplayField="customerName"
         />
       </div>
