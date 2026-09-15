@@ -57,6 +57,7 @@ export default async function ReportsPage() {
           {showLogs && (
             <Link
               href="/reports/logs"
+              prefetch={false}
               className="bg-white border border-neutral-200 rounded-xl p-6 hover:border-red-300 hover:shadow-sm transition-all"
             >
               <div className="flex items-start justify-between mb-4">
@@ -69,12 +70,17 @@ export default async function ReportsPage() {
               <p className="text-sm text-neutral-500 mt-1.5 leading-relaxed">Who logged in and every team-management action.</p>
             </Link>
           )}
+          {/* prefetch=false — every report page runs its own real query on
+              load (some scan the whole jobsheet history), so with the
+              default prefetch on, just opening this index quietly rendered
+              every single report in the background at once. */}
           {visibleCards.map((card) => {
             const Icon = card.icon;
             return (
               <Link
                 key={card.slug}
                 href={`/reports/${card.slug}`}
+                prefetch={false}
                 className="bg-white border border-neutral-200 rounded-xl p-6 hover:border-red-300 hover:shadow-sm transition-all"
               >
                 <div className="flex items-start justify-between mb-4">

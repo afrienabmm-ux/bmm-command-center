@@ -531,6 +531,7 @@ export default function WalkInClient({
           {canEdit && (
             <Link
               href="/repairs/walk-in/new"
+              prefetch={false}
               className="flex items-center gap-1.5 bg-red-500 hover:bg-red-400 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
             >
               <Plus size={15} /> Add Job
@@ -1087,8 +1088,13 @@ function WalkInRow({
             </button>
           )}
           {canEdit && (
+            // prefetch=false — WalkInRow renders once per job (up to
+            // hundreds), so with prefetching on, every Edit/Print link that
+            // scrolled into view quietly rendered that job's whole edit/print
+            // page in the background, competing with the actual page.
             <Link
               href={`/repairs/walk-in/${job.id}/edit`}
+              prefetch={false}
               className="text-neutral-400 hover:text-red-600 transition-colors p-1 inline-block"
               title="Edit job"
               aria-label="Edit job"
@@ -1098,6 +1104,7 @@ function WalkInRow({
           )}
           <Link
             href={`/repairs/walk-in/${job.id}/print`}
+            prefetch={false}
             target="_blank"
             className="text-neutral-400 hover:text-red-600 transition-colors p-1 inline-block"
             title="Print job"

@@ -44,11 +44,16 @@ export default function SuspiciousJobsBanner({ jobs, showBranch }: { jobs: Suspi
           <p className="text-sm font-semibold text-amber-700">
             {jobs.length} jobsheet{jobs.length === 1 ? "" : "s"} worth a second look
           </p>
+          {/* prefetch=false on these — each links to /repairs/walk-in (a
+              heavy page fetching every active/completed job) with a
+              different query string, so left on, prefetching would render
+              that whole page in the background once per flagged job. */}
           <div className="mt-2 space-y-1.5">
             {jobs.slice(0, 6).map((j) => (
               <div key={j.id} className="text-xs text-amber-700">
                 <Link
                   href={`/repairs/walk-in?highlight=${j.id}`}
+                  prefetch={false}
                   className="font-medium hover:underline"
                   onClick={() => {
                     // Opening a specific flagged job counts as reviewing it —
@@ -70,6 +75,7 @@ export default function SuspiciousJobsBanner({ jobs, showBranch }: { jobs: Suspi
           {jobs.length === 1 ? (
             <Link
               href={`/repairs/walk-in?highlight=${jobs[0].id}`}
+              prefetch={false}
               className="inline-block text-xs font-medium text-amber-700 hover:text-amber-800 mt-2 underline"
               onClick={() => dismissSuspiciousJobAction(jobs[0].id)}
             >

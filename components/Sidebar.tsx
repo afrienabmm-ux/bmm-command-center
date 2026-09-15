@@ -207,6 +207,12 @@ export default function Sidebar({
           )}
         </div>
 
+        {/* prefetch=false on every nav link below: almost every page in this
+            app is force-dynamic (its own DB queries run on every visit), so
+            with prefetching on, this always-visible sidebar was silently
+            triggering a full server render of every other page in the nav —
+            on every single page load — for nothing, since nobody had
+            clicked them. That background load was the real "lag". */}
         <nav className={`flex-1 py-4 space-y-1 overflow-y-auto ${visuallyCollapsed ? "px-3 md:px-2" : "px-3"}`}>
           {[...mainNavLinks, ...trailingNavLinks].map((link, i) => {
             const active = pathname === link.href;
@@ -219,6 +225,7 @@ export default function Sidebar({
                 {isFirstTrailing && <hr className="my-2 border-neutral-200" />}
                 <Link
                   href={link.href}
+                  prefetch={false}
                   title={visuallyCollapsed ? link.label : undefined}
                   className={`flex items-center rounded-lg text-sm font-medium transition-colors ${
                     visuallyCollapsed ? "gap-3 md:justify-center px-3 md:px-2 py-2.5" : "gap-3 px-3 py-2.5"

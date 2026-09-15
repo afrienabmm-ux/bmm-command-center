@@ -17,6 +17,7 @@ export default function StatCard({
   return (
     <Link
       href={href}
+      prefetch={false}
       className="bg-white border border-neutral-200 rounded-xl p-5 hover:border-neutral-300 transition-colors"
     >
       <div className={`w-9 h-9 rounded-lg flex items-center justify-center mb-4 ${color}`}>

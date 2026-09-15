@@ -354,6 +354,7 @@ function ClaimRow({ claim, showBranch, knownPics }: { claim: WarrantyClaim; show
         </button>
         <Link
           href={`/warranty-claims/${claim.id}/print`}
+          prefetch={false}
           target="_blank"
           className="text-neutral-400 hover:text-red-600 transition-colors p-1 inline-block"
           title="Print claim"
