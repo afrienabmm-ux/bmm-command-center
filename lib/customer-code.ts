@@ -27,7 +27,9 @@ function looksLikePhone(digitsOnly: string): boolean {
 }
 
 // Short label for the report's Reason column, matching the branches' own
-// manually-kept error sheet's style ("NO IC" / "WRONG NUMBER PHONE").
+// manually-kept error sheet's style. A phone number counts as "NO IC" —
+// it isn't the customer's IC at all, same as a blank field — rather than
+// its own separate reason.
 export function customerCodeReason(raw: string): string {
   const trimmed = raw.trim();
   if (!trimmed) return "NO IC";
@@ -35,7 +37,7 @@ export function customerCodeReason(raw: string): string {
   if (!/^\d+$/.test(digitsOnly)) return "INVALID FORMAT";
   const n = digitsOnly.length;
   if (n > 12) return "MORE THAN 12 DIGIT";
-  if (looksLikePhone(digitsOnly)) return "WRONG NUMBER PHONE";
+  if (looksLikePhone(digitsOnly)) return "NO IC";
   return "LESS THAN 12 DIGIT";
 }
 
