@@ -154,7 +154,16 @@ export default function WalkInClient({
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase();
     const filtered = jobs.filter((j) => {
-      if (q && !((j.customerName ?? "").toLowerCase().includes(q) || j.plateNo.toLowerCase().includes(q))) return false;
+      if (
+        q &&
+        !(
+          (j.customerName ?? "").toLowerCase().includes(q) ||
+          j.plateNo.toLowerCase().includes(q) ||
+          j.jobNo.toLowerCase().includes(q) ||
+          j.jobsheetNo.toLowerCase().includes(q)
+        )
+      )
+        return false;
       const jobDate = j.startedDate ?? "";
       if (dateFrom && jobDate < dateFrom) return false;
       if (dateTo && jobDate > dateTo) return false;
@@ -373,7 +382,7 @@ export default function WalkInClient({
               type="text"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search customer or plate no…"
+              placeholder="Search customer, plate, job no. or jobsheet no…"
               className="bg-white border border-neutral-200 rounded-lg pl-8 pr-3 py-2 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50 w-64"
             />
           </div>
