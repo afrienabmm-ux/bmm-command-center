@@ -30,7 +30,6 @@ export default function ReportTable({
   editableField,
   onEditValue,
   editHint,
-  emptyDisplayField,
 }: {
   columns: ReportColumn[];
   rows: Record<string, string | number>[];
@@ -84,12 +83,6 @@ export default function ReportTable({
   // saving it actually does (or doesn't) touch, since that's specific to
   // whatever onEditValue does and this component has no way to know.
   editHint?: string;
-  // While the editable cell itself is still empty, show this column's
-  // value instead (muted) rather than a generic "click to fill in" — e.g.
-  // the customer's name, so the row is identifiable at a glance before
-  // anyone's noted the real number. Clicking still edits the actual
-  // (empty) field, never this fallback value.
-  emptyDisplayField?: string;
 }) {
   const router = useRouter();
   const [query, setQuery] = useState("");
@@ -310,11 +303,7 @@ export default function ReportTable({
                             className="flex items-center gap-1.5 text-neutral-700 hover:text-red-600 group"
                             title="Click to fill in the correct number"
                           >
-                            {r[c.key] || (
-                              <span className="text-neutral-400 italic">
-                                {emptyDisplayField && r[emptyDisplayField] ? r[emptyDisplayField] : "blank — click to fill in"}
-                              </span>
-                            )}
+                            {r[c.key] || <span className="text-neutral-400 italic">blank — click to fill in</span>}
                             <Pencil size={12} className="opacity-0 group-hover:opacity-100" />
                           </button>
                         </td>

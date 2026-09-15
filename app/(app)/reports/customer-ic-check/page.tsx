@@ -65,7 +65,6 @@ export default async function CustomerIcCheckPage() {
           editableField="icNumber"
           onEditValue={saveIc}
           editHint="This updates the actual Customer Code on the jobsheet."
-          emptyDisplayField="customerName"
         />
       </div>
     </div>
