@@ -17,13 +17,18 @@ export function checkCustomerCode(raw: string): CustomerCodeCheck {
   return "invalid";
 }
 
-// Matches the wording already used on the branches' own manually-kept
-// error sheet ("NO IC" / "WRONG NUMBER PHONE"), so the auto-generated
-// report reads the same way staff already expect.
-export const CUSTOMER_CODE_REASON: Record<Exclude<CustomerCodeCheck, "ok">, string> = {
-  no_ic: "NO IC",
-  invalid: "WRONG NUMBER PHONE",
-};
+// Short label for the report's Reason column — same three-way split as
+// customerCodeIssueMessage below, just condensed to match the branches'
+// own manually-kept error sheet's style ("NO IC" / "WRONG NUMBER PHONE").
+// A too-many-digits typo gets called out separately rather than lumped in
+// with "WRONG NUMBER PHONE", since it usually isn't a phone number at all.
+export function customerCodeReason(raw: string): string {
+  const trimmed = raw.trim();
+  if (!trimmed) return "NO IC";
+  const digitsOnly = trimmed.replace(/[\s-]/g, "");
+  if (/^\d+$/.test(digitsOnly) && digitsOnly.length > 12) return "MORE THAN 12 DIGIT";
+  return "WRONG NUMBER PHONE";
+}
 
 // A more specific explanation for the live form warning — "is this a
 // phone number?" is misleading for e.g. a 13-digit IC with one extra typo

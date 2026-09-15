@@ -9,7 +9,7 @@ import { todayInMalaysia, daysSinceInMalaysia } from "./malaysia-time";
 import type { RepairJob, RepairJobItem, RepairStatus, JobType, ApprovalStatus, QcResult } from "./types";
 import { BRANCHES, type Branch } from "./branch";
 import { normalizeName } from "./name-matching";
-import { checkCustomerCode, CUSTOMER_CODE_REASON } from "./customer-code";
+import { checkCustomerCode, customerCodeReason } from "./customer-code";
 
 type ItemRow = { id: string; code: string; description: string; quantity: number; price: number };
 
@@ -879,7 +879,7 @@ export async function getCustomerCodeErrors(): Promise<CustomerCodeErrorRow[]> {
       date: j.started_date || (j.created_at as string)?.slice(0, 10) || "",
       jobsheetNo: j.jobsheet_no?.trim() || j.job_no,
       mechanic: j.mechanic_id ? (mechanicLabel.get(j.mechanic_id) ?? "—") : "—",
-      reason: CUSTOMER_CODE_REASON[j.check as "no_ic" | "invalid"],
+      reason: customerCodeReason(j.customer_code ?? ""),
       district: "",
       icNumber: j.customer_code ?? "",
       plateNo: j.plate_no ?? "",
