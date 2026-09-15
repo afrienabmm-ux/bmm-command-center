@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Download, Search, X } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Download, Pencil, Search, X } from "lucide-react";
 import { toCsv } from "@/lib/format";
 import { logClientActivityAction } from "@/lib/activity-log";
 import ModalPortal from "@/components/ModalPortal";
@@ -25,6 +26,9 @@ export default function ReportTable({
   summarySections,
   selectFilters,
   forcedQuery,
+  rowNumber,
+  editableField,
+  onEditValue,
 }: {
   columns: ReportColumn[];
   rows: Record<string, string | number>[];
@@ -61,7 +65,21 @@ export default function ReportTable({
   // clicked twice) re-applies, so the search box stays in sync with
   // whichever card was clicked most recently.
   forcedQuery?: string;
+  // Numbers rows 1, 2, 3… in a leading "Bil." column, matching the
+  // branches' own manually-kept sheets — recalculated off whatever's
+  // currently filtered/searched, not the row's position in the full list.
+  rowNumber?: boolean;
+  // Which column's cell is click-to-edit — clicking it opens a small modal
+  // (rather than editing in place) so a value that's already wrong isn't
+  // mistaken for something safe to overtype directly in the table. Needs
+  // onEditValue to actually do anything.
+  editableField?: string;
+  // Called with the row and the new value once the edit modal is saved;
+  // the row list itself is owned by the server page, not this component,
+  // so a successful edit just refreshes the page to pick up the new data.
+  onEditValue?: (row: Record<string, string | number>, newValue: string) => Promise<{ error: string } | void>;
 }) {
+  const router = useRouter();
   const [query, setQuery] = useState("");
   useEffect(() => {
     if (forcedQuery !== undefined) setQuery(forcedQuery);
@@ -74,6 +92,31 @@ export default function ReportTable({
   const [month, setMonth] = useState("all");
   const [selectValues, setSelectValues] = useState<Record<string, string>>({});
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [editingRow, setEditingRow] = useState<Record<string, string | number> | null>(null);
+  const [editValue, setEditValue] = useState("");
+  const [editSaving, setEditSaving] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
+
+  function openEdit(row: Record<string, string | number>) {
+    if (!editableField) return;
+    setEditingRow(row);
+    setEditValue(String(row[editableField] ?? ""));
+    setEditError(null);
+  }
+
+  async function saveEdit() {
+    if (!editingRow || !editableField || !onEditValue) return;
+    setEditSaving(true);
+    setEditError(null);
+    const result = await onEditValue(editingRow, editValue);
+    setEditSaving(false);
+    if (result && "error" in result && result.error) {
+      setEditError(result.error);
+      return;
+    }
+    setEditingRow(null);
+    router.refresh();
+  }
 
   const months = useMemo(() => {
     if (!monthField) return [];
@@ -221,6 +264,7 @@ export default function ReportTable({
         <table className="w-full text-sm">
           <thead>
             <tr className="text-left text-xs text-neutral-500 border-b border-neutral-200 bg-neutral-50">
+              {rowNumber && <th className="font-medium px-4 py-2.5 whitespace-nowrap">Bil.</th>}
               {columns.map((c) => (
                 <th key={c.key} className="font-medium px-4 py-2.5 whitespace-nowrap">
                   {c.label}
@@ -231,7 +275,7 @@ export default function ReportTable({
           <tbody className="divide-y divide-neutral-100">
             {filtered.length === 0 ? (
               <tr>
-                <td colSpan={columns.length} className="text-center text-neutral-500 py-10">
+                <td colSpan={columns.length + (rowNumber ? 1 : 0)} className="text-center text-neutral-500 py-10">
                   No matching rows.
                 </td>
               </tr>
@@ -245,11 +289,25 @@ export default function ReportTable({
                     title={image ? "Double-click to view the uploaded screenshot" : undefined}
                     className={`hover:bg-neutral-50 ${image ? "cursor-pointer" : ""}`}
                   >
-                    {columns.map((c) => (
-                      <td key={c.key} className="px-4 py-2.5 whitespace-nowrap text-neutral-700">
-                        {r[c.key] ?? ""}
-                      </td>
-                    ))}
+                    {rowNumber && <td className="px-4 py-2.5 whitespace-nowrap text-neutral-500">{i + 1}</td>}
+                    {columns.map((c) =>
+                      editableField === c.key && onEditValue ? (
+                        <td key={c.key} className="px-4 py-2.5 whitespace-nowrap">
+                          <button
+                            onClick={() => openEdit(r)}
+                            className="flex items-center gap-1.5 text-neutral-700 hover:text-red-600 group"
+                            title="Click to fill in the correct number"
+                          >
+                            {r[c.key] || <span className="text-neutral-400 italic">blank — click to fill in</span>}
+                            <Pencil size={12} className="opacity-0 group-hover:opacity-100" />
+                          </button>
+                        </td>
+                      ) : (
+                        <td key={c.key} className="px-4 py-2.5 whitespace-nowrap text-neutral-700">
+                          {r[c.key] ?? ""}
+                        </td>
+                      )
+                    )}
                   </tr>
                 );
               })
@@ -279,6 +337,49 @@ export default function ReportTable({
             />
           </div>
         </div></ModalPortal>
+      )}
+
+      {editingRow && editableField && (
+        <ModalPortal>
+          <div
+            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 px-4"
+            onClick={() => !editSaving && setEditingRow(null)}
+          >
+            <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm p-5" onClick={(e) => e.stopPropagation()}>
+              <p className="text-sm font-semibold text-neutral-900 mb-1">Fill in the correct number</p>
+              <p className="text-xs text-neutral-500 mb-3">
+                {editingRow.jobsheetNo ? `Jobsheet ${editingRow.jobsheetNo}` : ""}
+                {editingRow.customerName ? ` — ${editingRow.customerName}` : ""}
+              </p>
+              <input
+                type="text"
+                autoFocus
+                value={editValue}
+                onChange={(e) => setEditValue(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && saveEdit()}
+                placeholder="e.g. 880101-14-5566"
+                className="w-full bg-white border border-neutral-200 rounded-lg px-3 py-2 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
+              />
+              {editError && <p className="text-xs text-red-600 mt-2">{editError}</p>}
+              <div className="flex items-center justify-end gap-2 mt-4">
+                <button
+                  onClick={() => setEditingRow(null)}
+                  disabled={editSaving}
+                  className="text-sm font-medium text-neutral-600 hover:text-neutral-800 px-3 py-2"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={saveEdit}
+                  disabled={editSaving}
+                  className="bg-red-500 hover:bg-red-400 disabled:opacity-50 text-white text-sm font-medium px-4 py-2 rounded-lg"
+                >
+                  {editSaving ? "Saving…" : "Save"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </ModalPortal>
       )}
     </div>
   );

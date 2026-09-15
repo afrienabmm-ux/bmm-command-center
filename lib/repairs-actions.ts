@@ -863,6 +863,7 @@ export async function getJobsheetPhotoUrlAction(path: string): Promise<string | 
 }
 
 export type CustomerCodeErrorRow = {
+  id: string;
   branch: Branch;
   date: string;
   jobsheetNo: string;
@@ -880,32 +881,33 @@ export type CustomerCodeErrorRow = {
 // the warning shown live on the jobsheet form (lib/customer-code.ts is the
 // one shared rule both sides use, so they never disagree). "District" is
 // always left blank, matching the branches' own manually-kept sheet this
-// report replaces.
+// report replaces. Mechanic shows just the short code (not the full name)
+// for the same reason — that sheet's "Mechanic Code" column only ever held
+// the code.
 export async function getCustomerCodeErrors(): Promise<CustomerCodeErrorRow[]> {
   await requireApproved();
   const [{ data: jobs, error: jobsErr }, { data: mechanics, error: mechErr }] = await Promise.all([
     supabaseAdmin
       .from("cc_repair_jobs")
-      .select("branch, jobsheet_no, job_no, started_date, created_at, customer_code, customer_name, plate_no, model, mechanic_id")
+      .select("id, branch, jobsheet_no, job_no, started_date, created_at, customer_code, customer_name, plate_no, model, mechanic_id")
       .eq("job_type", "Walk-in")
       .order("started_date", { ascending: false }),
-    supabaseAdmin.from("cc_mechanics").select("id, short_name, short_code"),
+    supabaseAdmin.from("cc_mechanics").select("id, short_code"),
   ]);
   if (jobsErr) throw new Error(jobsErr.message);
   if (mechErr) throw new Error(mechErr.message);
 
-  const mechanicLabel = new Map(
-    (mechanics ?? []).map((m) => [m.id as string, `${m.short_name} (${m.short_code})`]),
-  );
+  const mechanicCode = new Map((mechanics ?? []).map((m) => [m.id as string, m.short_code as string]));
 
   return (jobs ?? [])
     .map((j) => ({ ...j, check: checkCustomerCode(j.customer_code ?? "") }))
     .filter((j) => j.check !== "ok")
     .map((j) => ({
+      id: j.id as string,
       branch: j.branch as Branch,
       date: j.started_date || (j.created_at as string)?.slice(0, 10) || "",
       jobsheetNo: j.jobsheet_no?.trim() || j.job_no,
-      mechanic: j.mechanic_id ? (mechanicLabel.get(j.mechanic_id) ?? "—") : "—",
+      mechanic: j.mechanic_id ? (mechanicCode.get(j.mechanic_id) ?? "—") : "—",
       reason: customerCodeReason(j.customer_code ?? ""),
       district: "",
       icNumber: j.customer_code ?? "",
@@ -913,4 +915,20 @@ export async function getCustomerCodeErrors(): Promise<CustomerCodeErrorRow[]> {
       customerName: j.customer_name ?? "",
       model: j.model ?? "",
     }));
+}
+
+// The report's own click-to-fix: an admin types in the customer's real IC
+// once someone's tracked it down, saved straight onto the jobsheet's
+// Customer Code — so the row naturally drops off this report next time
+// (checkCustomerCode now passes) instead of needing a separate "resolved"
+// flag to keep in sync with the actual data.
+export async function amendCustomerCodeAction(id: string, branch: Branch, newCode: string): Promise<{ error: string } | void> {
+  const user = await requireApproved();
+  assertCanEditBranch(user, branch);
+  const trimmed = newCode.trim();
+  const { error } = await supabaseAdmin.from("cc_repair_jobs").update({ customer_code: trimmed }).eq("id", id);
+  if (error) return { error: error.message };
+  await logActivity(user, "Amended Customer Code", `job ${id} (${branch}) → ${trimmed || "(cleared)"}`);
+  revalidatePath("/reports/customer-ic-check");
+  revalidatePath("/repairs/walk-in");
 }
