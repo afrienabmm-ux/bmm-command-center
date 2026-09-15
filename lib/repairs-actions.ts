@@ -883,12 +883,14 @@ export type CustomerCodeErrorRow = {
 // always left blank, matching the branches' own manually-kept sheet this
 // report replaces. Mechanic shows just the short code (not the full name)
 // for the same reason — that sheet's "Mechanic Code" column only ever held
-// the code. The IC Number Untuk Amend column shows whatever's been noted
-// via the report's click-to-fill-in box (customer_code_correction) once
-// set, falling back to the actual (wrong) value on the jobsheet until then
-// — the row keeps appearing here either way, since noting the real IC is a
-// report-only annotation and never touches the jobsheet's own Customer
-// Code (see saveCustomerCodeCorrectionAction).
+// the code. The IC Number Untuk Amend column is blank until someone notes
+// the real IC via the report's click-to-fill-in box
+// (customer_code_correction) — the page falls back to showing the
+// customer's name there in the meantime, since what's actually on the
+// jobsheet is whatever garbled text was mistakenly entered, not a useful
+// number to show. The row keeps appearing here either way: noting the
+// real IC is a report-only annotation and never touches the jobsheet's
+// own Customer Code (see saveCustomerCodeCorrectionAction).
 export async function getCustomerCodeErrors(): Promise<CustomerCodeErrorRow[]> {
   await requireApproved();
   const [{ data: jobs, error: jobsErr }, { data: mechanics, error: mechErr }] = await Promise.all([
@@ -917,7 +919,7 @@ export async function getCustomerCodeErrors(): Promise<CustomerCodeErrorRow[]> {
       mechanic: j.mechanic_id ? (mechanicCode.get(j.mechanic_id) ?? "—") : "—",
       reason: customerCodeReason(j.customer_code ?? ""),
       district: "",
-      icNumber: (j.customer_code_correction || j.customer_code) ?? "",
+      icNumber: j.customer_code_correction ?? "",
       plateNo: j.plate_no ?? "",
       customerName: j.customer_name ?? "",
       model: j.model ?? "",
