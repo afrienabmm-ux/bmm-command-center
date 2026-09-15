@@ -41,7 +41,6 @@ export function resolveAllowedPages(role: Role | null): PageKey[] {
 // gets — used by both reports/page.tsx (which cards to show) and
 // reports/[type]/page.tsx (blocking a disallowed type by direct URL, not
 // just hiding its card). A role with no entry here gets the full list —
+// Front Desk gets every report too now, same as Management/Branch PIC;
 // Sales Advisor has no entry at all since it has no Reports access.
-export const SCOPED_REPORT_SLUGS: Partial<Record<Role, string[]>> = {
-  "Front Desk": ["genblu-new", "genblu-jobsheet", "point-allocation", "services-card", "jobsheet", "customer-ic-check"],
-};
+export const SCOPED_REPORT_SLUGS: Partial<Record<Role, string[]>> = {};
