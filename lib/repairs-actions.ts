@@ -3,7 +3,7 @@
 import { cache } from "react";
 import { revalidatePath } from "next/cache";
 import { supabaseAdmin } from "./supabase-server";
-import { requireApproved, requireManagement, assertCanEditBranch } from "./current-user";
+import { requireApproved, requireManagement, assertCanEditBranch, getActiveBranchSelection } from "./current-user";
 import { logActivity } from "./activity-log";
 import { todayInMalaysia, daysSinceInMalaysia } from "./malaysia-time";
 import type { RepairJob, RepairJobItem, RepairStatus, JobType, ApprovalStatus, QcResult } from "./types";
@@ -234,6 +234,33 @@ export async function getAllBranchesCompletedRepairJobs(): Promise<RepairJob[]> 
   await requireApproved();
   const perBranch = await Promise.all(BRANCHES.map(({ value }) => getCompletedRepairJobs(value)));
   return perBranch.flat().sort((a, b) => (b.completedDate ?? "").localeCompare(a.completedDate ?? ""));
+}
+
+// The Jobsheet page only ever loads each branch's most recent 200
+// completed jobs to the browser (see getCompletedRepairJobs above) — an
+// older completed job that's since been pushed out of that window can't
+// be found by filtering what's already loaded, no matter what's typed
+// into the search box. This hits the database directly instead, so a
+// search always finds a match regardless of how old it is or which
+// tab/date range happens to be selected.
+export async function searchWalkInJobsAction(query: string): Promise<RepairJob[]> {
+  const user = await requireApproved();
+  const q = query.trim().replace(/[,()]/g, "");
+  if (q.length < 2) return [];
+  const branchSelection = await getActiveBranchSelection(user);
+
+  let dbQuery = supabaseAdmin
+    .from("cc_repair_jobs")
+    .select(SELECT_WITH_ITEMS)
+    .eq("job_type", "Walk-in")
+    .or(`job_no.ilike.%${q}%,jobsheet_no.ilike.%${q}%,customer_name.ilike.%${q}%,plate_no.ilike.%${q}%`)
+    .order("created_at", { ascending: false })
+    .limit(50);
+  if (branchSelection !== "all") dbQuery = dbQuery.eq("branch", branchSelection);
+
+  const { data, error } = await dbQuery;
+  if (error) throw new Error(error.message);
+  return (data as unknown as Row[]).map(toJob);
 }
 
 // Looked up by id alone (no branch filter) — used by the full-page edit

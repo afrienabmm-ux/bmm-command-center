@@ -9,6 +9,7 @@ import {
   deleteRepairJobAction,
   getJobsheetPhotoUrlAction,
   resolveSignatureIssueAction,
+  searchWalkInJobsAction,
 } from "@/lib/repairs-actions";
 import { isHeavyRepairJob, type RepairStatus, type RepairJob } from "@/lib/types";
 import type { Mechanic } from "@/lib/types";
@@ -72,6 +73,31 @@ export default function WalkInClient({
   // range made it easy to lose track of which rows were even from.
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
+
+  // The Active/Completed/Errors lists loaded onto the page only ever hold
+  // a bounded slice (Completed alone caps at 200 most-recent per branch —
+  // see getCompletedRepairJobs), so a search box that only filtered those
+  // could never find an older job that's since aged out. Typing a real
+  // search term instead hits the database directly for a match, ignoring
+  // whichever tab/date range happens to be selected — searching for a
+  // specific number should find it regardless of where it's sitting.
+  const [searchResults, setSearchResults] = useState<RepairJob[] | null>(null);
+  const [searching, setSearching] = useState(false);
+  useEffect(() => {
+    const term = query.trim();
+    if (term.length < 2) {
+      setSearchResults(null);
+      setSearching(false);
+      return;
+    }
+    setSearching(true);
+    const t = setTimeout(async () => {
+      const results = await searchWalkInJobsAction(term);
+      setSearchResults(results);
+      setSearching(false);
+    }, 350);
+    return () => clearTimeout(t);
+  }, [query]);
 
   // Completed defaults to today only — years of history dumped into one
   // flat list was the whole complaint. Active/Errors still show
@@ -152,31 +178,26 @@ export default function WalkInClient({
 
   const jobs = tab === "active" ? active : tab === "completed" ? completed : errors;
   const visible = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    const filtered = jobs.filter((j) => {
-      if (
-        q &&
-        !(
-          (j.customerName ?? "").toLowerCase().includes(q) ||
-          j.plateNo.toLowerCase().includes(q) ||
-          j.jobNo.toLowerCase().includes(q) ||
-          j.jobsheetNo.toLowerCase().includes(q)
-        )
-      )
-        return false;
-      const jobDate = j.startedDate ?? "";
-      if (dateFrom && jobDate < dateFrom) return false;
-      if (dateTo && jobDate > dateTo) return false;
-      return true;
-    });
-    return [...filtered].sort((a, b) => {
+    // An active search overrides the current tab/date range entirely —
+    // it's already a database-wide match, not just whatever happens to be
+    // loaded for the selected tab.
+    const base =
+      searchResults !== null
+        ? searchResults
+        : jobs.filter((j) => {
+            const jobDate = j.startedDate ?? "";
+            if (dateFrom && jobDate < dateFrom) return false;
+            if (dateTo && jobDate > dateTo) return false;
+            return true;
+          });
+    return [...base].sort((a, b) => {
       if (sortBy === "jobNo") {
         return sortDir === "desc" ? b.jobNo.localeCompare(a.jobNo) : a.jobNo.localeCompare(b.jobNo);
       }
       const dateOf = (j: RepairJob) => j.completedDate || j.startedDate || j.createdAt || "";
       return sortDir === "desc" ? dateOf(b).localeCompare(dateOf(a)) : dateOf(a).localeCompare(dateOf(b));
     });
-  }, [jobs, query, sortDir, sortBy, dateFrom, dateTo]);
+  }, [jobs, searchResults, sortDir, sortBy, dateFrom, dateTo]);
   const allJobs = useMemo(() => [...active, ...completed], [active, completed]);
   const showBranchColumn = branchSelection === "all";
 
@@ -386,6 +407,12 @@ export default function WalkInClient({
               className="bg-white border border-neutral-200 rounded-lg pl-8 pr-3 py-2 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50 w-64"
             />
           </div>
+          {searching && <span className="text-xs text-neutral-400">Searching every job…</span>}
+          {!searching && searchResults !== null && (
+            <span className="text-xs text-neutral-400">
+              {searchResults.length} match{searchResults.length === 1 ? "" : "es"} across all tabs and dates
+            </span>
+          )}
           <input
             type="date"
             value={dateFrom}
