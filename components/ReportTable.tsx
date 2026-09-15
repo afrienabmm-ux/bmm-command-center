@@ -29,6 +29,7 @@ export default function ReportTable({
   rowNumber,
   editableField,
   onEditValue,
+  editHint,
 }: {
   columns: ReportColumn[];
   rows: Record<string, string | number>[];
@@ -78,6 +79,10 @@ export default function ReportTable({
   // the row list itself is owned by the server page, not this component,
   // so a successful edit just refreshes the page to pick up the new data.
   onEditValue?: (row: Record<string, string | number>, newValue: string) => Promise<{ error: string } | void>;
+  // Small print shown under the edit modal's input — e.g. clarifying what
+  // saving it actually does (or doesn't) touch, since that's specific to
+  // whatever onEditValue does and this component has no way to know.
+  editHint?: string;
 }) {
   const router = useRouter();
   const [query, setQuery] = useState("");
@@ -360,6 +365,7 @@ export default function ReportTable({
                 placeholder="e.g. 880101-14-5566"
                 className="w-full bg-white border border-neutral-200 rounded-lg px-3 py-2 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
               />
+              {editHint && <p className="text-xs text-neutral-400 mt-2">{editHint}</p>}
               {editError && <p className="text-xs text-red-600 mt-2">{editError}</p>}
               <div className="flex items-center justify-end gap-2 mt-4">
                 <button

@@ -883,13 +883,20 @@ export type CustomerCodeErrorRow = {
 // always left blank, matching the branches' own manually-kept sheet this
 // report replaces. Mechanic shows just the short code (not the full name)
 // for the same reason — that sheet's "Mechanic Code" column only ever held
-// the code.
+// the code. The IC Number Untuk Amend column shows whatever's been noted
+// via the report's click-to-fill-in box (customer_code_correction) once
+// set, falling back to the actual (wrong) value on the jobsheet until then
+// — the row keeps appearing here either way, since noting the real IC is a
+// report-only annotation and never touches the jobsheet's own Customer
+// Code (see saveCustomerCodeCorrectionAction).
 export async function getCustomerCodeErrors(): Promise<CustomerCodeErrorRow[]> {
   await requireApproved();
   const [{ data: jobs, error: jobsErr }, { data: mechanics, error: mechErr }] = await Promise.all([
     supabaseAdmin
       .from("cc_repair_jobs")
-      .select("id, branch, jobsheet_no, job_no, started_date, created_at, customer_code, customer_name, plate_no, model, mechanic_id")
+      .select(
+        "id, branch, jobsheet_no, job_no, started_date, created_at, customer_code, customer_code_correction, customer_name, plate_no, model, mechanic_id"
+      )
       .eq("job_type", "Walk-in")
       .order("started_date", { ascending: false }),
     supabaseAdmin.from("cc_mechanics").select("id, short_code"),
@@ -910,25 +917,24 @@ export async function getCustomerCodeErrors(): Promise<CustomerCodeErrorRow[]> {
       mechanic: j.mechanic_id ? (mechanicCode.get(j.mechanic_id) ?? "—") : "—",
       reason: customerCodeReason(j.customer_code ?? ""),
       district: "",
-      icNumber: j.customer_code ?? "",
+      icNumber: (j.customer_code_correction || j.customer_code) ?? "",
       plateNo: j.plate_no ?? "",
       customerName: j.customer_name ?? "",
       model: j.model ?? "",
     }));
 }
 
-// The report's own click-to-fix: an admin types in the customer's real IC
-// once someone's tracked it down, saved straight onto the jobsheet's
-// Customer Code — so the row naturally drops off this report next time
-// (checkCustomerCode now passes) instead of needing a separate "resolved"
-// flag to keep in sync with the actual data.
-export async function amendCustomerCodeAction(id: string, branch: Branch, newCode: string): Promise<{ error: string } | void> {
+// The report's own click-to-fill-in box: an admin types in the customer's
+// real IC once someone's tracked it down. Saved as a report-only note
+// (customer_code_correction), NOT onto the jobsheet's actual Customer
+// Code — the live jobsheet record is left exactly as-is, so this is purely
+// for the branches to keep track of what to follow up with elsewhere.
+export async function saveCustomerCodeCorrectionAction(id: string, branch: Branch, correction: string): Promise<{ error: string } | void> {
   const user = await requireApproved();
   assertCanEditBranch(user, branch);
-  const trimmed = newCode.trim();
-  const { error } = await supabaseAdmin.from("cc_repair_jobs").update({ customer_code: trimmed }).eq("id", id);
+  const trimmed = correction.trim();
+  const { error } = await supabaseAdmin.from("cc_repair_jobs").update({ customer_code_correction: trimmed || null }).eq("id", id);
   if (error) return { error: error.message };
-  await logActivity(user, "Amended Customer Code", `job ${id} (${branch}) → ${trimmed || "(cleared)"}`);
+  await logActivity(user, "Noted Customer Code correction", `job ${id} (${branch}) → ${trimmed || "(cleared)"}`);
   revalidatePath("/reports/customer-ic-check");
-  revalidatePath("/repairs/walk-in");
 }
