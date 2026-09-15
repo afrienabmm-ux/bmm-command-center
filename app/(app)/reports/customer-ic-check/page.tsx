@@ -29,7 +29,7 @@ export default async function CustomerIcCheckPage() {
   return (
     <div className="flex flex-col h-full">
       <PageHeader
-        title="Customer IC Check"
+        title="Customer Code"
         subtitle="Every Walk-in jobsheet whose Customer Code isn't a valid IC number — all branches, all time."
         action={
           <Link href="/reports" className="flex items-center gap-1.5 text-sm font-medium text-neutral-600 hover:text-neutral-800">
