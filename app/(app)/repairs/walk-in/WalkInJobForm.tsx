@@ -18,6 +18,7 @@ import {
   ChevronDown,
 } from "lucide-react";
 import { addRepairJobAction, updateRepairJobAction } from "@/lib/repairs-actions";
+import { checkCustomerCode } from "@/lib/customer-code";
 import { checkGenbluRegisteredAction, ensureGenbluRegistrationAction, attachGenbluScreenshotAction } from "@/lib/genblu-actions";
 import { addPackageSaleAction } from "@/lib/packages-actions";
 import type { ScannedJobsheet } from "@/lib/jobsheet-actions";
@@ -1105,8 +1106,16 @@ export default function WalkInJobForm({
               type="text"
               value={customerCode}
               onChange={(e) => setCustomerCode(e.target.value)}
+              placeholder="Customer's IC number, e.g. 900101-10-1234"
               className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
             />
+            {checkCustomerCode(customerCode) === "invalid" && (
+              <p className="text-xs text-amber-600 mt-1.5 flex items-center gap-1">
+                <AlertTriangle size={12} className="shrink-0" />
+                Doesn&apos;t look like a valid IC number (should be 12 digits) — is this a phone number by mistake? You can still
+                save, but please double-check with the customer.
+              </p>
+            )}
           </div>
           <div>
             <label className="block text-xs font-medium text-neutral-600 mb-1.5">Customer Name *</label>

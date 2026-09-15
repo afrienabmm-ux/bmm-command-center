@@ -9,6 +9,7 @@ import { todayInMalaysia, daysSinceInMalaysia } from "./malaysia-time";
 import type { RepairJob, RepairJobItem, RepairStatus, JobType, ApprovalStatus, QcResult } from "./types";
 import { BRANCHES, type Branch } from "./branch";
 import { normalizeName } from "./name-matching";
+import { checkCustomerCode, CUSTOMER_CODE_REASON } from "./customer-code";
 
 type ItemRow = { id: string; code: string; description: string; quantity: number; price: number };
 
@@ -832,4 +833,57 @@ export async function getJobsheetPhotoUrlAction(path: string): Promise<string | 
   const { data, error } = await supabaseAdmin.storage.from(JOBSHEET_PHOTO_BUCKET).createSignedUrl(path, 60 * 60);
   if (error) return null;
   return data.signedUrl;
+}
+
+export type CustomerCodeErrorRow = {
+  branch: Branch;
+  date: string;
+  jobsheetNo: string;
+  mechanic: string;
+  reason: string;
+  district: string;
+  icNumber: string;
+  plateNo: string;
+  customerName: string;
+  model: string;
+};
+
+// Every Walk-in job, across every branch and all of history, whose
+// Customer Code isn't a real 12-digit IC — the retroactive counterpart to
+// the warning shown live on the jobsheet form (lib/customer-code.ts is the
+// one shared rule both sides use, so they never disagree). "District" is
+// always left blank, matching the branches' own manually-kept sheet this
+// report replaces.
+export async function getCustomerCodeErrors(): Promise<CustomerCodeErrorRow[]> {
+  await requireApproved();
+  const [{ data: jobs, error: jobsErr }, { data: mechanics, error: mechErr }] = await Promise.all([
+    supabaseAdmin
+      .from("cc_repair_jobs")
+      .select("branch, jobsheet_no, job_no, started_date, created_at, customer_code, customer_name, plate_no, model, mechanic_id")
+      .eq("job_type", "Walk-in")
+      .order("started_date", { ascending: false }),
+    supabaseAdmin.from("cc_mechanics").select("id, short_name, short_code"),
+  ]);
+  if (jobsErr) throw new Error(jobsErr.message);
+  if (mechErr) throw new Error(mechErr.message);
+
+  const mechanicLabel = new Map(
+    (mechanics ?? []).map((m) => [m.id as string, `${m.short_name} (${m.short_code})`]),
+  );
+
+  return (jobs ?? [])
+    .map((j) => ({ ...j, check: checkCustomerCode(j.customer_code ?? "") }))
+    .filter((j) => j.check !== "ok")
+    .map((j) => ({
+      branch: j.branch as Branch,
+      date: j.started_date || (j.created_at as string)?.slice(0, 10) || "",
+      jobsheetNo: j.jobsheet_no?.trim() || j.job_no,
+      mechanic: j.mechanic_id ? (mechanicLabel.get(j.mechanic_id) ?? "—") : "—",
+      reason: CUSTOMER_CODE_REASON[j.check as "no_ic" | "invalid"],
+      district: "",
+      icNumber: j.customer_code ?? "",
+      plateNo: j.plate_no ?? "",
+      customerName: j.customer_name ?? "",
+      model: j.model ?? "",
+    }));
 }
