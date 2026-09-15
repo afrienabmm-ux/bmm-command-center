@@ -9,17 +9,17 @@ import ReportTable, { type ReportColumn } from "@/components/ReportTable";
 export const dynamic = "force-dynamic";
 
 // Column order matches the branches' own manually-kept "Jobsheet
-// Monitoring" sheet exactly (Bil., Tarikh, No. Jobsheet, Mechanic Code,
-// Reason, District, IC Number Untuk Amend, Plate Number, Customer Name,
-// Model Motor) — Branch is added at the end since this report, unlike the
-// paper sheet, combines every branch into one list.
+// Monitoring" sheet (Bil., Tarikh, No. Jobsheet, Mechanic Code, Reason,
+// District, [their "IC Number Untuk Amend"] Wrong Number, Plate Number,
+// Customer Name, Model Motor) — Branch is added at the end since this
+// report, unlike the paper sheet, combines every branch into one list.
 const columns: ReportColumn[] = [
   { key: "date", label: "Tarikh" },
   { key: "jobsheetNo", label: "No. Jobsheet" },
   { key: "mechanic", label: "Mechanic Code" },
   { key: "reason", label: "Reason" },
   { key: "district", label: "District" },
-  { key: "icNumber", label: "IC Number Untuk Amend" },
+  { key: "icNumber", label: "Wrong Number" },
   { key: "plateNo", label: "Plate Number" },
   { key: "customerName", label: "Customer Name" },
   { key: "model", label: "Model Motor" },
@@ -42,7 +42,7 @@ export default async function CustomerIcCheckPage() {
     <div className="flex flex-col h-full">
       <PageHeader
         title="Customer Code"
-        subtitle="Every Walk-in jobsheet whose Customer Code isn't a valid IC number — all branches, all time. Click IC Number Untuk Amend to fix it directly on the jobsheet."
+        subtitle="Every Walk-in jobsheet whose Customer Code isn't a valid IC number — all branches, all time. Click Wrong Number to fix it directly on the jobsheet."
         action={
           <Link href="/reports" className="flex items-center gap-1.5 text-sm font-medium text-neutral-600 hover:text-neutral-800">
             <ArrowLeft size={15} /> All Reports
