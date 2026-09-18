@@ -31,6 +31,7 @@ import MechanicRevenueSummary from "./MechanicRevenueSummary";
 import { getWarrantyClaims, getAllBranchesWarrantyClaims } from "@/lib/claims-actions";
 import { getDeliveryClaims, getAllBranchesDeliveryClaims } from "@/lib/delivery-claims-actions";
 import { getAllBranchesPerformance, getBranchPerformance } from "@/lib/reports-actions";
+import { getAllBranchesPackageSales, getPackageSales } from "@/lib/packages-actions";
 import { classifyYamahaModel } from "@/lib/yamaha-model";
 import type { RepairJob, Mechanic } from "@/lib/types";
 
@@ -46,6 +47,7 @@ const TITLES: Record<string, string> = {
   "delivery-claims": "Delivery Claims",
   mechanics: "Mechanics",
   "sales-performance": "Sales Performance",
+  packages: "Services Combo",
 };
 
 function mechanicLabel(mechanics: Mechanic[], id: string | null): string {
@@ -405,6 +407,32 @@ export default async function ReportDetailPage({ params }: { params: Promise<{ t
       category: m.category,
       status: m.status,
     }));
+  } else if (type === "packages") {
+    const sales = allBranches ? await getAllBranchesPackageSales() : await getPackageSales(selection);
+    columns = [
+      { key: "saleDate", label: "Date" },
+      { key: "branch", label: "Branch" },
+      { key: "packageName", label: "Package" },
+      { key: "customerName", label: "Customer" },
+      { key: "customerPlateNo", label: "Plate No" },
+      { key: "mechanicCode", label: "Mechanic" },
+      { key: "receiptId", label: "Receipt No" },
+    ];
+    dateField = "saleDate";
+    searchFields = ["packageName", "customerName", "customerPlateNo", "receiptId"];
+    selectFilters = [
+      { field: "branch", label: "Branches" },
+      { field: "packageName", label: "Packages" },
+    ];
+    rows = sales.map((s) => ({
+      saleDate: s.saleDate,
+      branch: branchLabel(s.branch),
+      packageName: s.packageName,
+      customerName: s.customerName || "—",
+      customerPlateNo: s.customerPlateNo || "—",
+      mechanicCode: s.mechanicCode,
+      receiptId: s.receiptId || "—",
+    }));
   } else if (type === "sales-performance") {
     let [year, month] = todayInMalaysia().split("-").map(Number);
     const periods: { year: number; month: number }[] = [];
@@ -526,6 +554,7 @@ export default async function ReportDetailPage({ params }: { params: Promise<{ t
             searchPlaceholder="Search…"
             imageField={imageField}
             filename={`bmm-report-${type}`}
+            selectFilters={selectFilters}
           />
         )}
       </div>
