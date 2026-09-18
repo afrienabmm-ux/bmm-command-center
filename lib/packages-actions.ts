@@ -92,6 +92,7 @@ export type PackageSaleWithNames = {
   packageName: string;
   mechanicId: string | null;
   mechanicCode: string;
+  mechanicName: string;
   receiptId: string | null;
   saleDate: string;
   customerName: string;
@@ -106,6 +107,7 @@ function toSale(r: SaleRow): PackageSaleWithNames {
     packageName: r.cc_packages?.name ?? "—",
     mechanicId: r.mechanic_id,
     mechanicCode: r.cc_mechanics?.short_code ?? "—",
+    mechanicName: r.cc_mechanics?.short_name ?? "—",
     receiptId: r.receipt_id,
     saleDate: r.sale_date,
     customerName: r.customer_name,

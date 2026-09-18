@@ -28,6 +28,7 @@ import GenbluMonthlySummary from "../../genblu/GenbluMonthlySummary";
 import JobsheetRevenueSummary from "./JobsheetRevenueSummary";
 import GenbluCountsAndTable from "./GenbluCountsAndTable";
 import MechanicRevenueSummary from "./MechanicRevenueSummary";
+import PackagesSoldSummary from "./PackagesSoldSummary";
 import { getWarrantyClaims, getAllBranchesWarrantyClaims } from "@/lib/claims-actions";
 import { getDeliveryClaims, getAllBranchesDeliveryClaims } from "@/lib/delivery-claims-actions";
 import { getAllBranchesPerformance, getBranchPerformance } from "@/lib/reports-actions";
@@ -119,6 +120,10 @@ export default async function ReportDetailPage({ params }: { params: Promise<{ t
   let mechanicSummary:
     | { fullName: string; shortCode: string; walkInRevenue: number; packageRevenue: number; totalRevenue: number }[]
     | undefined;
+  // Services Combo only — how many packages each mechanic has sold,
+  // across whatever branch/date range the table itself is currently
+  // scoped to (all of history and every branch by default).
+  let packagesSummary: { mechanicName: string; mechanicCode: string; count: number }[] | undefined;
 
   if (type === "jobsheet") {
     const [active, completed, mechanics] = await Promise.all([
@@ -433,6 +438,22 @@ export default async function ReportDetailPage({ params }: { params: Promise<{ t
       mechanicCode: s.mechanicCode,
       receiptId: s.receiptId || "—",
     }));
+
+    const countByMechanic = new Map<string, { mechanicName: string; mechanicCode: string; count: number }>();
+    for (const s of sales) {
+      if (!s.mechanicId) continue;
+      const entry = countByMechanic.get(s.mechanicId) ?? { mechanicName: s.mechanicName, mechanicCode: s.mechanicCode, count: 0 };
+      entry.count++;
+      countByMechanic.set(s.mechanicId, entry);
+    }
+    packagesSummary = [...countByMechanic.values()].sort((a, b) => b.count - a.count);
+    summarySections = [
+      {
+        title: "Packages Sold by Mechanic",
+        columns: ["Mechanic", "Code", "Sold"],
+        rows: packagesSummary.map((m) => [m.mechanicName, m.mechanicCode, m.count]),
+      },
+    ];
   } else if (type === "sales-performance") {
     let [year, month] = todayInMalaysia().split("-").map(Number);
     const periods: { year: number; month: number }[] = [];
@@ -515,7 +536,7 @@ export default async function ReportDetailPage({ params }: { params: Promise<{ t
             searchFields={searchFields}
             filename={`bmm-report-${type}`}
           />
-        ) : monthlySummary || revenueSummary || mechanicSummary ? (
+        ) : monthlySummary || revenueSummary || mechanicSummary || packagesSummary ? (
           <div className="flex flex-col lg:flex-row gap-6 items-start">
             <div className="shrink-0 w-full lg:w-auto">
               {monthlySummary && <GenbluMonthlySummary summary={monthlySummary} />}
@@ -528,6 +549,7 @@ export default async function ReportDetailPage({ params }: { params: Promise<{ t
                 />
               )}
               {mechanicSummary && <MechanicRevenueSummary mechanics={mechanicSummary} />}
+              {packagesSummary && <PackagesSoldSummary mechanics={packagesSummary} />}
             </div>
             <div className="flex-1 min-w-0 w-full">
               <ReportTable
