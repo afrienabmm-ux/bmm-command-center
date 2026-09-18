@@ -3,7 +3,7 @@
 import { Fragment, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Plus, Download, Pencil, Search, Trash2, Check, X, Printer, ArrowUpDown, ChevronDown, ImageIcon, Link2 } from "lucide-react";
+import { Plus, Download, Pencil, Search, Trash2, Check, X, Printer, ArrowUpDown, ChevronDown, ImageIcon } from "lucide-react";
 import {
   setWalkInEndDateAction,
   deleteRepairJobAction,
@@ -11,7 +11,7 @@ import {
   resolveSignatureIssueAction,
   searchWalkInJobsAction,
 } from "@/lib/repairs-actions";
-import { isYamahaModel } from "@/lib/yamaha-model";
+import { isYamahaModel, classifyYamahaModel } from "@/lib/yamaha-model";
 import { isHeavyRepairJob, type RepairStatus, type RepairJob } from "@/lib/types";
 import type { Mechanic } from "@/lib/types";
 import { BRANCHES, branchLabel, type Branch, type BranchSelection } from "@/lib/branch";
@@ -74,6 +74,10 @@ export default function WalkInClient({
   // range made it easy to lose track of which rows were even from.
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
+  // On top of the automatic Yamaha/Non-Yamaha detection (see
+  // lib/yamaha-model.ts) — this just narrows which of those the table
+  // shows, it never changes what a job was actually classified as.
+  const [brandFilter, setBrandFilter] = useState<"all" | "yamaha" | "other">("all");
 
   // The Active/Completed/Errors lists loaded onto the page only ever hold
   // a bounded slice (Completed alone caps at 200 most-recent per branch —
@@ -123,7 +127,6 @@ export default function WalkInClient({
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
   const [bulkDeleting, setBulkDeleting] = useState(false);
-  const [linkCopied, setLinkCopied] = useState(false);
   const [exportMenuOpen, setExportMenuOpen] = useState(false);
   const exportMenuRef = useRef<HTMLDivElement>(null);
 
@@ -145,20 +148,6 @@ export default function WalkInClient({
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
   }, [exportMenuOpen]);
-
-  // Copies the standalone phone scanner's own URL (not this dashboard
-  // page) so a PIC can hand it to their admin — that link needs no login
-  // and only ever does jobsheet scanning, see middleware.ts.
-  async function handleCopyPhoneLink() {
-    try {
-      await navigator.clipboard.writeText(`${window.location.origin}/scan`);
-      setLinkCopied(true);
-      setTimeout(() => setLinkCopied(false), 2500);
-    } catch {
-      // Clipboard access can fail (permissions, non-HTTPS) — nothing
-      // meaningful to recover, just leave the button as-is.
-    }
-  }
 
   // Deep-linked from a dashboard alert (e.g. "due for their next
   // service") — jump to whichever tab the job is actually in and clear
@@ -191,14 +180,16 @@ export default function WalkInClient({
             if (dateTo && jobDate > dateTo) return false;
             return true;
           });
-    return [...base].sort((a, b) => {
+    const brandFiltered =
+      brandFilter === "all" ? base : base.filter((j) => (classifyYamahaModel(j.model) === "yamaha") === (brandFilter === "yamaha"));
+    return [...brandFiltered].sort((a, b) => {
       if (sortBy === "jobNo") {
         return sortDir === "desc" ? b.jobNo.localeCompare(a.jobNo) : a.jobNo.localeCompare(b.jobNo);
       }
       const dateOf = (j: RepairJob) => j.completedDate || j.startedDate || j.createdAt || "";
       return sortDir === "desc" ? dateOf(b).localeCompare(dateOf(a)) : dateOf(a).localeCompare(dateOf(b));
     });
-  }, [jobs, searchResults, sortDir, sortBy, dateFrom, dateTo]);
+  }, [jobs, searchResults, sortDir, sortBy, dateFrom, dateTo, brandFilter]);
   const allJobs = useMemo(() => [...active, ...completed], [active, completed]);
   const showBranchColumn = branchSelection === "all";
 
@@ -449,6 +440,16 @@ export default function WalkInClient({
             title="Job Date to"
             className="bg-white border border-neutral-200 rounded-lg px-3 py-2 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
           />
+          <select
+            value={brandFilter}
+            onChange={(e) => setBrandFilter(e.target.value as "all" | "yamaha" | "other")}
+            title="Filter by Yamaha vs. other brands (auto-detected from Model)"
+            className="bg-white border border-neutral-200 rounded-lg px-3 py-2 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
+          >
+            <option value="all">All Brands</option>
+            <option value="yamaha">Yamaha</option>
+            <option value="other">Non-Yamaha</option>
+          </select>
           {tab === "completed" ? (
             <button
               onClick={() => {
@@ -489,13 +490,6 @@ export default function WalkInClient({
             title="Sort by date"
           >
             <ArrowUpDown size={14} /> {sortBy === "date" && sortDir === "asc" ? "Oldest" : "Newest"}
-          </button>
-          <button
-            onClick={handleCopyPhoneLink}
-            className="flex items-center gap-1.5 bg-white border border-neutral-200 hover:border-red-300 text-neutral-700 text-sm font-medium px-3 py-2 rounded-lg transition-colors whitespace-nowrap"
-            title="Copy the phone jobsheet scanner link to send to an admin"
-          >
-            <Link2 size={14} /> {linkCopied ? "Copied!" : "Copy Phone Link"}
           </button>
           <div className="relative" ref={exportMenuRef}>
             <button

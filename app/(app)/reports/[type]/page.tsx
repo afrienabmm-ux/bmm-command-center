@@ -31,6 +31,7 @@ import MechanicRevenueSummary from "./MechanicRevenueSummary";
 import { getWarrantyClaims, getAllBranchesWarrantyClaims } from "@/lib/claims-actions";
 import { getDeliveryClaims, getAllBranchesDeliveryClaims } from "@/lib/delivery-claims-actions";
 import { getAllBranchesPerformance, getBranchPerformance } from "@/lib/reports-actions";
+import { classifyYamahaModel } from "@/lib/yamaha-model";
 import type { RepairJob, Mechanic } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -78,6 +79,7 @@ export default async function ReportDetailPage({ params }: { params: Promise<{ t
   let dateField: string | undefined;
   let monthField: string | undefined;
   let searchFields: string[] = [];
+  let selectFilters: { field: string; label: string }[] | undefined;
   let imageField: string | undefined;
   // Point Allocation only — this month's counts/points by branch, kept in
   // its own table next to the full transaction list rather than folded
@@ -130,6 +132,8 @@ export default async function ReportDetailPage({ params }: { params: Promise<{ t
       { key: "customerName", label: "Customer" },
       { key: "plateNo", label: "Plate No" },
       { key: "model", label: "Model" },
+      { key: "brand", label: "Brand" },
+      { key: "genblu", label: "GenBlu" },
       { key: "mechanic", label: "Mechanic" },
       { key: "revenue", label: "Cost Total (RM)" },
       { key: "jobDate", label: "Job Date" },
@@ -138,12 +142,19 @@ export default async function ReportDetailPage({ params }: { params: Promise<{ t
     ];
     dateField = "jobDate";
     searchFields = ["jobNo", "customerName", "plateNo", "mechanic"];
+    selectFilters = [
+      { field: "branch", label: "Branches" },
+      { field: "brand", label: "Brands" },
+      { field: "genblu", label: "GenBlu" },
+    ];
     rows = jobs.map((j) => ({
       jobNo: j.jobNo,
       branch: branchLabel(j.branch),
       customerName: j.customerName || j.picName || "—",
       plateNo: j.plateNo,
       model: j.model || "—",
+      brand: classifyYamahaModel(j.model) === "yamaha" ? "Yamaha" : "Non-Yamaha",
+      genblu: j.hasGenblu ? "Yes" : "No",
       mechanic: mechanicLabel(mechanics, j.mechanicId),
       revenue: j.revenueAmount.toFixed(2),
       jobDate: j.formDate || j.startedDate || "",
@@ -501,6 +512,7 @@ export default async function ReportDetailPage({ params }: { params: Promise<{ t
                 imageField={imageField}
                 filename={`bmm-report-${type}`}
                 summarySections={summarySections}
+                selectFilters={selectFilters}
               />
             </div>
           </div>
