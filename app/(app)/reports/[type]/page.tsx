@@ -416,7 +416,7 @@ export default async function ReportDetailPage({ params }: { params: Promise<{ t
       { key: "customerName", label: "Customer" },
       { key: "customerPlateNo", label: "Plate No" },
       { key: "mechanicCode", label: "Mechanic" },
-      { key: "receiptId", label: "Receipt No" },
+      { key: "receiptId", label: "Receipt No / Job No" },
     ];
     dateField = "saleDate";
     searchFields = ["packageName", "customerName", "customerPlateNo", "receiptId"];
