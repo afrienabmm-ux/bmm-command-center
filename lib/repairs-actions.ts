@@ -10,6 +10,8 @@ import type { RepairJob, RepairJobItem, RepairStatus, JobType, ApprovalStatus, Q
 import { BRANCHES, type Branch } from "./branch";
 import { normalizeName } from "./name-matching";
 import { checkCustomerCode, customerCodeReason } from "./customer-code";
+import { normalizePlate } from "./plate";
+import { getGenbluPlates } from "./genblu-actions";
 
 type ItemRow = { id: string; code: string; description: string; quantity: number; price: number };
 
@@ -84,10 +86,11 @@ type Row = {
   signature_issue_resolved: boolean;
   jobsheet_photo_path: string | null;
   remark: string;
+  genblu_asked: boolean;
   cc_repair_job_items: ItemRow[] | null;
 };
 
-function toJob(r: Row): RepairJob {
+function toJob(r: Row, genbluPlates: Set<string>): RepairJob {
   return {
     id: r.id,
     branch: r.branch,
@@ -146,6 +149,8 @@ function toJob(r: Row): RepairJob {
     signatureIssueResolved: r.signature_issue_resolved,
     jobsheetPhotoPath: r.jobsheet_photo_path,
     remark: r.remark,
+    genbluAsked: r.genblu_asked,
+    hasGenblu: genbluPlates.has(normalizePlate(r.plate_no ?? "")),
   };
 }
 
@@ -193,14 +198,18 @@ const SELECT_WITH_ITEMS = "*, cc_repair_job_items(*)";
 // request: the dashboard asks for the same branch's active jobs twice
 // (branch breakdown, then the overdue check).
 const cachedActiveRepairJobs = cache(async (branch: Branch): Promise<RepairJob[]> => {
-  const { data, error } = await supabaseAdmin
-    .from("cc_repair_jobs")
-    .select(SELECT_WITH_ITEMS)
-    .eq("branch", branch)
-    .not("status", "in", '("Completed","QC")')
-    .order("started_date", { ascending: false });
+  const [{ data, error }, genbluPlateList] = await Promise.all([
+    supabaseAdmin
+      .from("cc_repair_jobs")
+      .select(SELECT_WITH_ITEMS)
+      .eq("branch", branch)
+      .not("status", "in", '("Completed","QC")')
+      .order("started_date", { ascending: false }),
+    getGenbluPlates(),
+  ]);
   if (error) throw new Error(error.message);
-  return (data as unknown as Row[]).map(toJob);
+  const genbluPlates = new Set(genbluPlateList);
+  return (data as unknown as Row[]).map((r) => toJob(r, genbluPlates));
 });
 
 export async function getActiveRepairJobs(branch: Branch): Promise<RepairJob[]> {
@@ -218,15 +227,19 @@ export async function getAllBranchesActiveRepairJobs(): Promise<RepairJob[]> {
 
 export async function getCompletedRepairJobs(branch: Branch): Promise<RepairJob[]> {
   await requireApproved();
-  const { data, error } = await supabaseAdmin
-    .from("cc_repair_jobs")
-    .select(SELECT_WITH_ITEMS)
-    .eq("branch", branch)
-    .eq("status", "Completed")
-    .order("completed_date", { ascending: false })
-    .limit(200);
+  const [{ data, error }, genbluPlateList] = await Promise.all([
+    supabaseAdmin
+      .from("cc_repair_jobs")
+      .select(SELECT_WITH_ITEMS)
+      .eq("branch", branch)
+      .eq("status", "Completed")
+      .order("completed_date", { ascending: false })
+      .limit(200),
+    getGenbluPlates(),
+  ]);
   if (error) throw new Error(error.message);
-  return (data as unknown as Row[]).map(toJob);
+  const genbluPlates = new Set(genbluPlateList);
+  return (data as unknown as Row[]).map((r) => toJob(r, genbluPlates));
 }
 
 // Completed jobs across all 3 branches — for the "All Branches" view.
@@ -258,22 +271,22 @@ export async function searchWalkInJobsAction(query: string): Promise<RepairJob[]
     .limit(50);
   if (branchSelection !== "all") dbQuery = dbQuery.eq("branch", branchSelection);
 
-  const { data, error } = await dbQuery;
+  const [{ data, error }, genbluPlateList] = await Promise.all([dbQuery, getGenbluPlates()]);
   if (error) throw new Error(error.message);
-  return (data as unknown as Row[]).map(toJob);
+  const genbluPlates = new Set(genbluPlateList);
+  return (data as unknown as Row[]).map((r) => toJob(r, genbluPlates));
 }
 
 // Looked up by id alone (no branch filter) — used by the full-page edit
 // route, which only has the job id from the URL.
 export async function getRepairJobById(id: string): Promise<RepairJob | null> {
   await requireApproved();
-  const { data, error } = await supabaseAdmin
-    .from("cc_repair_jobs")
-    .select(SELECT_WITH_ITEMS)
-    .eq("id", id)
-    .maybeSingle();
+  const [{ data, error }, genbluPlateList] = await Promise.all([
+    supabaseAdmin.from("cc_repair_jobs").select(SELECT_WITH_ITEMS).eq("id", id).maybeSingle(),
+    getGenbluPlates(),
+  ]);
   if (error) throw new Error(error.message);
-  return data ? toJob(data as unknown as Row) : null;
+  return data ? toJob(data as unknown as Row, new Set(genbluPlateList)) : null;
 }
 
 export type ServiceReminder = {
@@ -834,6 +847,19 @@ export async function setWalkInEndDateAction(id: string, branch: Branch, date: s
   await logActivity(user, "Set Walk-in End Date", `job ${id} → ${date ?? "cleared"}`);
   revalidatePath("/repairs/walk-in");
   revalidatePath("/");
+}
+
+// Click-to-stamp "asked about GenBlu" for a Walk-in job — a plain manual
+// flag, not tied to whether a registration has actually come in (that's
+// hasGenblu, computed separately from cc_genblu_registrations). Clicking
+// again un-stamps it, same toggle behaviour as the other workflow stamps.
+export async function setGenbluAskedAction(id: string, branch: Branch, asked: boolean): Promise<void> {
+  const user = await requireApproved();
+  assertCanEditBranch(user, branch);
+  const { error } = await supabaseAdmin.from("cc_repair_jobs").update({ genblu_asked: asked }).eq("id", id);
+  if (error) throw new Error(error.message);
+  await logActivity(user, "Set GenBlu asked", `job ${id} → ${asked}`);
+  revalidatePath("/repairs/walk-in");
 }
 
 export async function deleteRepairJobAction(id: string, branch: Branch): Promise<void> {

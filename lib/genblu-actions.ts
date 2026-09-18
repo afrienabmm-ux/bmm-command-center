@@ -1,5 +1,6 @@
 "use server";
 
+import { cache } from "react";
 import { createHash } from "crypto";
 import { revalidatePath } from "next/cache";
 import { supabaseAdmin } from "./supabase-server";
@@ -10,6 +11,7 @@ import { extractTextFromImage, extractTextAndWordsFromImage, type PositionedWord
 import { extractGenbluEventWithAi } from "./ai-genblu-extract";
 import { logActivity } from "./activity-log";
 import { normalizeName, namesLikelyMatch, expandNameConnectors } from "./name-matching";
+import { normalizePlate } from "./plate";
 
 const BUCKET = "genblu-screenshots";
 
@@ -443,6 +445,28 @@ export async function getGenbluRegistrations(branch: Branch, sinceDate?: string)
 export async function getAllBranchesGenbluRegistrations(sinceDate?: string): Promise<GenbluRegistration[]> {
   const perBranch = await Promise.all(BRANCHES.map(({ value }) => getGenbluRegistrations(value, sinceDate)));
   return perBranch.flat().sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
+}
+
+// Every plate number with a GenBlu registration on file, across every
+// branch and all of history — the Jobsheet page checks each Walk-in job's
+// plate against this once per page load instead of a per-row lookup.
+// Memoized per request: the active/completed job lists are fetched
+// separately (and per-branch, for "All Branches"), and each needs this
+// same list — cache() means only the first call actually queries.
+//
+// Returns a plain array, not a Set: this is a Server Action (the file has
+// "use server"), and calling it from another module crosses React's Flight
+// serialization boundary even though it's really just an in-process
+// call — a Set doesn't survive that round-trip intact, so build the Set at
+// the call site instead of returning one.
+const cachedGenbluPlates = cache(async (): Promise<string[]> => {
+  const { data, error } = await supabaseAdmin.from("cc_genblu_registrations").select("customer_plate_no");
+  if (error) throw new Error(error.message);
+  return [...new Set((data ?? []).map((r) => normalizePlate(r.customer_plate_no ?? "")).filter(Boolean))];
+});
+
+export async function getGenbluPlates(): Promise<string[]> {
+  return cachedGenbluPlates();
 }
 
 export async function getScreenshotUrl(path: string): Promise<string | null> {
