@@ -10,13 +10,18 @@ import { cache } from "react";
 import { supabaseAdmin } from "./supabase-server";
 import { normalizePlate } from "./plate";
 
-// Every plate number with a GenBlu registration on file, across every
-// branch and all of history. Memoized per request: the active/completed
-// job lists are fetched separately (and per-branch, for "All Branches"),
-// and each needs this same list — cache() means only the first call
-// actually queries.
-export const getGenbluPlateSet = cache(async (): Promise<Set<string>> => {
-  const { data, error } = await supabaseAdmin.from("cc_genblu_registrations").select("customer_plate_no");
+// Every plate number with a GenBlu registration on file, mapped to the
+// points it was awarded — across every branch and all of history.
+// Memoized per request: the active/completed job lists are fetched
+// separately (and per-branch, for "All Branches"), and each needs this
+// same map — cache() means only the first call actually queries.
+export const getGenbluPlatePoints = cache(async (): Promise<Map<string, number>> => {
+  const { data, error } = await supabaseAdmin.from("cc_genblu_registrations").select("customer_plate_no, points_accrued");
   if (error) throw new Error(error.message);
-  return new Set((data ?? []).map((r) => normalizePlate(r.customer_plate_no ?? "")).filter(Boolean));
+  const map = new Map<string, number>();
+  for (const r of data ?? []) {
+    const plate = normalizePlate(r.customer_plate_no ?? "");
+    if (plate) map.set(plate, r.points_accrued ?? 0);
+  }
+  return map;
 });

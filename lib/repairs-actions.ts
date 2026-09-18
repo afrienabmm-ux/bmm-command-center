@@ -11,7 +11,7 @@ import { BRANCHES, type Branch } from "./branch";
 import { normalizeName } from "./name-matching";
 import { checkCustomerCode, customerCodeReason } from "./customer-code";
 import { normalizePlate } from "./plate";
-import { getGenbluPlateSet } from "./genblu-plates";
+import { getGenbluPlatePoints } from "./genblu-plates";
 
 type ItemRow = { id: string; code: string; description: string; quantity: number; price: number };
 
@@ -89,7 +89,7 @@ type Row = {
   cc_repair_job_items: ItemRow[] | null;
 };
 
-function toJob(r: Row, genbluPlates: Set<string>): RepairJob {
+function toJob(r: Row, genbluPlates: Map<string, number>): RepairJob {
   return {
     id: r.id,
     branch: r.branch,
@@ -149,6 +149,7 @@ function toJob(r: Row, genbluPlates: Set<string>): RepairJob {
     jobsheetPhotoPath: r.jobsheet_photo_path,
     remark: r.remark,
     hasGenblu: genbluPlates.has(normalizePlate(r.plate_no ?? "")),
+    genbluPoints: genbluPlates.get(normalizePlate(r.plate_no ?? "")) ?? null,
   };
 }
 
@@ -203,7 +204,7 @@ const cachedActiveRepairJobs = cache(async (branch: Branch): Promise<RepairJob[]
       .eq("branch", branch)
       .not("status", "in", '("Completed","QC")')
       .order("started_date", { ascending: false }),
-    getGenbluPlateSet(),
+    getGenbluPlatePoints(),
   ]);
   if (error) throw new Error(error.message);
   return (data as unknown as Row[]).map((r) => toJob(r, genbluPlates));
@@ -232,7 +233,7 @@ export async function getCompletedRepairJobs(branch: Branch): Promise<RepairJob[
       .eq("status", "Completed")
       .order("completed_date", { ascending: false })
       .limit(200),
-    getGenbluPlateSet(),
+    getGenbluPlatePoints(),
   ]);
   if (error) throw new Error(error.message);
   return (data as unknown as Row[]).map((r) => toJob(r, genbluPlates));
@@ -267,7 +268,7 @@ export async function searchWalkInJobsAction(query: string): Promise<RepairJob[]
     .limit(50);
   if (branchSelection !== "all") dbQuery = dbQuery.eq("branch", branchSelection);
 
-  const [{ data, error }, genbluPlates] = await Promise.all([dbQuery, getGenbluPlateSet()]);
+  const [{ data, error }, genbluPlates] = await Promise.all([dbQuery, getGenbluPlatePoints()]);
   if (error) throw new Error(error.message);
   return (data as unknown as Row[]).map((r) => toJob(r, genbluPlates));
 }
@@ -278,7 +279,7 @@ export async function getRepairJobById(id: string): Promise<RepairJob | null> {
   await requireApproved();
   const [{ data, error }, genbluPlates] = await Promise.all([
     supabaseAdmin.from("cc_repair_jobs").select(SELECT_WITH_ITEMS).eq("id", id).maybeSingle(),
-    getGenbluPlateSet(),
+    getGenbluPlatePoints(),
   ]);
   if (error) throw new Error(error.message);
   return data ? toJob(data as unknown as Row, genbluPlates) : null;

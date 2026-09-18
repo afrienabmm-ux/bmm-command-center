@@ -1054,11 +1054,14 @@ function WalkInRow({
       <td className="px-5 py-3.5 text-neutral-600 whitespace-nowrap">{job.model || "—"}</td>
       <td className="px-5 py-3.5 whitespace-nowrap">
         {job.hasGenblu ? (
-          <span
-            className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-emerald-500/10 text-emerald-600"
-            title="Has a GenBlu registration on file"
-          >
-            <Check size={13} />
+          <span className="inline-flex items-center gap-1.5">
+            <span
+              className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-emerald-500/10 text-emerald-600"
+              title="Has a GenBlu registration on file"
+            >
+              <Check size={13} />
+            </span>
+            <span className="text-xs font-medium text-neutral-500">{job.genbluPoints ?? 0} pts</span>
           </span>
         ) : (
           <span

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ClipboardList, CreditCard, Smartphone, ShieldCheck, Truck, Wrench as MechanicIcon, TrendingUp, History, Percent, IdCard, Package } from "lucide-react";
+import { ClipboardList, CreditCard, Smartphone, ShieldCheck, Truck, TrendingUp, History, Percent, IdCard, Package } from "lucide-react";
 import { requirePage, requireApproved } from "@/lib/current-user";
 import { canViewLogs } from "@/lib/logs-access";
 import { SCOPED_REPORT_SLUGS } from "@/lib/permissions";
@@ -33,7 +33,6 @@ const CARDS: ReportCard[] = [
   { slug: "genblu-rate", title: "GenBlu Registration Rate", description: "Bikes sold vs. GenBlu installed and e-coupon usage, by person and branch.", icon: Percent, color: "text-violet-600 bg-violet-500/10", category: "Customer" },
   { slug: "warranty-claims", title: "Warranty Claims", description: "Every warranty claim and its status.", icon: ShieldCheck, color: "text-amber-600 bg-amber-500/10", category: "Claims" },
   { slug: "delivery-claims", title: "Delivery Claims", description: "Every delivery claim and its status.", icon: Truck, color: "text-orange-600 bg-orange-500/10", category: "Claims" },
-  { slug: "mechanics", title: "Mechanics", description: "The mechanic roster across every branch.", icon: MechanicIcon, color: "text-emerald-600 bg-emerald-500/10", category: "Team" },
   { slug: "sales-performance", title: "Sales Performance", description: "Monthly revenue per mechanic, last 12 months.", icon: TrendingUp, color: "text-indigo-600 bg-indigo-500/10", category: "Team" },
 ];
 

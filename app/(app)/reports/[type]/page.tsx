@@ -12,7 +12,7 @@ import {
   getCompletedRepairJobs,
   getAllBranchesCompletedRepairJobs,
 } from "@/lib/repairs-actions";
-import { getMechanics, getAllMechanics } from "@/lib/mechanics-actions";
+import { getAllMechanics } from "@/lib/mechanics-actions";
 import { getCustomers, getAllBranchesCustomers } from "@/lib/customers-actions";
 import {
   getGenbluRegistrations,
@@ -46,7 +46,6 @@ const TITLES: Record<string, string> = {
   "point-allocation": "Point Allocation",
   "warranty-claims": "Warranty Claims",
   "delivery-claims": "Delivery Claims",
-  mechanics: "Mechanics",
   "sales-performance": "Sales Performance",
   packages: "Services Combo",
 };
@@ -141,6 +140,7 @@ export default async function ReportDetailPage({ params }: { params: Promise<{ t
       { key: "model", label: "Model" },
       { key: "brand", label: "Brand" },
       { key: "genblu", label: "GenBlu" },
+      { key: "genbluPoints", label: "GenBlu Points" },
       { key: "mechanic", label: "Mechanic" },
       { key: "revenue", label: "Cost Total (RM)" },
       { key: "jobDate", label: "Job Date" },
@@ -162,6 +162,7 @@ export default async function ReportDetailPage({ params }: { params: Promise<{ t
       model: j.model || "—",
       brand: classifyYamahaModel(j.model) === "yamaha" ? "Yamaha" : "Non-Yamaha",
       genblu: j.hasGenblu ? "Yes" : "No",
+      genbluPoints: j.hasGenblu ? (j.genbluPoints ?? 0) : "",
       mechanic: mechanicLabel(mechanics, j.mechanicId),
       revenue: j.revenueAmount.toFixed(2),
       jobDate: j.formDate || j.startedDate || "",
@@ -394,23 +395,6 @@ export default async function ReportDetailPage({ params }: { params: Promise<{ t
       model: c.model,
       status: c.status,
       submittedDate: c.submittedDate || "",
-    }));
-  } else if (type === "mechanics") {
-    const mechanics = allBranches ? await getAllMechanics() : await getMechanics(selection);
-    columns = [
-      { key: "shortName", label: "Name" },
-      { key: "shortCode", label: "Code" },
-      { key: "branch", label: "Branch" },
-      { key: "category", label: "Category" },
-      { key: "status", label: "Status" },
-    ];
-    searchFields = ["shortName", "shortCode"];
-    rows = mechanics.map((m) => ({
-      shortName: m.shortName,
-      shortCode: m.shortCode,
-      branch: branchLabel(m.branch),
-      category: m.category,
-      status: m.status,
     }));
   } else if (type === "packages") {
     const sales = allBranches ? await getAllBranchesPackageSales() : await getPackageSales(selection);
