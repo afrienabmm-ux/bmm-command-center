@@ -86,7 +86,6 @@ type Row = {
   signature_issue_resolved: boolean;
   jobsheet_photo_path: string | null;
   remark: string;
-  genblu_asked: boolean;
   cc_repair_job_items: ItemRow[] | null;
 };
 
@@ -149,7 +148,6 @@ function toJob(r: Row, genbluPlates: Set<string>): RepairJob {
     signatureIssueResolved: r.signature_issue_resolved,
     jobsheetPhotoPath: r.jobsheet_photo_path,
     remark: r.remark,
-    genbluAsked: r.genblu_asked,
     hasGenblu: genbluPlates.has(normalizePlate(r.plate_no ?? "")),
   };
 }
@@ -847,19 +845,6 @@ export async function setWalkInEndDateAction(id: string, branch: Branch, date: s
   await logActivity(user, "Set Walk-in End Date", `job ${id} → ${date ?? "cleared"}`);
   revalidatePath("/repairs/walk-in");
   revalidatePath("/");
-}
-
-// Click-to-stamp "asked about GenBlu" for a Walk-in job — a plain manual
-// flag, not tied to whether a registration has actually come in (that's
-// hasGenblu, computed separately from cc_genblu_registrations). Clicking
-// again un-stamps it, same toggle behaviour as the other workflow stamps.
-export async function setGenbluAskedAction(id: string, branch: Branch, asked: boolean): Promise<void> {
-  const user = await requireApproved();
-  assertCanEditBranch(user, branch);
-  const { error } = await supabaseAdmin.from("cc_repair_jobs").update({ genblu_asked: asked }).eq("id", id);
-  if (error) throw new Error(error.message);
-  await logActivity(user, "Set GenBlu asked", `job ${id} → ${asked}`);
-  revalidatePath("/repairs/walk-in");
 }
 
 export async function deleteRepairJobAction(id: string, branch: Branch): Promise<void> {

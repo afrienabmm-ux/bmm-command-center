@@ -194,12 +194,8 @@ export type RepairJob = {
   // Restore Bike — free-text note the PIC can add/edit directly from the
   // list, for anything not covered by its own dedicated field.
   remark: string;
-  // Walk-in only — staff clicked "Ask" to record that they've told this
-  // customer about GenBlu, independent of whether a registration has
-  // actually come in yet (see hasGenblu below).
-  genbluAsked: boolean;
   // Computed, not stored — this job's plate number matched against
-  // cc_genblu_registrations at load time (see getGenbluPlateSet).
+  // cc_genblu_registrations at load time (see getGenbluPlates).
   hasGenblu: boolean;
 };
 

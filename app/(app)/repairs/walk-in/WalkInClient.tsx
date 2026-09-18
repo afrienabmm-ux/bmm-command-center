@@ -3,14 +3,13 @@
 import { Fragment, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Plus, Download, Pencil, Search, Trash2, Check, Printer, ArrowUpDown, ChevronDown, ImageIcon, Link2 } from "lucide-react";
+import { Plus, Download, Pencil, Search, Trash2, Check, X, Printer, ArrowUpDown, ChevronDown, ImageIcon, Link2 } from "lucide-react";
 import {
   setWalkInEndDateAction,
   deleteRepairJobAction,
   getJobsheetPhotoUrlAction,
   resolveSignatureIssueAction,
   searchWalkInJobsAction,
-  setGenbluAskedAction,
 } from "@/lib/repairs-actions";
 import { isYamahaModel } from "@/lib/yamaha-model";
 import { isHeavyRepairJob, type RepairStatus, type RepairJob } from "@/lib/types";
@@ -982,8 +981,6 @@ function WalkInRow({
   const [deleting, setDeleting] = useState(false);
   const [photoPending, setPhotoPending] = useState(false);
   const [resolving, setResolving] = useState(false);
-  const [genbluAskedPending, setGenbluAskedPending] = useState(false);
-  const { showError: showGenbluError, toastNode: genbluToast } = useToast();
   const isSignatureError =
     (job.signatureStatus === "not_detected" || job.signatureStatus === "unchecked") && !job.signatureIssueResolved;
 
@@ -992,22 +989,6 @@ function WalkInRow({
     startTransition(async () => {
       await resolveSignatureIssueAction(job.id, job.branch);
       setResolving(false);
-    });
-  }
-
-  // Only toggleable while there's no actual registration on file — once
-  // hasGenblu is true, that's real customer data, not something a click
-  // here should be able to override.
-  function handleToggleGenbluAsked() {
-    if (job.hasGenblu || genbluAskedPending) return;
-    setGenbluAskedPending(true);
-    startTransition(async () => {
-      try {
-        await setGenbluAskedAction(job.id, job.branch, !job.genbluAsked);
-      } catch (err) {
-        showGenbluError(err instanceof Error ? err.message : "Something went wrong.");
-      }
-      setGenbluAskedPending(false);
     });
   }
   const days = daysBetween(job.startedDate, job.completedDate ?? new Date().toISOString().slice(0, 10));
@@ -1077,29 +1058,21 @@ function WalkInRow({
       <td className="px-5 py-3.5 text-neutral-700 whitespace-nowrap">{job.customerName || "—"}</td>
       <td className="px-5 py-3.5 text-neutral-600 whitespace-nowrap">{job.plateNo}</td>
       <td className="px-5 py-3.5 text-neutral-600 whitespace-nowrap">{job.model || "—"}</td>
-      <td className="px-5 py-3.5 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
-        {genbluToast}
+      <td className="px-5 py-3.5 whitespace-nowrap">
         {job.hasGenblu ? (
           <span
-            className="inline-flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-full border bg-emerald-500/10 text-emerald-700 border-emerald-500/20"
+            className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-emerald-500/10 text-emerald-600"
             title="Has a GenBlu registration on file"
           >
-            <Check size={11} /> Installed
+            <Check size={13} />
           </span>
         ) : (
-          <button
-            type="button"
-            onClick={handleToggleGenbluAsked}
-            disabled={genbluAskedPending}
-            title={job.genbluAsked ? "Click if this was a mistake, or the customer isn't installing after all" : "Mark that staff asked this customer about GenBlu"}
-            className={`text-xs font-medium px-2 py-1 rounded-full border transition-colors disabled:opacity-50 ${
-              job.genbluAsked
-                ? "bg-amber-500/10 text-amber-700 border-amber-500/20 hover:bg-amber-500/20"
-                : "bg-neutral-50 text-neutral-400 border-neutral-200 hover:border-red-300 hover:text-red-600"
-            }`}
+          <span
+            className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-red-500/10 text-red-600"
+            title="No GenBlu registration on file for this plate"
           >
-            {job.genbluAsked ? "Asked" : "Ask"}
-          </button>
+            <X size={13} />
+          </span>
         )}
       </td>
       <td className="px-5 py-3.5 text-neutral-600 whitespace-nowrap">
