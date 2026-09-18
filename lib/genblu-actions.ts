@@ -1,6 +1,5 @@
 "use server";
 
-import { cache } from "react";
 import { createHash } from "crypto";
 import { revalidatePath } from "next/cache";
 import { supabaseAdmin } from "./supabase-server";
@@ -11,7 +10,6 @@ import { extractTextFromImage, extractTextAndWordsFromImage, type PositionedWord
 import { extractGenbluEventWithAi } from "./ai-genblu-extract";
 import { logActivity } from "./activity-log";
 import { normalizeName, namesLikelyMatch, expandNameConnectors } from "./name-matching";
-import { normalizePlate } from "./plate";
 
 const BUCKET = "genblu-screenshots";
 
@@ -105,22 +103,24 @@ function condensedName(name: string): string {
   return name.toLowerCase().replace(/[^a-z0-9]/g, "");
 }
 
-// Only the front of the name has to show up on the screenshot, not the
-// whole thing — a real customer's name differs from what's typed on the
-// jobsheet more often in the middle or at the end (a missing middle
-// initial, "SUGUMARAN" vs "K SUGUMARAN", a dropped "BIN"/"BINTI") without
-// being a different person at all, while the given name up front is the
-// part that's actually reliable. Two words (or the whole name, if it's
-// only one word) is enough to still catch a genuinely different customer
-// — two unrelated people sharing just a first name is common, sharing
-// their first two names is not.
+// Only the first name has to show up on the screenshot, not the whole
+// thing — a real customer's name differs from what's typed on the
+// jobsheet more often after the first word (a missing middle initial,
+// "SUGUMARAN" vs "K SUGUMARAN", a dropped "BIN"/"BINTI", a long
+// patronymic like "PILLAI A/L SELLO RAJI" the GenBlu app's own screen
+// doesn't have room to show in full) without being a different person at
+// all — the given name up front is the part that's actually reliable.
+// Checking two words instead of one used to false-flag exactly this kind
+// of longer name as a mismatch even when it was genuinely correct; a
+// shared first name alone being a coincidence is rare enough in practice
+// not to be worth that trade.
 //
 // Expanded through expandNameConnectors before slicing — a name typed with
 // the short "BT"/"B" form (common on a quick jobsheet/registration entry)
 // otherwise never matches the GenBlu app's own screen, which spells out
 // "BINTI"/"BIN" in full, and gets wrongly flagged as a different customer.
 function frontNameForMatch(name: string): string {
-  const words = expandNameConnectors(name).split(/\s+/).filter(Boolean).slice(0, 2);
+  const words = expandNameConnectors(name).split(/\s+/).filter(Boolean).slice(0, 1);
   return condensedName(words.join(" "));
 }
 
@@ -447,27 +447,9 @@ export async function getAllBranchesGenbluRegistrations(sinceDate?: string): Pro
   return perBranch.flat().sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
 }
 
-// Every plate number with a GenBlu registration on file, across every
-// branch and all of history — the Jobsheet page checks each Walk-in job's
-// plate against this once per page load instead of a per-row lookup.
-// Memoized per request: the active/completed job lists are fetched
-// separately (and per-branch, for "All Branches"), and each needs this
-// same list — cache() means only the first call actually queries.
-//
-// Returns a plain array, not a Set: this is a Server Action (the file has
-// "use server"), and calling it from another module crosses React's Flight
-// serialization boundary even though it's really just an in-process
-// call — a Set doesn't survive that round-trip intact, so build the Set at
-// the call site instead of returning one.
-const cachedGenbluPlates = cache(async (): Promise<string[]> => {
-  const { data, error } = await supabaseAdmin.from("cc_genblu_registrations").select("customer_plate_no");
-  if (error) throw new Error(error.message);
-  return [...new Set((data ?? []).map((r) => normalizePlate(r.customer_plate_no ?? "")).filter(Boolean))];
-});
-
-export async function getGenbluPlates(): Promise<string[]> {
-  return cachedGenbluPlates();
-}
+// getGenbluPlateSet moved to lib/genblu-plates.ts — this file's own
+// tesseract.js/sharp imports (for screenshot OCR) made it too heavy for
+// repairs-actions.ts to import just for that one query.
 
 export async function getScreenshotUrl(path: string): Promise<string | null> {
   const { data, error } = await supabaseAdmin.storage.from(BUCKET).createSignedUrl(path, 60 * 60);

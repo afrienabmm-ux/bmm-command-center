@@ -11,7 +11,7 @@ import { BRANCHES, type Branch } from "./branch";
 import { normalizeName } from "./name-matching";
 import { checkCustomerCode, customerCodeReason } from "./customer-code";
 import { normalizePlate } from "./plate";
-import { getGenbluPlates } from "./genblu-actions";
+import { getGenbluPlateSet } from "./genblu-plates";
 
 type ItemRow = { id: string; code: string; description: string; quantity: number; price: number };
 
@@ -196,17 +196,16 @@ const SELECT_WITH_ITEMS = "*, cc_repair_job_items(*)";
 // request: the dashboard asks for the same branch's active jobs twice
 // (branch breakdown, then the overdue check).
 const cachedActiveRepairJobs = cache(async (branch: Branch): Promise<RepairJob[]> => {
-  const [{ data, error }, genbluPlateList] = await Promise.all([
+  const [{ data, error }, genbluPlates] = await Promise.all([
     supabaseAdmin
       .from("cc_repair_jobs")
       .select(SELECT_WITH_ITEMS)
       .eq("branch", branch)
       .not("status", "in", '("Completed","QC")')
       .order("started_date", { ascending: false }),
-    getGenbluPlates(),
+    getGenbluPlateSet(),
   ]);
   if (error) throw new Error(error.message);
-  const genbluPlates = new Set(genbluPlateList);
   return (data as unknown as Row[]).map((r) => toJob(r, genbluPlates));
 });
 
@@ -225,7 +224,7 @@ export async function getAllBranchesActiveRepairJobs(): Promise<RepairJob[]> {
 
 export async function getCompletedRepairJobs(branch: Branch): Promise<RepairJob[]> {
   await requireApproved();
-  const [{ data, error }, genbluPlateList] = await Promise.all([
+  const [{ data, error }, genbluPlates] = await Promise.all([
     supabaseAdmin
       .from("cc_repair_jobs")
       .select(SELECT_WITH_ITEMS)
@@ -233,10 +232,9 @@ export async function getCompletedRepairJobs(branch: Branch): Promise<RepairJob[
       .eq("status", "Completed")
       .order("completed_date", { ascending: false })
       .limit(200),
-    getGenbluPlates(),
+    getGenbluPlateSet(),
   ]);
   if (error) throw new Error(error.message);
-  const genbluPlates = new Set(genbluPlateList);
   return (data as unknown as Row[]).map((r) => toJob(r, genbluPlates));
 }
 
@@ -269,9 +267,8 @@ export async function searchWalkInJobsAction(query: string): Promise<RepairJob[]
     .limit(50);
   if (branchSelection !== "all") dbQuery = dbQuery.eq("branch", branchSelection);
 
-  const [{ data, error }, genbluPlateList] = await Promise.all([dbQuery, getGenbluPlates()]);
+  const [{ data, error }, genbluPlates] = await Promise.all([dbQuery, getGenbluPlateSet()]);
   if (error) throw new Error(error.message);
-  const genbluPlates = new Set(genbluPlateList);
   return (data as unknown as Row[]).map((r) => toJob(r, genbluPlates));
 }
 
@@ -279,12 +276,12 @@ export async function searchWalkInJobsAction(query: string): Promise<RepairJob[]
 // route, which only has the job id from the URL.
 export async function getRepairJobById(id: string): Promise<RepairJob | null> {
   await requireApproved();
-  const [{ data, error }, genbluPlateList] = await Promise.all([
+  const [{ data, error }, genbluPlates] = await Promise.all([
     supabaseAdmin.from("cc_repair_jobs").select(SELECT_WITH_ITEMS).eq("id", id).maybeSingle(),
-    getGenbluPlates(),
+    getGenbluPlateSet(),
   ]);
   if (error) throw new Error(error.message);
-  return data ? toJob(data as unknown as Row, new Set(genbluPlateList)) : null;
+  return data ? toJob(data as unknown as Row, genbluPlates) : null;
 }
 
 export type ServiceReminder = {
