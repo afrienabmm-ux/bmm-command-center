@@ -17,6 +17,7 @@ type RegWithUrl = {
   customerName: string;
   customerPlateNo: string;
   screenshotUrl: string | null;
+  extraScreenshotUrls?: string[];
   createdAt: string;
   points: number;
   pointsAreActual: boolean;
@@ -47,7 +48,7 @@ export default function GenbluClient({
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<RegWithUrl | null>(null);
   const [deleting, setDeleting] = useState<RegWithUrl | null>(null);
-  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
+  const [lightboxUrls, setLightboxUrls] = useState<string[] | null>(null);
   const [exporting, setExporting] = useState(false);
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
@@ -178,8 +179,8 @@ export default function GenbluClient({
                 <tr
                   key={r.id}
                   className={`border-t border-neutral-100 ${r.screenshotUrl ? "cursor-pointer hover:bg-neutral-50" : ""}`}
-                  onDoubleClick={() => r.screenshotUrl && setLightboxUrl(r.screenshotUrl)}
-                  title={r.screenshotUrl ? "Double-click to view the uploaded screenshot" : undefined}
+                  onDoubleClick={() => r.screenshotUrl && setLightboxUrls([r.screenshotUrl, ...(r.extraScreenshotUrls ?? [])])}
+                  title={r.screenshotUrl ? ((r.extraScreenshotUrls?.length ?? 0) > 0 ? "Double-click to view all uploaded screenshots" : "Double-click to view the uploaded screenshot") : undefined}
                 >
                   <td className="px-4 py-2.5 text-neutral-800 font-medium">
                     <span className="relative inline-flex items-center gap-1.5">
@@ -325,20 +326,29 @@ export default function GenbluClient({
         </div></ModalPortal>
       )}
 
-      {lightboxUrl && (
+      {lightboxUrls && (
         <ModalPortal><div
-          className="fixed inset-0 bg-black/90 flex items-center justify-center z-50 px-4"
-          onClick={() => setLightboxUrl(null)}
+          className="fixed inset-0 bg-black/90 z-50 overflow-y-auto px-4 py-8"
+          onClick={() => setLightboxUrls(null)}
         >
           <button
-            onClick={() => setLightboxUrl(null)}
-            className="absolute top-5 right-5 text-white/80 hover:text-white transition-colors"
+            onClick={() => setLightboxUrls(null)}
+            className="fixed top-5 right-5 text-white/80 hover:text-white transition-colors"
             aria-label="Close"
           >
             <X size={28} />
           </button>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={lightboxUrl} alt="GenBlu screenshot full size" className="max-w-full max-h-full object-contain" />
+          <div className="flex flex-wrap items-start justify-center gap-4 min-h-full">
+            {lightboxUrls.map((url) => (
+              /* eslint-disable-next-line @next/next/no-img-element */
+              <img
+                key={url}
+                src={url}
+                alt="GenBlu screenshot full size"
+                className={`object-contain ${lightboxUrls.length > 1 ? "max-w-[48%] max-h-[90vh]" : "max-w-full max-h-[90vh]"}`}
+              />
+            ))}
+          </div>
         </div></ModalPortal>
       )}
     </div>

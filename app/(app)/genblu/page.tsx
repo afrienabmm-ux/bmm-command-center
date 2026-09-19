@@ -9,6 +9,7 @@ import {
   getAllBranchesGenbluTransactions,
 } from "@/lib/genblu-actions";
 import { getAllMechanics } from "@/lib/mechanics-actions";
+import { namesLikelyMatch } from "@/lib/name-matching";
 import { branchLabel } from "@/lib/branch";
 import { todayInMalaysia } from "@/lib/malaysia-time";
 import PageHeader from "@/components/PageHeader";
@@ -64,6 +65,27 @@ export default async function GenbluPage({
       registrations.map(async (r) => ({
         ...r,
         screenshotUrl: r.screenshotPath ? await getScreenshotUrl(r.screenshotPath) : null,
+        // Same customer uploaded again for another visit (different time/
+        // price) — the row's points are already their combined running
+        // total, so double-clicking should show every screenshot behind it,
+        // not just the first.
+        extraScreenshotUrls: (
+          await Promise.all(
+            [
+              ...new Set(
+                allTransactions
+                  .filter(
+                    (t) =>
+                      t.branch === r.branch &&
+                      t.screenshotPath &&
+                      t.screenshotPath !== r.screenshotPath &&
+                      namesLikelyMatch(r.customerName, t.customerName)
+                  )
+                  .map((t) => t.screenshotPath as string)
+              ),
+            ].map((path) => getScreenshotUrl(path))
+          )
+        ).filter((u): u is string => !!u),
         // The running total built from actual "proof of award" screenshots
         // wins when there's at least one — real points the admin gave this
         // customer, not our own RM-spent estimate.
