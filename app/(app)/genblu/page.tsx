@@ -2,7 +2,7 @@ import { requirePageContext, requirePage, canViewAllBranches, getActiveBranchSel
 import {
   getGenbluRegistrations,
   getAllBranchesGenbluRegistrations,
-  getScreenshotUrl,
+  getScreenshotUrls,
   getGenbluPointsByName,
   getGenbluMonthlySummary,
   getGenbluTransactions,
@@ -52,48 +52,44 @@ export default async function GenbluPage({
   ]);
   const monthPrefix = `${year}-${String(month).padStart(2, "0")}`;
   const transactions = allTransactions.filter((t) => (t.transactionDate ?? "").startsWith(monthPrefix));
-  // Both screenshot batches run together — previously awaited one after
-  // the other, adding their latencies instead of overlapping them.
-  const [transactionsWithUrls, withUrls] = await Promise.all([
-    Promise.all(
-      transactions.map(async (t) => ({
-        ...t,
-        screenshotUrl: t.screenshotPath ? await getScreenshotUrl(t.screenshotPath) : null,
-      }))
-    ),
-    Promise.all(
-      registrations.map(async (r) => ({
-        ...r,
-        screenshotUrl: r.screenshotPath ? await getScreenshotUrl(r.screenshotPath) : null,
-        // Same customer uploaded again for another visit (different time/
-        // price) — the row's points are already their combined running
-        // total, so double-clicking should show every screenshot behind it,
-        // not just the first.
-        extraScreenshotUrls: (
-          await Promise.all(
-            [
-              ...new Set(
-                allTransactions
-                  .filter(
-                    (t) =>
-                      t.branch === r.branch &&
-                      t.screenshotPath &&
-                      t.screenshotPath !== r.screenshotPath &&
-                      namesLikelyMatch(r.customerName, t.customerName)
-                  )
-                  .map((t) => t.screenshotPath as string)
-              ),
-            ].map((path) => getScreenshotUrl(path))
+  // Every screenshot on the page signed in ONE request — one round trip
+  // per screenshot was what made this page take ~8s.
+  const matchingExtras = (r: (typeof registrations)[number]) =>
+    [
+      ...new Set(
+        allTransactions
+          .filter(
+            (t) =>
+              t.branch === r.branch &&
+              t.screenshotPath &&
+              t.screenshotPath !== r.screenshotPath &&
+              namesLikelyMatch(r.customerName, t.customerName)
           )
-        ).filter((u): u is string => !!u),
-        // The running total built from actual "proof of award" screenshots
-        // wins when there's at least one — real points the admin gave this
-        // customer, not our own RM-spent estimate.
-        points: r.pointsAccrued ?? pointsByName[r.customerName.trim().toLowerCase()] ?? 0,
-        pointsAreActual: r.pointsAccrued !== null,
-      }))
-    ),
+          .map((t) => t.screenshotPath as string)
+      ),
+    ];
+  const urlOf = await getScreenshotUrls([
+    ...transactions.map((t) => t.screenshotPath ?? ""),
+    ...registrations.map((r) => r.screenshotPath ?? ""),
+    ...registrations.flatMap((r) => matchingExtras(r)),
   ]);
+  const transactionsWithUrls = transactions.map((t) => ({
+    ...t,
+    screenshotUrl: t.screenshotPath ? (urlOf[t.screenshotPath] ?? null) : null,
+  }));
+  const withUrls = registrations.map((r) => ({
+    ...r,
+    screenshotUrl: r.screenshotPath ? (urlOf[r.screenshotPath] ?? null) : null,
+    // Same customer uploaded again for another visit (different time/
+    // price) — the row's points are already their combined running
+    // total, so double-clicking should show every screenshot behind it.
+    extraScreenshotUrls: matchingExtras(r).map((path) => urlOf[path]).filter((u): u is string => !!u),
+    // The running total built from actual "proof of award" screenshots
+    // wins when there's at least one — real points the admin gave this
+    // customer, not our own RM-spent estimate.
+    points: r.pointsAccrued ?? pointsByName[r.customerName.trim().toLowerCase()] ?? 0,
+    pointsAreActual: r.pointsAccrued !== null,
+  }));
 
   // The Tracker tab is for registrations tied to an actual jobsheet — the
   // "new_customer" ones (forwarded from the Sales Dashboard, no jobsheet

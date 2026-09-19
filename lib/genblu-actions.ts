@@ -451,6 +451,19 @@ export async function getAllBranchesGenbluRegistrations(sinceDate?: string): Pro
 // tesseract.js/sharp imports (for screenshot OCR) made it too heavy for
 // repairs-actions.ts to import just for that one query.
 
+// One request for any number of screenshots (path -> signed URL). Signing
+// them one call at a time meant hundreds of separate round trips on the
+// Tracker/Allocation pages — the batch call is a single one.
+export async function getScreenshotUrls(paths: string[]): Promise<Record<string, string>> {
+  const unique = [...new Set(paths.filter(Boolean))];
+  if (unique.length === 0) return {};
+  const { data, error } = await supabaseAdmin.storage.from(BUCKET).createSignedUrls(unique, 60 * 60);
+  if (error || !data) return {};
+  const out: Record<string, string> = {};
+  for (const item of data) if (item.path && item.signedUrl) out[item.path] = item.signedUrl;
+  return out;
+}
+
 export async function getScreenshotUrl(path: string): Promise<string | null> {
   const { data, error } = await supabaseAdmin.storage.from(BUCKET).createSignedUrl(path, 60 * 60);
   if (error) return null;

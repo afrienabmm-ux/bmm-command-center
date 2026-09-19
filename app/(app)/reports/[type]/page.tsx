@@ -20,7 +20,7 @@ import {
   getGenbluTransactions,
   getAllBranchesGenbluTransactions,
   getGenbluMonthlySummary,
-  getScreenshotUrl,
+  getScreenshotUrls,
 } from "@/lib/genblu-actions";
 import { todayInMalaysia, startOfWeekInMalaysia, endOfWeekInMalaysia } from "@/lib/malaysia-time";
 import { formatShortDate, monthLabel } from "@/lib/format";
@@ -342,9 +342,8 @@ export default async function ReportDetailPage({ params }: { params: Promise<{ t
     const txns = allBranches ? await getAllBranchesGenbluTransactions() : await getGenbluTransactions(selection);
     // Signed URLs, one per row's uploaded screenshot — fetched up front so
     // double-clicking a row opens it with no extra round trip.
-    const screenshotUrls = await Promise.all(
-      txns.map((t) => (t.screenshotPath ? getScreenshotUrl(t.screenshotPath) : Promise.resolve(null)))
-    );
+    const urlOf = await getScreenshotUrls(txns.map((t) => t.screenshotPath ?? ""));
+    const screenshotUrls = txns.map((t) => (t.screenshotPath ? (urlOf[t.screenshotPath] ?? null) : null));
     columns = [
       { key: "transactionDate", label: "Transaction Date" },
       { key: "transactionTime", label: "Time" },
