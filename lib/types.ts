@@ -194,10 +194,10 @@ export type RepairJob = {
   // Restore Bike — free-text note the PIC can add/edit directly from the
   // list, for anything not covered by its own dedicated field.
   remark: string;
-  // Computed, not stored — this job's plate number matched against
-  // cc_genblu_registrations at load time (see getGenbluPlatePoints).
+  // Computed, not stored — true only when a GenBlu points record matches
+  // this job's own cost total (see toJob in repairs-actions.ts).
   hasGenblu: boolean;
-  // The points awarded on that registration; null when hasGenblu is false.
+  // The matched points; null when hasGenblu is false.
   genbluPoints: number | null;
 };
 

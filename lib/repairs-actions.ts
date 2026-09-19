@@ -90,6 +90,16 @@ type Row = {
 };
 
 function toJob(r: Row, genbluPlates: Map<string, number>, genbluTxs: GenbluTxLite[]): RepairJob {
+  // A job only counts as having GenBlu when a points record matches its
+  // own cost total (see matchGenbluPoints) — a second, different-sized job
+  // on the same bike doesn't inherit the first job's points, it shows as
+  // no GenBlu. The registration's own points are the fallback when they
+  // equal the cost too.
+  const cost = Number(r.revenue_amount);
+  const fromTx = matchGenbluPoints(genbluTxs, r.customer_name ?? "", cost, r.completed_date ?? r.started_date ?? r.form_date);
+  const reg = genbluPlates.get(normalizePlate(r.plate_no ?? ""));
+  const genbluPoints =
+    fromTx !== null ? fromTx : reg !== undefined && (reg === Math.floor(cost) || reg === Math.round(cost)) ? reg : null;
   return {
     id: r.id,
     branch: r.branch,
@@ -148,17 +158,8 @@ function toJob(r: Row, genbluPlates: Map<string, number>, genbluTxs: GenbluTxLit
     signatureIssueResolved: r.signature_issue_resolved,
     jobsheetPhotoPath: r.jobsheet_photo_path,
     remark: r.remark,
-    hasGenblu: genbluPlates.has(normalizePlate(r.plate_no ?? "")),
-    genbluPoints: (() => {
-      const cost = Number(r.revenue_amount);
-      const fromTx = matchGenbluPoints(genbluTxs, r.customer_name ?? "", cost, r.completed_date ?? r.started_date ?? r.form_date);
-      if (fromTx !== null) return fromTx;
-      // The registration's own points figure usually is that visit's
-      // points (equal to its cost) — use it when it lines up, but not for
-      // a different-sized job on the same bike.
-      const reg = genbluPlates.get(normalizePlate(r.plate_no ?? ""));
-      return reg !== undefined && (reg === Math.floor(cost) || reg === Math.round(cost)) ? reg : null;
-    })(),
+    hasGenblu: genbluPoints !== null,
+    genbluPoints,
   };
 }
 
