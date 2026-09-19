@@ -15,13 +15,17 @@ import { normalizePlate } from "./plate";
 // Memoized per request: the active/completed job lists are fetched
 // separately (and per-branch, for "All Branches"), and each needs this
 // same map — cache() means only the first call actually queries.
-export const getGenbluPlatePoints = cache(async (): Promise<Map<string, number>> => {
-  const { data, error } = await supabaseAdmin.from("cc_genblu_registrations").select("customer_plate_no, points_accrued");
+export type GenbluPlateInfo = { points: number; name: string };
+
+export const getGenbluPlatePoints = cache(async (): Promise<Map<string, GenbluPlateInfo>> => {
+  const { data, error } = await supabaseAdmin
+    .from("cc_genblu_registrations")
+    .select("customer_plate_no, customer_name, points_accrued");
   if (error) throw new Error(error.message);
-  const map = new Map<string, number>();
+  const map = new Map<string, GenbluPlateInfo>();
   for (const r of data ?? []) {
     const plate = normalizePlate(r.customer_plate_no ?? "");
-    if (plate) map.set(plate, r.points_accrued ?? 0);
+    if (plate) map.set(plate, { points: r.points_accrued ?? 0, name: r.customer_name ?? "" });
   }
   return map;
 });

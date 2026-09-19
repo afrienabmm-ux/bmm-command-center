@@ -11,7 +11,7 @@ import { BRANCHES, type Branch } from "./branch";
 import { normalizeName } from "./name-matching";
 import { checkCustomerCode, customerCodeReason } from "./customer-code";
 import { normalizePlate } from "./plate";
-import { getGenbluPlatePoints, getGenbluTxLite, matchGenbluPoints, type GenbluTxLite } from "./genblu-plates";
+import { getGenbluPlatePoints, getGenbluTxLite, matchGenbluPoints, type GenbluTxLite, type GenbluPlateInfo } from "./genblu-plates";
 
 type ItemRow = { id: string; code: string; description: string; quantity: number; price: number };
 
@@ -89,17 +89,23 @@ type Row = {
   cc_repair_job_items: ItemRow[] | null;
 };
 
-function toJob(r: Row, genbluPlates: Map<string, number>, genbluTxs: GenbluTxLite[]): RepairJob {
+function toJob(r: Row, genbluPlates: Map<string, GenbluPlateInfo>, genbluTxs: GenbluTxLite[]): RepairJob {
   // A job only counts as having GenBlu when a points record matches its
   // own cost total (see matchGenbluPoints) — a second, different-sized job
   // on the same bike doesn't inherit the first job's points, it shows as
   // no GenBlu. The registration's own points are the fallback when they
   // equal the cost too.
   const cost = Number(r.revenue_amount);
-  const fromTx = matchGenbluPoints(genbluTxs, r.customer_name ?? "", cost, r.completed_date ?? r.started_date ?? r.form_date);
+  const jobDate = r.completed_date ?? r.started_date ?? r.form_date;
+  // The plate finds the customer's registration even when the jobsheet
+  // name and the GenBlu-side name don't line up — then look for their
+  // uploads under either spelling.
   const reg = genbluPlates.get(normalizePlate(r.plate_no ?? ""));
+  const fromTx =
+    matchGenbluPoints(genbluTxs, r.customer_name ?? "", cost, jobDate) ??
+    (reg ? matchGenbluPoints(genbluTxs, reg.name, cost, jobDate) : null);
   const genbluPoints =
-    fromTx !== null ? fromTx : reg !== undefined && (reg === Math.floor(cost) || reg === Math.round(cost)) ? reg : null;
+    fromTx !== null ? fromTx : reg !== undefined && (reg.points === Math.floor(cost) || reg.points === Math.round(cost)) ? reg.points : null;
   return {
     id: r.id,
     branch: r.branch,
