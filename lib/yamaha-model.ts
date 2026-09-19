@@ -36,7 +36,7 @@ const YAMAHA_MODEL_KEYWORDS = [
   "Y15ZR", "Y16ZR", "135LC", "LC135", "EGO", "XMAX", "NMAX", "NVX", "NVS",
   "MT15", "MT25", "MT135", "MT09", "YZF", "Z15GT", "LAGENDA", "TMAX",
   "FINO", "MIO", "SNIPER", "TRICITY", "AEROX", "T135", "FZ", "FZS", "125ZR",
-  "GEAR", "YPVS", "125Z", "RXZ", "SRZ", "XTZ", "TRACER", "XSR", "WR",
+  "GEAR", "YPVS", "125Z", "RXZ", "SRZ", "XTZ", "TRACER", "XSR", "WR", "EZ115",
 ];
 
 function normalize(model: string): string {
