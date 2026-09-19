@@ -11,7 +11,7 @@ import { BRANCHES, type Branch } from "./branch";
 import { normalizeName } from "./name-matching";
 import { checkCustomerCode, customerCodeReason } from "./customer-code";
 import { normalizePlate } from "./plate";
-import { getGenbluPlatePoints } from "./genblu-plates";
+import { getGenbluPlatePoints, getGenbluTxLite, matchGenbluPoints, type GenbluTxLite } from "./genblu-plates";
 
 type ItemRow = { id: string; code: string; description: string; quantity: number; price: number };
 
@@ -89,7 +89,7 @@ type Row = {
   cc_repair_job_items: ItemRow[] | null;
 };
 
-function toJob(r: Row, genbluPlates: Map<string, number>): RepairJob {
+function toJob(r: Row, genbluPlates: Map<string, number>, genbluTxs: GenbluTxLite[]): RepairJob {
   return {
     id: r.id,
     branch: r.branch,
@@ -149,7 +149,16 @@ function toJob(r: Row, genbluPlates: Map<string, number>): RepairJob {
     jobsheetPhotoPath: r.jobsheet_photo_path,
     remark: r.remark,
     hasGenblu: genbluPlates.has(normalizePlate(r.plate_no ?? "")),
-    genbluPoints: genbluPlates.get(normalizePlate(r.plate_no ?? "")) ?? null,
+    genbluPoints: (() => {
+      const cost = Number(r.revenue_amount);
+      const fromTx = matchGenbluPoints(genbluTxs, r.customer_name ?? "", cost, r.completed_date ?? r.started_date ?? r.form_date);
+      if (fromTx !== null) return fromTx;
+      // The registration's own points figure usually is that visit's
+      // points (equal to its cost) — use it when it lines up, but not for
+      // a different-sized job on the same bike.
+      const reg = genbluPlates.get(normalizePlate(r.plate_no ?? ""));
+      return reg !== undefined && (reg === Math.floor(cost) || reg === Math.round(cost)) ? reg : null;
+    })(),
   };
 }
 
@@ -197,7 +206,7 @@ const SELECT_WITH_ITEMS = "*, cc_repair_job_items(*)";
 // request: the dashboard asks for the same branch's active jobs twice
 // (branch breakdown, then the overdue check).
 const cachedActiveRepairJobs = cache(async (branch: Branch): Promise<RepairJob[]> => {
-  const [{ data, error }, genbluPlates] = await Promise.all([
+  const [{ data, error }, genbluPlates, genbluTxs] = await Promise.all([
     supabaseAdmin
       .from("cc_repair_jobs")
       .select(SELECT_WITH_ITEMS)
@@ -205,9 +214,10 @@ const cachedActiveRepairJobs = cache(async (branch: Branch): Promise<RepairJob[]
       .not("status", "in", '("Completed","QC")')
       .order("started_date", { ascending: false }),
     getGenbluPlatePoints(),
+    getGenbluTxLite(),
   ]);
   if (error) throw new Error(error.message);
-  return (data as unknown as Row[]).map((r) => toJob(r, genbluPlates));
+  return (data as unknown as Row[]).map((r) => toJob(r, genbluPlates, genbluTxs));
 });
 
 export async function getActiveRepairJobs(branch: Branch): Promise<RepairJob[]> {
@@ -225,7 +235,7 @@ export async function getAllBranchesActiveRepairJobs(): Promise<RepairJob[]> {
 
 export async function getCompletedRepairJobs(branch: Branch): Promise<RepairJob[]> {
   await requireApproved();
-  const [{ data, error }, genbluPlates] = await Promise.all([
+  const [{ data, error }, genbluPlates, genbluTxs] = await Promise.all([
     supabaseAdmin
       .from("cc_repair_jobs")
       .select(SELECT_WITH_ITEMS)
@@ -234,9 +244,10 @@ export async function getCompletedRepairJobs(branch: Branch): Promise<RepairJob[
       .order("completed_date", { ascending: false })
       .limit(200),
     getGenbluPlatePoints(),
+    getGenbluTxLite(),
   ]);
   if (error) throw new Error(error.message);
-  return (data as unknown as Row[]).map((r) => toJob(r, genbluPlates));
+  return (data as unknown as Row[]).map((r) => toJob(r, genbluPlates, genbluTxs));
 }
 
 // Completed jobs across all 3 branches — for the "All Branches" view.
@@ -268,21 +279,22 @@ export async function searchWalkInJobsAction(query: string): Promise<RepairJob[]
     .limit(50);
   if (branchSelection !== "all") dbQuery = dbQuery.eq("branch", branchSelection);
 
-  const [{ data, error }, genbluPlates] = await Promise.all([dbQuery, getGenbluPlatePoints()]);
+  const [{ data, error }, genbluPlates, genbluTxs] = await Promise.all([dbQuery, getGenbluPlatePoints(), getGenbluTxLite()]);
   if (error) throw new Error(error.message);
-  return (data as unknown as Row[]).map((r) => toJob(r, genbluPlates));
+  return (data as unknown as Row[]).map((r) => toJob(r, genbluPlates, genbluTxs));
 }
 
 // Looked up by id alone (no branch filter) — used by the full-page edit
 // route, which only has the job id from the URL.
 export async function getRepairJobById(id: string): Promise<RepairJob | null> {
   await requireApproved();
-  const [{ data, error }, genbluPlates] = await Promise.all([
+  const [{ data, error }, genbluPlates, genbluTxs] = await Promise.all([
     supabaseAdmin.from("cc_repair_jobs").select(SELECT_WITH_ITEMS).eq("id", id).maybeSingle(),
     getGenbluPlatePoints(),
+    getGenbluTxLite(),
   ]);
   if (error) throw new Error(error.message);
-  return data ? toJob(data as unknown as Row, genbluPlates) : null;
+  return data ? toJob(data as unknown as Row, genbluPlates, genbluTxs) : null;
 }
 
 export type ServiceReminder = {

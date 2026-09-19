@@ -25,3 +25,42 @@ export const getGenbluPlatePoints = cache(async (): Promise<Map<string, number>>
   }
   return map;
 });
+
+export type GenbluTxLite = { firstName: string; points: number; date: string };
+
+function firstNameKey(name: string): string {
+  return (name.trim().split(/\s+/)[0] ?? "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+}
+
+// Per-transaction points (one row per points award) — a customer's
+// registration only carries one points figure, but each visit earns its
+// own, roughly equal to that visit's cost. Small table, memoized per request.
+export const getGenbluTxLite = cache(async (): Promise<GenbluTxLite[]> => {
+  const { data, error } = await supabaseAdmin.from("cc_genblu_transactions").select("customer_name, points, transaction_date");
+  if (error) throw new Error(error.message);
+  return (data ?? []).map((t) => ({
+    firstName: firstNameKey(t.customer_name ?? ""),
+    points: Number(t.points ?? 0),
+    date: t.transaction_date ?? "",
+  }));
+});
+
+// The points this specific job earned: the transaction for the same
+// customer (first name — the GenBlu app shortens long names) whose points
+// equal the job's cost total, on or near the job's date. Null when none
+// lines up, so a second job on the same bike doesn't inherit the first
+// job's points.
+export function matchGenbluPoints(txs: GenbluTxLite[], customerName: string, revenue: number, jobDate: string | null): number | null {
+  const key = firstNameKey(customerName);
+  if (!key) return null;
+  const wanted = new Set([Math.floor(revenue), Math.round(revenue)]);
+  const jobMs = jobDate ? Date.parse(jobDate) : NaN;
+  let best: { points: number; gap: number } | null = null;
+  for (const t of txs) {
+    if (t.firstName !== key || !wanted.has(t.points)) continue;
+    const gap = Number.isNaN(jobMs) || !t.date ? 0 : Math.abs(Date.parse(t.date) - jobMs) / 86400000;
+    if (gap > 3) continue;
+    if (!best || gap < best.gap) best = { points: t.points, gap };
+  }
+  return best ? best.points : null;
+}
