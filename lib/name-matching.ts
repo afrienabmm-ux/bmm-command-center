@@ -53,3 +53,39 @@ export function namesLikelyMatch(a: string, b: string): boolean {
   if (shorter.size === 0) return false;
   return [...shorter].every((w) => longer.has(w));
 }
+
+// Leading words that say nothing about who the person is ("MOHD KHAIRUL" is
+// just KHAIRUL) — skipped when looking for the name someone goes by.
+const NAME_FILLER = new Set(["mohd", "muhd", "md", "mohamad", "mohamed", "mohammad", "mohammed", "muhammad", "muhamad", "nur", "nurul", "siti", "bin", "binti", "b", "bt", "a", "l", "al", "ap", "anak"]);
+
+function firstRealWord(name: string): string {
+  return expandNameConnectors(name).toLowerCase().split(/[^a-z0-9]+/).filter(Boolean).find((w) => !NAME_FILLER.has(w)) ?? "";
+}
+
+// A points screenshot's name can loosely match several registrations —
+// "HAZIQ" is inside "AZRIE HAZIQ BIN AZIZI", "SYAHID" inside "SYAHID WAJDI
+// BIN ABD AZZIS". Each screenshot belongs to only ONE of them: the closest
+// match (exact name, then same first name, then the longer registered name).
+// Returns null when nothing matches or two registrations tie (two bikes under
+// one name), so a screenshot is never shown on the wrong customer's row.
+export function bestRegistrationFor(txName: string, regs: { id: string; customerName: string }[]): string | null {
+  const txFirst = firstRealWord(txName);
+  const normTx = normalizeName(expandNameConnectors(txName));
+  let best: { id: string; score: number; name: string } | null = null;
+  let tie = false;
+  for (const r of regs) {
+    if (!namesLikelyMatch(r.customerName, txName)) continue;
+    const normR = normalizeName(expandNameConnectors(r.customerName));
+    const score =
+      (normR === normTx ? 1000 : 0) +
+      (firstRealWord(r.customerName) === txFirst ? 100 : 0) +
+      normR.split(/\s+/).length;
+    if (!best || score > best.score) {
+      best = { id: r.id, score, name: normR };
+      tie = false;
+    } else if (score === best.score && r.id !== best.id) {
+      tie = true;
+    }
+  }
+  return best && !tie ? best.id : null;
+}

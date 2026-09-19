@@ -9,7 +9,7 @@ import {
   getAllBranchesGenbluTransactions,
 } from "@/lib/genblu-actions";
 import { getAllMechanics } from "@/lib/mechanics-actions";
-import { namesLikelyMatch } from "@/lib/name-matching";
+import { bestRegistrationFor } from "@/lib/name-matching";
 import { branchLabel } from "@/lib/branch";
 import { todayInMalaysia } from "@/lib/malaysia-time";
 import PageHeader from "@/components/PageHeader";
@@ -63,7 +63,12 @@ export default async function GenbluPage({
               t.branch === r.branch &&
               t.screenshotPath &&
               t.screenshotPath !== r.screenshotPath &&
-              namesLikelyMatch(r.customerName, t.customerName)
+              // Belongs to THIS customer only if this is the closest-matching row —
+              // "HAZIQ" must not pick up "AZRIE HAZIQ"'s screenshots.
+              bestRegistrationFor(
+                t.customerName,
+                registrations.filter((x) => x.branch === t.branch)
+              ) === r.id
           )
           .map((t) => t.screenshotPath as string)
       ),
