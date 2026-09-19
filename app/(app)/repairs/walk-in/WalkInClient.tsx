@@ -587,7 +587,7 @@ export default function WalkInClient({
                     Job No. <ArrowUpDown size={12} />
                   </button>
                 </th>
-                <th className="font-medium px-5 py-3 whitespace-nowrap">Customer</th>
+                <th className="font-medium px-5 py-3 whitespace-nowrap w-px max-w-[16rem]">Customer</th>
                 <th className="font-medium px-5 py-3 whitespace-nowrap">Plate No.</th>
                 <th className="font-medium px-5 py-3 whitespace-nowrap">Model</th>
                 <th className="font-medium px-5 py-3 whitespace-nowrap">GenBlu</th>
@@ -1049,7 +1049,7 @@ function WalkInRow({
       )}
       <td className="px-5 py-3.5 text-neutral-800 font-medium whitespace-nowrap">{job.jobNo}</td>
       {showBranch && <td className="px-5 py-3.5 text-neutral-600 whitespace-nowrap">{branchLabel(job.branch)}</td>}
-      <td className="px-5 py-3.5 text-neutral-700 whitespace-nowrap">{job.customerName || "—"}</td>
+      <td className="px-5 py-3.5 text-neutral-700 whitespace-nowrap w-px max-w-[16rem] truncate" title={job.customerName}>{job.customerName || "—"}</td>
       <td className="px-5 py-3.5 text-neutral-600 whitespace-nowrap">{job.plateNo}</td>
       <td className="px-5 py-3.5 text-neutral-600 whitespace-nowrap">{job.model || "—"}</td>
       <td className="px-5 py-3.5 whitespace-nowrap">
