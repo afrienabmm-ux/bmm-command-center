@@ -177,6 +177,9 @@ export default function WalkInClient({
       return checkCustomerCode(j.customerCode ?? "") !== "ok";
     });
   }, [active, completed, errors]);
+  // The IC errors tab is a report: rows can be looked at, but not selected,
+  // opened for editing or deleted from here (fix the code in the Customer Code report).
+  const canEditHere = canEdit && tab !== "ic";
   const jobs = tab === "active" ? active : tab === "completed" ? completed : tab === "ic" ? icErrors : errors;
   const visible = useMemo(() => {
     // An active search overrides the current tab/date range entirely —
@@ -586,7 +589,7 @@ export default function WalkInClient({
           <table className="w-full text-sm">
             <thead>
               <tr className="text-left text-xs text-neutral-500 border-b border-neutral-200">
-                {canEdit && (
+                {canEditHere && (
                   <th className="px-5 py-3 w-10">
                     <input
                       type="checkbox"
@@ -626,7 +629,7 @@ export default function WalkInClient({
               {visible.length > 0 && (
                 <tr className="bg-emerald-50">
                   <td
-                    colSpan={(canEdit ? 1 : 0) + 13}
+                    colSpan={(canEditHere ? 1 : 0) + 13}
                     className="px-5 py-2.5 whitespace-nowrap text-sm font-semibold text-emerald-900"
                   >
                     Total: {visible.length} job{visible.length === 1 ? "" : "s"}
@@ -638,7 +641,7 @@ export default function WalkInClient({
                     <Fragment key={g.branch}>
                       <tr className="bg-neutral-50">
                         <td
-                          colSpan={(canEdit ? 1 : 0) + 13}
+                          colSpan={(canEditHere ? 1 : 0) + 13}
                           className="px-5 py-2 whitespace-nowrap text-xs font-semibold text-neutral-600 uppercase tracking-wide"
                         >
                           {branchLabel(g.branch)} — {g.rows.length} job{g.rows.length === 1 ? "" : "s"}
@@ -651,8 +654,8 @@ export default function WalkInClient({
                           job={job}
                           showBranch={false}
                           mechanicLabel={mechanicLabel(job.mechanicId)}
-                          editable={canEdit && tab === "active"}
-                          canEdit={canEdit}
+                          editable={canEditHere && tab === "active"}
+                          canEdit={canEditHere}
                           canResolveErrors={canResolveErrors}
                           highlight={job.id === highlightId}
                           selected={selectedIds.has(job.id)}
@@ -668,8 +671,8 @@ export default function WalkInClient({
                       job={job}
                       showBranch={false}
                       mechanicLabel={mechanicLabel(job.mechanicId)}
-                      editable={canEdit && tab === "active"}
-                      canEdit={canEdit}
+                      editable={canEditHere && tab === "active"}
+                      canEdit={canEditHere}
                       canResolveErrors={canResolveErrors}
                       highlight={job.id === highlightId}
                       selected={selectedIds.has(job.id)}
@@ -678,7 +681,7 @@ export default function WalkInClient({
                   ))}
               {visible.length === 0 && (
                 <tr>
-                  <td colSpan={13 + (canEdit ? 1 : 0)} className="px-5 py-10 text-center text-neutral-500 text-sm">
+                  <td colSpan={13 + (canEditHere ? 1 : 0)} className="px-5 py-10 text-center text-neutral-500 text-sm">
                     {jobs.length === 0
                       ? `${tab === "active" ? "No active" : tab === "completed" ? "No completed" : "No"} Jobsheet jobs${tab === "errors" ? " need checking" : tab === "ic" ? " with a wrong IC" : ""}.`
                       : "No jobs match your search."}
