@@ -54,25 +54,21 @@ export default async function GenbluPage({
   const transactions = allTransactions.filter((t) => (t.transactionDate ?? "").startsWith(monthPrefix));
   // Every screenshot on the page signed in ONE request — one round trip
   // per screenshot was what made this page take ~8s.
-  const matchingExtras = (r: (typeof registrations)[number]) =>
-    [
-      ...new Set(
-        allTransactions
-          .filter(
-            (t) =>
-              t.branch === r.branch &&
-              t.screenshotPath &&
-              t.screenshotPath !== r.screenshotPath &&
-              // Belongs to THIS customer only if this is the closest-matching row —
-              // "HAZIQ" must not pick up "AZRIE HAZIQ"'s screenshots.
-              bestRegistrationFor(
-                t.customerName,
-                registrations.filter((x) => x.branch === t.branch)
-              ) === r.id
-          )
-          .map((t) => t.screenshotPath as string)
-      ),
-    ];
+  // Work out ONCE which registration each transaction belongs to (the
+  // closest-matching row in its own branch — "HAZIQ" must not pick up
+  // "AZRIE HAZIQ"'s screenshots), then just look the answer up per row.
+  // Doing this per registration per transaction made the page take ~8s.
+  const regsByBranch = new Map<string, typeof registrations>();
+  for (const r of registrations) regsByBranch.set(r.branch, [...(regsByBranch.get(r.branch) ?? []), r]);
+  const regById = new Map(registrations.map((r) => [r.id, r]));
+  const extrasByReg = new Map<string, Set<string>>();
+  for (const t of allTransactions) {
+    if (!t.screenshotPath) continue;
+    const ownerId = bestRegistrationFor(t.customerName, regsByBranch.get(t.branch) ?? []);
+    if (!ownerId || t.screenshotPath === regById.get(ownerId)?.screenshotPath) continue;
+    extrasByReg.set(ownerId, (extrasByReg.get(ownerId) ?? new Set()).add(t.screenshotPath));
+  }
+  const matchingExtras = (r: (typeof registrations)[number]) => [...(extrasByReg.get(r.id) ?? [])];
   const urlOf = await getScreenshotUrls([
     ...transactions.map((t) => t.screenshotPath ?? ""),
     ...registrations.map((r) => r.screenshotPath ?? ""),
