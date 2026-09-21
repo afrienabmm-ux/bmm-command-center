@@ -12,6 +12,7 @@ import {
   searchWalkInJobsAction,
 } from "@/lib/repairs-actions";
 import { isYamahaModel, classifyYamahaModel } from "@/lib/yamaha-model";
+import { checkCustomerCode, customerCodeReason } from "@/lib/customer-code";
 import { isHeavyRepairJob, type RepairStatus, type RepairJob } from "@/lib/types";
 import type { Mechanic } from "@/lib/types";
 import { BRANCHES, branchLabel, type Branch, type BranchSelection } from "@/lib/branch";
@@ -51,7 +52,7 @@ export default function WalkInClient({
   // The Active tab hides itself entirely when there's nothing in it (same
   // as Errors) — defaulting straight to Completed in that case avoids
   // landing on a tab bar with no button highlighted at all.
-  const [tab, setTab] = useState<"active" | "completed" | "errors">(active.length > 0 ? "active" : "completed");
+  const [tab, setTab] = useState<"active" | "completed" | "errors" | "ic">(active.length > 0 ? "active" : "completed");
   const [exporting, setExporting] = useState(false);
   const [exportJobModalOpen, setExportJobModalOpen] = useState(false);
   const [exportFilteredModalOpen, setExportFilteredModalOpen] = useState(false);
@@ -166,7 +167,17 @@ export default function WalkInClient({
     setQuery("");
   }, [highlightId, active, completed, errors]);
 
-  const jobs = tab === "active" ? active : tab === "completed" ? completed : errors;
+  // Jobs whose Customer Code (IC) isn't a valid 12-digit number, across every tab —
+  // the same rule as the Customer Code report, so the two always agree.
+  const icErrors = useMemo(() => {
+    const seen = new Set<string>();
+    return [...active, ...completed, ...errors].filter((j) => {
+      if (seen.has(j.id)) return false;
+      seen.add(j.id);
+      return checkCustomerCode(j.customerCode ?? "") !== "ok";
+    });
+  }, [active, completed, errors]);
+  const jobs = tab === "active" ? active : tab === "completed" ? completed : tab === "ic" ? icErrors : errors;
   const visible = useMemo(() => {
     // An active search overrides the current tab/date range entirely —
     // it's already a database-wide match, not just whatever happens to be
@@ -407,6 +418,16 @@ export default function WalkInClient({
               Errors ({errors.length})
             </button>
           )}
+          {icErrors.length > 0 && (
+            <button
+              onClick={() => setTab("ic")}
+              className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors whitespace-nowrap ${
+                tab === "ic" ? "bg-red-500 text-white" : "text-red-600 hover:text-red-700"
+              }`}
+            >
+              IC errors ({icErrors.length})
+            </button>
+          )}
         </div>
         <div className="flex items-center gap-3 flex-wrap">
           <div className="relative">
@@ -625,6 +646,7 @@ export default function WalkInClient({
                       </tr>
                       {g.rows.map((job) => (
                         <WalkInRow
+                          showIc={tab === "ic"}
                           key={job.id}
                           job={job}
                           showBranch={false}
@@ -641,6 +663,7 @@ export default function WalkInClient({
                   ))
                 : visible.map((job) => (
                     <WalkInRow
+                      showIc={tab === "ic"}
                       key={job.id}
                       job={job}
                       showBranch={false}
@@ -657,7 +680,7 @@ export default function WalkInClient({
                 <tr>
                   <td colSpan={13 + (canEdit ? 1 : 0)} className="px-5 py-10 text-center text-neutral-500 text-sm">
                     {jobs.length === 0
-                      ? `${tab === "active" ? "No active" : tab === "completed" ? "No completed" : "No"} Jobsheet jobs${tab === "errors" ? " need checking" : ""}.`
+                      ? `${tab === "active" ? "No active" : tab === "completed" ? "No completed" : "No"} Jobsheet jobs${tab === "errors" ? " need checking" : tab === "ic" ? " with a wrong IC" : ""}.`
                       : "No jobs match your search."}
                   </td>
                 </tr>
@@ -958,8 +981,10 @@ function WalkInRow({
   highlight,
   selected,
   onToggleSelect,
+  showIc = false,
 }: {
   job: RepairJob;
+  showIc?: boolean;
   showBranch: boolean;
   mechanicLabel: string;
   editable: boolean;
@@ -1049,7 +1074,14 @@ function WalkInRow({
       )}
       <td className="px-5 py-3.5 text-neutral-800 font-medium whitespace-nowrap">{job.jobNo}</td>
       {showBranch && <td className="px-5 py-3.5 text-neutral-600 whitespace-nowrap">{branchLabel(job.branch)}</td>}
-      <td className="px-5 py-3.5 text-neutral-700 whitespace-nowrap w-px max-w-[16rem] truncate" title={job.customerName}>{job.customerName || "—"}</td>
+      <td className="px-5 py-3.5 text-neutral-700 whitespace-nowrap w-px max-w-[16rem] truncate" title={job.customerName}>
+        {job.customerName || "—"}
+        {showIc && (
+          <span className="block text-[11px] font-normal text-red-500 whitespace-normal">
+            IC: {(job.customerCode ?? "").trim() || "blank"} — {customerCodeReason(job.customerCode ?? "")}
+          </span>
+        )}
+      </td>
       <td className="px-5 py-3.5 text-neutral-600 whitespace-nowrap">{job.plateNo}</td>
       <td className="px-5 py-3.5 text-neutral-600 whitespace-nowrap">{job.model || "—"}</td>
       <td className="px-5 py-3.5 whitespace-nowrap">
