@@ -1,12 +1,15 @@
 // The daily After-Sales "needs attention" message for Telegram. Read-only:
-// it looks and reports, never changes a record. One message, up to four
-// sections, and each section only appears when there is something to act on.
+// it looks and reports, never changes a record. Up to four sections, and each
+// only appears when there is something to act on. Every branch gets its own
+// message (only its own data) for its own group, and management gets one
+// combined message — see sendToGroups in telegram-digest.ts.
 import { supabaseAdmin } from "./supabase-server";
-import { BRANCHES } from "./branch";
+import { BRANCHES, type Branch } from "./branch";
 import { classifyYamahaModel } from "./yamaha-model";
 import { getGenbluPlatePoints, getGenbluTxLite, jobGenbluPoints } from "./genblu-plates";
 import { checkCustomerCode } from "./customer-code";
 import { todayInMalaysia } from "./malaysia-time";
+import type { BranchMessages } from "./telegram-digest";
 
 const MAX_PER_BRANCH = 8;
 const MAX_CHARS = 3900;
@@ -14,7 +17,6 @@ const MAX_CHARS = 3900;
 function addDays(iso: string, n: number): string {
   return new Date(Date.parse(`${iso}T00:00:00Z`) + n * 86400000).toISOString().slice(0, 10);
 }
-const branchName = (v: string) => BRANCHES.find((b) => b.value === v)?.label ?? v;
 
 type Job = {
   branch: string;
@@ -47,7 +49,12 @@ function capped(lines: string[]): string[] {
   return out;
 }
 
-export async function buildAfterSalesAlerts(dateOverride?: string): Promise<{ sections: number; text: string | null }> {
+// One section of the message, broken down by branch.
+type Section = { title: string; footer?: string; perBranch: Partial<Record<Branch, { summary: string; items: string[] }>> };
+
+const clip = (t: string) => (t.length > MAX_CHARS ? t.slice(0, MAX_CHARS) + "\n...and more" : t);
+
+export async function buildAfterSalesAlerts(dateOverride?: string): Promise<{ sections: number; messages: BranchMessages }> {
   const today = dateOverride ?? todayInMalaysia();
   const dow = new Date(`${today}T00:00:00Z`).getUTCDay(); // 1 = Monday
   const sinceNew = addDays(today, dow === 1 ? -2 : -1); // Monday also covers Saturday + Sunday
@@ -74,12 +81,12 @@ export async function buildAfterSalesAlerts(dateOverride?: string): Promise<{ se
   const jobs = (jobsRes.data ?? []) as Job[];
   const txRows = txRes.data ?? [];
 
-  const sections: string[] = [];
+  const sections: Section[] = [];
 
   // 1) Yamaha jobs done 2-4 days ago that still have no GenBlu (yesterday's are in the morning summary).
   {
-    const lines: string[] = [];
-    for (const { value, label } of BRANCHES) {
+    const s: Section = { title: `🔵 Still no GenBlu (Yamaha jobs from ${chaseFrom} to ${chaseTo})`, perBranch: {} };
+    for (const { value } of BRANCHES) {
       const miss = jobs.filter(
         (j) =>
           j.branch === value &&
@@ -89,43 +96,42 @@ export async function buildAfterSalesAlerts(dateOverride?: string): Promise<{ se
           classifyYamahaModel(j.model ?? "") === "yamaha" &&
           jobGenbluPoints(plates, txs, { customerName: j.customer_name ?? "", plateNo: j.plate_no ?? "", cost: Number(j.revenue_amount), date: j.completed_date }) === null,
       );
-      if (miss.length === 0) continue;
-      lines.push(`${label} (${miss.length})`, ...capped(miss.map((j) => `   - ${j.customer_name ?? "?"} / ${j.plate_no ?? "-"}`)));
+      if (miss.length) s.perBranch[value] = { summary: `${miss.length} customers`, items: capped(miss.map((j) => `   - ${j.customer_name ?? "?"} / ${j.plate_no ?? "-"}`)) };
     }
-    if (lines.length) sections.push(`🔵 Still no GenBlu (Yamaha jobs from ${chaseFrom} to ${chaseTo})\n${lines.join("\n")}`);
+    sections.push(s);
   }
 
   // 2) Customer Code (IC) errors: new since the last message, plus the month's backlog count.
   {
+    const s: Section = { title: "🪪 Customer Code (IC) not valid", footer: "Fix them in Reports > Customer Code.", perBranch: {} };
     const bad = jobs.filter((j) => j.job_type === "Walk-in" && checkCustomerCode(j.customer_code ?? "") !== "ok");
-    if (bad.length) {
-      const lines: string[] = [];
-      for (const { value, label } of BRANCHES) {
-        const mine = bad.filter((j) => j.branch === value);
-        if (mine.length === 0) continue;
-        const fresh = mine.filter((j) => (j.started_date ?? j.created_at.slice(0, 10)) >= sinceNew);
-        lines.push(`${label}: ${fresh.length} new, ${mine.length} unfixed this month`);
-        lines.push(...capped(fresh.map((j) => `   - ${j.jobsheet_no?.trim() || j.job_no} / ${j.customer_name ?? "?"}   : ${masked(j.customer_code)}`)));
-      }
-      sections.push(`🪪 Customer Code (IC) not valid\n${lines.join("\n")}\nFix them in Reports > Customer Code.`);
+    for (const { value } of BRANCHES) {
+      const mine = bad.filter((j) => j.branch === value);
+      if (mine.length === 0) continue;
+      const fresh = mine.filter((j) => (j.started_date ?? j.created_at.slice(0, 10)) >= sinceNew);
+      s.perBranch[value] = {
+        summary: `${fresh.length} new, ${mine.length} unfixed this month`,
+        items: capped(fresh.map((j) => `   - ${j.jobsheet_no?.trim() || j.job_no} / ${j.customer_name ?? "?"}   : ${masked(j.customer_code)}`)),
+      };
     }
+    sections.push(s);
   }
 
   // 3) Signature problems still open.
   {
-    const lines: string[] = [];
-    for (const { value, label } of BRANCHES) {
+    const s: Section = { title: "✍️ Jobsheet signature not confirmed", perBranch: {} };
+    for (const { value } of BRANCHES) {
       const bad = jobs.filter(
         (j) => j.branch === value && (j.signature_status === "not_detected" || j.signature_status === "unchecked") && !j.signature_issue_resolved,
       );
-      if (bad.length === 0) continue;
-      lines.push(`${label} (${bad.length})`, ...capped(bad.map((j) => `   - ${j.jobsheet_no?.trim() || j.job_no} / ${j.customer_name ?? "?"}`)));
+      if (bad.length) s.perBranch[value] = { summary: `${bad.length} jobsheets`, items: capped(bad.map((j) => `   - ${j.jobsheet_no?.trim() || j.job_no} / ${j.customer_name ?? "?"}`)) };
     }
-    if (lines.length) sections.push(`✍️ Jobsheet signature not confirmed\n${lines.join("\n")}`);
+    sections.push(s);
   }
 
   // 4) GenBlu points uploaded twice (same member, time and points) in the last 2 days.
   {
+    const s: Section = { title: "♻️ GenBlu points uploaded twice (check the tracker isn't double-counting)", perBranch: {} };
     const groups = new Map<string, typeof txRows>();
     for (const t of txRows) {
       const k = [t.membership_number, t.transaction_date, t.transaction_time, t.points].join("|");
@@ -133,16 +139,41 @@ export async function buildAfterSalesAlerts(dateOverride?: string): Promise<{ se
     }
     const cutoff = `${addDays(today, -2)}T00:00:00`;
     const dups = [...groups.values()].filter((g) => g.length > 1 && g.some((t) => String(t.created_at) >= cutoff));
-    if (dups.length) {
-      const lines = dups.map(
-        (g) => `   - ${branchName(g[0].branch)}: ${g[0].customer_name} - ${g[0].points} pts on ${g[0].transaction_date} ${g[0].transaction_time ?? ""} (uploaded ${g.length}x)`,
-      );
-      sections.push(`♻️ GenBlu points uploaded twice (check the tracker isn't double-counting)\n${lines.join("\n")}`);
+    for (const { value } of BRANCHES) {
+      const mine = dups.filter((g) => g[0].branch === value);
+      if (mine.length) {
+        s.perBranch[value] = {
+          summary: `${mine.length} customers`,
+          items: mine.map((g) => `   - ${g[0].customer_name} - ${g[0].points} pts on ${g[0].transaction_date} ${g[0].transaction_time ?? ""} (uploaded ${g.length}x)`),
+        };
+      }
     }
+    sections.push(s);
   }
 
-  if (sections.length === 0) return { sections: 0, text: null };
-  let text = `🔔 After-Sales needs attention - ${today}\n\n${sections.join("\n\n")}`;
-  if (text.length > MAX_CHARS) text = text.slice(0, MAX_CHARS) + "\n...and more";
-  return { sections: sections.length, text };
+  const active = sections.filter((s) => Object.keys(s.perBranch).length > 0);
+  if (active.length === 0) return { sections: 0, messages: { combined: null, byBranch: {} } };
+
+  // Management: every branch, section by section.
+  const combinedBlocks = active.map((s) => {
+    const rows = BRANCHES.flatMap(({ value, label }) => {
+      const b = s.perBranch[value];
+      return b ? [`${label}: ${b.summary}`, ...b.items] : [];
+    });
+    return `${s.title}\n${rows.join("\n")}${s.footer ? `\n${s.footer}` : ""}`;
+  });
+  const combined = clip(`🔔 After-Sales needs attention - ${today}\n\n${combinedBlocks.join("\n\n")}`);
+
+  // Each branch: only its own sections.
+  const byBranch: Partial<Record<Branch, string>> = {};
+  for (const { value, label } of BRANCHES) {
+    const mine = active.filter((s) => s.perBranch[value]);
+    if (mine.length === 0) continue;
+    const blocks = mine.map((s) => {
+      const b = s.perBranch[value]!;
+      return `${s.title}\n${b.summary}\n${b.items.join("\n")}${s.footer ? `\n${s.footer}` : ""}`;
+    });
+    byBranch[value] = clip(`🔔 ${label} needs attention - ${today}\n\n${blocks.join("\n\n")}`);
+  }
+  return { sections: active.length, messages: { combined, byBranch } };
 }

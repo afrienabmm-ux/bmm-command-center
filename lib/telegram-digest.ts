@@ -1,8 +1,12 @@
 // The daily After-Sales summary posted to Telegram. Reads with the admin
 // client (no signed-in user — it runs from a scheduled job) and only reads:
 // it never changes any record.
+//
+// Each branch has its own Telegram group (TELEGRAM_CHAT_ID_KAPAR,
+// TELEGRAM_CHAT_ID_SETIA_ALAM, TELEGRAM_CHAT_ID_PUNCAK_ALAM) that only sees its
+// own branch. TELEGRAM_CHAT_ID is the management group and gets all branches.
 import { supabaseAdmin } from "./supabase-server";
-import { BRANCHES } from "./branch";
+import { BRANCHES, type Branch } from "./branch";
 import { classifyYamahaModel } from "./yamaha-model";
 import { getGenbluPlatePoints, getGenbluTxLite, jobGenbluPoints } from "./genblu-plates";
 import { todayInMalaysia } from "./malaysia-time";
@@ -23,7 +27,10 @@ type JobRow = {
   completed_date: string | null;
 };
 
-export async function buildAfterSalesDigest(dateOverride?: string): Promise<string> {
+/** Text for one message, per branch, plus the combined text for management. */
+export type BranchMessages = { combined: string | null; byBranch: Partial<Record<Branch, string>> };
+
+export async function buildAfterSalesDigest(dateOverride?: string): Promise<BranchMessages> {
   const today = todayInMalaysia();
   const day = dateOverride ?? addDays(today, -1); // the day being reported (yesterday by default)
   const monthStart = `${day.slice(0, 7)}-01`;
@@ -42,7 +49,8 @@ export async function buildAfterSalesDigest(dateOverride?: string): Promise<stri
   if (error) throw new Error(error.message);
   const jobs = (data ?? []) as JobRow[];
 
-  const lines: string[] = [`📊 After-Sales summary — ${day}`, ""];
+  const byBranch: Partial<Record<Branch, string>> = {};
+  const blocks: string[] = [];
   let allDay = 0;
   for (const { value, label } of BRANCHES) {
     const mine = jobs.filter((j) => j.branch === value);
@@ -58,7 +66,7 @@ export async function buildAfterSalesDigest(dateOverride?: string): Promise<stri
     const pct = monthYamaha > 0 ? Math.round((monthGb / monthYamaha) * 100) : 0;
     allDay += dayJobs.length;
 
-    lines.push(`${label}`);
+    const lines: string[] = [];
     lines.push(`• Jobs completed: ${dayJobs.length} (Yamaha ${dayYamaha.length})`);
     lines.push(`• GenBlu on Yamaha this month: ${monthGb}/${monthYamaha} (${pct}%)`);
     if (dayNoGb.length > 0) {
@@ -68,16 +76,18 @@ export async function buildAfterSalesDigest(dateOverride?: string): Promise<stri
     } else if (dayYamaha.length > 0) {
       lines.push("• Every Yamaha job yesterday has GenBlu ✅");
     }
-    lines.push("");
+    byBranch[value] = `📊 ${label} summary — ${day}\n\n${lines.join("\n")}`;
+    blocks.push(`${label}\n${lines.join("\n")}`);
   }
-  if (allDay === 0) lines.push("No completed jobs were recorded for this day.");
-  return lines.join("\n").trim();
+  let combined = `📊 After-Sales summary — ${day}\n\n${blocks.join("\n\n")}`;
+  if (allDay === 0) combined += "\n\nNo completed jobs were recorded for this day.";
+  return { combined, byBranch };
 }
 
-export async function sendTelegram(text: string): Promise<{ ok: boolean; error?: string }> {
+export async function sendTelegram(text: string, chatIdOverride?: string): Promise<{ ok: boolean; error?: string }> {
   const token = process.env.TELEGRAM_BOT_TOKEN;
-  const chatId = process.env.TELEGRAM_CHAT_ID;
-  if (!token || !chatId) return { ok: false, error: "TELEGRAM_BOT_TOKEN or TELEGRAM_CHAT_ID is not set" };
+  const chatId = chatIdOverride ?? process.env.TELEGRAM_CHAT_ID;
+  if (!token || !chatId) return { ok: false, error: "TELEGRAM_BOT_TOKEN or the chat id is not set" };
   const res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -85,4 +95,34 @@ export async function sendTelegram(text: string): Promise<{ ok: boolean; error?:
   });
   if (!res.ok) return { ok: false, error: `Telegram said ${res.status}: ${(await res.text()).slice(0, 200)}` };
   return { ok: true };
+}
+
+/** The Telegram group for one branch, or undefined when it hasn't been set up yet. */
+export function branchChatId(branch: Branch): string | undefined {
+  return process.env[`TELEGRAM_CHAT_ID_${branch.toUpperCase()}`] || undefined;
+}
+
+/**
+ * Sends each branch its own message to its own group, and the combined message
+ * to the management group. A branch with no group set is skipped (reported),
+ * never sent to someone else's group.
+ */
+export async function sendToGroups(m: BranchMessages): Promise<Record<string, string>> {
+  const result: Record<string, string> = {};
+  if (m.combined) {
+    const r = await sendTelegram(m.combined);
+    result.management = r.ok ? "sent" : r.error ?? "failed";
+  }
+  for (const { value } of BRANCHES) {
+    const text = m.byBranch[value];
+    if (!text) continue;
+    const chat = branchChatId(value);
+    if (!chat) {
+      result[value] = "no group set";
+      continue;
+    }
+    const r = await sendTelegram(text, chat);
+    result[value] = r.ok ? "sent" : r.error ?? "failed";
+  }
+  return result;
 }
