@@ -72,3 +72,21 @@ export function matchGenbluPoints(txs: GenbluTxLite[], customerName: string, rev
   }
   return best ? best.points : null;
 }
+
+// The one place that decides whether a job has GenBlu (and its points) —
+// shared by the Jobsheet/reports and the daily Telegram summary so they can
+// never disagree. The plate finds the customer's registration even when the
+// jobsheet name and the GenBlu-side name don't line up; the registration's
+// own points are the fallback when they equal the job's cost.
+export function jobGenbluPoints(
+  plates: Map<string, GenbluPlateInfo>,
+  txs: GenbluTxLite[],
+  job: { customerName: string; plateNo: string; cost: number; date: string | null },
+): number | null {
+  const reg = plates.get(normalizePlate(job.plateNo ?? ""));
+  const fromTx =
+    matchGenbluPoints(txs, job.customerName ?? "", job.cost, job.date) ??
+    (reg ? matchGenbluPoints(txs, reg.name, job.cost, job.date) : null);
+  if (fromTx !== null) return fromTx;
+  return reg !== undefined && (reg.points === Math.floor(job.cost) || reg.points === Math.round(job.cost)) ? reg.points : null;
+}
