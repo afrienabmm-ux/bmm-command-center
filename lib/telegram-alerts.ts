@@ -11,9 +11,6 @@ import { checkCustomerCode } from "./customer-code";
 import { todayInMalaysia } from "./malaysia-time";
 import type { BranchMessages } from "./telegram-digest";
 
-const MAX_PER_BRANCH = 8;
-const MAX_CHARS = 3900;
-
 function addDays(iso: string, n: number): string {
   return new Date(Date.parse(`${iso}T00:00:00Z`) + n * 86400000).toISOString().slice(0, 10);
 }
@@ -43,16 +40,8 @@ function masked(v: string | null): string {
   return t.length <= 3 ? "***" : `${"*".repeat(Math.min(t.length - 3, 9))}${t.slice(-3)} (${t.replace(/[\s-]/g, "").length} chars)`;
 }
 
-function capped(lines: string[]): string[] {
-  const out = lines.slice(0, MAX_PER_BRANCH);
-  if (lines.length > out.length) out.push(`   ...and ${lines.length - out.length} more`);
-  return out;
-}
-
 // One section of the message, broken down by branch.
 type Section = { title: string; footer?: string; perBranch: Partial<Record<Branch, { summary: string; items: string[] }>> };
-
-const clip = (t: string) => (t.length > MAX_CHARS ? t.slice(0, MAX_CHARS) + "\n...and more" : t);
 
 export async function buildAfterSalesAlerts(dateOverride?: string): Promise<{ sections: number; messages: BranchMessages }> {
   const today = dateOverride ?? todayInMalaysia();
@@ -96,7 +85,7 @@ export async function buildAfterSalesAlerts(dateOverride?: string): Promise<{ se
           classifyYamahaModel(j.model ?? "") === "yamaha" &&
           jobGenbluPoints(plates, txs, { customerName: j.customer_name ?? "", plateNo: j.plate_no ?? "", cost: Number(j.revenue_amount), date: j.completed_date }) === null,
       );
-      if (miss.length) s.perBranch[value] = { summary: `${miss.length} customers`, items: capped(miss.map((j) => `   - ${j.customer_name ?? "?"} / ${j.plate_no ?? "-"}`)) };
+      if (miss.length) s.perBranch[value] = { summary: `${miss.length} customers`, items: miss.map((j) => `   - ${j.customer_name ?? "?"} / ${j.plate_no ?? "-"}`) };
     }
     sections.push(s);
   }
@@ -111,7 +100,7 @@ export async function buildAfterSalesAlerts(dateOverride?: string): Promise<{ se
       const fresh = mine.filter((j) => (j.started_date ?? j.created_at.slice(0, 10)) >= sinceNew);
       s.perBranch[value] = {
         summary: `${fresh.length} new, ${mine.length} unfixed this month`,
-        items: capped(fresh.map((j) => `   - ${j.jobsheet_no?.trim() || j.job_no} / ${j.customer_name ?? "?"}   : ${masked(j.customer_code)}`)),
+        items: fresh.map((j) => `   - ${j.jobsheet_no?.trim() || j.job_no} / ${j.customer_name ?? "?"}   : ${masked(j.customer_code)}`),
       };
     }
     sections.push(s);
@@ -124,7 +113,7 @@ export async function buildAfterSalesAlerts(dateOverride?: string): Promise<{ se
       const bad = jobs.filter(
         (j) => j.branch === value && (j.signature_status === "not_detected" || j.signature_status === "unchecked") && !j.signature_issue_resolved,
       );
-      if (bad.length) s.perBranch[value] = { summary: `${bad.length} jobsheets`, items: capped(bad.map((j) => `   - ${j.jobsheet_no?.trim() || j.job_no} / ${j.customer_name ?? "?"}`)) };
+      if (bad.length) s.perBranch[value] = { summary: `${bad.length} jobsheets`, items: bad.map((j) => `   - ${j.jobsheet_no?.trim() || j.job_no} / ${j.customer_name ?? "?"}`) };
     }
     sections.push(s);
   }
@@ -162,7 +151,7 @@ export async function buildAfterSalesAlerts(dateOverride?: string): Promise<{ se
     });
     return `${s.title}\n${rows.join("\n")}${s.footer ? `\n${s.footer}` : ""}`;
   });
-  const combined = clip(`🔔 After-Sales needs attention - ${today}\n\n${combinedBlocks.join("\n\n")}`);
+  const combined = `🔔 After-Sales needs attention - ${today}\n\n${combinedBlocks.join("\n\n")}`;
 
   // Each branch: only its own sections.
   const byBranch: Partial<Record<Branch, string>> = {};
@@ -173,7 +162,7 @@ export async function buildAfterSalesAlerts(dateOverride?: string): Promise<{ se
       const b = s.perBranch[value]!;
       return `${s.title}\n${b.summary}\n${b.items.join("\n")}${s.footer ? `\n${s.footer}` : ""}`;
     });
-    byBranch[value] = clip(`🔔 ${label} needs attention - ${today}\n\n${blocks.join("\n\n")}`);
+    byBranch[value] = `🔔 ${label} needs attention - ${today}\n\n${blocks.join("\n\n")}`;
   }
   return { sections: active.length, messages: { combined, byBranch } };
 }

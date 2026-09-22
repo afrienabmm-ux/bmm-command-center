@@ -11,8 +11,6 @@ import { classifyYamahaModel } from "./yamaha-model";
 import { getGenbluPlatePoints, getGenbluTxLite, jobGenbluPoints } from "./genblu-plates";
 import { todayInMalaysia } from "./malaysia-time";
 
-const MAX_LISTED = 8;
-
 function addDays(iso: string, n: number): string {
   return new Date(Date.parse(`${iso}T00:00:00Z`) + n * 86400000).toISOString().slice(0, 10);
 }
@@ -71,8 +69,7 @@ export async function buildAfterSalesDigest(dateOverride?: string): Promise<Bran
     lines.push(`• GenBlu on Yamaha this month: ${monthGb}/${monthYamaha} (${pct}%)`);
     if (dayNoGb.length > 0) {
       lines.push(`• No GenBlu yesterday (${dayNoGb.length}):`);
-      for (const j of dayNoGb.slice(0, MAX_LISTED)) lines.push(`   - ${j.customer_name ?? "?"} · ${j.plate_no ?? "-"}`);
-      if (dayNoGb.length > MAX_LISTED) lines.push(`   … and ${dayNoGb.length - MAX_LISTED} more`);
+      for (const j of dayNoGb) lines.push(`   - ${j.customer_name ?? "?"} · ${j.plate_no ?? "-"}`);
     } else if (dayYamaha.length > 0) {
       lines.push("• Every Yamaha job yesterday has GenBlu ✅");
     }
@@ -84,16 +81,49 @@ export async function buildAfterSalesDigest(dateOverride?: string): Promise<Bran
   return { combined, byBranch };
 }
 
-export async function sendTelegram(text: string, chatIdOverride?: string): Promise<{ ok: boolean; error?: string }> {
-  const token = process.env.TELEGRAM_BOT_TOKEN;
-  const chatId = chatIdOverride ?? process.env.TELEGRAM_CHAT_ID;
-  if (!token || !chatId) return { ok: false, error: "TELEGRAM_BOT_TOKEN or the chat id is not set" };
+// Telegram rejects any single message over 4096 characters — it doesn't
+// truncate it for you, the send just fails. A list with every name can run
+// well past that, so a long message is split into several, breaking only at
+// line breaks so a name is never cut in half. Nothing relies on a person
+// tapping "Show more".
+const TELEGRAM_LIMIT = 3800;
+
+export function splitForTelegram(text: string): string[] {
+  if (text.length <= TELEGRAM_LIMIT) return [text];
+  const lines = text.split("\n");
+  const parts: string[] = [];
+  let current = "";
+  for (const line of lines) {
+    if (current && current.length + line.length + 1 > TELEGRAM_LIMIT) {
+      parts.push(current);
+      current = line;
+    } else {
+      current = current ? `${current}\n${line}` : line;
+    }
+  }
+  if (current) parts.push(current);
+  return parts.length > 1 ? parts.map((p, i) => `${p}\n\n(part ${i + 1}/${parts.length})`) : parts;
+}
+
+async function sendOne(token: string, chatId: string, text: string): Promise<{ ok: boolean; error?: string }> {
   const res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ chat_id: chatId, text }),
   });
   if (!res.ok) return { ok: false, error: `Telegram said ${res.status}: ${(await res.text()).slice(0, 200)}` };
+  return { ok: true };
+}
+
+/** Sends the full text, split into several messages if it's too long for one. */
+export async function sendTelegram(text: string, chatIdOverride?: string): Promise<{ ok: boolean; error?: string }> {
+  const token = process.env.TELEGRAM_BOT_TOKEN;
+  const chatId = chatIdOverride ?? process.env.TELEGRAM_CHAT_ID;
+  if (!token || !chatId) return { ok: false, error: "TELEGRAM_BOT_TOKEN or the chat id is not set" };
+  for (const part of splitForTelegram(text)) {
+    const r = await sendOne(token, chatId, part);
+    if (!r.ok) return r;
+  }
   return { ok: true };
 }
 
