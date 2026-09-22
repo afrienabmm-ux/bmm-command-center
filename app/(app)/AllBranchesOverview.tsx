@@ -6,7 +6,7 @@ import StatCard from "@/components/StatCard";
 import CombinedTargetEditor from "./CombinedTargetEditor";
 import BranchBreakdownTable, { getBranchBreakdown, getAllBranchesAchievedTotal } from "./BranchBreakdownTable";
 import MonthlyTrends from "./MonthlyTrends";
-import { getUpcomingServiceReminders, getSuspiciousWalkInJobs } from "@/lib/repairs-actions";
+import { getSuspiciousWalkInJobs } from "@/lib/repairs-actions";
 import { getBranchMonthSummary, getBranchPerformance } from "@/lib/reports-actions";
 import { getMonthlyTrends } from "@/lib/trends-actions";
 import { getRevenuePace } from "@/lib/revenue-pace-actions";
@@ -23,7 +23,6 @@ import TodaysJobCheck from "./TodaysJobCheck";
 import PackageBreakdownCharts from "./PackageBreakdownCharts";
 import ClaimStatusPieCard from "./ClaimStatusPieCard";
 import BranchMechanicLeaderboard from "./BranchMechanicLeaderboard";
-import ServiceReminderBanner from "./ServiceReminderBanner";
 import SuspiciousJobsBanner from "./SuspiciousJobsBanner";
 
 // Rolls (year, month) back one month, correctly crossing a year boundary.
@@ -56,7 +55,6 @@ export default async function AllBranchesOverview({
   // dashboard lag before.
   const [
     rows,
-    serviceReminders,
     suspiciousJobs,
     prevAchieved,
     trendPoints,
@@ -69,10 +67,6 @@ export default async function AllBranchesOverview({
     branchMechanicRows,
   ] = await Promise.all([
     getBranchBreakdown(year, month),
-    // Only ever rendered for Management (see the isManagement && gate
-    // below) — skipping the query entirely for everyone else saves a real
-    // database round-trip on every dashboard load, not just a hidden render.
-    isManagement ? getUpcomingServiceReminders(onlyBranch) : Promise.resolve([]),
     showSuspiciousJobs ? getSuspiciousWalkInJobs(onlyBranch) : Promise.resolve([]),
     onlyBranch
       ? getBranchMonthSummary(onlyBranch, prev.year, prev.month).then((s) => s.achievedAmount)
@@ -167,8 +161,6 @@ export default async function AllBranchesOverview({
 
       {/* Alerts — anything that needs action or a heads-up, most urgent first. */}
       {showSuspiciousJobs && <SuspiciousJobsBanner jobs={suspiciousJobs} showBranch={!onlyBranch} />}
-
-      {isManagement && <ServiceReminderBanner reminders={serviceReminders} />}
 
       {isManagement && (
         <TodaysJobCheck rows={mechanicCommitment.rows} />

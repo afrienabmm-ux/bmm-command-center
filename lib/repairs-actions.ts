@@ -296,54 +296,6 @@ export async function getRepairJobById(id: string): Promise<RepairJob | null> {
   return data ? toJob(data as unknown as Row, genbluPlates, genbluTxs) : null;
 }
 
-export type ServiceReminder = {
-  id: string;
-  branch: Branch;
-  customerName: string;
-  customerPhone: string;
-  plateNo: string;
-  model: string;
-  nextServiceDate: string;
-  daysUntil: number;
-};
-
-// Walk-in customers whose next service date (from the jobsheet) is within
-// 7 days — including ones already past due, so the branch still sees them
-// until a new jobsheet is filled in with a fresh date. Not tied to job
-// status, since Walk-in jobs go straight to Completed on creation.
-export async function getUpcomingServiceReminders(onlyBranch?: Branch): Promise<ServiceReminder[]> {
-  await requireApproved();
-  const branches = onlyBranch ? [onlyBranch] : BRANCHES.map((b) => b.value);
-  const { data, error } = await supabaseAdmin
-    .from("cc_repair_jobs")
-    .select("id, branch, customer_name, customer_phone, plate_no, model, next_service_date")
-    .eq("job_type", "Walk-in")
-    .in("branch", branches)
-    .neq("next_service_date", "");
-  if (error) throw new Error(error.message);
-
-  const today = todayInMalaysia();
-
-  return (data ?? [])
-    .map((r) => {
-      const nextServiceDate = r.next_service_date as string;
-      return {
-        id: r.id as string,
-        branch: r.branch as Branch,
-        customerName: r.customer_name as string,
-        customerPhone: r.customer_phone as string,
-        plateNo: r.plate_no as string,
-        model: r.model as string,
-        nextServiceDate,
-        // Negative once the service is overdue — those stay in the list
-        // (they need chasing most), which the <= 7 cutoff below preserves.
-        daysUntil: daysSinceInMalaysia(today, nextServiceDate),
-      };
-    })
-    .filter((j) => Number.isFinite(Date.parse(`${j.nextServiceDate.slice(0, 10)}T00:00:00Z`)) && j.daysUntil <= 7)
-    .sort((a, b) => a.daysUntil - b.daysUntil);
-}
-
 export type SuspiciousJob = {
   id: string;
   branch: Branch;
