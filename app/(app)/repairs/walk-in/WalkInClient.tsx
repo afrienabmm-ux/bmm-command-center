@@ -893,37 +893,51 @@ function ExportJobModal({
 // Status is no longer a manual choice here — it just follows the End Date
 // stamp (see EndDateCell), so this is read-only.
 // Flags when a job was saved despite the scan not finding a signature —
-// staff can still tick "Customer has signed" by hand, but this makes that
-// override visible on the job afterward instead of forgotten once the
-// form closes.
+// staff can still tick "has signed" by hand, but this makes that override
+// visible on the job afterward instead of forgotten once the form closes.
+// Customer and PIC are checked and shown independently, since either can
+// be missing on its own.
+function SignatureBadge({ who, status, resolved }: { who: string; status: string; resolved: boolean }) {
+  if (resolved) return null;
+  if (status === "not_detected") {
+    return (
+      <span
+        title={`Scan found no ${who} signature, but staff confirmed it was signed anyway`}
+        className="text-[10px] font-medium px-2 py-0.5 rounded-full border bg-red-500/10 text-red-700 border-red-500/20"
+      >
+        No {who} sign
+      </span>
+    );
+  }
+  if (status === "unchecked") {
+    return (
+      <span
+        title={`Scan couldn't check for a ${who} signature — staff confirmed by hand`}
+        className="text-[10px] font-medium px-2 py-0.5 rounded-full border bg-neutral-100 text-neutral-500 border-neutral-200"
+      >
+        {who[0].toUpperCase() + who.slice(1)} sign unchecked
+      </span>
+    );
+  }
+  return null;
+}
+
 function StatusCell({
   status,
   signatureStatus,
+  picSignatureStatus,
   signatureIssueResolved,
 }: {
   status: RepairStatus;
   signatureStatus: string;
+  picSignatureStatus: string;
   signatureIssueResolved: boolean;
 }) {
   return (
     <div className="flex flex-col gap-1 items-center">
       <span className={`text-xs font-medium px-2.5 py-1 rounded-full border ${STATUS_STYLES[status]}`}>{status}</span>
-      {signatureStatus === "not_detected" && !signatureIssueResolved && (
-        <span
-          title="Scan found no signature, but staff confirmed it was signed anyway"
-          className="text-[10px] font-medium px-2 py-0.5 rounded-full border bg-red-500/10 text-red-700 border-red-500/20"
-        >
-          No sign detected
-        </span>
-      )}
-      {signatureStatus === "unchecked" && !signatureIssueResolved && (
-        <span
-          title="Scan couldn't check for a signature — staff confirmed by hand"
-          className="text-[10px] font-medium px-2 py-0.5 rounded-full border bg-neutral-100 text-neutral-500 border-neutral-200"
-        >
-          Sign unchecked
-        </span>
-      )}
+      <SignatureBadge who="customer" status={signatureStatus} resolved={signatureIssueResolved} />
+      <SignatureBadge who="PIC" status={picSignatureStatus} resolved={signatureIssueResolved} />
     </div>
   );
 }
@@ -1003,8 +1017,9 @@ function WalkInRow({
   const [deleting, setDeleting] = useState(false);
   const [photoPending, setPhotoPending] = useState(false);
   const [resolving, setResolving] = useState(false);
+  const missingSignature = (s: string) => s === "not_detected" || s === "unchecked";
   const isSignatureError =
-    (job.signatureStatus === "not_detected" || job.signatureStatus === "unchecked") && !job.signatureIssueResolved;
+    (missingSignature(job.signatureStatus) || missingSignature(job.picSignatureStatus)) && !job.signatureIssueResolved;
 
   function handleResolveSignature() {
     setResolving(true);
@@ -1127,7 +1142,12 @@ function WalkInRow({
         {job.nextServiceDate ? formatDate(job.nextServiceDate) : "—"}
       </td>
       <td className="px-5 py-3.5 text-center">
-        <StatusCell status={job.status} signatureStatus={job.signatureStatus} signatureIssueResolved={job.signatureIssueResolved} />
+        <StatusCell
+          status={job.status}
+          signatureStatus={job.signatureStatus}
+          picSignatureStatus={job.picSignatureStatus}
+          signatureIssueResolved={job.signatureIssueResolved}
+        />
       </td>
       <td className="px-5 py-3.5">
         <div className="flex items-center gap-1">
@@ -1139,7 +1159,7 @@ function WalkInRow({
               }}
               disabled={resolving}
               className="flex items-center gap-1 text-xs font-medium text-emerald-700 bg-emerald-500/10 border border-emerald-500/20 hover:bg-emerald-500/20 disabled:opacity-50 px-2 py-1 rounded-lg transition-colors whitespace-nowrap"
-              title="Confirm the photo actually shows a customer signature"
+              title="Confirm the photo actually shows both signatures"
             >
               <Check size={12} /> {resolving ? "Confirming…" : "Confirm Signed"}
             </button>

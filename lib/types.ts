@@ -180,9 +180,14 @@ export type RepairJob = {
   // "not_detected" (scan ran, found nothing, but staff confirmed anyway),
   // "unchecked" (scan couldn't tell), or "" (no scan — manual entry).
   signatureStatus: string;
+  // Same scan, for the "Authorised Signature" (branch/PIC) line instead
+  // of the customer's — independent of signatureStatus, since a job can
+  // be missing either one on its own.
+  picSignatureStatus: string;
   // Manually cleared by Management after checking the actual jobsheet
-  // photo — a "not_detected" job stays flagged in the Errors tab until
-  // this is set, regardless of how many times the job itself is edited.
+  // photo — a "not_detected" job (either signature) stays flagged in the
+  // Errors tab until this is set, regardless of how many times the job
+  // itself is edited.
   signatureIssueResolved: boolean;
   // Walk-in only — the original photo of the paper jobsheet, uploaded
   // through Scan Jobsheet. Kept so a manager can look at the real thing

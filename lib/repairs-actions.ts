@@ -83,6 +83,7 @@ type Row = {
   qc_fail_reason: string | null;
   qc_fail_followup_date: string | null;
   signature_status: string;
+  pic_signature_status: string;
   signature_issue_resolved: boolean;
   jobsheet_photo_path: string | null;
   remark: string;
@@ -153,6 +154,7 @@ function toJob(r: Row, genbluPlates: Map<string, GenbluPlateInfo>, genbluTxs: Ge
     qcFailReason: r.qc_fail_reason,
     qcFailFollowupDate: r.qc_fail_followup_date,
     signatureStatus: r.signature_status,
+    picSignatureStatus: r.pic_signature_status,
     signatureIssueResolved: r.signature_issue_resolved,
     jobsheetPhotoPath: r.jobsheet_photo_path,
     remark: r.remark,
@@ -486,6 +488,7 @@ export async function addRepairJobAction(input: {
   // quotation being done, no separate click needed.
   quotationDate?: string | null;
   signatureStatus?: string;
+  picSignatureStatus?: string;
   jobsheetPhotoPath?: string | null;
 }): Promise<{ error: string } | { id: string }> {
   const user = await requireApproved();
@@ -557,6 +560,7 @@ export async function addRepairJobAction(input: {
       jobsheet_user_id: input.jobsheetUserId ?? "",
       quotation_date: input.quotationDate ?? null,
       signature_status: input.signatureStatus ?? "",
+      pic_signature_status: input.picSignatureStatus ?? "",
       jobsheet_photo_path: input.jobsheetPhotoPath ?? null,
     })
     .select("id")
@@ -669,6 +673,7 @@ export async function updateRepairJobAction(
     // this column.
     quotationDate?: string | null;
     signatureStatus?: string;
+    picSignatureStatus?: string;
     jobsheetPhotoPath?: string | null;
   }
 ): Promise<{ error: string } | void> {
@@ -734,6 +739,7 @@ export async function updateRepairJobAction(
   }
   if (input.quotationDate !== undefined) update.quotation_date = input.quotationDate;
   if (input.signatureStatus !== undefined) update.signature_status = input.signatureStatus;
+  if (input.picSignatureStatus !== undefined) update.pic_signature_status = input.picSignatureStatus;
   // A re-scan on an existing job replaces the saved photo with the new
   // one; leaving it untouched (undefined) when the form wasn't re-scanned
   // is what keeps a job's original photo from being wiped out on every

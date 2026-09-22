@@ -28,6 +28,7 @@ type Job = {
   customer_code: string | null;
   job_type: string | null;
   signature_status: string | null;
+  pic_signature_status: string | null;
   signature_issue_resolved: boolean | null;
   created_at: string;
 };
@@ -54,7 +55,7 @@ export async function buildAfterSalesAlerts(dateOverride?: string): Promise<{ se
   const [jobsRes, plates, txs, txRes] = await Promise.all([
     supabaseAdmin
       .from("cc_repair_jobs")
-      .select("branch, job_no, jobsheet_no, customer_name, plate_no, model, revenue_amount, started_date, completed_date, customer_code, job_type, signature_status, signature_issue_resolved, created_at")
+      .select("branch, job_no, jobsheet_no, customer_name, plate_no, model, revenue_amount, started_date, completed_date, customer_code, job_type, signature_status, pic_signature_status, signature_issue_resolved, created_at")
       .gte("started_date", monthStart)
       .limit(5000),
     getGenbluPlatePoints(),
@@ -106,14 +107,23 @@ export async function buildAfterSalesAlerts(dateOverride?: string): Promise<{ se
     sections.push(s);
   }
 
-  // 3) Signature problems still open.
+  // 3) Signature problems still open — either the customer's or the PIC's.
   {
     const s: Section = { title: "✍️ Jobsheet signature not confirmed", perBranch: {} };
+    const missing = (v: string | null) => v === "not_detected" || v === "unchecked";
     for (const { value } of BRANCHES) {
       const bad = jobs.filter(
-        (j) => j.branch === value && (j.signature_status === "not_detected" || j.signature_status === "unchecked") && !j.signature_issue_resolved,
+        (j) => j.branch === value && (missing(j.signature_status) || missing(j.pic_signature_status)) && !j.signature_issue_resolved,
       );
-      if (bad.length) s.perBranch[value] = { summary: `${bad.length} jobsheets`, items: bad.map((j) => `   - ${j.jobsheet_no?.trim() || j.job_no} / ${j.customer_name ?? "?"}`) };
+      if (bad.length) {
+        s.perBranch[value] = {
+          summary: `${bad.length} jobsheets`,
+          items: bad.map((j) => {
+            const who = [missing(j.signature_status) && "customer", missing(j.pic_signature_status) && "PIC"].filter(Boolean).join(" + ");
+            return `   - ${j.jobsheet_no?.trim() || j.job_no} / ${j.customer_name ?? "?"} (${who})`;
+          }),
+        };
+      }
     }
     sections.push(s);
   }

@@ -376,27 +376,26 @@ function looksLikeWord(raw: string, canonical: string): boolean {
   return levenshtein(normalized, canonical) <= threshold;
 }
 
-// The jobsheet has two signature lines — "Authorised Signature" (staff)
-// and "Customer Signature" — and only the customer's matters here.
-// Anchoring on any word containing "signature" risked landing on the
-// Authorised one instead, which on this form sits right next to dense
-// printed text ("This Is Computer Generated Document / No Signature Is
-// Required") that reads as pen-stroke texture to the ink check below — a
-// real scan came back "detected" on a completely blank customer box for
-// exactly that reason. Requiring a "Customer" word immediately to the
-// left, on the same line, is how the two get told apart — matched
-// loosely so a slightly misread "Customer" doesn't make the whole check
-// come back empty-handed.
-function findCustomerSignatureLabel(words: PositionedWord[]): PositionedWord | null {
-  const customerWords = words.filter((w) => looksLikeWord(w.text, "customer"));
+// The jobsheet has two signature lines — "Authorised Signature" (the
+// branch/PIC's) and "Customer Signature" — both are checked, each found
+// the same way: a prefix word ("customer" or "authorised") immediately
+// to the left of "Signature", on the same line. Requiring the prefix
+// word is how the two get told apart — anchoring on any word containing
+// "signature" alone previously risked landing on the wrong one, since a
+// real scan once came back "detected" on a completely blank customer box
+// after doing exactly that. Matched loosely (looksLikeWord) so a
+// slightly misread prefix doesn't make the whole check come back
+// empty-handed.
+function findSignatureLabel(words: PositionedWord[], prefix: string): PositionedWord | null {
+  const prefixWords = words.filter((w) => looksLikeWord(w.text, prefix));
   let best: PositionedWord | null = null;
   let bestDist = Infinity;
-  for (const cust of customerWords) {
+  for (const p of prefixWords) {
     for (const w of words) {
       if (!looksLikeWord(w.text, "signature")) continue;
-      if (w.x < cust.x) continue;
-      if (Math.abs(w.yCenter - cust.yCenter) > cust.height * 0.8) continue;
-      const dist = w.x - cust.x;
+      if (w.x < p.x) continue;
+      if (Math.abs(w.yCenter - p.yCenter) > p.height * 0.8) continue;
+      const dist = w.x - p.x;
       if (dist < bestDist) {
         bestDist = dist;
         best = w;
@@ -407,23 +406,19 @@ function findCustomerSignatureLabel(words: PositionedWord[]): PositionedWord | n
 }
 
 // Best-effort check for a customer signature on a scanned jobsheet: finds
-// the "Customer Signature" label via OCR word positions, then looks for
-// actual pen-stroke texture near it — not just whether the printed label
-// itself was read (that's always there, signed or not), and not fooled by
-// a shadow across the page either. Checks a box both above and below the
-// label, since where the blank signature line sits relative to the label
-// varies by jobsheet template, and goes with whichever side scores
-// higher. Returns a null result when the label itself can't be found, or
-// neither region could be checked (different layout, bad crop, OCR miss)
-// — the caller should ask the PIC to confirm by hand in that case rather
-// than treating it as "not signed". Also returns the raw scores/threshold
-// as a debug string — this heuristic has been miscalibrated before, so
-// surfacing the actual numbers is how it gets fixed for real instead of
-// guessed at again.
-async function detectSignature(buffer: Buffer, words: PositionedWord[], imageWidth: number, imageHeight: number): Promise<SignatureCheck> {
-  const label = findCustomerSignatureLabel(words);
-  if (!label) return { result: null, debug: "no 'Customer Signature' label found by OCR" };
-
+// a signature label's own position (found by findSignatureLabel above),
+// then looks for actual pen-stroke texture near it — not just whether the
+// printed label itself was read (that's always there, signed or not), and
+// not fooled by a shadow across the page either. Checks a box both above
+// and below the label, since where the blank signature line sits relative
+// to the label varies by jobsheet template, and goes with whichever side
+// scores higher. Returns a null result when neither region could be
+// checked (different layout, bad crop, OCR miss) — the caller should ask
+// a human to confirm by hand in that case rather than treating it as "not
+// signed". Also returns the raw scores/threshold as a debug string — this
+// heuristic has been miscalibrated before, so surfacing the actual
+// numbers is how it gets fixed for real instead of guessed at again.
+async function detectSignature(label: PositionedWord, buffer: Buffer, words: PositionedWord[], imageWidth: number, imageHeight: number): Promise<SignatureCheck> {
   // Wide enough to cover writing that drifts either side of where the
   // label starts, clamped to the image so a label near an edge doesn't
   // overflow.
@@ -436,35 +431,57 @@ async function detectSignature(buffer: Buffer, words: PositionedWord[], imageWid
   // real one that came back "not detected" in production) leave several
   // times that much room for a full cursive signature. A fixed multiplier
   // can't fit both: too short misses a real signature on the tall-box
-  // template, too tall (previously 4x, uncapped) reaches into the
-  // defect-checklist grid some templates print just above the label and
-  // misreads its borders/text as ink on a blank line.
+  // template, too tall (previously 4x, uncapped) reaches into printed
+  // content some templates place close on either side — a defect-checklist
+  // grid above the customer box on some templates, and on the Authorised
+  // Signature box specifically, the printed "This Is Computer Generated
+  // Document / No Signature Is Required" disclaimer sitting just below
+  // it — and misreads its borders/text as ink on a blank line.
   //
-  // Fix: let the "above" region grow generously (up to 4x label height),
-  // but clamp it at whichever OCR word sits closest above, in roughly the
-  // same horizontal band — that's the actual printed content the box
-  // needs to stop before, on whichever template has one. No such word
-  // (plenty of templates don't) just means the full generous height is
-  // used.
-  const belowRegionHeight = Math.max(label.height * 1.5, 20);
-  const maxAboveHeight = label.height * 4;
+  // Fix: let both the "above" and "below" regions grow generously (up to
+  // 4x label height), but clamp each at whichever OCR word sits closest
+  // on that side, in roughly the same horizontal band — that's the actual
+  // printed content the box needs to stop before, on whichever template
+  // has one. No such word on a side (plenty of templates don't) just
+  // means the full generous height is used there.
+  const maxSideHeight = label.height * 4;
+  const sideMargin = label.height * 0.3;
+  const minSideHeight = 20;
+
+  function nearestWord(direction: "above" | "below"): PositionedWord | null {
+    return words.reduce<PositionedWord | null>((nearest, w) => {
+      if (w === label) return nearest;
+      if (w.x < left - label.height || w.x > left + boxWidth) return nearest;
+      if (direction === "above") {
+        const boundary = label.yCenter - label.height / 2;
+        const wordBottom = w.yCenter + w.height / 2;
+        if (wordBottom >= boundary) return nearest;
+        if (!nearest || wordBottom > nearest.yCenter + nearest.height / 2) return w;
+      } else {
+        const boundary = label.yCenter + label.height / 2;
+        const wordTop = w.yCenter - w.height / 2;
+        if (wordTop <= boundary) return nearest;
+        if (!nearest || wordTop < nearest.yCenter - nearest.height / 2) return w;
+      }
+      return nearest;
+    }, null);
+  }
+
   const aboveBottom = label.yCenter - label.height / 2;
-  const nearestWordAbove = words.reduce<PositionedWord | null>((nearest, w) => {
-    if (w === label) return nearest;
-    if (w.x < left - label.height || w.x > left + boxWidth) return nearest;
-    const wordBottom = w.yCenter + w.height / 2;
-    if (wordBottom >= aboveBottom) return nearest;
-    if (!nearest || wordBottom > nearest.yCenter + nearest.height / 2) return w;
-    return nearest;
-  }, null);
-  const aboveMargin = label.height * 0.3;
-  const aboveHeight = nearestWordAbove
-    ? Math.min(maxAboveHeight, aboveBottom - (nearestWordAbove.yCenter + nearestWordAbove.height / 2) - aboveMargin)
-    : maxAboveHeight;
+  const nearestAbove = nearestWord("above");
+  const aboveHeight = nearestAbove
+    ? Math.min(maxSideHeight, aboveBottom - (nearestAbove.yCenter + nearestAbove.height / 2) - sideMargin)
+    : maxSideHeight;
+
+  const belowTop = label.yCenter + label.height / 2;
+  const nearestBelow = nearestWord("below");
+  const belowHeight = nearestBelow
+    ? Math.min(maxSideHeight, nearestBelow.yCenter - nearestBelow.height / 2 - belowTop - sideMargin)
+    : Math.max(label.height * 1.5, minSideHeight);
 
   const candidates: { name: string; top: number; height: number }[] = [
-    { name: "above", top: aboveBottom - Math.max(aboveHeight, 20), height: Math.max(aboveHeight, 20) },
-    { name: "below", top: label.yCenter + label.height / 2, height: belowRegionHeight },
+    { name: "above", top: aboveBottom - Math.max(aboveHeight, minSideHeight), height: Math.max(aboveHeight, minSideHeight) },
+    { name: "below", top: belowTop, height: Math.max(belowHeight, minSideHeight) },
   ];
 
   // The "above" and "below" candidates don't depend on each other — scoring
@@ -492,16 +509,41 @@ async function detectSignature(buffer: Buffer, words: PositionedWord[], imageWid
     maxScore = Math.max(maxScore, score);
     checkedAny = true;
   }
-  const debug = `label@(${Math.round(label.x)},${Math.round(label.yCenter)}) box=${Math.round(boxWidth)}w above=${Math.round(candidates[0].height)}h below=${Math.round(belowRegionHeight)}h scores: ${scoreLog.join(", ")} threshold=${INK_RESIDUAL_THRESHOLD}`;
+  const debug = `label@(${Math.round(label.x)},${Math.round(label.yCenter)}) box=${Math.round(boxWidth)}w above=${Math.round(candidates[0].height)}h below=${Math.round(candidates[1].height)}h scores: ${scoreLog.join(", ")} threshold=${INK_RESIDUAL_THRESHOLD}`;
   if (!checkedAny) return { result: null, debug };
   return { result: maxScore > INK_RESIDUAL_THRESHOLD, debug };
 }
 
-export type JobsheetScanResult = { text: string; signatureDetected: boolean | null; signatureDebug: string };
+// Runs detectSignature for one named prefix ("customer" or "authorised"),
+// handling the "label not found at all" case that only applies once per
+// signature (detectSignature itself just checks pixels near a label it's
+// already been handed).
+async function detectSignatureFor(
+  prefix: string,
+  buffer: Buffer,
+  words: PositionedWord[],
+  imageWidth: number,
+  imageHeight: number
+): Promise<SignatureCheck> {
+  const label = findSignatureLabel(words, prefix);
+  if (!label) return { result: null, debug: `no '${prefix} signature' label found by OCR` };
+  return detectSignature(label, buffer, words, imageWidth, imageHeight);
+}
 
-// Same OCR pipeline as extractTextFromImage, plus a best-effort signature
-// check — kept separate so GenBlu screenshot scanning (which has no
-// signature box) doesn't pay for the extra image work.
+export type JobsheetScanResult = {
+  text: string;
+  signatureDetected: boolean | null;
+  signatureDebug: string;
+  // The "Authorised Signature" line — the branch/PIC's, not the
+  // customer's. Same best-effort ink check, kept as its own result since
+  // either line can be missing independently of the other.
+  picSignatureDetected: boolean | null;
+  picSignatureDebug: string;
+};
+
+// Same OCR pipeline as extractTextFromImage, plus a best-effort check of
+// both signature lines — kept separate so GenBlu screenshot scanning
+// (which has no signature box) doesn't pay for the extra image work.
 export async function scanJobsheetImage(base64Image: string): Promise<JobsheetScanResult> {
   const rawBuffer = Buffer.from(base64Image, "base64");
   let buffer: Buffer;
@@ -511,11 +553,23 @@ export async function scanJobsheetImage(base64Image: string): Promise<JobsheetSc
     buffer = rawBuffer;
   }
   const [{ text, words }, metadata] = await Promise.all([runOcr(buffer), sharp(buffer).metadata()]);
-  const signatureCheck: SignatureCheck =
+  const [customerCheck, picCheck]: [SignatureCheck, SignatureCheck] =
     metadata.width && metadata.height
-      ? await detectSignature(buffer, words, metadata.width, metadata.height)
-      : { result: null, debug: "image had no readable dimensions" };
-  return { text, signatureDetected: signatureCheck.result, signatureDebug: signatureCheck.debug };
+      ? await Promise.all([
+          detectSignatureFor("customer", buffer, words, metadata.width, metadata.height),
+          detectSignatureFor("authorised", buffer, words, metadata.width, metadata.height),
+        ])
+      : [
+          { result: null, debug: "image had no readable dimensions" },
+          { result: null, debug: "image had no readable dimensions" },
+        ];
+  return {
+    text,
+    signatureDetected: customerCheck.result,
+    signatureDebug: customerCheck.debug,
+    picSignatureDetected: picCheck.result,
+    picSignatureDebug: picCheck.debug,
+  };
 }
 
 // Renders a scanned PDF's first page to a real image, so it can go

@@ -42,6 +42,10 @@ export type ScannedJobsheet = {
   // troubleshooting panel so miscalibration can be diagnosed from a real
   // photo instead of guessed at.
   signatureDebug: string;
+  // Same best-effort check, for the "Authorised Signature" (branch/PIC)
+  // line instead of the customer's.
+  picSignatureDetected: boolean | null;
+  picSignatureDebug: string;
 };
 
 // The Sales No. field on this jobsheet actually has the customer's phone
@@ -563,6 +567,8 @@ function parseJobsheetText(text: string): ScannedJobsheet {
     rawText: text,
     signatureDetected: null,
     signatureDebug: "",
+    picSignatureDetected: null,
+    picSignatureDebug: "",
   };
 }
 
@@ -683,7 +689,7 @@ export async function scanJobsheet(
     // same OCR and ink-residual signature check as a phone photo, instead
     // of a separate PDF-only text pipeline with its own weaker,
     // text-based signature guess.
-    const { text, signatureDetected, signatureDebug } =
+    const { text, signatureDetected, signatureDebug, picSignatureDetected, picSignatureDebug } =
       mimeType === "application/pdf" ? await scanJobsheetPdf(base64File) : await scanJobsheetImage(base64File);
     if (!text.trim()) {
       return { error: "Couldn't read any text from that file — try a clearer, well-lit photo." };
@@ -706,7 +712,7 @@ export async function scanJobsheet(
     const { lookup, discounts } = await catalogLookupPromise;
     parsed.items = normalizeDiscountItems(parsed.items, discounts);
     parsed.items = applyCatalogData(parsed.items, lookup);
-    return { data: { ...parsed, signatureDetected, signatureDebug } };
+    return { data: { ...parsed, signatureDetected, signatureDebug, picSignatureDetected, picSignatureDebug } };
   } catch (err) {
     const message = err instanceof Error ? err.message : "";
     if (/deadline/i.test(message)) {
