@@ -9,6 +9,8 @@
 import { createHmac, timingSafeEqual } from "crypto";
 import { supabaseAdmin } from "@/lib/supabase-server";
 import { generateUniqueCardNumber } from "@/lib/card-number";
+import { normalizePlate } from "@/lib/plate";
+import { namesLikelyMatch } from "@/lib/name-matching";
 import type { Branch } from "@/lib/branch";
 
 export const runtime = "nodejs";
@@ -117,16 +119,27 @@ export async function POST(req: Request): Promise<Response> {
   if (customerPhone) {
     const { data: phoneMatch } = await supabaseAdmin
       .from("cc_customer_cards")
-      .select("id, card_number")
+      .select("id, card_number, customer_name, plate_no")
       .eq("customer_phone", customerPhone)
       .limit(1)
       .maybeSingle();
-    // A genuine conflict, not a retry of this same sale (that's the
-    // external_source_id check above) — this phone number already has a
-    // *different* card on file. Flagged as a real error rather than
-    // silently issuing a second card or silently dropping this one, since
-    // either would need a human to sort out which card is actually right.
     if (phoneMatch) {
+      // Same customer, same bike, already carded — most often because
+      // someone entered this exact sale by hand on the E-Service Card page
+      // before the Sales Dashboard's automatic push for it arrived. That's
+      // not a phone reused by a different person, so it's not flagged;
+      // their existing card number is simply handed back, the same as the
+      // external_source_id retry case above.
+      const sameCustomer =
+        namesLikelyMatch(body.customer_name, phoneMatch.customer_name) &&
+        normalizePlate(body.plate_no) === normalizePlate(phoneMatch.plate_no ?? "");
+      if (sameCustomer) {
+        return Response.json({ ok: true, duplicate: true, card_number: phoneMatch.card_number });
+      }
+      // A genuine conflict — this phone number already has a card under a
+      // different name/bike. Flagged as a real error rather than silently
+      // issuing a second card or silently dropping this one, since either
+      // would need a human to sort out which card is actually right.
       return Response.json(
         { error: `phone ${customerPhone} already has a services card (${phoneMatch.card_number})`, ok: false },
         { status: 409 }
