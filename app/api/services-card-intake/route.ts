@@ -115,33 +115,37 @@ export async function POST(req: Request): Promise<Response> {
     return Response.json({ ok: true, duplicate: true, card_number: existing.card_number });
   }
 
+  // A customer can hold more than one card — a repeat buyer's second bike
+  // is a real, legitimate second card under the same phone, not a clash —
+  // so every card on this phone is checked, not just the first found.
   const customerPhone = normalizePhone(body.customer_phone?.trim() ?? "");
   if (customerPhone) {
-    const { data: phoneMatch } = await supabaseAdmin
+    const { data: phoneMatches } = await supabaseAdmin
       .from("cc_customer_cards")
       .select("id, card_number, customer_name, plate_no")
-      .eq("customer_phone", customerPhone)
-      .limit(1)
-      .maybeSingle();
-    if (phoneMatch) {
-      // Same customer, same bike, already carded — most often because
-      // someone entered this exact sale by hand on the E-Service Card page
-      // before the Sales Dashboard's automatic push for it arrived. That's
-      // not a phone reused by a different person, so it's not flagged;
-      // their existing card number is simply handed back, the same as the
-      // external_source_id retry case above.
-      const sameCustomer =
-        namesLikelyMatch(body.customer_name, phoneMatch.customer_name) &&
-        normalizePlate(body.plate_no) === normalizePlate(phoneMatch.plate_no ?? "");
-      if (sameCustomer) {
-        return Response.json({ ok: true, duplicate: true, card_number: phoneMatch.card_number });
+      .eq("customer_phone", customerPhone);
+    const matches = phoneMatches ?? [];
+    const sameCustomerCard = matches.find((c) => namesLikelyMatch(body.customer_name, c.customer_name));
+    if (sameCustomerCard) {
+      const samePlate = normalizePlate(body.plate_no) === normalizePlate(sameCustomerCard.plate_no ?? "");
+      if (samePlate) {
+        // Same customer, same bike, already carded — most often because
+        // someone entered this exact sale by hand on the E-Service Card
+        // page before the Sales Dashboard's automatic push for it arrived.
+        // Their existing card number is simply handed back, the same as
+        // the external_source_id retry case above.
+        return Response.json({ ok: true, duplicate: true, card_number: sameCustomerCard.card_number });
       }
-      // A genuine conflict — this phone number already has a card under a
-      // different name/bike. Flagged as a real error rather than silently
-      // issuing a second card or silently dropping this one, since either
-      // would need a human to sort out which card is actually right.
+      // Same customer, a different bike — a genuine repeat sale. Falls
+      // through to issue them a second card of their own below.
+    } else if (matches.length > 0) {
+      // This phone already has a card, but under a name that doesn't
+      // match at all — most likely a typo in the phone number, not two
+      // different people who happen to share one. Flagged as a real error
+      // rather than silently issuing a card that could be under the wrong
+      // customer's number, since that needs a human to sort out.
       return Response.json(
-        { error: `phone ${customerPhone} already has a services card (${phoneMatch.card_number})`, ok: false },
+        { error: `phone ${customerPhone} already has a services card (${matches[0].card_number}) under a different name`, ok: false },
         { status: 409 }
       );
     }

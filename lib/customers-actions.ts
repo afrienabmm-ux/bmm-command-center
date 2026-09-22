@@ -7,6 +7,7 @@ import { BRANCHES, type Branch } from "./branch";
 import type { CustomerCard } from "./types";
 import { logActivity } from "./activity-log";
 import { generateUniqueCardNumber } from "./card-number";
+import { namesLikelyMatch } from "./name-matching";
 
 type CardRow = {
   id: string;
@@ -104,7 +105,7 @@ export async function addCustomerCardAction(input: {
   // instead of one after another — halves the DB round-trips before the
   // actual insert.
   const [dupError, cardNumber] = await Promise.all([
-    checkCustomerCardDuplicate(customerPhone),
+    checkCustomerCardDuplicate(customerPhone, customerName),
     generateUniqueCardNumber(input.branch),
   ]);
   if (dupError) return dupError;
@@ -132,17 +133,22 @@ export async function addCustomerCardAction(input: {
   return { cardNumber };
 }
 
-// Same phone uniqueness check the public /join sign-up enforces — staff
-// adding or editing a card here shouldn't be able to create a duplicate
-// either. excludeId leaves the card being edited out of its own duplicate
-// check.
-async function checkCustomerCardDuplicate(phone: string, excludeId?: string): Promise<{ error: string } | null> {
+// A repeat customer buying a second bike genuinely has a second card of
+// their own under the same phone — that's allowed. What's still blocked is
+// a phone number already carrying a DIFFERENT person's card, which is
+// almost always a typo, not two strangers sharing a number. excludeId
+// leaves the card being edited out of its own check. Same rule the public
+// /join sign-up and the Sales Dashboard's automatic intake both use.
+async function checkCustomerCardDuplicate(phone: string, customerName: string, excludeId?: string): Promise<{ error: string } | null> {
   if (!phone) return null;
-  let query = supabaseAdmin.from("cc_customer_cards").select("id").eq("customer_phone", phone).limit(1);
+  let query = supabaseAdmin.from("cc_customer_cards").select("id, customer_name, card_number").eq("customer_phone", phone);
   if (excludeId) query = query.neq("id", excludeId);
   const { data, error } = await query;
   if (error) return { error: error.message };
-  if (data && data.length > 0) return { error: "This phone number is already registered to another services card." };
+  const others = (data ?? []).filter((c) => !namesLikelyMatch(customerName, c.customer_name));
+  if (others.length > 0) {
+    return { error: `This phone number is already registered to another services card (${others[0].card_number}, under a different name).` };
+  }
   return null;
 }
 
@@ -180,7 +186,7 @@ export async function updateCustomerCardAction(
   }
   const customerPhone = input.customerPhone.trim();
 
-  const dupError = await checkCustomerCardDuplicate(customerPhone, id);
+  const dupError = await checkCustomerCardDuplicate(customerPhone, customerName, id);
   if (dupError) return dupError;
 
   const { error } = await supabaseAdmin

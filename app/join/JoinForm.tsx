@@ -3,7 +3,7 @@
 import { useEffect, useState, useTransition } from "react";
 import { useSearchParams } from "next/navigation";
 import { Search, Phone, Sparkles, Wrench, Loader2 } from "lucide-react";
-import { lookupCustomerCardAction, type MembershipLookup } from "@/lib/customer-registration-actions";
+import { lookupCustomerCardAction, type MembershipLookup, type LookupChoice } from "@/lib/customer-registration-actions";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { stampCardSize, rewardForStamp, nextReward } from "@/lib/membership";
 
@@ -131,6 +131,11 @@ export default function JoinForm() {
   const [phone, setPhone] = useState(() => searchParams.get("plate")?.trim() ?? "");
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<MembershipLookup | null>(null);
+  // Set when a phone number matches more than one card (a repeat customer
+  // with a second bike) — shown as a picker instead of a card until they
+  // pick which bike is theirs, then a second, unambiguous plate lookup
+  // resolves it to a single MembershipLookup same as any other search.
+  const [choices, setChoices] = useState<LookupChoice[] | null>(null);
   const [isPending, startTransition] = useTransition();
   // True only for the one automatic ?plate= lookup below, from the moment
   // it starts until it resolves — the search form/button's own "Looking
@@ -157,6 +162,15 @@ export default function JoinForm() {
           setAutoLookupInProgress(false);
           return;
         }
+        // A plate is always one specific bike, so this deep link never
+        // actually gets more than one match — "choices" is only possible
+        // from a phone-number search — but the type covers it, so it's
+        // handled the same way a manual lookup would.
+        if ("choices" in res) {
+          setChoices(res.choices);
+          setAutoLookupInProgress(false);
+          return;
+        }
         setResult(res);
         writeSession({ result: res });
         setAutoLookupInProgress(false);
@@ -171,12 +185,34 @@ export default function JoinForm() {
 
   function handleLookup() {
     setError(null);
+    setChoices(null);
     startTransition(async () => {
       const res = await lookupCustomerCardAction(phone);
       if ("error" in res) {
         setError(res.error);
         return;
       }
+      if ("choices" in res) {
+        setChoices(res.choices);
+        return;
+      }
+      setResult(res);
+      writeSession({ result: res });
+    });
+  }
+
+  // Picking a bike from the list re-runs the lookup by its plate number
+  // instead — a plate is unique to one card, so this always resolves to a
+  // single result, never back to the same picker.
+  function handlePickChoice(plateNo: string) {
+    setError(null);
+    startTransition(async () => {
+      const res = await lookupCustomerCardAction(plateNo);
+      if ("error" in res || "choices" in res) {
+        setError("error" in res ? res.error : "Something went wrong finding that card — please try again.");
+        return;
+      }
+      setChoices(null);
       setResult(res);
       writeSession({ result: res });
     });
@@ -185,6 +221,7 @@ export default function JoinForm() {
   function handleReset() {
     localStorage.removeItem(LOOKUP_STORAGE_KEY);
     setResult(null);
+    setChoices(null);
     setPhone("");
   }
 
@@ -193,6 +230,32 @@ export default function JoinForm() {
       <div className="flex flex-col items-center justify-center py-10">
         <Loader2 size={22} className="text-red-400 animate-spin" />
         <p className="text-xs text-neutral-400 mt-3">Finding your card…</p>
+      </div>
+    );
+  }
+
+  if (choices) {
+    return (
+      <div>
+        <h1 className="text-lg font-bold text-neutral-900 mb-1.5">Which bike is this?</h1>
+        <p className="text-xs text-neutral-500 mb-4">This phone number has more than one card — pick yours.</p>
+        <div className="space-y-2">
+          {choices.map((c) => (
+            <button
+              key={c.cardNumber}
+              onClick={() => handlePickChoice(c.plateNo)}
+              disabled={isPending}
+              className="w-full text-left bg-neutral-50 hover:bg-red-50 border border-neutral-200 hover:border-red-200 disabled:opacity-50 rounded-xl px-4 py-3 transition-colors"
+            >
+              <p className="text-sm font-semibold text-neutral-900 uppercase tracking-wide">{c.plateNo}</p>
+              <p className="text-xs text-neutral-500">{c.model || "—"} · Card {c.cardNumber}</p>
+            </button>
+          ))}
+        </div>
+        {error && <p className="text-sm text-red-700 mt-3">{error}</p>}
+        <button onClick={handleReset} className="text-[11px] font-medium text-neutral-500 hover:text-neutral-700 mt-4">
+          ← Search again
+        </button>
       </div>
     );
   }
