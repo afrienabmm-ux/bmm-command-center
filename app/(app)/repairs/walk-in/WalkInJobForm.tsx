@@ -86,10 +86,12 @@ const PACKAGE_ITEM_CODES: Record<string, { codes: string[]; discountName: string
   "Pakej Otai Santai": { codes: ["90793-AH426", "1S7-E3340-09", "90793AY80300"], discountName: "Package Otai Santai" },
   "Pakej Kita Rider": { codes: ["90793-AH424", "1S7-E3340-09", "90793AY80300"], discountName: "Package Kita Rider" },
   "Pakej Ride Sempoi": { codes: ["90793-AH425", "1S7-E3340-09", "90793AY80300"], discountName: "Package Ride Sempoi" },
-  "Rock Oil Guardian Plus Racing 15W-50": { codes: ["9O00000067", "1S7-E3340-09"], discountName: "Rock Oil Combo" },
-  "Rock Oil Guardian Plus Racing 10W-40": { codes: ["9O00000066", "1S7-E3340-09"], discountName: "Rock Oil Combo" },
-  "Rock Oil Guardian 10W-50 Semi Synthetic": { codes: ["9O00000017", "1S7-E3340-09"], discountName: "Rock Oil Combo (Semi Synthetic)" },
-  "Rock Oil Guardian 10W-40 Semi Synthetic": { codes: ["9O00000016", "1S7-E3340-09"], discountName: "Rock Oil Combo (Semi Synthetic)" },
+  // Renamed from their old "Rock Oil Guardian ..." names to plain
+  // "Package A/B/C/D" — this key must always match cc_packages.name exactly.
+  "Package A": { codes: ["9O00000067", "1S7-E3340-09"], discountName: "Rock Oil Combo" },
+  "Package B": { codes: ["9O00000066", "1S7-E3340-09"], discountName: "Rock Oil Combo" },
+  "Package C": { codes: ["9O00000017", "1S7-E3340-09"], discountName: "Rock Oil Combo (Semi Synthetic)" },
+  "Package D": { codes: ["9O00000016", "1S7-E3340-09"], discountName: "Rock Oil Combo (Semi Synthetic)" },
 };
 
 // A package with no mapping (a future/renamed combo not in the table
