@@ -116,7 +116,7 @@ export default function Sidebar({
         <div className="fixed inset-0 bg-black/30 z-40 md:hidden" onClick={onMobileClose} aria-hidden="true" />
       )}
       <aside
-        className={`${mobileOpen ? "fixed inset-y-0 left-0 z-50 flex" : "hidden md:flex"} flex-col md:relative md:z-auto w-64 ${
+        className={`${mobileOpen ? "fixed inset-y-0 left-0 z-50 flex" : "hidden md:flex"} flex-col md:sticky md:top-0 md:h-screen md:z-auto w-64 ${
           collapsed ? "md:w-16" : "md:w-64"
         } shrink-0 bg-neutral-50 border-r border-neutral-200 transition-[width] duration-200`}
       >
@@ -147,64 +147,6 @@ export default function Sidebar({
           >
             {collapsed ? <ChevronRight size={13} /> : <ChevronLeft size={13} />}
           </button>
-        </div>
-
-        <div ref={profileRef} className={`relative border-b border-neutral-200 ${visuallyCollapsed ? "px-3 md:px-2 py-3" : "px-3 py-3"}`}>
-          <button
-            type="button"
-            onClick={() => setProfileOpen((v) => !v)}
-            title={visuallyCollapsed ? name || email : undefined}
-            className={`w-full flex items-center rounded-lg transition-colors hover:bg-neutral-100 ${
-              visuallyCollapsed ? "md:justify-center gap-2.5 md:gap-0 px-2 py-1.5" : "gap-2.5 px-2 py-1.5"
-            }`}
-          >
-            <span className="w-8 h-8 rounded-full bg-red-500/10 text-red-700 text-xs font-semibold flex items-center justify-center shrink-0">
-              {initials(name, email)}
-            </span>
-            {!visuallyCollapsed && (
-              <>
-                <span className="min-w-0 flex-1 text-left leading-none">
-                  <p className="text-sm font-medium text-neutral-800 truncate">{name || email}</p>
-                  <p className="text-xs text-neutral-500 truncate mt-0.5">{positionTitle || role}</p>
-                </span>
-                <ChevronDown size={14} className={`text-neutral-400 shrink-0 transition-transform ${profileOpen ? "rotate-180" : ""}`} />
-              </>
-            )}
-          </button>
-
-          {profileOpen && (
-            <div
-              className={`absolute z-20 top-full mt-1 bg-white border border-neutral-200 rounded-xl shadow-lg py-2 ${
-                visuallyCollapsed ? "left-3 right-3 md:left-full md:right-auto md:ml-2 md:w-56" : "left-3 right-3"
-              }`}
-            >
-              <div className="px-3.5 py-2 border-b border-neutral-100">
-                <p className="text-sm font-medium text-neutral-800 truncate" title={email}>
-                  {name || email}
-                </p>
-                <p className="text-xs text-red-600 mt-0.5">{role}</p>
-                {positionTitle && <p className="text-xs text-neutral-500 mt-0.5 truncate">{positionTitle}</p>}
-              </div>
-              <button
-                type="button"
-                onClick={() => {
-                  setProfileOpen(false);
-                  setChangePasswordOpen(true);
-                }}
-                className="w-full flex items-center gap-2 px-3.5 py-2 text-sm text-neutral-600 hover:bg-neutral-50 hover:text-neutral-800 transition-colors"
-              >
-                <KeyRound size={14} /> Change Password
-              </button>
-              <form action={signOutAction}>
-                <button
-                  type="submit"
-                  className="w-full flex items-center gap-2 px-3.5 py-2 text-sm text-neutral-600 hover:bg-neutral-50 hover:text-neutral-800 transition-colors"
-                >
-                  <LogOut size={14} /> Sign out
-                </button>
-              </form>
-            </div>
-          )}
         </div>
 
         {/* prefetch=false on every nav link below: almost every page in this
@@ -242,6 +184,64 @@ export default function Sidebar({
             );
           })}
         </nav>
+
+        <div ref={profileRef} className={`relative border-t border-neutral-200 ${visuallyCollapsed ? "px-3 md:px-2 py-3" : "px-3 py-3"}`}>
+          <button
+            type="button"
+            onClick={() => setProfileOpen((v) => !v)}
+            title={visuallyCollapsed ? name || email : undefined}
+            className={`w-full flex items-center rounded-lg transition-colors hover:bg-neutral-100 ${
+              visuallyCollapsed ? "md:justify-center gap-2.5 md:gap-0 px-2 py-1.5" : "gap-2.5 px-2 py-1.5"
+            }`}
+          >
+            <span className="w-8 h-8 rounded-full bg-red-500/10 text-red-700 text-xs font-semibold flex items-center justify-center shrink-0">
+              {initials(name, email)}
+            </span>
+            {!visuallyCollapsed && (
+              <>
+                <span className="min-w-0 flex-1 text-left leading-none">
+                  <p className="text-sm font-medium text-neutral-800 truncate">{name || email}</p>
+                  <p className="text-xs text-neutral-500 truncate mt-0.5">{positionTitle || role}</p>
+                </span>
+                <ChevronDown size={14} className={`text-neutral-400 shrink-0 transition-transform ${profileOpen ? "rotate-180" : ""}`} />
+              </>
+            )}
+          </button>
+
+          {profileOpen && (
+            <div
+              className={`absolute z-20 bottom-full mb-1 bg-white border border-neutral-200 rounded-xl shadow-lg py-2 ${
+                visuallyCollapsed ? "left-3 right-3 md:left-full md:right-auto md:bottom-0 md:mb-0 md:ml-2 md:w-56" : "left-3 right-3"
+              }`}
+            >
+              <div className="px-3.5 py-2 border-b border-neutral-100">
+                <p className="text-sm font-medium text-neutral-800 truncate" title={email}>
+                  {name || email}
+                </p>
+                <p className="text-xs text-red-600 mt-0.5">{role}</p>
+                {positionTitle && <p className="text-xs text-neutral-500 mt-0.5 truncate">{positionTitle}</p>}
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setProfileOpen(false);
+                  setChangePasswordOpen(true);
+                }}
+                className="w-full flex items-center gap-2 px-3.5 py-2 text-sm text-neutral-600 hover:bg-neutral-50 hover:text-neutral-800 transition-colors"
+              >
+                <KeyRound size={14} /> Change Password
+              </button>
+              <form action={signOutAction}>
+                <button
+                  type="submit"
+                  className="w-full flex items-center gap-2 px-3.5 py-2 text-sm text-neutral-600 hover:bg-neutral-50 hover:text-neutral-800 transition-colors"
+                >
+                  <LogOut size={14} /> Sign out
+                </button>
+              </form>
+            </div>
+          )}
+        </div>
 
         {changePasswordOpen && <ChangePasswordModal onClose={() => setChangePasswordOpen(false)} />}
       </aside>
