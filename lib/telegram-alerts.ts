@@ -107,21 +107,16 @@ export async function buildAfterSalesAlerts(dateOverride?: string): Promise<{ se
     sections.push(s);
   }
 
-  // 3) Signature problems still open — either the customer's or the PIC's.
+  // 3) Signature problems still open.
   {
     const s: Section = { title: "✍️ Jobsheet signature not confirmed", perBranch: {} };
     const missing = (v: string | null) => v === "not_detected" || v === "unchecked";
     for (const { value } of BRANCHES) {
-      const bad = jobs.filter(
-        (j) => j.branch === value && (missing(j.signature_status) || missing(j.pic_signature_status)) && !j.signature_issue_resolved,
-      );
+      const bad = jobs.filter((j) => j.branch === value && missing(j.signature_status) && !j.signature_issue_resolved);
       if (bad.length) {
         s.perBranch[value] = {
           summary: `${bad.length} jobsheets`,
-          items: bad.map((j) => {
-            const who = [missing(j.signature_status) && "customer", missing(j.pic_signature_status) && "PIC"].filter(Boolean).join(" + ");
-            return `   - ${j.jobsheet_no?.trim() || j.job_no} / ${j.customer_name ?? "?"} (${who})`;
-          }),
+          items: bad.map((j) => `   - ${j.jobsheet_no?.trim() || j.job_no} / ${j.customer_name ?? "?"}`),
         };
       }
     }

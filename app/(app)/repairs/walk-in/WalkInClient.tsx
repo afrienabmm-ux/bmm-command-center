@@ -931,19 +931,16 @@ function SignatureBadge({ who, status, resolved }: { who: string; status: string
 function StatusCell({
   status,
   signatureStatus,
-  picSignatureStatus,
   signatureIssueResolved,
 }: {
   status: RepairStatus;
   signatureStatus: string;
-  picSignatureStatus: string;
   signatureIssueResolved: boolean;
 }) {
   return (
     <div className="flex flex-col gap-1 items-center">
       <span className={`text-xs font-medium px-2.5 py-1 rounded-full border ${STATUS_STYLES[status]}`}>{status}</span>
       <SignatureBadge who="customer" status={signatureStatus} resolved={signatureIssueResolved} />
-      <SignatureBadge who="PIC" status={picSignatureStatus} resolved={signatureIssueResolved} />
     </div>
   );
 }
@@ -1024,8 +1021,7 @@ function WalkInRow({
   const [photoPending, setPhotoPending] = useState(false);
   const [resolving, setResolving] = useState(false);
   const missingSignature = (s: string) => s === "not_detected" || s === "unchecked";
-  const isSignatureError =
-    (missingSignature(job.signatureStatus) || missingSignature(job.picSignatureStatus)) && !job.signatureIssueResolved;
+  const isSignatureError = missingSignature(job.signatureStatus) && !job.signatureIssueResolved;
 
   function handleResolveSignature() {
     setResolving(true);
@@ -1151,7 +1147,6 @@ function WalkInRow({
         <StatusCell
           status={job.status}
           signatureStatus={job.signatureStatus}
-          picSignatureStatus={job.picSignatureStatus}
           signatureIssueResolved={job.signatureIssueResolved}
         />
       </td>

@@ -395,22 +395,17 @@ export default function WalkInJobForm({
   const [scanMissing, setScanMissing] = useState<string[] | null>(null);
   const [scanRawText, setScanRawText] = useState<string | null>(null);
   const [scanSignatureDebug, setScanSignatureDebug] = useState<string | null>(null);
-  const [scanPicSignatureDebug, setScanPicSignatureDebug] = useState<string | null>(null);
   // Best-effort result from the last scan — null until a scan has run (or
   // when the "Signature" label couldn't be found at all). Existing jobs
   // start confirmed since there's nothing new to check unless re-scanned.
   const [signatureDetected, setSignatureDetected] = useState<boolean | null>(null);
   const [signatureConfirmed, setSignatureConfirmed] = useState(isEdit);
-  // Same as above, for the "Authorised Signature" (branch/PIC) line.
-  const [picSignatureDetected, setPicSignatureDetected] = useState<boolean | null>(null);
-  const [picSignatureConfirmed, setPicSignatureConfirmed] = useState(isEdit);
   const [jobsheetPhotoPath, setJobsheetPhotoPath] = useState<string | null>(job?.jobsheetPhotoPath ?? null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const customerNameRef = useRef<HTMLInputElement>(null);
   const plateNoRef = useRef<HTMLInputElement>(null);
   const mechanicRef = useRef<HTMLSelectElement>(null);
   const signatureRef = useRef<HTMLDivElement>(null);
-  const picSignatureRef = useRef<HTMLDivElement>(null);
 
   // Phone photos can easily be 8-15MB — shrink to a max dimension before
   // sending, which keeps text plenty legible for OCR while cutting the
@@ -451,7 +446,6 @@ export default function WalkInJobForm({
     setScanNotice(null);
     setScanMissing(null);
     setScanSignatureDebug(null);
-    setScanPicSignatureDebug(null);
     try {
       const isPdf = file.type === "application/pdf";
       const uploadBlob = isPdf ? file : await downscaleImage(file);
@@ -468,9 +462,7 @@ export default function WalkInJobForm({
       setJobsheetPhotoPath(result.photoPath);
       setScanRawText(scanned.rawText);
       setScanSignatureDebug(scanned.signatureDebug);
-      setScanPicSignatureDebug(scanned.picSignatureDebug);
       setSignatureDetected(scanned.signatureDetected);
-      setPicSignatureDetected(scanned.picSignatureDetected);
       // Never auto-tick this from the detector's result, even when it says
       // "detected" — the ink-texture check has come back true on a blank
       // jobsheet before (dense printed text near the signature line reads
@@ -478,7 +470,6 @@ export default function WalkInJobForm({
       // confirm it themselves. The detector's result is shown below only
       // as a hint, not a substitute for that check.
       setSignatureConfirmed(false);
-      setPicSignatureConfirmed(false);
       if (scanned.signatureDetected !== true) {
         showError(
           "No customer signature detected on this jobsheet. Please check that the customer has signed it, or take a clearer photo and scan again."
@@ -701,11 +692,6 @@ export default function WalkInJobForm({
       scrollToField(signatureRef.current);
       return;
     }
-    if (!picSignatureConfirmed) {
-      showError("Please confirm the Authorised (PIC) signature is on the jobsheet before saving.");
-      scrollToField(picSignatureRef.current);
-      return;
-    }
     if (!effectiveBranch) {
       showError("Please pick a branch, or assign a mechanic to set it automatically.");
       return;
@@ -737,18 +723,9 @@ export default function WalkInJobForm({
           ? "not_detected"
           : "unchecked"
       : undefined;
-    const picSignatureStatus: string | undefined = scanRawText
-      ? picSignatureDetected === true
-        ? "detected"
-        : picSignatureDetected === false
-          ? "not_detected"
-          : "unchecked"
-      : undefined;
-
     const payload = {
       jobType: "Walk-in" as const,
       ...(signatureStatus !== undefined ? { signatureStatus } : {}),
-      ...(picSignatureStatus !== undefined ? { picSignatureStatus } : {}),
       customerCode: customerCode.trim(),
       customerName: customerName.trim(),
       customerPhone: customerPhone.trim(),
@@ -1061,9 +1038,6 @@ export default function WalkInJobForm({
                   {scanSignatureDebug && (
                     <p className="mt-2 text-[11px] text-neutral-500 font-mono">Customer signature check: {scanSignatureDebug}</p>
                   )}
-                  {scanPicSignatureDebug && (
-                    <p className="mt-1 text-[11px] text-neutral-500 font-mono">PIC signature check: {scanPicSignatureDebug}</p>
-                  )}
                   <pre className="mt-2 bg-white border border-neutral-200 rounded-lg p-3 text-xs text-neutral-700 whitespace-pre-wrap max-h-64 overflow-y-auto">{scanRawText}</pre>
                 </details>
               )}
@@ -1112,48 +1086,6 @@ export default function WalkInJobForm({
                       className="accent-red-500"
                     />
                     <span className="text-xs font-medium text-neutral-700">Customer has signed the jobsheet *</span>
-                  </label>
-                </div>
-              )}
-              {!isEdit && (
-                <div
-                  ref={picSignatureRef}
-                  tabIndex={-1}
-                  className={`mt-3 border rounded-lg p-3 ${
-                    picSignatureDetected === false ? "bg-red-50 border-red-200" : "bg-white border-neutral-200"
-                  }`}
-                >
-                  {picSignatureDetected === true && (
-                    <p className="text-xs text-emerald-700 flex items-center gap-1.5">
-                      <CheckCircle2 size={14} /> Looks like the Authorised (PIC) signature is on the jobsheet — please check the photo and confirm below.
-                    </p>
-                  )}
-                  {picSignatureDetected === false && (
-                    <p className="text-xs text-red-700 font-medium flex items-center gap-1.5">
-                      <AlertTriangle size={14} /> No Authorised (PIC) signature detected — please sign the jobsheet before saving.
-                    </p>
-                  )}
-                  {picSignatureDetected === null && scanRawText && (
-                    <p className="text-xs text-neutral-500">
-                      Couldn&apos;t check the photo for the Authorised signature — please confirm it by hand.
-                    </p>
-                  )}
-                  <label className="flex items-center gap-2 mt-2">
-                    <input
-                      type="checkbox"
-                      checked={picSignatureConfirmed}
-                      onChange={(e) => {
-                        const checked = e.target.checked;
-                        if (checked && picSignatureDetected === false) {
-                          showError(
-                            "No Authorised (PIC) signature was detected on this jobsheet — please double-check the photo before confirming."
-                          );
-                        }
-                        setPicSignatureConfirmed(checked);
-                      }}
-                      className="accent-red-500"
-                    />
-                    <span className="text-xs font-medium text-neutral-700">PIC has signed the jobsheet (Authorised Signature) *</span>
                   </label>
                 </div>
               )}

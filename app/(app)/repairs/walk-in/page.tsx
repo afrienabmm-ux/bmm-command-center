@@ -35,9 +35,8 @@ export default async function WalkInPage({ searchParams }: { searchParams: Promi
   // instead of sitting quietly in Active/Completed with just a small badge
   // nobody notices. Pulled out of both here so it only ever shows in one
   // place at a time.
-  const missingSignature = (status: string) => status === "not_detected" || status === "unchecked";
   const isSignatureError = (j: (typeof walkInActive)[number]) =>
-    (missingSignature(j.signatureStatus) || missingSignature(j.picSignatureStatus)) && !j.signatureIssueResolved;
+    (j.signatureStatus === "not_detected" || j.signatureStatus === "unchecked") && !j.signatureIssueResolved;
   const active = walkInActive.filter((j) => !isSignatureError(j));
   const completed = walkInCompleted.filter((j) => !isSignatureError(j));
   const errors = [...walkInActive, ...walkInCompleted].filter(isSignatureError);
