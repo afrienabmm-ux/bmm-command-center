@@ -908,30 +908,34 @@ export default function WalkInJobForm({
         }
       }
 
+      // Whichever job this Services Combo belongs to — used below to have
+      // the combo sale read its date, branch and customer straight off the
+      // saved job record itself, rather than trusting this form's own
+      // fields at the moment Save was clicked (see addPackageSaleAction).
+      let savedJobId: string | null = null;
       if (isEdit && job) {
         const result = await updateRepairJobAction(job.id, job.branch, payload);
         if (result && "error" in result) {
           showError(result.error);
           return;
         }
+        savedJobId = job.id;
       } else {
         const result = await addRepairJobAction({ ...payload, branch: effectiveBranch, jobType: "Walk-in" });
         if ("error" in result) {
           showError(result.error);
           return;
         }
+        savedJobId = result.id;
       }
 
-      if (wantsCombo && comboPackageId) {
+      if (wantsCombo && comboPackageId && savedJobId) {
         try {
           await addPackageSaleAction({
-            branch: effectiveBranch,
+            jobId: savedJobId,
             packageId: comboPackageId,
             mechanicId: mechanicId || null,
             receiptId: comboReceiptId.trim() || jobsheetNo.trim() || null,
-            saleDate: startedDate,
-            customerName: customerName.trim(),
-            customerPlateNo: plateNo.trim(),
           });
         } catch {
           // Non-fatal — the job is already saved either way.

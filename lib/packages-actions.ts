@@ -156,16 +156,32 @@ export async function getAllBranchesPackageSoldCounts(): Promise<Record<string, 
 }
 
 export async function addPackageSaleAction(input: {
-  branch: Branch;
+  // The jobsheet this combo was sold on — its own branch, date and customer
+  // details are used for the sale record instead of anything the caller
+  // types in separately, so the two can never drift apart. A Services
+  // Combo sale is revenue that belongs to a specific jobsheet; its date is
+  // that jobsheet's own date (completed, or started if not yet completed),
+  // never "whatever the form's Job Date field happened to hold at the
+  // moment Save was clicked" — that's exactly what let a 21 September job
+  // get logged as a 23 September sale (the day it was edited, not the day
+  // the work was actually done), quietly inflating that later day's
+  // revenue and hiding it from the 21st's.
+  jobId: string;
   packageId: string;
   mechanicId: string | null;
   receiptId: string | null;
-  saleDate: string;
-  customerName?: string;
-  customerPlateNo?: string;
 }): Promise<void> {
   const user = await requireApproved();
-  assertCanEditBranch(user, input.branch);
+  const { data: job, error: jobError } = await supabaseAdmin
+    .from("cc_repair_jobs")
+    .select("branch, customer_name, plate_no, started_date, completed_date")
+    .eq("id", input.jobId)
+    .single();
+  if (jobError) throw new Error(jobError.message);
+  const branch = job.branch as Branch;
+  const saleDate = (job.completed_date as string | null) ?? (job.started_date as string | null);
+  if (!saleDate) throw new Error("This job has no date yet — save it with a Job Date before logging a Services Combo.");
+  assertCanEditBranch(user, branch);
 
   // One Services Combo sale per jobsheet, full stop — re-saving the same
   // job (edit, or the PIC hitting save twice) used to log a fresh sale
@@ -173,11 +189,13 @@ export async function addPackageSaleAction(input: {
   // Only guards against a real receipt number; a blank one has no key to
   // dedupe against, so it's left alone.
   const receiptId = input.receiptId?.trim();
+  const customerName = (job.customer_name as string | null)?.trim() ?? "";
+  const customerPlateNo = (job.plate_no as string | null)?.trim() ?? "";
   if (receiptId) {
     const { data: existing, error: existingError } = await supabaseAdmin
       .from("cc_package_sales")
       .select("id")
-      .eq("branch", input.branch)
+      .eq("branch", branch)
       .eq("receipt_id", receiptId)
       .limit(1);
     if (existingError) throw new Error(existingError.message);
@@ -190,9 +208,9 @@ export async function addPackageSaleAction(input: {
         .update({
           package_id: input.packageId,
           mechanic_id: input.mechanicId,
-          sale_date: input.saleDate,
-          customer_name: input.customerName?.trim() ?? "",
-          customer_plate_no: input.customerPlateNo?.trim() ?? "",
+          sale_date: saleDate,
+          customer_name: customerName,
+          customer_plate_no: customerPlateNo,
         })
         .eq("id", existing[0].id);
       if (updateError) throw new Error(updateError.message);
@@ -203,16 +221,16 @@ export async function addPackageSaleAction(input: {
   }
 
   const { error } = await supabaseAdmin.from("cc_package_sales").insert({
-    branch: input.branch,
+    branch,
     package_id: input.packageId,
     mechanic_id: input.mechanicId,
     receipt_id: input.receiptId,
-    sale_date: input.saleDate,
-    customer_name: input.customerName?.trim() ?? "",
-    customer_plate_no: input.customerPlateNo?.trim() ?? "",
+    sale_date: saleDate,
+    customer_name: customerName,
+    customer_plate_no: customerPlateNo,
   });
   if (error) throw new Error(error.message);
-  await logActivity(user, "Added Services Combo sale", `receipt ${input.receiptId || "—"} (${input.branch})`);
+  await logActivity(user, "Added Services Combo sale", `receipt ${input.receiptId || "—"} (${branch})`);
   revalidatePath("/packages");
   revalidatePath("/customers");
 }
