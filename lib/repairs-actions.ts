@@ -234,6 +234,29 @@ export async function getAllBranchesActiveRepairJobs(): Promise<RepairJob[]> {
   return perBranch.flat();
 }
 
+// The Completed tab only ever loads the latest 200 jobs (see
+// getCompletedRepairJobs below — a deliberate cap for page speed), so its
+// own length understates a branch that has more than that on file. This is
+// the true count, for the tab label, so "Completed (200)" never gets read
+// as "that's every completed job there is" when it's really just the cap.
+export async function getCompletedRepairJobsCount(branch: Branch): Promise<number> {
+  await requireApproved();
+  const { count, error } = await supabaseAdmin
+    .from("cc_repair_jobs")
+    .select("id", { count: "exact", head: true })
+    .eq("branch", branch)
+    .eq("status", "Completed")
+    .eq("job_type", "Walk-in");
+  if (error) throw new Error(error.message);
+  return count ?? 0;
+}
+
+export async function getAllBranchesCompletedRepairJobsCount(): Promise<number> {
+  await requireApproved();
+  const counts = await Promise.all(BRANCHES.map(({ value }) => getCompletedRepairJobsCount(value)));
+  return counts.reduce((sum, n) => sum + n, 0);
+}
+
 export async function getCompletedRepairJobs(branch: Branch): Promise<RepairJob[]> {
   await requireApproved();
   const [{ data, error }, genbluPlates, genbluTxs] = await Promise.all([

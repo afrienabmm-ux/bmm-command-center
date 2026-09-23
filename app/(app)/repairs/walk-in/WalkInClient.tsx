@@ -33,6 +33,7 @@ const STATUS_STYLES: Record<RepairStatus, string> = {
 export default function WalkInClient({
   active,
   completed,
+  completedTotal,
   errors,
   mechanics,
   branchSelection,
@@ -42,6 +43,10 @@ export default function WalkInClient({
 }: {
   active: RepairJob[];
   completed: RepairJob[];
+  // The real total completed count — completed.length is capped at 200 (see
+  // getCompletedRepairJobs), so this is what the tab label shows instead of
+  // silently understating a branch with more than that on file.
+  completedTotal: number;
   errors: RepairJob[];
   mechanics: Mechanic[];
   branchSelection: BranchSelection;
@@ -405,11 +410,12 @@ export default function WalkInClient({
           )}
           <button
             onClick={() => setTab("completed")}
+            title={completedTotal > completed.length ? `${completedTotal} completed in total — showing the latest ${completed.length}` : undefined}
             className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
               tab === "completed" ? "bg-red-500 text-white" : "text-neutral-600 hover:text-neutral-800"
             }`}
           >
-            Completed ({completed.length})
+            Completed ({completedTotal})
           </button>
           {errors.length > 0 && (
             <button

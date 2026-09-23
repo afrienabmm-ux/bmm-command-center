@@ -1,5 +1,12 @@
 import { requirePageContext, requirePage, getActiveBranchSelection, isManagementLevel } from "@/lib/current-user";
-import { getActiveRepairJobs, getCompletedRepairJobs, getAllBranchesActiveRepairJobs, getAllBranchesCompletedRepairJobs } from "@/lib/repairs-actions";
+import {
+  getActiveRepairJobs,
+  getCompletedRepairJobs,
+  getAllBranchesActiveRepairJobs,
+  getAllBranchesCompletedRepairJobs,
+  getCompletedRepairJobsCount,
+  getAllBranchesCompletedRepairJobsCount,
+} from "@/lib/repairs-actions";
 import { getAllMechanics } from "@/lib/mechanics-actions";
 import { branchLabel } from "@/lib/branch";
 import PageHeader from "@/components/PageHeader";
@@ -14,10 +21,11 @@ export default async function WalkInPage({ searchParams }: { searchParams: Promi
   const branchSelection = await getActiveBranchSelection(user);
   const showAllBranches = branchSelection === "all";
 
-  const [allActive, allCompleted, mechanics] = await Promise.all([
+  const [allActive, allCompleted, mechanics, completedTotal] = await Promise.all([
     showAllBranches ? getAllBranchesActiveRepairJobs() : getActiveRepairJobs(branch),
     showAllBranches ? getAllBranchesCompletedRepairJobs() : getCompletedRepairJobs(branch),
     getAllMechanics(),
+    showAllBranches ? getAllBranchesCompletedRepairJobsCount() : getCompletedRepairJobsCount(branch),
   ]);
   const walkInActive = allActive.filter((j) => j.jobType === "Walk-in");
   const walkInCompleted = allCompleted.filter((j) => j.jobType === "Walk-in");
@@ -44,6 +52,7 @@ export default async function WalkInPage({ searchParams }: { searchParams: Promi
         <WalkInClient
           active={active}
           completed={completed}
+          completedTotal={completedTotal}
           errors={errors}
           mechanics={mechanics}
           branchSelection={branchSelection}
