@@ -86,6 +86,40 @@ async function findDuplicateScreenshot(branch: Branch, hash: string): Promise<{ 
   return hit ? { customerName: hit.customer_name, when: hit.created_at } : null;
 }
 
+// Catches the case findDuplicateScreenshot can't: the SAME real award
+// (same customer, same points, same moment on the GenBlu app) photographed
+// or re-selected a second time, which comes out as a different file — a
+// re-crop, a re-compression on re-select, a second screenshot of the same
+// screen — so its content hash differs even though it's the identical
+// event. This is what actually let a real customer's points get added
+// twice (TAUFIQ, BSC 9358: 490 became 980) despite the hash check.
+//
+// A genuinely new, separate award can share a name with an old one (a
+// repeat customer), so name alone is never enough — only name + points +
+// the exact date and time the GenBlu app itself printed on the screen
+// counts as "the same award". Checked against cc_genblu_transactions,
+// which is where every points-award screenshot ends up regardless of
+// which tab it was uploaded from (Tracker or Point Allocation) — see
+// logTrackerAwardAsTransaction and addGenbluTransactionAction.
+async function findDuplicateAward(
+  branch: Branch,
+  customerName: string,
+  points: number,
+  transactionDate: string | null | undefined,
+  transactionTime: string | null | undefined
+): Promise<{ customerName: string; when: string } | null> {
+  if (!transactionDate || !transactionTime) return null; // nothing to compare "same time" against
+  const { data } = await supabaseAdmin
+    .from("cc_genblu_transactions")
+    .select("customer_name, transaction_date, transaction_time, created_at")
+    .eq("branch", branch)
+    .eq("points", points)
+    .eq("transaction_date", transactionDate)
+    .eq("transaction_time", transactionTime);
+  const hit = (data ?? []).find((t) => namesLikelyMatch(t.customer_name, customerName));
+  return hit ? { customerName: hit.customer_name, when: hit.created_at } : null;
+}
+
 // Auto-registrations should credit whoever is actually logged in and doing
 // the job (their initials, e.g. "Nurul Izzah" -> "NI"), not the mechanic
 // assigned to the job — a PIC can register a customer for GenBlu on a job
@@ -572,8 +606,14 @@ export async function updateGenbluRegistrationAction(
     // screenshot (and its path) is left untouched otherwise, since most
     // edits are just fixing a typo'd name and shouldn't wipe the photo.
     screenshot?: File | null;
+    // Set once staff confirm "yes, upload it anyway" past a duplicate-award
+    // warning — see findDuplicateAward. This is exactly the path that let a
+    // real customer's points get doubled (TAUFIQ, BSC 9358: 490 -> 980): an
+    // edit that re-attached a screenshot of the SAME award added its points
+    // to the running total a second time.
+    confirmDuplicate?: boolean;
   }
-): Promise<{ error: string } | void> {
+): Promise<{ error: string } | { warning: string } | void> {
   const user = await requireApproved();
   assertCanEditBranch(user, branch);
 
@@ -614,6 +654,27 @@ export async function updateGenbluRegistrationAction(
     ]);
     if (uploadResult.error) return { error: `Couldn't upload the screenshot: ${uploadResult.error.message}` };
     analysis = result;
+
+    // Same real award re-attached a second time (a re-photograph, or the
+    // same photo re-selected from the gallery — a different file, so it
+    // isn't caught by matching the exact bytes) would otherwise add these
+    // points to the running total again. See findDuplicateAward.
+    const reading = analysis?.pointsReading ?? null;
+    if (reading && !reading.isBalance && !input.confirmDuplicate) {
+      const dup = await findDuplicateAward(
+        branch,
+        analysis?.screenshotCustomerName ?? customerName,
+        reading.value,
+        analysis?.transactionDate,
+        analysis?.transactionTime
+      );
+      if (dup) {
+        return {
+          warning: `${dup.customerName} already has ${reading.value} points logged for this exact date and time — this looks like the same award uploaded again. Upload anyway?`,
+        };
+      }
+    }
+
     newScreenshotPath = path;
     update.screenshot_path = path;
     update.screenshot_hash = newScreenshotHash;
@@ -883,6 +944,25 @@ export async function attachGenbluScreenshotAction(input: {
     };
   }
   const pointsReading = analysis?.pointsReading ?? null;
+
+  // Same real award uploaded a second time (a re-photograph or a re-select
+  // from the gallery — a different file, so the exact-hash check above
+  // doesn't catch it) would otherwise add these points to the running
+  // total again — see findDuplicateAward.
+  if (pointsReading && !pointsReading.isBalance && !input.confirmDuplicate) {
+    const dup = await findDuplicateAward(
+      input.branch,
+      analysis?.screenshotCustomerName ?? customerName,
+      pointsReading.value,
+      analysis?.transactionDate,
+      analysis?.transactionTime
+    );
+    if (dup) {
+      return {
+        warning: `${dup.customerName} already has ${pointsReading.value} points logged for this exact date and time — this looks like the same award uploaded again. Upload anyway?`,
+      };
+    }
+  }
 
   const { data: existing, error: fetchError } = await supabaseAdmin
     .from("cc_genblu_registrations")
@@ -1185,6 +1265,16 @@ export async function addGenbluTransactionAction(input: {
       error: "Couldn't read the customer name and points off that screenshot — please try again with a clearer, uncropped photo of the full screen.",
       rawText: text,
     };
+  }
+
+  // Same real award logged a second time (a re-photograph or a re-select
+  // from the gallery — a different file, so the exact-hash check above
+  // doesn't catch it) — see findDuplicateAward.
+  if (!input.confirmDuplicate) {
+    const dup = await findDuplicateAward(input.branch, customerName, points, transactionDate, transactionTime);
+    if (dup) {
+      return { warning: `${dup.customerName} already has ${points} points logged for this exact date and time — this looks like the same award uploaded again. Upload anyway?` };
+    }
   }
 
   const ext = input.screenshot.name.split(".").pop() || "jpg";

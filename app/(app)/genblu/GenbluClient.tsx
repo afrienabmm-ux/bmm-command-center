@@ -554,7 +554,7 @@ function EditModal({
     }
   }
 
-  function handleSave() {
+  function handleSave(confirmDuplicate = false) {
     startTransition(async () => {
       const result = await updateGenbluRegistrationAction(registration.id, registration.branch, {
         salespersonName,
@@ -562,7 +562,12 @@ function EditModal({
         customerName,
         customerPlateNo: plateNo,
         screenshot,
+        confirmDuplicate,
       });
+      if (result && "warning" in result) {
+        if (window.confirm(result.warning)) handleSave(true);
+        return;
+      }
       if (result && "error" in result) {
         setError(result.error);
         return;
@@ -671,7 +676,7 @@ function EditModal({
             Cancel
           </button>
           <button
-            onClick={handleSave}
+            onClick={() => handleSave()}
             disabled={isPending || !salespersonName.trim() || !plateNo.trim()}
             className="bg-red-500 hover:bg-red-400 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
           >
