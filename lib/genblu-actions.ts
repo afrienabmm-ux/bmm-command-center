@@ -120,6 +120,33 @@ async function findDuplicateAward(
   return hit ? { customerName: hit.customer_name, when: hit.created_at } : null;
 }
 
+// Looser than findDuplicateAward: same name + same points on ANY date. A
+// repeat customer can genuinely earn the same points twice, so this only
+// ever warns — staff confirm and it goes through.
+async function findSameNameSamePoints(
+  branch: Branch,
+  customerName: string,
+  points: number
+): Promise<{ customerName: string; count: number; lastDate: string } | null> {
+  const { data } = await supabaseAdmin
+    .from("cc_genblu_transactions")
+    .select("customer_name, transaction_date, created_at")
+    .eq("branch", branch)
+    .eq("points", points)
+    .order("created_at", { ascending: false });
+  const hits = (data ?? []).filter((t) => namesLikelyMatch(t.customer_name, customerName));
+  if (hits.length === 0) return null;
+  const last = hits[0];
+  const lastIso = last.transaction_date ?? last.created_at;
+  const lastDate = new Date(lastIso).toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    timeZone: "Asia/Kuala_Lumpur",
+  });
+  return { customerName: last.customer_name, count: hits.length, lastDate };
+}
+
 // Auto-registrations should credit whoever is actually logged in and doing
 // the job (their initials, e.g. "Nurul Izzah" -> "NI"), not the mechanic
 // assigned to the job — a PIC can register a customer for GenBlu on a job
@@ -1274,6 +1301,13 @@ export async function addGenbluTransactionAction(input: {
     const dup = await findDuplicateAward(input.branch, customerName, points, transactionDate, transactionTime);
     if (dup) {
       return { warning: `${dup.customerName} already has ${points} points logged for this exact date and time — this looks like the same award uploaded again. Upload anyway?` };
+    }
+    const repeat = await findSameNameSamePoints(input.branch, customerName, points);
+    if (repeat) {
+      const times = repeat.count === 1 ? "once" : `${repeat.count} times`;
+      return {
+        warning: `${repeat.customerName} already has ${points} points logged ${times} before (last on ${repeat.lastDate}). Same name and same points again — is this really a new award? Upload anyway?`,
+      };
     }
   }
 
