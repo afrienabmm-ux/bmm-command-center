@@ -30,6 +30,8 @@ export default function ReportTable({
   editableField,
   onEditValue,
   editHint,
+  summarize,
+  onFilteredChange,
 }: {
   columns: ReportColumn[];
   rows: Record<string, string | number>[];
@@ -83,6 +85,13 @@ export default function ReportTable({
   // saving it actually does (or doesn't) touch, since that's specific to
   // whatever onEditValue does and this component has no way to know.
   editHint?: string;
+  // Builds the summary tables from the rows currently filtered — used
+  // instead of summarySections when the summaries must follow the filters,
+  // so an export of one type/branch/date range carries matching totals.
+  summarize?: (rows: Record<string, string | number>[]) => { title: string; columns: string[]; rows: (string | number)[][] }[];
+  // Hands the currently filtered rows to the parent, for on-screen
+  // summaries that should follow the same filters as the table.
+  onFilteredChange?: (rows: Record<string, string | number>[]) => void;
 }) {
   const router = useRouter();
   const [query, setQuery] = useState("");
@@ -168,13 +177,18 @@ export default function ReportTable({
     });
   }, [rows, query, searchFields, dateField, from, to, monthField, month, selectFilters, selectValues]);
 
+  useEffect(() => {
+    onFilteredChange?.(filtered);
+  }, [filtered, onFilteredChange]);
+
   function handleExport() {
     const mainCsv = toCsv(
       columns.map((c) => c.label),
       filtered.map((r) => columns.map((c) => r[c.key] ?? ""))
     );
-    const csv = summarySections?.length
-      ? [...summarySections.flatMap((s) => [s.title, toCsv(s.columns, s.rows), ""]), mainCsv].join("\n")
+    const sections = summarize ? summarize(filtered) : summarySections;
+    const csv = sections?.length
+      ? [...sections.flatMap((s) => [s.title, toCsv(s.columns, s.rows), ""]), mainCsv].join("\n")
       : mainCsv;
     const blob = new Blob([csv], { type: "text/csv" });
     const url = URL.createObjectURL(blob);

@@ -1,13 +1,13 @@
-import { formatCurrency } from "@/lib/format";
-import type { ComboType } from "@/lib/combo-type";
+import { COMBO_TYPES } from "@/lib/combo-type";
+import type { ComboTypeTotal, MechanicComboCount } from "./combo-summary";
 
-type MechanicPackageCount = { mechanicName: string; mechanicCode: string; count: number };
-type ComboTypeTotal = { type: ComboType; sold: number; revenue: number };
+const TH = "px-4 py-2.5";
+const TD = "px-4 py-2.5 whitespace-nowrap";
 
-// Same idea as MechanicRevenueSummary — small tables alongside the full
-// sale-by-sale list, built entirely from the same rows already fetched
-// for the report rather than a separate query.
-export default function PackagesSoldSummary({ mechanics, types }: { mechanics: MechanicPackageCount[]; types: ComboTypeTotal[] }) {
+// Small tables alongside the full sale-by-sale list, computed from the rows
+// the table is currently showing — so they follow its Type / Branch / date
+// filters instead of always describing every sale ever made.
+export default function PackagesSoldSummary({ types, mechanics }: { types: ComboTypeTotal[]; mechanics: MechanicComboCount[] }) {
   return (
     <div className="space-y-6">
       <div>
@@ -16,27 +16,20 @@ export default function PackagesSoldSummary({ mechanics, types }: { mechanics: M
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-neutral-50 text-left text-xs font-medium text-neutral-500 uppercase tracking-wide">
-                <th className="px-4 py-2.5">Type</th>
-                <th className="px-4 py-2.5 text-right">Sold</th>
-                <th className="px-4 py-2.5 text-right">Revenue</th>
+                <th className={TH}>Type</th>
+                <th className={`${TH} text-right`}>Sold</th>
               </tr>
             </thead>
             <tbody>
               {types.map((t) => (
                 <tr key={t.type} className="border-t border-neutral-100">
-                  <td className="px-4 py-2.5 whitespace-nowrap text-neutral-700">{t.type}</td>
-                  <td className="px-4 py-2.5 text-right whitespace-nowrap text-neutral-900 font-medium">{t.sold}</td>
-                  <td className="px-4 py-2.5 text-right whitespace-nowrap text-neutral-900 font-medium">{formatCurrency(t.revenue)}</td>
+                  <td className={`${TD} text-neutral-700`}>{t.type}</td>
+                  <td className={`${TD} text-right text-neutral-900 font-medium`}>{t.sold}</td>
                 </tr>
               ))}
               <tr className="border-t border-neutral-200 bg-neutral-50">
-                <td className="px-4 py-2.5 whitespace-nowrap font-semibold text-neutral-800">Total</td>
-                <td className="px-4 py-2.5 text-right whitespace-nowrap font-semibold text-neutral-900">
-                  {types.reduce((n, t) => n + t.sold, 0)}
-                </td>
-                <td className="px-4 py-2.5 text-right whitespace-nowrap font-semibold text-neutral-900">
-                  {formatCurrency(types.reduce((n, t) => n + t.revenue, 0))}
-                </td>
+                <td className={`${TD} font-semibold text-neutral-800`}>Total</td>
+                <td className={`${TD} text-right font-semibold text-neutral-900`}>{types.reduce((n, t) => n + t.sold, 0)}</td>
               </tr>
             </tbody>
           </table>
@@ -44,29 +37,35 @@ export default function PackagesSoldSummary({ mechanics, types }: { mechanics: M
       </div>
 
       <div>
-        <p className="text-sm font-medium text-neutral-800 mb-3">Packages Sold by Mechanic</p>
+        <p className="text-sm font-medium text-neutral-800 mb-3">Sold by Mechanic</p>
         <div className="bg-white border border-neutral-200 rounded-xl overflow-x-auto max-w-2xl">
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-neutral-50 text-left text-xs font-medium text-neutral-500 uppercase tracking-wide">
-                <th className="px-4 py-2.5">Mechanic</th>
-                <th className="px-4 py-2.5">Code</th>
-                <th className="px-4 py-2.5 text-right">Sold</th>
+                <th className={TH}>Mechanic</th>
+                {COMBO_TYPES.map((t) => (
+                  <th key={t} className={`${TH} text-right`}>{t}</th>
+                ))}
+                <th className={`${TH} text-right`}>Total</th>
               </tr>
             </thead>
             <tbody>
               {mechanics.length === 0 ? (
                 <tr>
-                  <td colSpan={3} className="px-4 py-4 text-center text-neutral-500">
+                  <td colSpan={COMBO_TYPES.length + 2} className="px-4 py-4 text-center text-neutral-500">
                     No data yet.
                   </td>
                 </tr>
               ) : (
                 mechanics.map((m) => (
                   <tr key={m.mechanicCode} className="border-t border-neutral-100">
-                    <td className="px-4 py-2.5 whitespace-nowrap text-neutral-700">{m.mechanicName}</td>
-                    <td className="px-4 py-2.5 whitespace-nowrap text-neutral-700">{m.mechanicCode}</td>
-                    <td className="px-4 py-2.5 text-right whitespace-nowrap text-neutral-900 font-medium">{m.count}</td>
+                    <td className={`${TD} text-neutral-700`}>
+                      {m.mechanicName} <span className="text-neutral-400">({m.mechanicCode})</span>
+                    </td>
+                    {COMBO_TYPES.map((t) => (
+                      <td key={t} className={`${TD} text-right text-neutral-700`}>{m.byType[t]}</td>
+                    ))}
+                    <td className={`${TD} text-right text-neutral-900 font-semibold`}>{m.total}</td>
                   </tr>
                 ))
               )}

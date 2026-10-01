@@ -28,8 +28,7 @@ import GenbluMonthlySummary from "../../genblu/GenbluMonthlySummary";
 import JobsheetRevenueSummary from "./JobsheetRevenueSummary";
 import GenbluCountsAndTable from "./GenbluCountsAndTable";
 import MechanicRevenueSummary from "./MechanicRevenueSummary";
-import PackagesSoldSummary from "./PackagesSoldSummary";
-import { COMBO_TYPES, type ComboType } from "@/lib/combo-type";
+import PackagesReport from "./PackagesReport";
 import { getWarrantyClaims, getAllBranchesWarrantyClaims } from "@/lib/claims-actions";
 import { getDeliveryClaims, getAllBranchesDeliveryClaims } from "@/lib/delivery-claims-actions";
 import { getAllBranchesPerformance, getBranchPerformance } from "@/lib/reports-actions";
@@ -120,11 +119,6 @@ export default async function ReportDetailPage({ params }: { params: Promise<{ t
   let mechanicSummary:
     | { fullName: string; shortCode: string; walkInRevenue: number; packageRevenue: number; totalRevenue: number }[]
     | undefined;
-  // Services Combo only — how many packages each mechanic has sold,
-  // across whatever branch/date range the table itself is currently
-  // scoped to (all of history and every branch by default).
-  let packagesSummary: { mechanicName: string; mechanicCode: string; count: number }[] | undefined;
-  let comboTypeSummary: { type: ComboType; sold: number; revenue: number }[] | undefined;
 
   if (type === "jobsheet") {
     const [active, completed, mechanics] = await Promise.all([
@@ -404,55 +398,32 @@ export default async function ReportDetailPage({ params }: { params: Promise<{ t
       { key: "branch", label: "Branch" },
       { key: "packageName", label: "Package" },
       { key: "comboType", label: "Type" },
-      { key: "price", label: "Price (RM)" },
       { key: "customerName", label: "Customer" },
       { key: "customerPlateNo", label: "Plate No" },
       { key: "mechanicCode", label: "Mechanic" },
       { key: "receiptId", label: "Receipt No / Job No" },
     ];
     dateField = "saleDate";
-    searchFields = ["packageName", "customerName", "customerPlateNo", "receiptId"];
+    searchFields = ["packageName", "customerName", "customerPlateNo", "receiptId", "mechanicCode", "mechanicName"];
     selectFilters = [
       { field: "branch", label: "Branches" },
       { field: "comboType", label: "Types" },
       { field: "packageName", label: "Packages" },
+      { field: "mechanicCode", label: "Mechanics" },
     ];
     rows = sales.map((s) => ({
       saleDate: s.saleDate,
       branch: branchLabel(s.branch),
       packageName: s.packageName,
       comboType: s.comboType,
-      price: s.price.toFixed(2),
       customerName: s.customerName || "—",
       customerPlateNo: s.customerPlateNo || "—",
       mechanicCode: s.mechanicCode,
+      mechanicName: s.mechanicName,
       receiptId: s.receiptId || "—",
     }));
-
-    const countByMechanic = new Map<string, { mechanicName: string; mechanicCode: string; count: number }>();
-    for (const s of sales) {
-      if (!s.mechanicId) continue;
-      const entry = countByMechanic.get(s.mechanicId) ?? { mechanicName: s.mechanicName, mechanicCode: s.mechanicCode, count: 0 };
-      entry.count++;
-      countByMechanic.set(s.mechanicId, entry);
-    }
-    packagesSummary = [...countByMechanic.values()].sort((a, b) => b.count - a.count);
-    comboTypeSummary = COMBO_TYPES.map((t) => {
-      const ofType = sales.filter((s) => s.comboType === t);
-      return { type: t, sold: ofType.length, revenue: ofType.reduce((sum, s) => sum + s.price, 0) };
-    });
-    summarySections = [
-      {
-        title: "Sold by Combo Type",
-        columns: ["Type", "Sold", "Revenue (RM)"],
-        rows: comboTypeSummary.map((t) => [t.type, t.sold, t.revenue.toFixed(2)]),
-      },
-      {
-        title: "Packages Sold by Mechanic",
-        columns: ["Mechanic", "Code", "Sold"],
-        rows: packagesSummary.map((m) => [m.mechanicName, m.mechanicCode, m.count]),
-      },
-    ];
+    // Summaries for this report are worked out in the browser from the
+    // filtered rows — see PackagesReport.
   } else if (type === "sales-performance") {
     let [year, month] = todayInMalaysia().split("-").map(Number);
     const periods: { year: number; month: number }[] = [];
@@ -535,7 +506,16 @@ export default async function ReportDetailPage({ params }: { params: Promise<{ t
             searchFields={searchFields}
             filename={`bmm-report-${type}`}
           />
-        ) : monthlySummary || revenueSummary || mechanicSummary || packagesSummary ? (
+        ) : type === "packages" ? (
+          <PackagesReport
+            columns={columns}
+            rows={rows}
+            dateField={dateField}
+            searchFields={searchFields}
+            selectFilters={selectFilters}
+            filename={`bmm-report-${type}`}
+          />
+        ) : monthlySummary || revenueSummary || mechanicSummary ? (
           <div className="flex flex-col lg:flex-row gap-6 items-start">
             <div className="shrink-0 w-full lg:w-auto">
               {monthlySummary && <GenbluMonthlySummary summary={monthlySummary} />}
@@ -548,7 +528,6 @@ export default async function ReportDetailPage({ params }: { params: Promise<{ t
                 />
               )}
               {mechanicSummary && <MechanicRevenueSummary mechanics={mechanicSummary} />}
-              {packagesSummary && <PackagesSoldSummary mechanics={packagesSummary} types={comboTypeSummary ?? []} />}
             </div>
             <div className="flex-1 min-w-0 w-full">
               <ReportTable

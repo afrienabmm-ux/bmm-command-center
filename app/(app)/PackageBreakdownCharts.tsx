@@ -4,7 +4,7 @@ import { useState } from "react";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import type { PackageBreakdownRow } from "@/lib/dashboard-breakdowns-actions";
 import { BRANCHES, branchLabel, type Branch } from "@/lib/branch";
-import { formatDate, formatCurrency } from "@/lib/format";
+import { formatDate } from "@/lib/format";
 import { COMBO_TYPES, type ComboType } from "@/lib/combo-type";
 
 const TYPE_STYLE: Record<ComboType, string> = { Yamalube: "text-blue-700", "Rock Oil": "text-amber-700" };
@@ -34,10 +34,7 @@ export default function PackageBreakdownCharts({
   const totalSold = allRows.length;
   const visibleRows = showAll ? allRows : allRows.slice(0, COLLAPSED_COUNT);
   const hiddenCount = totalSold - visibleRows.length;
-  const byType = COMBO_TYPES.map((type) => {
-    const rows = allRows.filter((r) => r.comboType === type);
-    return { type, sold: rows.length, revenue: rows.reduce((sum, r) => sum + r.price, 0) };
-  });
+  const byType = COMBO_TYPES.map((type) => ({ type, sold: allRows.filter((r) => r.comboType === type).length }));
 
   return (
     <div>
@@ -48,8 +45,7 @@ export default function PackageBreakdownCharts({
         {byType.map((t) => (
           <div key={t.type} className="bg-white border border-neutral-200 rounded-xl px-4 py-3">
             <p className={`text-xs font-semibold ${TYPE_STYLE[t.type]}`}>{t.type}</p>
-            <p className="text-lg font-semibold text-neutral-900 mt-0.5">{formatCurrency(t.revenue)}</p>
-            <p className="text-xs text-neutral-500">{t.sold} sold</p>
+            <p className="text-lg font-semibold text-neutral-900 mt-0.5">{t.sold} sold</p>
           </div>
         ))}
       </div>
