@@ -340,6 +340,8 @@ export default function WalkInJobForm({
   const [mechanicId, setMechanicId] = useState(job?.mechanicId ?? "");
   const [description, setDescription] = useState(job?.description ?? "");
   const [revenueAmount, setRevenueAmount] = useState(job ? String(job.revenueAmount) : "");
+  // The TOTAL printed on the scanned jobsheet — null until a scan reads one.
+  const [printedTotal, setPrintedTotal] = useState<number | null>(null);
   const [model, setModel] = useState(job?.model ?? "");
   const [completedDate, setCompletedDate] = useState(job?.completedDate ?? "");
   const [isBigItem, setIsBigItem] = useState(job?.isBigItem ?? false);
@@ -573,6 +575,7 @@ export default function WalkInJobForm({
       } else if (scanned.branch && !locked) {
         setLocationBranch(scanned.branch);
       }
+      setPrintedTotal(scanned.printedTotal);
       if (scanned.items.length > 0) {
         setItems(
           scanned.items.map((it) => ({
@@ -623,6 +626,7 @@ export default function WalkInJobForm({
   const effectiveBranch: Branch | null = locationBranch !== "all" ? locationBranch : (selectedMechanic?.branch ?? null);
 
   const itemsTotal = items.reduce((sum, it) => sum + (Number(it.quantity) || 0) * (Number(it.price) || 0), 0);
+  const totalMismatch = printedTotal !== null && items.length > 0 && Math.abs(itemsTotal - printedTotal) >= 0.01;
 
   // If the job becomes heavy (more items added, or the checkbox is ticked)
   // and the currently picked mechanic isn't a Heavy Repair mechanic, clear
@@ -1375,6 +1379,15 @@ export default function WalkInJobForm({
               onChange={(e) => setRevenueAmount(e.target.value)}
               className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50 disabled:opacity-60"
             />
+            {totalMismatch && printedTotal !== null && (
+              <p className="text-xs text-red-700 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2 mt-1.5">
+                The jobsheet&apos;s printed TOTAL is <b>RM {printedTotal.toFixed(2)}</b>, but the items add up to{" "}
+                <b>RM {itemsTotal.toFixed(2)}</b> ({itemsTotal > printedTotal ? "RM " + (itemsTotal - printedTotal).toFixed(2) + " too much" : "RM " + (printedTotal - itemsTotal).toFixed(2) + " short"}). Check for a missing line (discount, labour) or a wrong price before saving.
+              </p>
+            )}
+            {!totalMismatch && printedTotal !== null && items.length > 0 && (
+              <p className="text-xs text-emerald-700 mt-1.5">✓ Matches the jobsheet&apos;s printed TOTAL.</p>
+            )}
           </div>
           <div>
             <label className="block text-xs font-medium text-neutral-600 mb-1.5">End Date</label>

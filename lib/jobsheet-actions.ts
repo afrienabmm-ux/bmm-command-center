@@ -8,6 +8,7 @@ import { supabaseAdmin } from "./supabase-server";
 import { scanJobsheetImage, scanJobsheetPdf } from "./vision";
 import { extractItemsWithAi } from "./ai-item-extract";
 import type { Branch } from "./branch";
+import { readPrintedTotal, sameAmount, amountAppears, guessDiscountLabel, guessChargeLabel } from "./jobsheet-total";
 
 export type ScannedJobsheetItem = { code: string; description: string; quantity: number; price: number };
 
@@ -33,6 +34,9 @@ export type ScannedJobsheet = {
   nextServiceDate: string;
   jobsheetUserId: string;
   items: ScannedJobsheetItem[];
+  // The grand total printed at the bottom of the jobsheet, when it could be
+  // read — the form warns if the item lines don't add up to it.
+  printedTotal: number | null;
   rawText: string;
   // Best-effort check for a customer signature in the jobsheet photo —
   // true/false when the "Signature" label was found and checked, null
@@ -274,7 +278,7 @@ function extractFields(text: string): Record<string, string> {
 // plus a parts table. Nothing here is trusted blindly: everything it finds
 // is only ever used to pre-fill the Add Job form, which the mechanic still
 // has to check and confirm before saving.
-function parseJobsheetText(text: string): ScannedJobsheet {
+export function parseJobsheetText(text: string): ScannedJobsheet {
   const f = extractFields(text);
   // Customer Code is a dash-separated run of number groups, e.g.
   // "801206 - 10 - 5757" — but the raw captured value often keeps running
@@ -564,6 +568,7 @@ function parseJobsheetText(text: string): ScannedJobsheet {
     nextServiceDate,
     jobsheetUserId,
     items,
+    printedTotal: null,
     rawText: text,
     signatureDetected: null,
     signatureDebug: "",
@@ -572,7 +577,7 @@ function parseJobsheetText(text: string): ScannedJobsheet {
   };
 }
 
-type CatalogLookupEntry = { code: string; description: string; price: number };
+export type CatalogLookupEntry = { code: string; description: string; price: number };
 
 function normalizeCatalogCode(raw: string): string {
   return raw.trim().toUpperCase().replace(/\s+/g, "");
@@ -581,9 +586,9 @@ function normalizeCatalogCode(raw: string): string {
 // The full catalog, keyed by a normalized code — small enough (parts +
 // oils across every brand) to just load whole rather than querying once
 // per item, and this way every item in the same scan shares one lookup.
-type DiscountCatalogEntry = { name: string; price: number };
+export type DiscountCatalogEntry = { name: string; price: number };
 
-async function loadCatalogLookup(): Promise<{ lookup: Map<string, CatalogLookupEntry>; discounts: DiscountCatalogEntry[] }> {
+export async function loadCatalogLookup(): Promise<{ lookup: Map<string, CatalogLookupEntry>; discounts: DiscountCatalogEntry[] }> {
   const { data, error } = await supabaseAdmin.from("cc_catalog_products").select("code, product_name, spec, price, brand");
   if (error || !data) return { lookup: new Map(), discounts: [] };
   const lookup = new Map<string, CatalogLookupEntry>();
@@ -666,12 +671,49 @@ function applyCatalogData(items: ScannedJobsheetItem[], lookup: Map<string, Cata
 // either word, so gating on that text (the previous check) meant this
 // whole pass only ever fired for the one or two rows literally printed
 // "...DISCOUNT" and silently left every other combo/package row alone.
-function normalizeDiscountItems(items: ScannedJobsheetItem[], discountCatalog: DiscountCatalogEntry[]): ScannedJobsheetItem[] {
+export function normalizeDiscountItems(items: ScannedJobsheetItem[], discountCatalog: DiscountCatalogEntry[]): ScannedJobsheetItem[] {
   return items.map((item) => {
     if (item.price >= 0) return item;
     const match = discountCatalog.find((d) => Math.abs(d.price - item.price) < 0.01);
     return { ...item, code: "", description: match ? match.name : "Discount" };
   });
+}
+
+const itemsSum = (items: ScannedJobsheetItem[]) => Math.round(items.reduce((s, it) => s + it.quantity * it.price, 0) * 100) / 100;
+
+// Checks the scanned lines against the TOTAL printed on the jobsheet and
+// repairs the two ways they've actually gone wrong on real scans: a catalog
+// price that differs from what was printed (e.g. 57.70 vs the printed 57.30),
+// and a whole line the row parser couldn't read — a discount with no code
+// ("FREE COOLANT -25.10", "COMBO ROCK OIL -4.30") or a code-less charge
+// ("SERVICE CVT 40.00"). A missing line is only added when its exact amount
+// is printed on the sheet, so a coincidence can't invent one.
+export function reconcileWithPrintedTotal(
+  scanned: ScannedJobsheetItem[],
+  lookup: Map<string, CatalogLookupEntry>,
+  discounts: DiscountCatalogEntry[],
+  text: string,
+): { items: ScannedJobsheetItem[]; printedTotal: number | null } {
+  const withCatalog = applyCatalogData(scanned, lookup);
+  const printedTotal = readPrintedTotal(text);
+  if (printedTotal === null) return { items: withCatalog, printedTotal };
+
+  // Catalog names, but the price the customer was actually charged.
+  const printedPrices = withCatalog.map((it, i) => ({ ...it, price: scanned[i].price }));
+  for (const base of [withCatalog, printedPrices]) {
+    if (sameAmount(itemsSum(base), printedTotal)) return { items: base, printedTotal };
+  }
+
+  for (const base of [printedPrices, withCatalog]) {
+    const diff = Math.round((printedTotal - itemsSum(base)) * 100) / 100;
+    if (sameAmount(diff, 0) || !amountAppears(text, diff)) continue;
+    const description =
+      diff < 0
+        ? (discounts.find((d) => sameAmount(d.price, diff))?.name ?? guessDiscountLabel(text))
+        : guessChargeLabel(text, base.map((it) => it.description));
+    return { items: [...base, { code: "", description, quantity: 1, price: diff }], printedTotal };
+  }
+  return { items: withCatalog, printedTotal };
 }
 
 export async function scanJobsheet(
@@ -710,8 +752,9 @@ export async function scanJobsheet(
     // instead of trusting OCR's read of the tiny, easy-to-garble print
     // next to it — see normalizeDiscountItems and applyCatalogData.
     const { lookup, discounts } = await catalogLookupPromise;
-    parsed.items = normalizeDiscountItems(parsed.items, discounts);
-    parsed.items = applyCatalogData(parsed.items, lookup);
+    const reconciled = reconcileWithPrintedTotal(normalizeDiscountItems(parsed.items, discounts), lookup, discounts, text);
+    parsed.items = reconciled.items;
+    parsed.printedTotal = reconciled.printedTotal;
     return { data: { ...parsed, signatureDetected, signatureDebug, picSignatureDetected, picSignatureDebug } };
   } catch (err) {
     const message = err instanceof Error ? err.message : "";
