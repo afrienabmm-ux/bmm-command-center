@@ -895,7 +895,7 @@ export default function WalkInJobForm({
       // fields at the moment Save was clicked (see addPackageSaleAction).
       let savedJobId: string | null = null;
       if (isEdit && job) {
-        const result = await updateRepairJobAction(job.id, job.branch, payload);
+        const result = await updateRepairJobAction(job.id, job.branch, { ...payload, moveToBranch: effectiveBranch ?? undefined });
         if (result && "error" in result) {
           showError(result.error);
           return;

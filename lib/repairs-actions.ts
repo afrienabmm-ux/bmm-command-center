@@ -732,10 +732,17 @@ export async function updateRepairJobAction(
     signatureStatus?: string;
     picSignatureStatus?: string;
     jobsheetPhotoPath?: string | null;
+    // The branch picked on the form (its Location). When it differs from
+    // the job's current branch the job moves there — otherwise correcting a
+    // wrong Location only changed the label and left the job counted under
+    // the old branch.
+    moveToBranch?: Branch;
   }
 ): Promise<{ error: string } | void> {
   const user = await requireApproved();
   assertCanEditBranch(user, branch);
+  const targetBranch = input.moveToBranch ?? branch;
+  if (targetBranch !== branch) assertCanEditBranch(user, targetBranch);
   const items = input.items ?? [];
   const assignmentCheck = await assertMechanicAssignment(input.mechanicId, input.isBigItem ?? false, id, true);
   if (assignmentCheck && "error" in assignmentCheck) return assignmentCheck;
@@ -750,7 +757,7 @@ export async function updateRepairJobAction(
   // customer's GenBlu records by their OLD name/plate (see
   // syncGenbluCustomerDetails after the save) and to know whether either
   // actually changed at all.
-  const { data: priorJob } = await supabaseAdmin.from("cc_repair_jobs").select("customer_name, plate_no").eq("id", id).single();
+  const { data: priorJob } = await supabaseAdmin.from("cc_repair_jobs").select("customer_name, plate_no, job_no").eq("id", id).single();
 
   const update: Record<string, unknown> = {
     customer_name: input.customerName,
@@ -789,11 +796,12 @@ export async function updateRepairJobAction(
   // jobsheet's own Job No. field after the job was created.
   if (input.jobType === "Walk-in" && input.jobsheetNo?.trim()) {
     const newJobNo = input.jobsheetNo.trim();
-    if (await findDuplicateJobNo(branch, newJobNo, id)) {
+    if (await findDuplicateJobNo(targetBranch, newJobNo, id)) {
       return { error: `Job number ${newJobNo} is already saved at this branch — check whether this jobsheet was already added before saving it again.` };
     }
     update.job_no = newJobNo;
   }
+  if (targetBranch !== branch) update.branch = targetBranch;
   if (input.quotationDate !== undefined) update.quotation_date = input.quotationDate;
   if (input.signatureStatus !== undefined) update.signature_status = input.signatureStatus;
   if (input.picSignatureStatus !== undefined) update.pic_signature_status = input.picSignatureStatus;
@@ -819,8 +827,18 @@ export async function updateRepairJobAction(
   const { error } = await supabaseAdmin.from("cc_repair_jobs").update(update).eq("id", id);
   if (error) throw new Error(error.message);
 
+  // A Services Combo sold on this jobsheet carries its own branch (and is
+  // matched to the job by receipt no. per branch) — it moves with the job,
+  // or re-saving would log a second copy under the new branch.
+  if (targetBranch !== branch && priorJob) {
+    const receipts = [...new Set([priorJob.job_no, update.job_no as string | undefined].filter(Boolean))] as string[];
+    if (receipts.length) {
+      await supabaseAdmin.from("cc_package_sales").update({ branch: targetBranch }).eq("branch", branch).in("receipt_id", receipts);
+    }
+  }
+
   await replaceJobItems(id, items);
-  await deductCatalogStockForNewItems(branch, (existingItems as ItemInput[] | null) ?? [], items);
+  await deductCatalogStockForNewItems(targetBranch, (existingItems as ItemInput[] | null) ?? [], items);
   // A GenBlu Tracker/Allocation record is created from whatever name and
   // plate the jobsheet had at that moment — if the PIC later fixes a typo
   // here, those records should follow, not keep showing the stale value
@@ -828,7 +846,11 @@ export async function updateRepairJobAction(
   if (input.jobType === "Walk-in" && priorJob && (priorJob.customer_name !== input.customerName || priorJob.plate_no !== input.plateNo)) {
     await syncGenbluCustomerDetails(branch, priorJob.customer_name, input.customerName, input.plateNo);
   }
-  await logActivity(user, `Updated ${input.jobType} job`, `${input.customerName || input.plateNo} (${branch})`);
+  await logActivity(
+    user,
+    `Updated ${input.jobType} job`,
+    `${input.customerName || input.plateNo} (${targetBranch !== branch ? `${branch} → ${targetBranch}` : branch})`,
+  );
   revalidatePath("/repairs");
   revalidatePath("/repairs/walk-in");
   revalidatePath("/genblu");
