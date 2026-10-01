@@ -6,6 +6,7 @@
 // TELEGRAM_CHAT_ID_SETIA_ALAM, TELEGRAM_CHAT_ID_PUNCAK_ALAM) that only sees its
 // own branch. TELEGRAM_CHAT_ID is the management group and gets all branches.
 import { supabaseAdmin } from "./supabase-server";
+import { fetchAllRows } from "./fetch-all";
 import { BRANCHES, type Branch } from "./branch";
 import { classifyYamahaModel } from "./yamaha-model";
 import { getGenbluPlatePoints, getGenbluTxLite, jobGenbluPoints } from "./genblu-plates";
@@ -34,13 +35,16 @@ export async function buildAfterSalesDigest(dateOverride?: string): Promise<Bran
   const monthStart = `${day.slice(0, 7)}-01`;
 
   const [{ data, error }, plates, txs] = await Promise.all([
-    supabaseAdmin
-      .from("cc_repair_jobs")
-      .select("branch, job_no, customer_name, plate_no, model, revenue_amount, completed_date")
-      .eq("status", "Completed")
-      .gte("completed_date", monthStart)
-      .lte("completed_date", day)
-      .limit(5000),
+    fetchAllRows((a, b) =>
+      supabaseAdmin
+        .from("cc_repair_jobs")
+        .select("branch, job_no, customer_name, plate_no, model, revenue_amount, completed_date")
+        .eq("status", "Completed")
+        .gte("completed_date", monthStart)
+        .lte("completed_date", day)
+        .order("id")
+        .range(a, b),
+    ),
     getGenbluPlatePoints(),
     getGenbluTxLite(),
   ]);

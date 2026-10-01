@@ -1,5 +1,6 @@
 import JSZip from "jszip";
 import { supabaseAdmin } from "./supabase-server";
+import { fetchAllRows } from "./fetch-all";
 import { sendEmail } from "./email";
 
 // No user session here — this runs from a scheduled cron hit (see
@@ -94,25 +95,37 @@ export async function runMonthlyPhotoReport(
   const label = `${MONTH_NAMES[month - 1]} ${year}`;
 
   const [{ data: jobs, error: jobsErr }, { data: regs, error: regsErr }, { data: txns, error: txnsErr }] = await Promise.all([
-    supabaseAdmin
-      .from("cc_repair_jobs")
-      .select("id, jobsheet_no, job_no, jobsheet_photo_path, created_at")
-      .eq("job_type", "Walk-in")
-      .not("jobsheet_photo_path", "is", null)
-      .gte("created_at", from)
-      .lt("created_at", to),
-    supabaseAdmin
-      .from("cc_genblu_registrations")
-      .select("id, customer_name, screenshot_path, created_at")
-      .not("screenshot_path", "is", null)
-      .gte("created_at", from)
-      .lt("created_at", to),
-    supabaseAdmin
-      .from("cc_genblu_transactions")
-      .select("id, customer_name, screenshot_path, created_at")
-      .not("screenshot_path", "is", null)
-      .gte("created_at", from)
-      .lt("created_at", to),
+    fetchAllRows((a, b) =>
+      supabaseAdmin
+        .from("cc_repair_jobs")
+        .select("id, jobsheet_no, job_no, jobsheet_photo_path, created_at")
+        .eq("job_type", "Walk-in")
+        .not("jobsheet_photo_path", "is", null)
+        .gte("created_at", from)
+        .lt("created_at", to)
+        .order("id")
+        .range(a, b),
+    ),
+    fetchAllRows((a, b) =>
+      supabaseAdmin
+        .from("cc_genblu_registrations")
+        .select("id, customer_name, screenshot_path, created_at")
+        .not("screenshot_path", "is", null)
+        .gte("created_at", from)
+        .lt("created_at", to)
+        .order("id")
+        .range(a, b),
+    ),
+    fetchAllRows((a, b) =>
+      supabaseAdmin
+        .from("cc_genblu_transactions")
+        .select("id, customer_name, screenshot_path, created_at")
+        .not("screenshot_path", "is", null)
+        .gte("created_at", from)
+        .lt("created_at", to)
+        .order("id")
+        .range(a, b),
+    ),
   ]);
   if (jobsErr) throw new Error(jobsErr.message);
   if (regsErr) throw new Error(regsErr.message);

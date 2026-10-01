@@ -1,6 +1,7 @@
 "use server";
 
 import { supabaseAdmin } from "./supabase-server";
+import { fetchAllRows } from "./fetch-all";
 import { requireApproved } from "./current-user";
 
 // Shape is the Sales Dashboard's own to define (see
@@ -68,12 +69,16 @@ export type GenbluReportSnapshot = {
 // end of that calendar day, not midnight at its start.
 export async function getGenbluReportHistoryInRange(fromDate: string, toDate: string): Promise<GenbluReportSnapshot[]> {
   await requireApproved();
-  const { data, error } = await supabaseAdmin
-    .from("cc_genblu_reports")
-    .select("id, month, report, received_at")
-    .gte("received_at", `${fromDate}T00:00:00`)
-    .lte("received_at", `${toDate}T23:59:59`)
-    .order("received_at", { ascending: false });
+  const { data, error } = await fetchAllRows((a, b) =>
+    supabaseAdmin
+      .from("cc_genblu_reports")
+      .select("id, month, report, received_at")
+      .gte("received_at", `${fromDate}T00:00:00`)
+      .lte("received_at", `${toDate}T23:59:59`)
+      .order("received_at", { ascending: false })
+      .order("id")
+      .range(a, b),
+  );
   if (error) throw new Error(error.message);
   return (data ?? []).map((r) => ({
     id: r.id as string,

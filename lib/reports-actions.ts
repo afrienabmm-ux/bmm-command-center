@@ -2,6 +2,7 @@
 
 import { cache } from "react";
 import { supabaseAdmin } from "./supabase-server";
+import { fetchAllRows } from "./fetch-all";
 import { requireApproved } from "./current-user";
 import { BRANCHES, type Branch } from "./branch";
 
@@ -37,19 +38,27 @@ const cachedBranchMonthSummary = cache(async (branch: Branch, year: number, mont
       .eq("year", year)
       .eq("month", month)
       .maybeSingle(),
-    supabaseAdmin
-      .from("cc_repair_jobs")
-      .select("revenue_amount")
-      .eq("branch", branch)
-      .eq("status", "Completed")
-      .gte("completed_date", from)
-      .lte("completed_date", to),
-    supabaseAdmin
-      .from("cc_package_sales")
-      .select("cc_packages(price)")
-      .eq("branch", branch)
-      .gte("sale_date", from)
-      .lte("sale_date", to),
+    fetchAllRows((a, b) =>
+      supabaseAdmin
+        .from("cc_repair_jobs")
+        .select("revenue_amount")
+        .eq("branch", branch)
+        .eq("status", "Completed")
+        .gte("completed_date", from)
+        .lte("completed_date", to)
+        .order("id")
+        .range(a, b),
+    ),
+    fetchAllRows((a, b) =>
+      supabaseAdmin
+        .from("cc_package_sales")
+        .select("cc_packages(price)")
+        .eq("branch", branch)
+        .gte("sale_date", from)
+        .lte("sale_date", to)
+        .order("id")
+        .range(a, b),
+    ),
   ]);
   if (jobsError) throw new Error(jobsError.message);
   if (salesError) throw new Error(salesError.message);
@@ -81,19 +90,27 @@ export async function getBranchMonthSummary(branch: Branch, year: number, month:
 export async function getBranchAchievedInRange(branch: Branch, from: string, to: string): Promise<number> {
   await requireApproved();
   const [{ data: jobs, error: jobsError }, { data: sales, error: salesError }] = await Promise.all([
-    supabaseAdmin
-      .from("cc_repair_jobs")
-      .select("revenue_amount")
-      .eq("branch", branch)
-      .eq("status", "Completed")
-      .gte("completed_date", from)
-      .lte("completed_date", to),
-    supabaseAdmin
-      .from("cc_package_sales")
-      .select("cc_packages(price)")
-      .eq("branch", branch)
-      .gte("sale_date", from)
-      .lte("sale_date", to),
+    fetchAllRows((a, b) =>
+      supabaseAdmin
+        .from("cc_repair_jobs")
+        .select("revenue_amount")
+        .eq("branch", branch)
+        .eq("status", "Completed")
+        .gte("completed_date", from)
+        .lte("completed_date", to)
+        .order("id")
+        .range(a, b),
+    ),
+    fetchAllRows((a, b) =>
+      supabaseAdmin
+        .from("cc_package_sales")
+        .select("cc_packages(price)")
+        .eq("branch", branch)
+        .gte("sale_date", from)
+        .lte("sale_date", to)
+        .order("id")
+        .range(a, b),
+    ),
   ]);
   if (jobsError) throw new Error(jobsError.message);
   if (salesError) throw new Error(salesError.message);
@@ -155,11 +172,15 @@ const cachedMechanicAchievements = cache(
     // happens to be stored on the job.
     const [{ data: mechanics, error: mErr }, { data: jobs, error: jErr }] = await Promise.all([
       supabaseAdmin.from("cc_mechanics").select("id, full_name, short_code").eq("branch", branch),
-      supabaseAdmin
-        .from("cc_repair_jobs")
-        .select("mechanic_id, job_type, revenue_amount, status")
-        .gte("started_date", from)
-        .lte("started_date", to),
+      fetchAllRows((a, b) =>
+        supabaseAdmin
+          .from("cc_repair_jobs")
+          .select("mechanic_id, job_type, revenue_amount, status")
+          .gte("started_date", from)
+          .lte("started_date", to)
+          .order("id")
+          .range(a, b),
+      ),
     ]);
     if (mErr) throw new Error(mErr.message);
     if (jErr) throw new Error(jErr.message);
@@ -276,11 +297,15 @@ const cachedMechanicGenbluAchievements = cache(
 
     const [{ data: mechanics, error: mErr }, { data: registrations, error: gErr }] = await Promise.all([
       supabaseAdmin.from("cc_mechanics").select("id, full_name, short_code").eq("branch", branch),
-      supabaseAdmin
-        .from("cc_genblu_registrations")
-        .select("salesperson_name, created_at")
-        .gte("created_at", `${from}T00:00:00`)
-        .lte("created_at", `${to}T23:59:59`),
+      fetchAllRows((a, b) =>
+        supabaseAdmin
+          .from("cc_genblu_registrations")
+          .select("salesperson_name, created_at")
+          .gte("created_at", `${from}T00:00:00`)
+          .lte("created_at", `${to}T23:59:59`)
+          .order("id")
+          .range(a, b),
+      ),
     ]);
     if (mErr) throw new Error(mErr.message);
     if (gErr) throw new Error(gErr.message);

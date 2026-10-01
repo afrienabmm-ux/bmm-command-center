@@ -9,6 +9,7 @@
 import { cache } from "react";
 import { supabaseAdmin } from "./supabase-server";
 import { normalizePlate } from "./plate";
+import { fetchAllRows } from "./fetch-all";
 
 // Every plate number with a GenBlu registration on file, mapped to the
 // points it was awarded — across every branch and all of history.
@@ -18,9 +19,13 @@ import { normalizePlate } from "./plate";
 export type GenbluPlateInfo = { points: number; name: string };
 
 export const getGenbluPlatePoints = cache(async (): Promise<Map<string, GenbluPlateInfo>> => {
-  const { data, error } = await supabaseAdmin
-    .from("cc_genblu_registrations")
-    .select("customer_plate_no, customer_name, points_accrued");
+  const { data, error } = await fetchAllRows((a, b) =>
+    supabaseAdmin
+      .from("cc_genblu_registrations")
+      .select("customer_plate_no, customer_name, points_accrued")
+      .order("id")
+      .range(a, b),
+  );
   if (error) throw new Error(error.message);
   const map = new Map<string, GenbluPlateInfo>();
   for (const r of data ?? []) {
@@ -44,7 +49,9 @@ function nameWords(name: string): string[] {
 // registration only carries one points figure, but each visit earns its
 // own, roughly equal to that visit's cost. Small table, memoized per request.
 export const getGenbluTxLite = cache(async (): Promise<GenbluTxLite[]> => {
-  const { data, error } = await supabaseAdmin.from("cc_genblu_transactions").select("customer_name, points, transaction_date");
+  const { data, error } = await fetchAllRows((a, b) =>
+    supabaseAdmin.from("cc_genblu_transactions").select("customer_name, points, transaction_date").order("id").range(a, b),
+  );
   if (error) throw new Error(error.message);
   return (data ?? []).map((t) => ({
     words: nameWords(t.customer_name ?? ""),

@@ -2,6 +2,7 @@
 
 import { requireApproved } from "./current-user";
 import { supabaseAdmin } from "./supabase-server";
+import { fetchAllRows } from "./fetch-all";
 import { BRANCHES, type Branch } from "./branch";
 
 function monthRange(year: number, month: number): { from: string; to: string } {
@@ -65,25 +66,33 @@ export async function getMonthlyTrends(
   const [{ data: targets }, { data: jobs, error: jobsErr }, { data: claims, error: claimsErr }, { data: sales, error: salesErr }] =
     await Promise.all([
       supabaseAdmin.from("cc_monthly_targets").select("year, month, target_amount").in("branch", branchFilter),
-      supabaseAdmin
-        .from("cc_repair_jobs")
-        .select("branch, revenue_amount, completed_date")
-        .eq("status", "Completed")
-        .in("branch", branchFilter)
-        .gte("completed_date", from)
-        .lte("completed_date", to),
+      fetchAllRows((a, b) =>
+        supabaseAdmin
+          .from("cc_repair_jobs")
+          .select("branch, revenue_amount, completed_date")
+          .eq("status", "Completed")
+          .in("branch", branchFilter)
+          .gte("completed_date", from)
+          .lte("completed_date", to)
+          .order("id")
+          .range(a, b),
+      ),
       supabaseAdmin
         .from("cc_warranty_claims")
         .select("submitted_date")
         .in("branch", branchFilter)
         .gte("submitted_date", from)
         .lte("submitted_date", to),
-      supabaseAdmin
-        .from("cc_package_sales")
-        .select("sale_date, cc_packages(price)")
-        .in("branch", branchFilter)
-        .gte("sale_date", from)
-        .lte("sale_date", to),
+      fetchAllRows((a, b) =>
+        supabaseAdmin
+          .from("cc_package_sales")
+          .select("sale_date, cc_packages(price)")
+          .in("branch", branchFilter)
+          .gte("sale_date", from)
+          .lte("sale_date", to)
+          .order("id")
+          .range(a, b),
+      ),
     ]);
   if (jobsErr) throw new Error(jobsErr.message);
   if (claimsErr) throw new Error(claimsErr.message);

@@ -1,6 +1,7 @@
 "use server";
 
 import { supabaseAdmin } from "./supabase-server";
+import { fetchAllRows } from "./fetch-all";
 import { requireApproved } from "./current-user";
 import { BRANCHES, type Branch } from "./branch";
 import { MECHANIC_KPI_WORKING_DAYS } from "./types";
@@ -88,12 +89,16 @@ export async function getMechanicCommitment(branch?: Branch, targetDate?: string
     mechanicsQuery,
     // Jobsheet (Walk-in) revenue only — Restore Bike jobs don't count
     // toward the daily pace.
-    supabaseAdmin
-      .from("cc_repair_jobs")
-      .select("mechanic_id, job_type, revenue_amount, started_date")
-      .eq("job_type", "Walk-in")
-      .gte("started_date", weekStart)
-      .lte("started_date", today),
+    fetchAllRows((a, b) =>
+      supabaseAdmin
+        .from("cc_repair_jobs")
+        .select("mechanic_id, job_type, revenue_amount, started_date")
+        .eq("job_type", "Walk-in")
+        .gte("started_date", weekStart)
+        .lte("started_date", today)
+        .order("id")
+        .range(a, b),
+    ),
     targetsQuery,
   ]);
   if (mErr) throw new Error(mErr.message);

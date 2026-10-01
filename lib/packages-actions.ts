@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { supabaseAdmin } from "./supabase-server";
+import { fetchAllRows } from "./fetch-all";
 import { requireApproved, assertCanEditBranch } from "./current-user";
 import { BRANCHES, type Branch } from "./branch";
 import type { Package } from "./types";
@@ -117,18 +118,24 @@ function toSale(r: SaleRow): PackageSaleWithNames {
 
 export async function getPackageSales(branch: Branch): Promise<PackageSaleWithNames[]> {
   await requireApproved();
-  const { data, error } = await supabaseAdmin
-    .from("cc_package_sales")
-    .select("*, cc_packages(name), cc_mechanics(short_code, short_name)")
-    .eq("branch", branch)
-    .order("sale_date", { ascending: false });
+  const { data, error } = await fetchAllRows((a, b) =>
+    supabaseAdmin
+      .from("cc_package_sales")
+      .select("*, cc_packages(name), cc_mechanics(short_code, short_name)")
+      .eq("branch", branch)
+      .order("sale_date", { ascending: false })
+      .order("id")
+      .range(a, b),
+  );
   if (error) throw new Error(error.message);
   return (data as unknown as SaleRow[]).map(toSale);
 }
 
 export async function getPackageSoldCounts(branch: Branch): Promise<Record<string, number>> {
   await requireApproved();
-  const { data, error } = await supabaseAdmin.from("cc_package_sales").select("package_id").eq("branch", branch);
+  const { data, error } = await fetchAllRows((a, b) =>
+    supabaseAdmin.from("cc_package_sales").select("package_id").eq("branch", branch).order("id").range(a, b),
+  );
   if (error) throw new Error(error.message);
   const counts: Record<string, number> = {};
   for (const row of data ?? []) {

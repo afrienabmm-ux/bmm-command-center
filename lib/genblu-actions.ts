@@ -10,6 +10,7 @@ import { extractTextFromImage, extractTextAndWordsFromImage, type PositionedWord
 import { extractGenbluEventWithAi } from "./ai-genblu-extract";
 import { logActivity } from "./activity-log";
 import { normalizeName, namesLikelyMatch, expandNameConnectors } from "./name-matching";
+import { fetchAllRows } from "./fetch-all";
 
 const BUCKET = "genblu-screenshots";
 
@@ -54,10 +55,14 @@ async function findMatchingRegistration(
   branch: Branch,
   customerName: string
 ): Promise<{ id: string; points_accrued: number | null } | null> {
-  const { data } = await supabaseAdmin
-    .from("cc_genblu_registrations")
-    .select("id, customer_name, points_accrued")
-    .eq("branch", branch);
+  const { data } = await fetchAllRows((a, b) =>
+    supabaseAdmin
+      .from("cc_genblu_registrations")
+      .select("id, customer_name, points_accrued")
+      .eq("branch", branch)
+      .order("id")
+      .range(a, b),
+  );
   const match = (data ?? []).find((r) => namesLikelyMatch(r.customer_name, customerName));
   return match ? { id: match.id, points_accrued: match.points_accrued } : null;
 }
@@ -494,9 +499,11 @@ export async function analyzeGenbluHomeScreenForApi(buffer: Buffer): Promise<Gen
 // registration ever made just to render "recent activity".
 export async function getGenbluRegistrations(branch: Branch, sinceDate?: string): Promise<GenbluRegistration[]> {
   await requireApproved();
-  let query = supabaseAdmin.from("cc_genblu_registrations").select("*").eq("branch", branch);
-  if (sinceDate) query = query.gte("created_at", sinceDate);
-  const { data, error } = await query.order("created_at", { ascending: false });
+  const { data, error } = await fetchAllRows((a, b) => {
+    let query = supabaseAdmin.from("cc_genblu_registrations").select("*").eq("branch", branch);
+    if (sinceDate) query = query.gte("created_at", sinceDate);
+    return query.order("created_at", { ascending: false }).order("id").range(a, b);
+  });
   if (error) throw new Error(error.message);
   return (data as Row[]).map(toReg);
 }
@@ -537,10 +544,14 @@ export async function getScreenshotUrl(path: string): Promise<string | null> {
 // customer's total always reflects every job they've ever had, past or
 // future, without a separate ledger to keep in sync.
 export async function getGenbluPointsByName(): Promise<Record<string, number>> {
-  const { data, error } = await supabaseAdmin
-    .from("cc_repair_jobs")
-    .select("customer_name, revenue_amount")
-    .eq("job_type", "Walk-in");
+  const { data, error } = await fetchAllRows((a, b) =>
+    supabaseAdmin
+      .from("cc_repair_jobs")
+      .select("customer_name, revenue_amount")
+      .eq("job_type", "Walk-in")
+      .order("id")
+      .range(a, b),
+  );
   if (error) throw new Error(error.message);
 
   const points: Record<string, number> = {};
@@ -778,10 +789,9 @@ export async function checkGenbluRegisteredAction(branch: Branch, customerName: 
   const name = normalizeName(customerName);
   if (!name) return false;
 
-  const { data, error } = await supabaseAdmin
-    .from("cc_genblu_registrations")
-    .select("customer_name")
-    .eq("branch", branch);
+  const { data, error } = await fetchAllRows((a, b) =>
+    supabaseAdmin.from("cc_genblu_registrations").select("customer_name").eq("branch", branch).order("id").range(a, b),
+  );
   if (error) return false;
 
   return (data ?? []).some((r) => normalizeName(r.customer_name) === name);
@@ -816,10 +826,9 @@ export async function ensureGenbluRegistrationAction(input: {
   const customerName = input.customerName.trim();
   if (!customerName) return { error: "Customer name is required to register GenBlu." };
 
-  const { data: existing, error: fetchError } = await supabaseAdmin
-    .from("cc_genblu_registrations")
-    .select("id, customer_name")
-    .eq("branch", input.branch);
+  const { data: existing, error: fetchError } = await fetchAllRows((a, b) =>
+    supabaseAdmin.from("cc_genblu_registrations").select("id, customer_name").eq("branch", input.branch).order("id").range(a, b),
+  );
   if (fetchError) return { error: fetchError.message };
 
   const match = (existing ?? []).find((r) => normalizeName(r.customer_name) === normalizeName(customerName));
@@ -991,10 +1000,14 @@ export async function attachGenbluScreenshotAction(input: {
     }
   }
 
-  const { data: existing, error: fetchError } = await supabaseAdmin
-    .from("cc_genblu_registrations")
-    .select("id, customer_name, points_accrued")
-    .eq("branch", input.branch);
+  const { data: existing, error: fetchError } = await fetchAllRows((a, b) =>
+    supabaseAdmin
+      .from("cc_genblu_registrations")
+      .select("id, customer_name, points_accrued")
+      .eq("branch", input.branch)
+      .order("id")
+      .range(a, b),
+  );
   if (fetchError) return { error: fetchError.message };
   const match = (existing ?? []).find((r) => normalizeName(r.customer_name) === normalizeName(customerName));
 
@@ -1359,11 +1372,15 @@ export async function addGenbluTransactionAction(input: {
 
 export async function getGenbluTransactions(branch: Branch): Promise<GenbluTransaction[]> {
   await requireApproved();
-  const { data, error } = await supabaseAdmin
-    .from("cc_genblu_transactions")
-    .select("*")
-    .eq("branch", branch)
-    .order("created_at", { ascending: false });
+  const { data, error } = await fetchAllRows((a, b) =>
+    supabaseAdmin
+      .from("cc_genblu_transactions")
+      .select("*")
+      .eq("branch", branch)
+      .order("created_at", { ascending: false })
+      .order("id")
+      .range(a, b),
+  );
   if (error) throw new Error(error.message);
   return (data as TransactionRow[]).map(toTransaction);
 }
@@ -1404,11 +1421,15 @@ export type GenbluMonthlySummaryRow = { branch: Branch | "unknown"; label: strin
 export async function getGenbluMonthlySummary(year: number, month: number): Promise<{ rows: GenbluMonthlySummaryRow[]; total: GenbluMonthlySummaryRow }> {
   await requireApproved();
   const prefix = `${year}-${String(month).padStart(2, "0")}`;
-  const { data, error } = await supabaseAdmin
-    .from("cc_genblu_transactions")
-    .select("branch, points, transaction_date")
-    .gte("transaction_date", `${prefix}-01`)
-    .lt("transaction_date", month === 12 ? `${year + 1}-01-01` : `${year}-${String(month + 1).padStart(2, "0")}-01`);
+  const { data, error } = await fetchAllRows((a, b) =>
+    supabaseAdmin
+      .from("cc_genblu_transactions")
+      .select("branch, points, transaction_date")
+      .gte("transaction_date", `${prefix}-01`)
+      .lt("transaction_date", month === 12 ? `${year + 1}-01-01` : `${year}-${String(month + 1).padStart(2, "0")}-01`)
+      .order("id")
+      .range(a, b),
+  );
   if (error) throw new Error(error.message);
 
   const byBranch = new Map<Branch, { counts: number; points: number }>();

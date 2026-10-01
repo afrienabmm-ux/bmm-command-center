@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-server";
+import { fetchAllRows } from "@/lib/fetch-all";
 import { BRANCHES, type Branch } from "@/lib/branch";
 
 export const dynamic = "force-dynamic";
@@ -26,15 +27,15 @@ export async function GET(req: NextRequest) {
   const branchParam = searchParams.get("branch");
   const branch = BRANCHES.some((b) => b.value === branchParam) ? (branchParam as Branch) : null;
 
-  let query = supabaseAdmin
-    .from("cc_genblu_registrations")
-    .select("branch, customer_name, customer_plate_no, salesperson_name, points_accrued, created_at")
-    .eq("source", "new_customer")
-    .order("created_at", { ascending: false });
-  if (branch) query = query.eq("branch", branch);
-  if (since) query = query.gte("created_at", since);
-
-  const { data, error } = await query;
+  const { data, error } = await fetchAllRows((a, b) => {
+    let query = supabaseAdmin
+      .from("cc_genblu_registrations")
+      .select("branch, customer_name, customer_plate_no, salesperson_name, points_accrued, created_at")
+      .eq("source", "new_customer");
+    if (branch) query = query.eq("branch", branch);
+    if (since) query = query.gte("created_at", since);
+    return query.order("created_at", { ascending: false }).order("id").range(a, b);
+  });
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
   const registrations = (data ?? []).map((r) => ({

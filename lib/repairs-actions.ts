@@ -11,6 +11,7 @@ import { BRANCHES, type Branch } from "./branch";
 import { normalizeName } from "./name-matching";
 import { checkCustomerCode, customerCodeReason } from "./customer-code";
 import { normalizePlate } from "./plate";
+import { fetchAllRows } from "./fetch-all";
 import { getGenbluPlatePoints, getGenbluTxLite, jobGenbluPoints, type GenbluTxLite, type GenbluPlateInfo } from "./genblu-plates";
 
 type ItemRow = { id: string; code: string; description: string; quantity: number; price: number };
@@ -378,13 +379,17 @@ export async function getSuspiciousWalkInJobs(onlyBranch?: Branch): Promise<Susp
   const [y, m, d] = today.split("-").map(Number);
   const sinceDate = new Date(y, m - 1 - 3, d).toISOString().slice(0, 10);
 
-  const { data, error } = await supabaseAdmin
-    .from("cc_repair_jobs")
-    .select("id, branch, job_no, customer_name, plate_no, revenue_amount, started_date, mechanic_id, created_at, suspicious_dismissed_at")
-    .eq("job_type", "Walk-in")
-    .in("branch", branches)
-    .gte("created_at", sinceDate)
-    .is("suspicious_dismissed_at", null);
+  const { data, error } = await fetchAllRows((a, b) =>
+    supabaseAdmin
+      .from("cc_repair_jobs")
+      .select("id, branch, job_no, customer_name, plate_no, revenue_amount, started_date, mechanic_id, created_at, suspicious_dismissed_at")
+      .eq("job_type", "Walk-in")
+      .in("branch", branches)
+      .gte("created_at", sinceDate)
+      .is("suspicious_dismissed_at", null)
+      .order("id")
+      .range(a, b),
+  );
   if (error) throw new Error(error.message);
 
   const flagged: SuspiciousJob[] = [];
@@ -917,11 +922,15 @@ export type CustomerCodeErrorRow = {
 export async function getCustomerCodeErrors(): Promise<CustomerCodeErrorRow[]> {
   await requireApproved();
   const [{ data: jobs, error: jobsErr }, { data: mechanics, error: mechErr }] = await Promise.all([
-    supabaseAdmin
-      .from("cc_repair_jobs")
-      .select("id, branch, jobsheet_no, job_no, started_date, created_at, customer_code, customer_name, plate_no, model, mechanic_id")
-      .eq("job_type", "Walk-in")
-      .order("started_date", { ascending: false }),
+    fetchAllRows((a, b) =>
+      supabaseAdmin
+        .from("cc_repair_jobs")
+        .select("id, branch, jobsheet_no, job_no, started_date, created_at, customer_code, customer_name, plate_no, model, mechanic_id")
+        .eq("job_type", "Walk-in")
+        .order("started_date", { ascending: false })
+        .order("id")
+        .range(a, b),
+    ),
     supabaseAdmin.from("cc_mechanics").select("id, short_code"),
   ]);
   if (jobsErr) throw new Error(jobsErr.message);

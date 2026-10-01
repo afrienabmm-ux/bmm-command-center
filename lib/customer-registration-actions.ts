@@ -1,6 +1,7 @@
 "use server";
 
 import { supabaseAdmin } from "./supabase-server";
+import { fetchAllRows } from "./fetch-all";
 
 function normalizePhone(phone: string): string {
   return phone.replace(/\D/g, "");
@@ -32,10 +33,14 @@ export type MembershipLookup = {
 export type LookupChoice = { plateNo: string; model: string; cardNumber: string };
 
 async function buildLookupResult(card: LookupCard): Promise<MembershipLookup> {
-  const { data: jobs, error: jobsError } = await supabaseAdmin
-    .from("cc_repair_jobs")
-    .select("customer_name, customer_phone, revenue_amount")
-    .eq("job_type", "Walk-in");
+  const { data: jobs, error: jobsError } = await fetchAllRows((a, b) =>
+    supabaseAdmin
+      .from("cc_repair_jobs")
+      .select("customer_name, customer_phone, revenue_amount")
+      .eq("job_type", "Walk-in")
+      .order("id")
+      .range(a, b),
+  );
   if (jobsError) throw new Error(jobsError.message);
 
   const normalizedName = card.customer_name.trim().toLowerCase();
@@ -104,7 +109,9 @@ async function findCardsByPhoneOrPlate(query: string): Promise<LookupCard[]> {
   const normalizedPlateQuery = normalizePlate(query);
   if (!normalizedPhoneQuery && !normalizedPlateQuery) return [];
 
-  const { data: all, error: allError } = await supabaseAdmin.from("cc_customer_cards").select(LOOKUP_COLS);
+  const { data: all, error: allError } = await fetchAllRows((a, b) =>
+    supabaseAdmin.from("cc_customer_cards").select(LOOKUP_COLS).order("id").range(a, b),
+  );
   if (allError) throw new Error(allError.message);
 
   if (normalizedPlateQuery) {

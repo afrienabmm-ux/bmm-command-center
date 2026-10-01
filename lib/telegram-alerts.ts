@@ -4,6 +4,7 @@
 // message (only its own data) for its own group, and management gets one
 // combined message — see sendToGroups in telegram-digest.ts.
 import { supabaseAdmin } from "./supabase-server";
+import { fetchAllRows } from "./fetch-all";
 import { BRANCHES, type Branch } from "./branch";
 import { classifyYamahaModel } from "./yamaha-model";
 import { getGenbluPlatePoints, getGenbluTxLite, jobGenbluPoints } from "./genblu-plates";
@@ -53,18 +54,24 @@ export async function buildAfterSalesAlerts(dateOverride?: string): Promise<{ se
   const chaseTo = addDays(today, -2);
 
   const [jobsRes, plates, txs, txRes] = await Promise.all([
-    supabaseAdmin
-      .from("cc_repair_jobs")
-      .select("branch, job_no, jobsheet_no, customer_name, plate_no, model, revenue_amount, started_date, completed_date, customer_code, job_type, signature_status, pic_signature_status, signature_issue_resolved, created_at")
-      .gte("started_date", monthStart)
-      .limit(5000),
+    fetchAllRows((a, b) =>
+      supabaseAdmin
+        .from("cc_repair_jobs")
+        .select("branch, job_no, jobsheet_no, customer_name, plate_no, model, revenue_amount, started_date, completed_date, customer_code, job_type, signature_status, pic_signature_status, signature_issue_resolved, created_at")
+        .gte("started_date", monthStart)
+        .order("id")
+        .range(a, b),
+    ),
     getGenbluPlatePoints(),
     getGenbluTxLite(),
-    supabaseAdmin
-      .from("cc_genblu_transactions")
-      .select("branch, customer_name, membership_number, points, transaction_date, transaction_time, created_at")
-      .gte("transaction_date", monthStart)
-      .limit(5000),
+    fetchAllRows((a, b) =>
+      supabaseAdmin
+        .from("cc_genblu_transactions")
+        .select("branch, customer_name, membership_number, points, transaction_date, transaction_time, created_at")
+        .gte("transaction_date", monthStart)
+        .order("id")
+        .range(a, b),
+    ),
   ]);
   if (jobsRes.error) throw new Error(jobsRes.error.message);
   if (txRes.error) throw new Error(txRes.error.message);

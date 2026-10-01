@@ -8,6 +8,7 @@ import type { CustomerCard } from "./types";
 import { logActivity } from "./activity-log";
 import { generateUniqueCardNumber } from "./card-number";
 import { namesLikelyMatch } from "./name-matching";
+import { fetchAllRows } from "./fetch-all";
 
 type CardRow = {
   id: string;
@@ -59,9 +60,11 @@ function toCard(r: CardRow): CustomerCard {
 // directly by phone/plate and is untouched either way.
 export async function getCustomers(branch: Branch, sinceDate?: string): Promise<CustomerCard[]> {
   await requireApproved();
-  let query = supabaseAdmin.from("cc_customer_cards").select("*").eq("branch", branch);
-  if (sinceDate) query = query.gte("created_at", sinceDate);
-  const { data, error } = await query.order("created_at", { ascending: false });
+  const { data, error } = await fetchAllRows((a, b) => {
+    let query = supabaseAdmin.from("cc_customer_cards").select("*").eq("branch", branch);
+    if (sinceDate) query = query.gte("created_at", sinceDate);
+    return query.order("created_at", { ascending: false }).order("id").range(a, b);
+  });
   if (error) throw new Error(error.message);
   return (data as CardRow[]).map(toCard);
 }

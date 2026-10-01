@@ -1,6 +1,7 @@
 "use server";
 
 import { supabaseAdmin } from "./supabase-server";
+import { fetchAllRows } from "./fetch-all";
 import { requireApproved } from "./current-user";
 import { BRANCHES, type Branch } from "./branch";
 import { todayInMalaysia } from "./malaysia-time";
@@ -103,13 +104,25 @@ export async function getRevenuePace(
         "branch",
         BRANCHES.map((b) => b.value)
       ),
-    supabaseAdmin
-      .from("cc_repair_jobs")
-      .select("branch, revenue_amount, completed_date")
-      .eq("status", "Completed")
-      .gte("completed_date", from)
-      .lte("completed_date", to),
-    supabaseAdmin.from("cc_package_sales").select("branch, sale_date, cc_packages(price)").gte("sale_date", from).lte("sale_date", to),
+    fetchAllRows((a, b) =>
+      supabaseAdmin
+        .from("cc_repair_jobs")
+        .select("branch, revenue_amount, completed_date")
+        .eq("status", "Completed")
+        .gte("completed_date", from)
+        .lte("completed_date", to)
+        .order("id")
+        .range(a, b),
+    ),
+    fetchAllRows((a, b) =>
+      supabaseAdmin
+        .from("cc_package_sales")
+        .select("branch, sale_date, cc_packages(price)")
+        .gte("sale_date", from)
+        .lte("sale_date", to)
+        .order("id")
+        .range(a, b),
+    ),
   ]);
   if (targetsErr) throw new Error(targetsErr.message);
   if (jobsErr) throw new Error(jobsErr.message);
