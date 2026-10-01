@@ -274,6 +274,35 @@ export async function getCompletedRepairJobs(branch: Branch): Promise<RepairJob[
   return (data as unknown as Row[]).map((r) => toJob(r, genbluPlates, genbluTxs));
 }
 
+// Every completed job on file, not just the latest 200 — for the Jobsheet
+// report, whose totals and export must cover the whole history. Fetched in
+// pages because the database hands back at most 1,000 rows per request.
+export async function getEveryCompletedRepairJob(branch: Branch): Promise<RepairJob[]> {
+  await requireApproved();
+  const PAGE = 1000;
+  const rows: Row[] = [];
+  const [genbluPlates, genbluTxs] = await Promise.all([getGenbluPlatePoints(), getGenbluTxLite()]);
+  for (let from = 0; ; from += PAGE) {
+    const { data, error } = await supabaseAdmin
+      .from("cc_repair_jobs")
+      .select(SELECT_WITH_ITEMS)
+      .eq("branch", branch)
+      .eq("status", "Completed")
+      .order("completed_date", { ascending: false })
+      .order("id", { ascending: true })
+      .range(from, from + PAGE - 1);
+    if (error) throw new Error(error.message);
+    rows.push(...(data as unknown as Row[]));
+    if (!data || data.length < PAGE) break;
+  }
+  return rows.map((r) => toJob(r, genbluPlates, genbluTxs));
+}
+
+export async function getAllBranchesEveryCompletedRepairJob(): Promise<RepairJob[]> {
+  const perBranch = await Promise.all(BRANCHES.map(({ value }) => getEveryCompletedRepairJob(value)));
+  return perBranch.flat().sort((a, b) => (b.completedDate ?? "").localeCompare(a.completedDate ?? ""));
+}
+
 // Completed jobs across all 3 branches — for the "All Branches" view.
 export async function getAllBranchesCompletedRepairJobs(): Promise<RepairJob[]> {
   await requireApproved();

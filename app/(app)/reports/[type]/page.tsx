@@ -9,8 +9,8 @@ import { BRANCHES, branchLabel, type Branch } from "@/lib/branch";
 import {
   getActiveRepairJobs,
   getAllBranchesActiveRepairJobs,
-  getCompletedRepairJobs,
-  getAllBranchesCompletedRepairJobs,
+  getEveryCompletedRepairJob,
+  getAllBranchesEveryCompletedRepairJob,
 } from "@/lib/repairs-actions";
 import { getAllMechanics } from "@/lib/mechanics-actions";
 import { getCustomers, getAllBranchesCustomers } from "@/lib/customers-actions";
@@ -127,7 +127,7 @@ export default async function ReportDetailPage({ params }: { params: Promise<{ t
   if (type === "jobsheet") {
     const [active, completed, mechanics] = await Promise.all([
       allBranches ? getAllBranchesActiveRepairJobs() : getActiveRepairJobs(selection),
-      allBranches ? getAllBranchesCompletedRepairJobs() : getCompletedRepairJobs(selection),
+      allBranches ? getAllBranchesEveryCompletedRepairJob() : getEveryCompletedRepairJob(selection),
       getAllMechanics(),
     ]);
     const jobs: RepairJob[] = [...active, ...completed].filter((j) => j.jobType === "Walk-in");
