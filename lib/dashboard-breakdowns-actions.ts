@@ -5,6 +5,7 @@ import { requireApproved } from "./current-user";
 import { todayInMalaysia } from "./malaysia-time";
 import { CLAIM_STATUSES, type ClaimStatus } from "./types";
 import { BRANCHES, type Branch } from "./branch";
+import { comboType, type ComboType } from "./combo-type";
 
 function monthRange(year: number, month: number): { from: string; to: string } {
   const monthStr = String(month).padStart(2, "0");
@@ -62,6 +63,8 @@ export async function getDeliveryClaimStatusBreakdown(
 // sold what.
 export type PackageBreakdownRow = {
   packageName: string;
+  comboType: ComboType;
+  price: number;
   mechanicLabel: string;
   customerName: string;
   saleDate: string;
@@ -75,7 +78,7 @@ type PackageSaleRow = {
   sale_date: string;
   customer_name: string | null;
   receipt_id: string | null;
-  cc_packages: { name: string } | null;
+  cc_packages: { name: string; spec: string; price: number } | null;
   cc_mechanics: { short_code: string; short_name: string } | null;
 };
 
@@ -84,7 +87,7 @@ export async function getPackageSalesBreakdown(year: number, month: number): Pro
   const { from, to } = monthRange(year, month);
   const { data, error } = await supabaseAdmin
     .from("cc_package_sales")
-    .select("branch, sale_date, customer_name, receipt_id, cc_packages(name), cc_mechanics(short_code, short_name)")
+    .select("branch, sale_date, customer_name, receipt_id, cc_packages(name, spec, price), cc_mechanics(short_code, short_name)")
     .gte("sale_date", from)
     .lte("sale_date", to)
     .order("sale_date", { ascending: false });
@@ -97,6 +100,8 @@ export async function getPackageSalesBreakdown(year: number, month: number): Pro
         .filter((row) => row.branch === branch)
         .map((row) => ({
           packageName: row.cc_packages?.name ?? "Unknown",
+          comboType: comboType(row.cc_packages),
+          price: Number(row.cc_packages?.price ?? 0),
           mechanicLabel: row.cc_mechanics ? `${row.cc_mechanics.short_name} (${row.cc_mechanics.short_code})` : "—",
           customerName: row.customer_name || "—",
           saleDate: row.sale_date,
@@ -108,7 +113,7 @@ export async function getPackageSalesBreakdown(year: number, month: number): Pro
   );
 }
 
-export type TodayActivity = { jobsheetCount: number; packagesSoldCount: number };
+export type TodayActivity = { jobsheetCount: number; packagesSoldCount: number; packagesByType: Record<ComboType, number> };
 
 // How many jobsheets and Services Combo sales are dated today — a rolling
 // daily snapshot, not a month total, so it's naturally different every
@@ -131,13 +136,17 @@ export async function getTodayActivity(onlyBranch?: Branch, dateStr?: string): P
     .eq("job_type", "Walk-in");
   if (onlyBranch) jobsQuery = jobsQuery.eq("branch", onlyBranch);
 
-  let packagesQuery = supabaseAdmin.from("cc_package_sales").select("id", { count: "exact", head: true }).eq("sale_date", targetDate);
+  let packagesQuery = supabaseAdmin.from("cc_package_sales").select("cc_packages(name, spec)").eq("sale_date", targetDate);
   if (onlyBranch) packagesQuery = packagesQuery.eq("branch", onlyBranch);
 
-  const [{ count: jobsheetCount, error }, { count: packagesSoldCount, error: pkgError }] = await Promise.all([jobsQuery, packagesQuery]);
+  const [{ count: jobsheetCount, error }, { data: packageRows, error: pkgError }] = await Promise.all([jobsQuery, packagesQuery]);
   if (error) throw new Error(error.message);
   if (pkgError) throw new Error(pkgError.message);
 
-  return { jobsheetCount: jobsheetCount ?? 0, packagesSoldCount: packagesSoldCount ?? 0 };
+  const packagesByType: Record<ComboType, number> = { Yamalube: 0, "Rock Oil": 0 };
+  for (const row of (packageRows ?? []) as unknown as { cc_packages: { name: string; spec: string } | null }[]) {
+    packagesByType[comboType(row.cc_packages)]++;
+  }
+  return { jobsheetCount: jobsheetCount ?? 0, packagesSoldCount: packageRows?.length ?? 0, packagesByType };
 }
 

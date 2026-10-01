@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { supabaseAdmin } from "./supabase-server";
 import { fetchAllRows } from "./fetch-all";
+import { comboType, type ComboType } from "./combo-type";
 import { requireApproved, assertCanEditBranch } from "./current-user";
 import { BRANCHES, type Branch } from "./branch";
 import type { Package } from "./types";
@@ -82,7 +83,7 @@ type SaleRow = {
   sale_date: string;
   customer_name: string;
   customer_plate_no: string;
-  cc_packages: { name: string } | null;
+  cc_packages: { name: string; spec: string; price: number } | null;
   cc_mechanics: { short_code: string; short_name: string } | null;
 };
 
@@ -91,6 +92,8 @@ export type PackageSaleWithNames = {
   branch: Branch;
   packageId: string;
   packageName: string;
+  comboType: ComboType;
+  price: number;
   mechanicId: string | null;
   mechanicCode: string;
   mechanicName: string;
@@ -106,6 +109,8 @@ function toSale(r: SaleRow): PackageSaleWithNames {
     branch: r.branch,
     packageId: r.package_id,
     packageName: r.cc_packages?.name ?? "—",
+    comboType: comboType(r.cc_packages),
+    price: Number(r.cc_packages?.price ?? 0),
     mechanicId: r.mechanic_id,
     mechanicCode: r.cc_mechanics?.short_code ?? "—",
     mechanicName: r.cc_mechanics?.short_name ?? "—",
@@ -121,7 +126,7 @@ export async function getPackageSales(branch: Branch): Promise<PackageSaleWithNa
   const { data, error } = await fetchAllRows((a, b) =>
     supabaseAdmin
       .from("cc_package_sales")
-      .select("*, cc_packages(name), cc_mechanics(short_code, short_name)")
+      .select("*, cc_packages(name, spec, price), cc_mechanics(short_code, short_name)")
       .eq("branch", branch)
       .order("sale_date", { ascending: false })
       .order("id")

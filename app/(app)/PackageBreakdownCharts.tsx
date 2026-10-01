@@ -4,7 +4,10 @@ import { useState } from "react";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import type { PackageBreakdownRow } from "@/lib/dashboard-breakdowns-actions";
 import { BRANCHES, branchLabel, type Branch } from "@/lib/branch";
-import { formatDate } from "@/lib/format";
+import { formatDate, formatCurrency } from "@/lib/format";
+import { COMBO_TYPES, type ComboType } from "@/lib/combo-type";
+
+const TYPE_STYLE: Record<ComboType, string> = { Yamalube: "text-blue-700", "Rock Oil": "text-amber-700" };
 
 // How many rows show before the list collapses behind "View All" — this
 // section can easily run to 15-20+ rows in a busy month, which pushed
@@ -31,17 +34,31 @@ export default function PackageBreakdownCharts({
   const totalSold = allRows.length;
   const visibleRows = showAll ? allRows : allRows.slice(0, COLLAPSED_COUNT);
   const hiddenCount = totalSold - visibleRows.length;
+  const byType = COMBO_TYPES.map((type) => {
+    const rows = allRows.filter((r) => r.comboType === type);
+    return { type, sold: rows.length, revenue: rows.reduce((sum, r) => sum + r.price, 0) };
+  });
 
   return (
     <div>
       <p className="text-sm font-semibold text-neutral-900 mb-3">
         {onlyBranch ? "Services Combo Sold" : "Services Combo Sold by Branch"} ({totalSold})
       </p>
+      <div className="grid grid-cols-2 gap-3 mb-3">
+        {byType.map((t) => (
+          <div key={t.type} className="bg-white border border-neutral-200 rounded-xl px-4 py-3">
+            <p className={`text-xs font-semibold ${TYPE_STYLE[t.type]}`}>{t.type}</p>
+            <p className="text-lg font-semibold text-neutral-900 mt-0.5">{formatCurrency(t.revenue)}</p>
+            <p className="text-xs text-neutral-500">{t.sold} sold</p>
+          </div>
+        ))}
+      </div>
       <div className="bg-white border border-neutral-200 rounded-xl overflow-hidden">
         <table className="w-full text-sm">
           <thead>
             <tr className="bg-neutral-50 text-left text-xs font-medium text-neutral-500 uppercase tracking-wide">
               <th className="px-4 py-2.5">Package</th>
+              <th className="px-4 py-2.5">Type</th>
               <th className="px-4 py-2.5">Jobsheet No</th>
               <th className="px-4 py-2.5">Mechanic</th>
               <th className="px-4 py-2.5">Customer</th>
@@ -53,6 +70,7 @@ export default function PackageBreakdownCharts({
             {visibleRows.map((row, i) => (
               <tr key={`${row.branch}-${i}`} className="border-t border-neutral-100">
                 <td className="px-4 py-2.5 text-neutral-800 font-medium">{row.packageName}</td>
+                <td className={`px-4 py-2.5 text-xs font-medium ${TYPE_STYLE[row.comboType]}`}>{row.comboType}</td>
                 <td className="px-4 py-2.5 text-neutral-700">{row.receiptId}</td>
                 <td className="px-4 py-2.5 text-neutral-700">{row.mechanicLabel}</td>
                 <td className="px-4 py-2.5 text-neutral-600">{row.customerName}</td>
@@ -62,7 +80,7 @@ export default function PackageBreakdownCharts({
             ))}
             {totalSold === 0 && (
               <tr>
-                <td colSpan={onlyBranch ? 5 : 6} className="px-4 py-8 text-center text-neutral-500">
+                <td colSpan={onlyBranch ? 6 : 7} className="px-4 py-8 text-center text-neutral-500">
                   No Services Combo sold this month.
                 </td>
               </tr>

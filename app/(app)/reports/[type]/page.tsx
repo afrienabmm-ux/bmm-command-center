@@ -29,6 +29,7 @@ import JobsheetRevenueSummary from "./JobsheetRevenueSummary";
 import GenbluCountsAndTable from "./GenbluCountsAndTable";
 import MechanicRevenueSummary from "./MechanicRevenueSummary";
 import PackagesSoldSummary from "./PackagesSoldSummary";
+import { COMBO_TYPES, type ComboType } from "@/lib/combo-type";
 import { getWarrantyClaims, getAllBranchesWarrantyClaims } from "@/lib/claims-actions";
 import { getDeliveryClaims, getAllBranchesDeliveryClaims } from "@/lib/delivery-claims-actions";
 import { getAllBranchesPerformance, getBranchPerformance } from "@/lib/reports-actions";
@@ -123,6 +124,7 @@ export default async function ReportDetailPage({ params }: { params: Promise<{ t
   // across whatever branch/date range the table itself is currently
   // scoped to (all of history and every branch by default).
   let packagesSummary: { mechanicName: string; mechanicCode: string; count: number }[] | undefined;
+  let comboTypeSummary: { type: ComboType; sold: number; revenue: number }[] | undefined;
 
   if (type === "jobsheet") {
     const [active, completed, mechanics] = await Promise.all([
@@ -401,6 +403,8 @@ export default async function ReportDetailPage({ params }: { params: Promise<{ t
       { key: "saleDate", label: "Date" },
       { key: "branch", label: "Branch" },
       { key: "packageName", label: "Package" },
+      { key: "comboType", label: "Type" },
+      { key: "price", label: "Price (RM)" },
       { key: "customerName", label: "Customer" },
       { key: "customerPlateNo", label: "Plate No" },
       { key: "mechanicCode", label: "Mechanic" },
@@ -410,12 +414,15 @@ export default async function ReportDetailPage({ params }: { params: Promise<{ t
     searchFields = ["packageName", "customerName", "customerPlateNo", "receiptId"];
     selectFilters = [
       { field: "branch", label: "Branches" },
+      { field: "comboType", label: "Types" },
       { field: "packageName", label: "Packages" },
     ];
     rows = sales.map((s) => ({
       saleDate: s.saleDate,
       branch: branchLabel(s.branch),
       packageName: s.packageName,
+      comboType: s.comboType,
+      price: s.price.toFixed(2),
       customerName: s.customerName || "—",
       customerPlateNo: s.customerPlateNo || "—",
       mechanicCode: s.mechanicCode,
@@ -430,7 +437,16 @@ export default async function ReportDetailPage({ params }: { params: Promise<{ t
       countByMechanic.set(s.mechanicId, entry);
     }
     packagesSummary = [...countByMechanic.values()].sort((a, b) => b.count - a.count);
+    comboTypeSummary = COMBO_TYPES.map((t) => {
+      const ofType = sales.filter((s) => s.comboType === t);
+      return { type: t, sold: ofType.length, revenue: ofType.reduce((sum, s) => sum + s.price, 0) };
+    });
     summarySections = [
+      {
+        title: "Sold by Combo Type",
+        columns: ["Type", "Sold", "Revenue (RM)"],
+        rows: comboTypeSummary.map((t) => [t.type, t.sold, t.revenue.toFixed(2)]),
+      },
       {
         title: "Packages Sold by Mechanic",
         columns: ["Mechanic", "Code", "Sold"],
@@ -532,7 +548,7 @@ export default async function ReportDetailPage({ params }: { params: Promise<{ t
                 />
               )}
               {mechanicSummary && <MechanicRevenueSummary mechanics={mechanicSummary} />}
-              {packagesSummary && <PackagesSoldSummary mechanics={packagesSummary} />}
+              {packagesSummary && <PackagesSoldSummary mechanics={packagesSummary} types={comboTypeSummary ?? []} />}
             </div>
             <div className="flex-1 min-w-0 w-full">
               <ReportTable

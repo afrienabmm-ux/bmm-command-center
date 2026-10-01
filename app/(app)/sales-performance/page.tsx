@@ -147,6 +147,7 @@ export default async function SalesPerformancePage({
             icon={PackageCheck}
             label={revenuePace.isRealToday ? "Services Combo Today" : `Services Combo — Day ${day}`}
             value={todayActivity.packagesSoldCount}
+            detail={`${todayActivity.packagesByType.Yamalube} Yamalube · ${todayActivity.packagesByType["Rock Oil"]} Rock Oil`}
             color="text-teal-700 bg-teal-500/10"
             href="/packages"
           />

@@ -186,6 +186,7 @@ export default async function AllBranchesOverview({
           icon={PackageCheck}
           label="Services Combo Today"
           value={todayActivity.packagesSoldCount}
+          detail={`${todayActivity.packagesByType.Yamalube} Yamalube · ${todayActivity.packagesByType["Rock Oil"]} Rock Oil`}
           color="text-teal-700 bg-teal-500/10"
           href="/packages"
         />

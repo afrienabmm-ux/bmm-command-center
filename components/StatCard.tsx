@@ -7,12 +7,14 @@ export default function StatCard({
   value,
   color,
   href,
+  detail,
 }: {
   icon: LucideIcon;
   label: string;
   value: number | string;
   color: string;
   href: string;
+  detail?: string;
 }) {
   return (
     <Link
@@ -25,6 +27,7 @@ export default function StatCard({
       </div>
       <p className="text-2xl font-semibold text-neutral-900">{value}</p>
       <p className="text-xs text-neutral-500 mt-1">{label}</p>
+      {detail && <p className="text-[11px] text-neutral-400 mt-0.5">{detail}</p>}
     </Link>
   );
 }
