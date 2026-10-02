@@ -523,7 +523,7 @@ async function detectSignature(label: PositionedWord, buffer: Buffer, words: Pos
 // every blank box pass.
 export type SignatureBox = { left: number; top: number; width: number; height: number; mask: { left: number; top: number; right: number; bottom: number }; unit: number };
 
-export function findSignatureBox(words: PositionedWord[], prefix: string, imageWidth: number, imageHeight: number): SignatureBox | null {
+function findSignatureBox(words: PositionedWord[], prefix: string, imageWidth: number, imageHeight: number): SignatureBox | null {
   const sig = findSignatureLabel(words, prefix);
   if (!sig) return null;
   const pre = words
@@ -563,10 +563,10 @@ export function findSignatureBox(words: PositionedWord[], prefix: string, imageW
 // distance don't change it.
 // Tuned against 944 hand-checked jobsheets (Sept 2026): catches 11 of the 13
 // known blank boxes and wrongly flags 1 of 931 signed ones.
-export const SIGNATURE_INK_DELTA = 55;
-export const SIGNATURE_INK_THRESHOLD = 0.3;
+const SIGNATURE_INK_DELTA = 55;
+const SIGNATURE_INK_THRESHOLD = 0.3;
 
-export async function signatureInkScore(buffer: Buffer, box: SignatureBox, delta = SIGNATURE_INK_DELTA): Promise<number> {
+async function signatureInkScore(buffer: Buffer, box: SignatureBox, delta = SIGNATURE_INK_DELTA): Promise<number> {
   const region = sharp(buffer).extract({ left: box.left, top: box.top, width: box.width, height: box.height }).greyscale().median(3);
   const [{ data: px }, { data: bg }] = await Promise.all([
     region.clone().raw().toBuffer({ resolveWithObject: true }),
