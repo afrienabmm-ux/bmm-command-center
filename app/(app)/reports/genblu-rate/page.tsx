@@ -2,7 +2,7 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { requirePage, getActiveBranchSelection } from "@/lib/current-user";
 import { todayInMalaysia } from "@/lib/malaysia-time";
-import { getGenbluReportHistoryInRange, type GenbluReportMetric, type GenbluReportPayload } from "@/lib/genblu-report-actions";
+import { getLatestGenbluReportForMonth, type GenbluReportMetric, type GenbluReportPayload } from "@/lib/genblu-report-actions";
 import { branchLabel, type Branch } from "@/lib/branch";
 import PageHeader from "@/components/PageHeader";
 import MonthPicker from "@/components/MonthPicker";
@@ -70,14 +70,11 @@ export default async function GenbluSalesRatePage({
   const year = params.year ? Number(params.year) : todayYear;
   const month = params.month ? Number(params.month) : todayMonth;
   const monthKey = `${year}-${pad(month)}`;
-  const monthStart = `${monthKey}-01`;
-  const monthEnd = `${monthKey}-${pad(new Date(year, month, 0).getDate())}`;
 
   // Only the most recent delivery for the month matters now — earlier
   // deliveries were superseded snapshots, not separate weeks (weeks live
   // inside each delivery's own "weekly" field instead; see WeekSelector).
-  const history = await getGenbluReportHistoryInRange(monthStart, monthEnd);
-  const monthly = history[0];
+  const monthly = await getLatestGenbluReportForMonth(monthKey);
   const fullReport = monthly?.report;
   const weeks = fullReport?.weekly ?? [];
 

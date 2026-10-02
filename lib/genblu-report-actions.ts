@@ -1,7 +1,6 @@
 "use server";
 
 import { supabaseAdmin } from "./supabase-server";
-import { fetchAllRows } from "./fetch-all";
 import { requireApproved } from "./current-user";
 
 // Shape is the Sales Dashboard's own to define (see
@@ -61,29 +60,18 @@ export type GenbluReportSnapshot = {
   report: GenbluReportPayload;
 };
 
-// Every delivery from the Sales Dashboard is kept as its own dated row
-// (see app/api/genblu-report-intake) rather than overwritten — this
-// returns every snapshot received between two dates (inclusive), newest
-// first, so the report page can show "as of" a specific week instead of
-// only ever the latest number for the whole month. `to` is treated as the
-// end of that calendar day, not midnight at its start.
-export async function getGenbluReportHistoryInRange(fromDate: string, toDate: string): Promise<GenbluReportSnapshot[]> {
+// The latest delivery FOR a month ("YYYY-MM") — by the report's own month,
+// not when it arrived: early in a month the Sales Dashboard sends last
+// month's final report and this month's together, seconds apart.
+export async function getLatestGenbluReportForMonth(monthKey: string): Promise<GenbluReportSnapshot | null> {
   await requireApproved();
-  const { data, error } = await fetchAllRows((a, b) =>
-    supabaseAdmin
-      .from("cc_genblu_reports")
-      .select("id, month, report, received_at")
-      .gte("received_at", `${fromDate}T00:00:00`)
-      .lte("received_at", `${toDate}T23:59:59`)
-      .order("received_at", { ascending: false })
-      .order("id")
-      .range(a, b),
-  );
+  const { data, error } = await supabaseAdmin
+    .from("cc_genblu_reports")
+    .select("id, month, report, received_at")
+    .eq("month", monthKey)
+    .order("received_at", { ascending: false })
+    .limit(1);
   if (error) throw new Error(error.message);
-  return (data ?? []).map((r) => ({
-    id: r.id as string,
-    month: r.month as string,
-    receivedAt: r.received_at as string,
-    report: r.report as GenbluReportPayload,
-  }));
+  const r = data?.[0];
+  return r ? { id: r.id, month: r.month, receivedAt: r.received_at, report: r.report as GenbluReportPayload } : null;
 }
