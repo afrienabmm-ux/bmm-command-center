@@ -97,7 +97,11 @@ export default async function GenbluPage({
   // involved) already have their own dedicated "New Registration" tab, so
   // they're excluded here rather than counted in both places.
   const trackerRegistrations = withUrls.filter((r) => r.source === "has_jobsheet");
+  // New Registration is split by who signed the customer up: a salesperson
+  // (forwarded from the Sales Dashboard) or our own admin/service staff.
   const newRegistrations = withUrls.filter((r) => r.source === "new_customer");
+  const salesmanRegistrations = newRegistrations.filter((r) => r.externalSourceId);
+  const adminRegistrations = newRegistrations.filter((r) => !r.externalSourceId);
 
   return (
     <div className="flex flex-col h-full">
@@ -108,7 +112,8 @@ export default async function GenbluPage({
       <div className="p-8">
         <GenbluTabs
           registeredCount={trackerRegistrations.length}
-          newRegistrationCount={newRegistrations.length}
+          salesmanCount={salesmanRegistrations.length}
+          adminCount={adminRegistrations.length}
           allocationCount={transactions.length}
           tracker={
             <GenbluClient
@@ -119,9 +124,18 @@ export default async function GenbluPage({
               locked={!canViewAllBranches(user)}
             />
           }
-          newRegistrations={
+          salesmanRegistrations={
             <GenbluClient
-              registrations={newRegistrations}
+              registrations={salesmanRegistrations}
+              mechanics={mechanics}
+              branch={branch}
+              branchSelection={branchSelection}
+              locked={!canViewAllBranches(user)}
+            />
+          }
+          adminRegistrations={
+            <GenbluClient
+              registrations={adminRegistrations}
               mechanics={mechanics}
               branch={branch}
               branchSelection={branchSelection}

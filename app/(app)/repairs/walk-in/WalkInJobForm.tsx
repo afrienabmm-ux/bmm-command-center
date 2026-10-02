@@ -347,6 +347,7 @@ export default function WalkInJobForm({
   const [isBigItem, setIsBigItem] = useState(job?.isBigItem ?? false);
   const [items, setItems] = useState<ItemInput[]>(job ? itemsFromJob(job) : []);
   const [hasGenblu, setHasGenblu] = useState(false);
+  const [genbluNewRegistration, setGenbluNewRegistration] = useState(false);
   const [genbluAlreadyRegistered, setGenbluAlreadyRegistered] = useState<boolean | null>(null);
   const [genbluCheckPending, setGenbluCheckPending] = useState(false);
   const [genbluScreenshot, setGenbluScreenshot] = useState<File | null>(null);
@@ -787,6 +788,7 @@ export default function WalkInJobForm({
             customerPlateNo: plateNo.trim(),
             screenshot: genbluScreenshot,
             serviceCoupon: genbluServiceCoupon,
+            newRegistration: genbluNewRegistration,
           });
           if (genbluResult && "warning" in genbluResult) {
             if (!window.confirm(genbluResult.warning)) {
@@ -799,6 +801,7 @@ export default function WalkInJobForm({
               customerPlateNo: plateNo.trim(),
               screenshot: genbluScreenshot,
               serviceCoupon: genbluServiceCoupon,
+              newRegistration: genbluNewRegistration,
               confirmDuplicate: true,
             });
           }
@@ -817,6 +820,7 @@ export default function WalkInJobForm({
               customerPlateNo: plateNo.trim(),
               screenshot: genbluScreenshot,
               serviceCoupon: genbluServiceCoupon,
+              newRegistration: genbluNewRegistration,
               nameMismatchRemark: remark.trim(),
             });
           }
@@ -1503,6 +1507,15 @@ export default function WalkInJobForm({
                 </div>
               ) : (
                 <div>
+                  <label className="flex items-center gap-2 mb-3 text-sm font-medium text-neutral-700 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={genbluNewRegistration}
+                      onChange={(e) => setGenbluNewRegistration(e.target.checked)}
+                      className="w-4 h-4 rounded border-neutral-300 accent-red-500"
+                    />
+                    GenBlu new registration (registered here today)
+                  </label>
                   <input
                     ref={genbluFileInputRef}
                     type="file"
@@ -1529,8 +1542,9 @@ export default function WalkInJobForm({
                     </label>
                   )}
                   <p className="text-xs text-neutral-500 mt-1.5">
-                    New customer — upload their GenBlu screenshot now so it shows up automatically in the GenBlu
-                    Tracker <em>and</em> GenBlu Allocations once this job is saved.
+                    Upload their GenBlu screenshot now so it shows up automatically in the GenBlu{" "}
+                    {genbluNewRegistration ? "New Registration (Admin) list" : "Tracker"} <em>and</em> GenBlu Allocations
+                    once this job is saved.
                   </p>
                 </div>
               )}

@@ -819,6 +819,10 @@ export async function ensureGenbluRegistrationAction(input: {
   // logTrackerAwardAsTransaction) — whether this points award was
   // redeemed via a service coupon.
   serviceCoupon?: boolean;
+  // Ticked on the jobsheet form when staff signed the customer up for
+  // GenBlu at this visit — lands in New Registration (Admin) instead of
+  // the Tracker.
+  newRegistration?: boolean;
 }): Promise<{ error: string } | { warning: string } | { nameMismatch: true; message: string } | { created: boolean }> {
   const user = await requireApproved();
   assertCanEditBranch(user, input.branch);
@@ -890,9 +894,7 @@ export async function ensureGenbluRegistrationAction(input: {
     screenshot_path: screenshotPath,
     screenshot_hash: screenshotHash,
     points_accrued: pointsAccrued,
-    // Always called from an existing jobsheet (Walk-in job form), never for
-    // a brand new customer with no jobsheet yet.
-    source: "has_jobsheet",
+    source: input.newRegistration ? "new_customer" : "has_jobsheet",
   });
   if (error) return { error: error.message };
   // Same screenshot proves an actual award event, not just a Tracker
@@ -912,7 +914,11 @@ export async function ensureGenbluRegistrationAction(input: {
       serviceCoupon: input.serviceCoupon,
     });
   }
-  await logActivity(user, "Registered GenBlu (from jobsheet)", `${customerName} (${input.branch})`);
+  await logActivity(
+    user,
+    input.newRegistration ? "New GenBlu registration (admin, from jobsheet)" : "Registered GenBlu (from jobsheet)",
+    `${customerName} (${input.branch})`
+  );
   revalidatePath("/genblu");
   return { created: true };
 }
