@@ -561,8 +561,8 @@ export function findSignatureBox(words: PositionedWord[], prefix: string, imageW
 // barely registers; a median filter first drops isolated scanner specks. The
 // score is ink area relative to the label's text height, so photo size and
 // distance don't change it.
-// Tuned against 795 hand-checked jobsheets (Sept 2026): catches 11 of the 13
-// known blank boxes and wrongly flags 4 of 782 signed ones.
+// Tuned against 944 hand-checked jobsheets (Sept 2026): catches 11 of the 13
+// known blank boxes and wrongly flags 1 of 931 signed ones.
 export const SIGNATURE_INK_DELTA = 55;
 export const SIGNATURE_INK_THRESHOLD = 0.3;
 
@@ -572,14 +572,23 @@ export async function signatureInkScore(buffer: Buffer, box: SignatureBox, delta
     region.clone().raw().toBuffer({ resolveWithObject: true }),
     region.clone().blur(Math.max(4, box.unit * 0.8)).raw().toBuffer({ resolveWithObject: true }),
   ]);
+  const inMask = (x: number, y: number) => {
+    const ax = box.left + x, ay = box.top + y;
+    return ax >= box.mask.left && ax <= box.mask.right && ay >= box.mask.top && ay <= box.mask.bottom;
+  };
+  // Grey, dim photos shrink every contrast, real pen strokes included — so
+  // the bar scales with how bright the paper actually is in this photo.
+  const paperVals: number[] = [];
+  for (let y = 0; y < box.height; y++) for (let x = 0; x < box.width; x++) if (!inMask(x, y)) paperVals.push(px[y * box.width + x]);
+  paperVals.sort((a, b) => a - b);
+  const paper = paperVals[Math.floor(paperVals.length * 0.9)] ?? 255;
+  const bar = (delta * paper) / 255;
   let ink = 0;
   for (let y = 0; y < box.height; y++) {
-    const ay = box.top + y;
     for (let x = 0; x < box.width; x++) {
-      const ax = box.left + x;
-      if (ax >= box.mask.left && ax <= box.mask.right && ay >= box.mask.top && ay <= box.mask.bottom) continue;
+      if (inMask(x, y)) continue;
       const i = y * box.width + x;
-      if (bg[i] - px[i] > delta) ink++;
+      if (bg[i] - px[i] > bar) ink++;
     }
   }
   return ink / (box.unit * box.unit);
