@@ -6,6 +6,7 @@ import {
   getAllBranchesCompletedRepairJobs,
   getCompletedRepairJobsCount,
   getAllBranchesCompletedRepairJobsCount,
+  getSignatureErrorRepairJobs,
 } from "@/lib/repairs-actions";
 import { getAllMechanics } from "@/lib/mechanics-actions";
 import { branchLabel } from "@/lib/branch";
@@ -21,11 +22,12 @@ export default async function WalkInPage({ searchParams }: { searchParams: Promi
   const branchSelection = await getActiveBranchSelection(user);
   const showAllBranches = branchSelection === "all";
 
-  const [allActive, allCompleted, mechanics, completedTotal] = await Promise.all([
+  const [allActive, allCompleted, mechanics, completedTotal, olderErrors] = await Promise.all([
     showAllBranches ? getAllBranchesActiveRepairJobs() : getActiveRepairJobs(branch),
     showAllBranches ? getAllBranchesCompletedRepairJobs() : getCompletedRepairJobs(branch),
     getAllMechanics(),
     showAllBranches ? getAllBranchesCompletedRepairJobsCount() : getCompletedRepairJobsCount(branch),
+    getSignatureErrorRepairJobs(showAllBranches ? "all" : branch),
   ]);
   const walkInActive = allActive.filter((j) => j.jobType === "Walk-in");
   const walkInCompleted = allCompleted.filter((j) => j.jobType === "Walk-in");
@@ -40,6 +42,8 @@ export default async function WalkInPage({ searchParams }: { searchParams: Promi
   const active = walkInActive.filter((j) => !isSignatureError(j));
   const completed = walkInCompleted.filter((j) => !isSignatureError(j));
   const errors = [...walkInActive, ...walkInCompleted].filter(isSignatureError);
+  const errorIds = new Set(errors.map((j) => j.id));
+  for (const j of olderErrors) if (j.jobType === "Walk-in" && isSignatureError(j) && !errorIds.has(j.id)) errors.push(j);
 
   return (
     <div className="flex flex-col h-full">

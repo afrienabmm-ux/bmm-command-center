@@ -311,6 +311,21 @@ export async function getAllBranchesCompletedRepairJobs(): Promise<RepairJob[]> 
   return perBranch.flat().sort((a, b) => (b.completedDate ?? "").localeCompare(a.completedDate ?? ""));
 }
 
+// Every unresolved signature problem, however old — the Completed list above
+// stops at 200 per branch, which used to hide older jobs from the Errors tab.
+export async function getSignatureErrorRepairJobs(branch: Branch | "all"): Promise<RepairJob[]> {
+  await requireApproved();
+  let query = supabaseAdmin
+    .from("cc_repair_jobs")
+    .select(SELECT_WITH_ITEMS)
+    .in("signature_status", ["not_detected", "unchecked"])
+    .or("signature_issue_resolved.is.null,signature_issue_resolved.eq.false");
+  if (branch !== "all") query = query.eq("branch", branch);
+  const [{ data, error }, genbluPlates, genbluTxs] = await Promise.all([query, getGenbluPlatePoints(), getGenbluTxLite()]);
+  if (error) throw new Error(error.message);
+  return (data as unknown as Row[]).map((r) => toJob(r, genbluPlates, genbluTxs));
+}
+
 // The Jobsheet page only ever loads each branch's most recent 200
 // completed jobs to the browser (see getCompletedRepairJobs above) — an
 // older completed job that's since been pushed out of that window can't
