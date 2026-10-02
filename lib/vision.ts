@@ -38,7 +38,9 @@ function getWorker(): Promise<Worker> {
   return cachedWorker;
 }
 
-export type PositionedWord = { text: string; x: number; yCenter: number; height: number };
+// width is the word's on-page width — used to blank out printed label text
+// when checking a signature box for ink.
+export type PositionedWord = { text: string; x: number; yCenter: number; height: number; width: number };
 
 function collectWordsFromTesseractBlocks(blocks: Tesseract.Block[] | null): PositionedWord[] {
   const words: PositionedWord[] = [];
@@ -49,7 +51,7 @@ function collectWordsFromTesseractBlocks(blocks: Tesseract.Block[] | null): Posi
           const text = word.text?.trim();
           if (!text) continue;
           const { x0, y0, x1, y1 } = word.bbox;
-          words.push({ text, x: x0, yCenter: (y0 + y1) / 2, height: y1 - y0 || 20 });
+          words.push({ text, x: x0, yCenter: (y0 + y1) / 2, height: y1 - y0 || 20, width: x1 - x0 });
         }
       }
     }
@@ -103,7 +105,7 @@ function reconstructRowsFromWords(words: PositionedWord[], fallbackText: string)
 // the OCR engine more pixels per character to work with. Output is
 // normalized to JPEG so file size stays predictable regardless of the
 // original photo's format (relevant for OCR.space's upload size limit).
-async function preprocessForOcr(buffer: Buffer): Promise<Buffer> {
+export async function preprocessForOcr(buffer: Buffer): Promise<Buffer> {
   const image = sharp(buffer, { failOn: "none" }).rotate(); // auto-orients using the photo's EXIF tag
   const metadata = await image.metadata();
   const width = metadata.width ?? 0;
@@ -197,7 +199,7 @@ async function extractViaGoogleVision(buffer: Buffer): Promise<OcrResult | null>
       const xs = vertices.map((v) => v.x ?? 0);
       const top = Math.min(...ys);
       const bottom = Math.max(...ys);
-      words.push({ text, x: Math.min(...xs), yCenter: (top + bottom) / 2, height: bottom - top || 20 });
+      words.push({ text, x: Math.min(...xs), yCenter: (top + bottom) / 2, height: bottom - top || 20, width: Math.max(...xs) - Math.min(...xs) });
     }
     return { text: reconstructRowsFromWords(words, full?.description ?? ""), words };
   } catch {
@@ -241,7 +243,7 @@ async function extractViaOcrSpace(buffer: Buffer): Promise<OcrResult | null> {
         if (!text) continue;
         const top = word.Top ?? 0;
         const height = word.Height ?? 20;
-        words.push({ text, x: word.Left ?? 0, yCenter: top + height / 2, height });
+        words.push({ text, x: word.Left ?? 0, yCenter: top + height / 2, height, width: word.Width ?? 0 });
       }
     }
     return { text: reconstructRowsFromWords(words, result.ParsedText ?? ""), words };
@@ -514,6 +516,75 @@ async function detectSignature(label: PositionedWord, buffer: Buffer, words: Pos
   return { result: maxScore > INK_RESIDUAL_THRESHOLD, debug };
 }
 
+// The signature box itself: from the label down to the "DATE :" line under
+// it, reaching right of the label too (plenty of customers sign beside the
+// label rather than under it). Nothing above the label — on these jobsheets
+// that's the printed defect table, whose lines read as "ink" and used to make
+// every blank box pass.
+export type SignatureBox = { left: number; top: number; width: number; height: number; mask: { left: number; top: number; right: number; bottom: number }; unit: number };
+
+export function findSignatureBox(words: PositionedWord[], prefix: string, imageWidth: number, imageHeight: number): SignatureBox | null {
+  const sig = findSignatureLabel(words, prefix);
+  if (!sig) return null;
+  const pre = words
+    .filter((w) => looksLikeWord(w.text, prefix) && w.x <= sig.x && Math.abs(w.yCenter - sig.yCenter) <= sig.height * 0.8)
+    .sort((a, b) => b.x - a.x)[0];
+  const h = Math.max(8, sig.height);
+  const labelLeft = pre ? pre.x : sig.x - (sig.width || h * 5);
+  const labelRight = sig.x + (sig.width || h * 5);
+  const labelTop = sig.yCenter - h / 2;
+  const labelBottom = sig.yCenter + h / 2;
+
+  const date = words
+    .filter((w) => looksLikeWord(w.text, "date") && w.yCenter > labelBottom + h * 0.5 && w.yCenter < labelBottom + h * 9 && w.x > labelLeft - h * 6 && w.x < labelRight + h * 2)
+    .sort((a, b) => a.yCenter - b.yCenter)[0];
+  const bottom = date ? date.yCenter - date.height / 2 - h * 0.45 : labelBottom + h * 5;
+
+  const left = Math.max(0, Math.round(labelLeft - h * 2));
+  const top = Math.max(0, Math.round(labelTop - h * 0.3));
+  const right = Math.min(imageWidth, Math.round(labelRight + h * 6));
+  const boxBottom = Math.min(imageHeight, Math.round(bottom));
+  if (right - left < h * 3 || boxBottom - top < h * 1.5) return null;
+  return {
+    left,
+    top,
+    width: right - left,
+    height: boxBottom - top,
+    // The printed "Customer Signature" words themselves — never counted as ink.
+    mask: { left: labelLeft - h * 0.25, top: labelTop - h * 0.25, right: labelRight + h * 0.25, bottom: labelBottom + h * 0.25 },
+    unit: h,
+  };
+}
+
+// Pen ink = pixels clearly darker than the paper right around them. A shadow
+// darkens a whole area evenly, so against its own blurred surroundings it
+// barely registers; a median filter first drops isolated scanner specks. The
+// score is ink area relative to the label's text height, so photo size and
+// distance don't change it.
+// Tuned against 795 hand-checked jobsheets (Sept 2026): catches 11 of the 13
+// known blank boxes and wrongly flags 4 of 782 signed ones.
+export const SIGNATURE_INK_DELTA = 55;
+export const SIGNATURE_INK_THRESHOLD = 0.3;
+
+export async function signatureInkScore(buffer: Buffer, box: SignatureBox, delta = SIGNATURE_INK_DELTA): Promise<number> {
+  const region = sharp(buffer).extract({ left: box.left, top: box.top, width: box.width, height: box.height }).greyscale().median(3);
+  const [{ data: px }, { data: bg }] = await Promise.all([
+    region.clone().raw().toBuffer({ resolveWithObject: true }),
+    region.clone().blur(Math.max(4, box.unit * 0.8)).raw().toBuffer({ resolveWithObject: true }),
+  ]);
+  let ink = 0;
+  for (let y = 0; y < box.height; y++) {
+    const ay = box.top + y;
+    for (let x = 0; x < box.width; x++) {
+      const ax = box.left + x;
+      if (ax >= box.mask.left && ax <= box.mask.right && ay >= box.mask.top && ay <= box.mask.bottom) continue;
+      const i = y * box.width + x;
+      if (bg[i] - px[i] > delta) ink++;
+    }
+  }
+  return ink / (box.unit * box.unit);
+}
+
 // Runs detectSignature for one named prefix ("customer" or "authorised"),
 // handling the "label not found at all" case that only applies once per
 // signature (detectSignature itself just checks pixels near a label it's
@@ -527,6 +598,22 @@ async function detectSignatureFor(
 ): Promise<SignatureCheck> {
   const label = findSignatureLabel(words, prefix);
   if (!label) return { result: null, debug: `no '${prefix} signature' label found by OCR` };
+  // Customer box: the box-under-the-label check. Falls back to the older
+  // above/below check only when the box can't be placed on this layout.
+  if (prefix === "customer") {
+    const box = findSignatureBox(words, prefix, imageWidth, imageHeight);
+    if (box) {
+      try {
+        const score = await signatureInkScore(buffer, box);
+        return {
+          result: score > SIGNATURE_INK_THRESHOLD,
+          debug: `box ${box.width}x${box.height}@(${box.left},${box.top}) ink=${score.toFixed(2)} threshold=${SIGNATURE_INK_THRESHOLD}`,
+        };
+      } catch {
+        // crop failed — fall through to the older check
+      }
+    }
+  }
   return detectSignature(label, buffer, words, imageWidth, imageHeight);
 }
 
@@ -590,7 +677,7 @@ export async function scanJobsheetImage(base64Image: string): Promise<JobsheetSc
 // static import to trace) — see PDFJS_TRACE_INCLUDES in next.config.ts,
 // which force-includes those files in the deployed function the same way
 // tesseract.js's language data already needed to be.
-async function rasterizePdfFirstPage(base64Pdf: string): Promise<Buffer> {
+export async function rasterizePdfFirstPage(base64Pdf: string): Promise<Buffer> {
   const [pdfjsLib, canvasLib, path] = await Promise.all([
     import("pdfjs-dist/legacy/build/pdf.mjs"),
     import("@napi-rs/canvas"),
