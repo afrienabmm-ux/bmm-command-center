@@ -72,6 +72,7 @@ export default function MechanicsClient({
 function MechanicCard({ mechanic, showBranch }: { mechanic: Mechanic; showBranch: boolean }) {
   const [isPending, startTransition] = useTransition();
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const isActive = mechanic.status === "Active";
 
   function toggle() {
@@ -145,16 +146,27 @@ function MechanicCard({ mechanic, showBranch }: { mechanic: Mechanic; showBranch
               This will remove <span className="text-neutral-800 font-medium">{mechanic.shortName}</span> from the
               team list.
             </p>
+            {deleteError && (
+              <p className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2 -mt-3 mb-5">{deleteError}</p>
+            )}
             <div className="flex items-center justify-end gap-3">
               <button
-                onClick={() => setConfirmDelete(false)}
+                onClick={() => {
+                  setConfirmDelete(false);
+                  setDeleteError(null);
+                }}
                 className="text-sm font-medium text-neutral-600 hover:text-neutral-800 px-4 py-2 transition-colors"
               >
                 Cancel
               </button>
               <button
-                onClick={() => startTransition(() => deleteMechanicAction(mechanic.id, mechanic.branch))}
-                disabled={isPending}
+                onClick={() =>
+                  startTransition(async () => {
+                    const result = await deleteMechanicAction(mechanic.id, mechanic.branch);
+                    if (result && "error" in result) setDeleteError(result.error);
+                  })
+                }
+                disabled={isPending || !!deleteError}
                 className="bg-red-500 hover:bg-red-400 disabled:opacity-50 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
               >
                 Remove

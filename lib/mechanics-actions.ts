@@ -119,9 +119,22 @@ export async function updateMechanicCategoryAction(id: string, branch: Branch, c
   revalidatePath("/repairs/walk-in");
 }
 
-export async function deleteMechanicAction(id: string, branch: Branch): Promise<void> {
+// Deleting a mechanic blanks the mechanic on every job and combo sale they
+// ever did (the database sets those to empty), so it's refused once they
+// have any — staff moving someone to another branch should set them On
+// Leave here and add them again at the new branch instead.
+export async function deleteMechanicAction(id: string, branch: Branch): Promise<{ error: string } | void> {
   const user = await requireApproved();
   assertCanEditBranch(user, branch);
+  const [{ count: jobCount }, { count: comboCount }] = await Promise.all([
+    supabaseAdmin.from("cc_repair_jobs").select("id", { count: "exact", head: true }).eq("mechanic_id", id),
+    supabaseAdmin.from("cc_package_sales").select("id", { count: "exact", head: true }).eq("mechanic_id", id),
+  ]);
+  if ((jobCount ?? 0) > 0 || (comboCount ?? 0) > 0) {
+    return {
+      error: `Can't remove — this mechanic has ${jobCount ?? 0} job${jobCount === 1 ? "" : "s"} on record, and removing them would wipe their name off every one. Set them to On Leave instead. If they moved branch, add them again at the new branch.`,
+    };
+  }
   const { data: mech } = await supabaseAdmin.from("cc_mechanics").select("full_name").eq("id", id).single();
   const { error } = await supabaseAdmin.from("cc_mechanics").delete().eq("id", id);
   if (error) throw new Error(error.message);
