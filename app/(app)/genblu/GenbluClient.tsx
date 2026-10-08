@@ -32,6 +32,16 @@ type RegWithUrl = {
 // bottom) fast to render, same pattern as the Dashboard's Services Combo list.
 const COLLAPSED_COUNT = 50;
 
+// Registration timestamps are stored in UTC — filter on the Malaysia date.
+function malaysiaDate(iso: string): string {
+  return new Date(new Date(iso).getTime() + 8 * 3600_000).toISOString().slice(0, 10);
+}
+
+function monthLabel(ym: string): string {
+  const [y, m] = ym.split("-").map(Number);
+  return new Date(y, m - 1, 1).toLocaleString("en-MY", { month: "long", year: "numeric" });
+}
+
 export default function GenbluClient({
   registrations,
   mechanics,
@@ -58,18 +68,42 @@ export default function GenbluClient({
   const [openRemarkId, setOpenRemarkId] = useState<string | null>(null);
   const [showAll, setShowAll] = useState(false);
 
+  const [month, setMonth] = useState("");
+
+  const months = useMemo(
+    () => [...new Set(registrations.map((r) => malaysiaDate(r.createdAt).slice(0, 7)))].sort().reverse(),
+    [registrations]
+  );
+
+  // Picking a month fills From/To with that month, so the table and the
+  // export always show the same rows.
+  function pickMonth(ym: string) {
+    setMonth(ym);
+    if (!ym) {
+      setFromDate("");
+      setToDate("");
+      return;
+    }
+    const [y, m] = ym.split("-").map(Number);
+    setFromDate(`${ym}-01`);
+    setToDate(`${ym}-${String(new Date(y, m, 0).getDate()).padStart(2, "0")}`);
+  }
+
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase();
     return registrations.filter((r) => {
       if (sourceFilter !== "all" && r.source !== sourceFilter) return false;
       if (q && !r.customerName.toLowerCase().includes(q) && !r.customerPlateNo.toLowerCase().includes(q)) return false;
+      const d = malaysiaDate(r.createdAt);
+      if (fromDate && d < fromDate) return false;
+      if (toDate && d > toDate) return false;
       return true;
     });
-  }, [registrations, query, sourceFilter]);
+  }, [registrations, query, sourceFilter, fromDate, toDate]);
 
   useEffect(() => {
     setShowAll(false);
-  }, [query, sourceFilter]);
+  }, [query, sourceFilter, fromDate, toDate]);
 
   const visibleRows = showAll ? visible : visible.slice(0, COLLAPSED_COUNT);
   const hiddenCount = visible.length - visibleRows.length;
@@ -128,19 +162,40 @@ export default function GenbluClient({
           </select>
           <ChevronDown size={15} className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none" />
         </div>
+        <div className="relative">
+          <select
+            value={month}
+            onChange={(e) => pickMonth(e.target.value)}
+            className="appearance-none bg-white border border-neutral-200 hover:border-red-300 rounded-lg pl-3.5 pr-9 py-2 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50 focus:ring-2 focus:ring-red-100 transition-colors cursor-pointer"
+          >
+            <option value="">All Months</option>
+            {months.map((m) => (
+              <option key={m} value={m}>
+                {monthLabel(m)}
+              </option>
+            ))}
+          </select>
+          <ChevronDown size={15} className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none" />
+        </div>
         <div className="flex items-center gap-2">
           <label className="text-xs font-medium text-neutral-500">From</label>
           <input
             type="date"
             value={fromDate}
-            onChange={(e) => setFromDate(e.target.value)}
+            onChange={(e) => {
+              setFromDate(e.target.value);
+              setMonth("");
+            }}
             className="bg-white border border-neutral-200 rounded-lg px-2.5 py-2 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
           />
           <label className="text-xs font-medium text-neutral-500">To</label>
           <input
             type="date"
             value={toDate}
-            onChange={(e) => setToDate(e.target.value)}
+            onChange={(e) => {
+              setToDate(e.target.value);
+              setMonth("");
+            }}
             className="bg-white border border-neutral-200 rounded-lg px-2.5 py-2 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
           />
         </div>
