@@ -112,5 +112,5 @@ export const config = {
   // route under app/api authenticates its own callers instead (requireApproved()
   // for staff-only ones like /api/scan-jobsheet, a shared secret/API key for
   // the externally-called ones).
-  matcher: ["/((?!api/|_next/static|_next/image|favicon.ico|.*\\.(?:png|jpg|jpeg|svg|gif|webp|ico)$).*)"],
+  matcher: ["/((?!api/|_next/static|_next/image|favicon.ico|.*\\.(?:png|jpg|jpeg|svg|gif|webp|ico|webmanifest)$).*)"],
 };
