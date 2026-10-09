@@ -2,7 +2,7 @@
 
 import { useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Building2, Layers } from "lucide-react";
+import { Building2, ChevronDown, Layers } from "lucide-react";
 import { setBranchAction } from "@/lib/branch-actions";
 import { BRANCHES, type BranchSelection } from "@/lib/branch";
 
@@ -42,10 +42,31 @@ export default function BranchSwitcher({
   ];
 
   return (
-    // overflow-x-auto rather than letting this run off the right edge of a
-    // phone screen — on desktop there's always room, so it never actually
-    // needs to scroll there.
-    <div className="flex items-center gap-1 bg-neutral-50 border border-neutral-200 rounded-lg p-1 overflow-x-auto max-w-full">
+    <>
+    {/* Phone: one compact dropdown — four pill buttons don't fit beside
+        the logo on a narrow screen. */}
+    <div className="md:hidden relative shrink-0">
+      {activeBranch === "all" ? (
+        <Layers size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-red-500 pointer-events-none" />
+      ) : (
+        <Building2 size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-red-500 pointer-events-none" />
+      )}
+      <select
+        value={activeBranch}
+        onChange={(e) => select(e.target.value as BranchSelection)}
+        disabled={isPending}
+        aria-label="Branch"
+        className="appearance-none bg-white border border-neutral-200 rounded-lg pl-8 pr-7 py-2 text-sm font-medium text-neutral-800 disabled:opacity-50 focus:outline-none focus:border-red-400"
+      >
+        {options.map((opt) => (
+          <option key={opt.value} value={opt.value}>
+            {opt.value === "all" ? "All Branches" : opt.label}
+          </option>
+        ))}
+      </select>
+      <ChevronDown size={14} className="absolute right-2 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none" />
+    </div>
+    <div className="hidden md:flex items-center gap-1 bg-neutral-50 border border-neutral-200 rounded-lg p-1 overflow-x-auto max-w-full">
       {options.map((opt) => (
         <button
           key={opt.value}
@@ -61,5 +82,6 @@ export default function BranchSwitcher({
         </button>
       ))}
     </div>
+    </>
   );
 }

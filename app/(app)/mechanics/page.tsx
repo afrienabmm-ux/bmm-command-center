@@ -21,7 +21,7 @@ export default async function MechanicsPage() {
             : `${branchLabel(selection)} — ${mechanics.length} on the team`
         }
       />
-      <div className="p-8">
+      <div className="p-4 md:p-8">
         <MechanicsClient mechanics={mechanics} activeBranch={selection} />
       </div>
     </div>

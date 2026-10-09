@@ -90,7 +90,7 @@ export default function PackagesClient({
       <div className="bg-white border border-neutral-200 rounded-xl overflow-hidden">
         <div className="px-5 py-4 border-b border-neutral-200 flex items-center justify-between flex-wrap gap-3">
           <p className="text-sm font-semibold text-neutral-900">Recorded Package Sales Log</p>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 flex-wrap">
             <div className="relative">
               <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
               <input

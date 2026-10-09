@@ -177,7 +177,7 @@ export default function GenbluClient({
           </select>
           <ChevronDown size={15} className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none" />
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <label className="text-xs font-medium text-neutral-500">From</label>
           <input
             type="date"

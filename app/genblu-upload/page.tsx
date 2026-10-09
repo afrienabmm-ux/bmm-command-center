@@ -35,7 +35,7 @@ export default async function GenbluUploadPage() {
   const branchSelection = await getActiveBranchSelection(currentUser);
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-red-50 via-neutral-50 to-neutral-50">
+    <div className="min-h-screen w-full min-w-0 bg-gradient-to-b from-red-50 via-neutral-50 to-neutral-50">
       <Suspense fallback={null}>
         <SavedToast />
       </Suspense>

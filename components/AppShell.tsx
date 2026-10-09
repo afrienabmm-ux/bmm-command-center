@@ -2,8 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
-import { Menu } from "lucide-react";
 import Sidebar from "@/components/Sidebar";
+import MobileTabBar from "@/components/MobileTabBar";
 import BranchSwitcher from "@/components/BranchSwitcher";
 import { useToast } from "@/lib/useToast";
 import type { Role } from "@/lib/current-user";
@@ -89,28 +89,27 @@ export default function AppShell({
         onMobileClose={() => setMobileNavOpen(false)}
       />
       <div className="flex-1 min-w-0 flex flex-col">
-        <div className="h-14 border-b border-neutral-200 flex items-center justify-between gap-3 px-4 md:px-8 shrink-0">
-          <div className="flex items-center gap-3 min-w-0">
-            {/* Only ever the way into the sidebar on a phone-width screen —
-                from md up the sidebar is always visible inline instead. */}
-            <button
-              onClick={() => setMobileNavOpen(true)}
-              aria-label="Open menu"
-              className="md:hidden w-8 h-8 flex items-center justify-center rounded-lg border border-neutral-200 text-neutral-600 hover:text-red-600 hover:border-red-300 transition-colors shrink-0"
-            >
-              <Menu size={16} />
-            </button>
-            {/* Stands in for the sidebar's own logo/name once that's hidden
-                — always on a phone screen (sidebar is hidden by default
-                there), or on desktop only once collapsed to icons. */}
-            <p className={`text-sm font-semibold text-neutral-800 tracking-wide truncate ${collapsed ? "" : "md:hidden"}`}>
+        {/* Stays pinned to the top on a phone so the branch is always in
+            reach while scrolling a long list. */}
+        <div className="sticky top-0 z-30 md:static h-14 bg-white/95 backdrop-blur md:bg-transparent md:backdrop-blur-none border-b border-neutral-200 flex items-center justify-between gap-3 px-4 md:px-8 shrink-0">
+          <div className="flex items-center gap-2.5 min-w-0">
+            {/* Phone: the bottom bar's "More" opens the menu, so the top
+                just shows who we are. */}
+            <img src="/bmm-logo.png" alt="" className="md:hidden w-7 h-7 object-contain shrink-0" />
+            <p className="md:hidden text-sm font-semibold text-neutral-800 truncate">After-Sales</p>
+            {/* Desktop: stands in for the sidebar's own logo/name once it's
+                collapsed to icons. */}
+            <p className={`hidden text-sm font-semibold text-neutral-800 tracking-wide truncate ${collapsed ? "md:block" : ""}`}>
               BERJAYA MEGA MOTORS <span className="text-neutral-400 font-normal">— AFTERSALES</span>
             </p>
           </div>
           <BranchSwitcher activeBranch={activeBranch} locked={locked} allowAll={allowAll} />
         </div>
-        <main className="flex-1 min-w-0">{children}</main>
+        {/* Room at the bottom on a phone so the tab bar never covers the
+            last row of a page. */}
+        <main className="flex-1 min-w-0 pb-24 md:pb-0">{children}</main>
       </div>
+      <MobileTabBar pages={pages} onMore={() => setMobileNavOpen(true)} />
     </div>
   );
 }

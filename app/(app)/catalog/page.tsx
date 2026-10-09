@@ -26,7 +26,7 @@ export default async function CatalogPage() {
         title="Catalog"
         subtitle={`${branchLabel(branch)} — Yamalube, Rock Oil, Motul, Yamaha Spare Parts & Labour Charges`}
       />
-      <div className="p-8">
+      <div className="p-4 md:p-8">
         <CatalogClient data={data} stockMap={stockMap} branch={branch} labourCharges={labourCharges} />
       </div>
     </div>

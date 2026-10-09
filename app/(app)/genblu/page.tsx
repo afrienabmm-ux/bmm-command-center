@@ -109,7 +109,7 @@ export default async function GenbluPage({
         title="GenBlu"
         subtitle={`${showAllBranches ? "All Branches" : branchLabel(branch)} — ${registrations.length} registered in the last 6 months, ${transactions.length} allocations this month`}
       />
-      <div className="p-8">
+      <div className="p-4 md:p-8">
         <GenbluTabs
           registeredCount={trackerRegistrations.length}
           salesmanCount={salesmanRegistrations.length}

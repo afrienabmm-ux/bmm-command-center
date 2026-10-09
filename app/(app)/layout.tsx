@@ -13,6 +13,8 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = {
   themeColor: "#ef4444",
+  // Lets the bottom tab bar sit clear of the iPhone home bar.
+  viewportFit: "cover",
 };
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {

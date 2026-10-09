@@ -26,7 +26,7 @@ export default async function WarrantyClaimsPage() {
         title="Claims"
         subtitle={`${showAllBranches ? "All Branches" : branchLabel(branch)} — ${claims.length} warranty, ${deliveryClaims.length} delivery`}
       />
-      <div className="p-8">
+      <div className="p-4 md:p-8">
         <ClaimsTabs
           warrantyCount={claims.length}
           deliveryCount={deliveryClaims.length}

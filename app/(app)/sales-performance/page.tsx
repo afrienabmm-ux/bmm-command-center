@@ -127,7 +127,7 @@ export default async function SalesPerformancePage({
           </div>
         }
       />
-      <div className="p-8 space-y-8">
+      <div className="p-4 md:p-8 space-y-8">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           <StatCard
             icon={ClipboardList}

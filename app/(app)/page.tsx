@@ -40,7 +40,7 @@ export default async function CommandCenterPage({
         subtitle={branchSelection === "all" ? "All branches — after-sales overview" : `${branchLabel(branchSelection)} — after-sales overview`}
         action={<MonthPicker year={year} month={month} />}
       />
-      <div className="p-8">
+      <div className="p-4 md:p-8">
         <AllBranchesOverview
           year={year}
           month={month}

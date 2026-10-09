@@ -28,7 +28,7 @@ export default async function CustomersPage() {
         title="E-Service Card"
         subtitle={`${showAllBranches ? "All Branches" : branchLabel(branch)} — ${customers.length} cards issued in the last 6 months`}
       />
-      <div className="p-8">
+      <div className="p-4 md:p-8">
         <CustomersClient
           customers={customers}
           branch={branch}

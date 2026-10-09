@@ -51,7 +51,7 @@ export default async function WalkInPage({ searchParams }: { searchParams: Promi
         title="Jobsheet"
         subtitle={`${showAllBranches ? "All Branches" : branchLabel(branch)} — ${active.length} active job${active.length === 1 ? "" : "s"}`}
       />
-      <div className="p-8">
+      <div className="p-4 md:p-8">
         <WalkInClient
           active={active}
           completed={completed}

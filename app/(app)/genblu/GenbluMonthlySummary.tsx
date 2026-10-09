@@ -12,7 +12,7 @@ export default function GenbluMonthlySummary({
   return (
     <div>
       <p className="text-sm font-medium text-neutral-800 mb-3">Monthly Point Allocation Summary</p>
-      <div className="bg-white border border-neutral-200 rounded-xl overflow-hidden max-w-md">
+      <div className="bg-white border border-neutral-200 rounded-xl overflow-x-auto max-w-md">
         <table className="w-full text-sm">
           <thead>
             <tr className="bg-neutral-50 text-left text-xs font-medium text-neutral-500 uppercase tracking-wide">

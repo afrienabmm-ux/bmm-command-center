@@ -52,7 +52,7 @@ export default async function ReportsPage() {
         title="Reports"
         subtitle="Search, filter, and export any of these records."
       />
-      <div className="flex-1 overflow-y-auto p-8">
+      <div className="flex-1 overflow-y-auto p-4 md:p-8">
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-5">
           {showLogs && (
             <Link

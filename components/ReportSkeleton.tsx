@@ -8,10 +8,10 @@
 export default function ReportSkeleton() {
   return (
     <div className="flex flex-col h-full">
-      <div className="min-h-16 border-b border-neutral-200 flex items-center px-8 py-3 shrink-0">
+      <div className="min-h-16 border-b border-neutral-200 flex items-center px-4 md:px-8 py-3 shrink-0">
         <div className="h-4 w-40 bg-neutral-200 rounded animate-pulse" />
       </div>
-      <div className="flex-1 overflow-y-auto p-8 space-y-4">
+      <div className="flex-1 overflow-y-auto p-4 md:p-8 space-y-4">
         <div className="flex items-center gap-3">
           <div className="h-9 w-64 bg-neutral-100 rounded-lg animate-pulse" />
           <div className="h-9 w-32 bg-neutral-100 rounded-lg animate-pulse" />

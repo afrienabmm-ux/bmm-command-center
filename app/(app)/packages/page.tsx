@@ -30,7 +30,7 @@ export default async function PackagesPage() {
         title="Services Combo"
         subtitle={`${showAllBranches ? "All Branches" : branchLabel(branch)} — service combo packages`}
       />
-      <div className="p-8 space-y-8">
+      <div className="p-4 md:p-8 space-y-8">
         <PackagesClient
           packages={packages}
           sales={sales}

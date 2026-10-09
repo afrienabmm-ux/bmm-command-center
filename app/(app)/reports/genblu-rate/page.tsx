@@ -109,7 +109,7 @@ export default async function GenbluSalesRatePage({
         title="GenBlu Registration Rate"
         subtitle="Bikes sold vs. GenBlu installed and e-coupon usage — sent by the Sales Dashboard"
         action={
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 flex-wrap">
             <MonthPicker year={year} month={month} basePath="/reports/genblu-rate" />
             <WeekSelector
               weeks={weeks.filter((w): w is { week: number; label: string } => w.week !== undefined).map((w) => ({ week: w.week, label: w.label ?? `Week ${w.week}` }))}
@@ -123,7 +123,7 @@ export default async function GenbluSalesRatePage({
           </div>
         }
       />
-      <div className="flex-1 overflow-y-auto p-8 space-y-6">
+      <div className="flex-1 overflow-y-auto p-4 md:p-8 space-y-6">
         {!scoped ? (
           <div className="bg-white border border-neutral-200 rounded-xl p-10 text-center text-neutral-500 text-sm">
             No report received from the Sales Dashboard for {monthKey} yet.
@@ -167,22 +167,24 @@ export default async function GenbluSalesRatePage({
                 <div className="px-5 py-3 border-b border-neutral-200 bg-neutral-50">
                   <p className="text-sm font-semibold text-neutral-900">{totalLabel}</p>
                 </div>
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="text-left text-xs text-neutral-500 border-b border-neutral-200">
-                      <th className="font-medium px-5 py-2.5">Bikes Sold</th>
-                      <th className="font-medium px-5 py-2.5">GenBlu Installed</th>
-                      <th className="font-medium px-5 py-2.5">Install %</th>
-                      <th className="font-medium px-5 py-2.5">E-Coupon Used</th>
-                      <th className="font-medium px-5 py-2.5">E-Coupon %</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr>
-                      <MetricCells row={scoped.total} targets={targets} />
-                    </tr>
-                  </tbody>
-                </table>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="text-left text-xs text-neutral-500 border-b border-neutral-200">
+                        <th className="font-medium px-5 py-2.5">Bikes Sold</th>
+                        <th className="font-medium px-5 py-2.5">GenBlu Installed</th>
+                        <th className="font-medium px-5 py-2.5">Install %</th>
+                        <th className="font-medium px-5 py-2.5">E-Coupon Used</th>
+                        <th className="font-medium px-5 py-2.5">E-Coupon %</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <MetricCells row={scoped.total} targets={targets} />
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
               </div>
             )}
 
@@ -191,26 +193,28 @@ export default async function GenbluSalesRatePage({
                 <div className="px-5 py-3 border-b border-neutral-200 bg-neutral-50">
                   <p className="text-sm font-semibold text-neutral-900">By Branch</p>
                 </div>
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="text-left text-xs text-neutral-500 border-b border-neutral-200">
-                      <th className="font-medium px-5 py-2.5">Branch</th>
-                      <th className="font-medium px-5 py-2.5">Bikes Sold</th>
-                      <th className="font-medium px-5 py-2.5">GenBlu Installed</th>
-                      <th className="font-medium px-5 py-2.5">Install %</th>
-                      <th className="font-medium px-5 py-2.5">E-Coupon Used</th>
-                      <th className="font-medium px-5 py-2.5">E-Coupon %</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-neutral-100">
-                    {scoped.branches.map((b, i) => (
-                      <tr key={b.branch ?? b.name ?? i} className="hover:bg-neutral-50">
-                        <td className="px-5 py-2.5 text-neutral-900 font-medium whitespace-nowrap">{b.branch ?? b.name ?? "—"}</td>
-                        <MetricCells row={b} targets={targets} />
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="text-left text-xs text-neutral-500 border-b border-neutral-200">
+                        <th className="font-medium px-5 py-2.5">Branch</th>
+                        <th className="font-medium px-5 py-2.5">Bikes Sold</th>
+                        <th className="font-medium px-5 py-2.5">GenBlu Installed</th>
+                        <th className="font-medium px-5 py-2.5">Install %</th>
+                        <th className="font-medium px-5 py-2.5">E-Coupon Used</th>
+                        <th className="font-medium px-5 py-2.5">E-Coupon %</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody className="divide-y divide-neutral-100">
+                      {scoped.branches.map((b, i) => (
+                        <tr key={b.branch ?? b.name ?? i} className="hover:bg-neutral-50">
+                          <td className="px-5 py-2.5 text-neutral-900 font-medium whitespace-nowrap">{b.branch ?? b.name ?? "—"}</td>
+                          <MetricCells row={b} targets={targets} />
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             )}
 
@@ -219,28 +223,30 @@ export default async function GenbluSalesRatePage({
                 <div className="px-5 py-3 border-b border-neutral-200 bg-neutral-50">
                   <p className="text-sm font-semibold text-neutral-900">By Salesperson</p>
                 </div>
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="text-left text-xs text-neutral-500 border-b border-neutral-200">
-                      <th className="font-medium px-5 py-2.5">Salesperson</th>
-                      {allBranches && <th className="font-medium px-5 py-2.5">Branch</th>}
-                      <th className="font-medium px-5 py-2.5">Bikes Sold</th>
-                      <th className="font-medium px-5 py-2.5">GenBlu Installed</th>
-                      <th className="font-medium px-5 py-2.5">Install %</th>
-                      <th className="font-medium px-5 py-2.5">E-Coupon Used</th>
-                      <th className="font-medium px-5 py-2.5">E-Coupon %</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-neutral-100">
-                    {scoped.salespeople.map((p, i) => (
-                      <tr key={`${p.name}-${i}`} className="hover:bg-neutral-50">
-                        <td className="px-5 py-2.5 text-neutral-900 font-medium whitespace-nowrap">{p.name ?? "—"}</td>
-                        {allBranches && <td className="px-5 py-2.5 text-neutral-700 whitespace-nowrap">{p.branch ?? "—"}</td>}
-                        <MetricCells row={p} targets={targets} />
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="text-left text-xs text-neutral-500 border-b border-neutral-200">
+                        <th className="font-medium px-5 py-2.5">Salesperson</th>
+                        {allBranches && <th className="font-medium px-5 py-2.5">Branch</th>}
+                        <th className="font-medium px-5 py-2.5">Bikes Sold</th>
+                        <th className="font-medium px-5 py-2.5">GenBlu Installed</th>
+                        <th className="font-medium px-5 py-2.5">Install %</th>
+                        <th className="font-medium px-5 py-2.5">E-Coupon Used</th>
+                        <th className="font-medium px-5 py-2.5">E-Coupon %</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody className="divide-y divide-neutral-100">
+                      {scoped.salespeople.map((p, i) => (
+                        <tr key={`${p.name}-${i}`} className="hover:bg-neutral-50">
+                          <td className="px-5 py-2.5 text-neutral-900 font-medium whitespace-nowrap">{p.name ?? "—"}</td>
+                          {allBranches && <td className="px-5 py-2.5 text-neutral-700 whitespace-nowrap">{p.branch ?? "—"}</td>}
+                          <MetricCells row={p} targets={targets} />
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             )}
 

@@ -29,7 +29,7 @@ import JobsheetPicker from "./JobsheetPicker";
 import ScanTabs from "./ScanTabs";
 import SavedToast from "./SavedToast";
 import { signOutAction } from "@/lib/auth-actions";
-import { LogOut } from "lucide-react";
+import { ArrowLeft, LogOut } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 // The GenBlu screenshot check runs an OCR call (with retries) inside this
@@ -145,11 +145,21 @@ export default async function ScanPage({ searchParams }: { searchParams: Promise
     }));
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-red-50 via-neutral-50 to-neutral-50">
+    <div className="min-h-screen w-full min-w-0 bg-gradient-to-b from-red-50 via-neutral-50 to-neutral-50">
       <Suspense fallback={null}>
         <SavedToast />
       </Suspense>
       <div className="sticky top-0 z-10 bg-white/90 backdrop-blur border-b border-neutral-200 px-4 py-3 flex items-center gap-2.5">
+        {/* The dashboard's phone tab bar links here — give the way back. */}
+        {currentUser.pages.includes("dashboard") && (
+          <a
+            href="/"
+            aria-label="Back to dashboard"
+            className="w-8 h-8 -ml-1 flex items-center justify-center rounded-full text-neutral-600 hover:text-red-600 hover:bg-red-50 shrink-0"
+          >
+            <ArrowLeft className="w-4 h-4" />
+          </a>
+        )}
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/bmm-logo.png" alt="Berjaya Mega Motors" className="w-7 h-7 rounded-full object-cover shrink-0" />
         <div className="leading-none min-w-0 flex-1">

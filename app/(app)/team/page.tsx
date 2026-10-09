@@ -17,7 +17,7 @@ export default async function TeamPage() {
   return (
     <div className="flex flex-col h-full">
       <PageHeader title="Manage Team" subtitle="Approve new sign-ups and manage who can access what" />
-      <div className="p-8">
+      <div className="p-4 md:p-8">
         <TeamClient members={members} currentUserId={user.id} />
       </div>
     </div>

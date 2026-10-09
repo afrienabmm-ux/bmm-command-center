@@ -65,7 +65,7 @@ export default async function LogsPage() {
           </Link>
         }
       />
-      <div className="flex-1 overflow-y-auto p-8">
+      <div className="flex-1 overflow-y-auto p-4 md:p-8">
         <ReportTable
           columns={COLUMNS}
           rows={rows}
