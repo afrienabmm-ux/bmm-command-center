@@ -1,5 +1,5 @@
 // The daily After-Sales "needs attention" message for Telegram. Read-only:
-// it looks and reports, never changes a record. Up to four sections, and each
+// it looks and reports, never changes a record. Up to five sections, and each
 // only appears when there is something to act on. Every branch gets its own
 // message (only its own data) for its own group, and management gets one
 // combined message — see sendToGroups in telegram-digest.ts.
@@ -148,6 +148,46 @@ export async function buildAfterSalesAlerts(dateOverride?: string): Promise<{ se
           items: mine.map((g) => `   - ${g[0].customer_name} - ${g[0].points} pts on ${g[0].transaction_date} ${g[0].transaction_time ?? ""} (uploaded ${g.length}x)`),
         };
       }
+    }
+    sections.push(s);
+  }
+
+  // 5) Uploading on time: a branch that uploaded nothing on the last working
+  // day, and jobsheets that went in 2+ days after the job was done (late
+  // uploads hide a day's work from the dashboard until they arrive).
+  {
+    const s: Section = { title: "📤 Jobsheet uploads", footer: "Please upload jobsheets on the day the job is done.", perBranch: {} };
+    // created_at is UTC; the window is Malaysia days [sinceNew, today).
+    const fromUtc = new Date(Date.parse(`${sinceNew}T00:00:00+08:00`)).toISOString();
+    const toUtc = new Date(Date.parse(`${today}T00:00:00+08:00`)).toISOString();
+    const { data: uploaded, error } = await fetchAllRows((a, b) =>
+      supabaseAdmin
+        .from("cc_repair_jobs")
+        .select("branch, job_no, started_date, created_at")
+        .gte("created_at", fromUtc)
+        .lt("created_at", toUtc)
+        .order("id")
+        .range(a, b),
+    );
+    if (error) throw new Error(error.message);
+    const myDate = (iso: string) => new Date(Date.parse(iso) + 8 * 3600_000).toISOString().slice(0, 10);
+    const dayLabel = sinceNew === addDays(today, -1) ? sinceNew : `${sinceNew} to ${addDays(today, -1)}`;
+    for (const { value } of BRANCHES) {
+      const mine = (uploaded ?? []).filter((j) => j.branch === value);
+      if (mine.length === 0) {
+        s.perBranch[value] = { summary: `No jobsheets uploaded on ${dayLabel}`, items: [] };
+        continue;
+      }
+      const late = mine.filter(
+        (j) => j.started_date && (Date.parse(myDate(j.created_at)) - Date.parse(j.started_date)) / 86400000 >= 2,
+      );
+      if (late.length === 0) continue;
+      const byJobDate = new Map<string, number>();
+      for (const j of late) byJobDate.set(j.started_date!, (byJobDate.get(j.started_date!) ?? 0) + 1);
+      s.perBranch[value] = {
+        summary: `${late.length} of ${mine.length} jobsheets uploaded on ${dayLabel} were done 2+ days earlier`,
+        items: [...byJobDate.entries()].sort().map(([d, n]) => `   - ${n} from ${d}`),
+      };
     }
     sections.push(s);
   }

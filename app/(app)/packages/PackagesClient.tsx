@@ -158,6 +158,7 @@ export default function PackagesClient({
 function PackageCard({ pkg, soldCount, isAdmin }: { pkg: Package; soldCount: number; isAdmin: boolean }) {
   const [isPending, startTransition] = useTransition();
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const [editOpen, setEditOpen] = useState(false);
 
   return (
@@ -204,18 +205,29 @@ function PackageCard({ pkg, soldCount, isAdmin }: { pkg: Package; soldCount: num
             <h2 className="text-sm font-semibold text-neutral-900 mb-2">Delete package?</h2>
             <p className="text-sm text-neutral-500 mb-6">
               This removes <span className="text-neutral-800 font-medium">{pkg.name}</span> from the package list.
-              Past sales records stay.
+              Only packages that have never been sold can be deleted.
             </p>
+            {deleteError && (
+              <p className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2 -mt-3 mb-5">{deleteError}</p>
+            )}
             <div className="flex items-center justify-end gap-3">
               <button
-                onClick={() => setConfirmDelete(false)}
+                onClick={() => {
+                  setConfirmDelete(false);
+                  setDeleteError(null);
+                }}
                 className="text-sm font-medium text-neutral-600 hover:text-neutral-800 px-4 py-2 transition-colors"
               >
                 Cancel
               </button>
               <button
-                onClick={() => startTransition(() => deletePackageAction(pkg.id))}
-                disabled={isPending}
+                onClick={() =>
+                  startTransition(async () => {
+                    const result = await deletePackageAction(pkg.id);
+                    if (result && "error" in result) setDeleteError(result.error);
+                  })
+                }
+                disabled={isPending || !!deleteError}
                 className="bg-red-600 hover:bg-red-500 disabled:opacity-50 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
               >
                 Delete

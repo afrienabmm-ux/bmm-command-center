@@ -65,8 +65,17 @@ export async function updatePackageAction(
   revalidatePath("/packages");
 }
 
-export async function deletePackageAction(id: string): Promise<void> {
+// The database deletes every sale of a package along with the package itself,
+// so a package that's ever been sold can't be removed — that would wipe its
+// sales history and the mechanics' combo counts.
+export async function deletePackageAction(id: string): Promise<{ error: string } | void> {
   const user = await requireApproved();
+  const { count } = await supabaseAdmin.from("cc_package_sales").select("id", { count: "exact", head: true }).eq("package_id", id);
+  if ((count ?? 0) > 0) {
+    return {
+      error: `Can't delete — this package has been sold ${count} time${count === 1 ? "" : "s"}, and deleting it would also delete those sales. If it's no longer offered, rename it (e.g. add "(old)") instead.`,
+    };
+  }
   const { data: pkg } = await supabaseAdmin.from("cc_packages").select("name").eq("id", id).single();
   const { error } = await supabaseAdmin.from("cc_packages").delete().eq("id", id);
   if (error) throw new Error(error.message);

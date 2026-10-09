@@ -566,8 +566,27 @@ export default function WalkInJobForm({
       // that had genuinely read the code correctly.
       const normalizeCode = (s: string) => (s.match(/^[a-z0-9]+/i)?.[0] ?? "").toLowerCase();
       const scannedCodeNormalized = normalizeCode(scanned.mechanicCode ?? "");
+      // The same code can exist at two branches (a mechanic who moved, or
+      // works at both) — prefer the jobsheet's own branch, read from its job
+      // number prefix (JBA = Kapar, JBT = Setia Alam, JBP = Puncak Alam),
+      // falling back to the header; and prefer an Active record over one
+      // that's On Leave.
+      const jobNoBranch: Branch | null = /^JBA/i.test(scanned.jobsheetNo ?? "")
+        ? "kapar"
+        : /^JBT/i.test(scanned.jobsheetNo ?? "")
+          ? "setia_alam"
+          : /^JBP/i.test(scanned.jobsheetNo ?? "")
+            ? "puncak_alam"
+            : null;
+      const sheetBranch = jobNoBranch ?? scanned.branch ?? null;
       const matchedMechanic = scannedCodeNormalized
-        ? mechanicCandidates.find((m) => normalizeCode(m.shortCode) === scannedCodeNormalized)
+        ? mechanicCandidates
+            .filter((m) => normalizeCode(m.shortCode) === scannedCodeNormalized)
+            .sort(
+              (a, b) =>
+                Number(b.branch === sheetBranch) * 2 + Number(b.status === "Active") -
+                (Number(a.branch === sheetBranch) * 2 + Number(a.status === "Active"))
+            )[0]
         : undefined;
       if (matchedMechanic) {
         if (!locked) setLocationBranch(matchedMechanic.branch);
@@ -620,6 +639,9 @@ export default function WalkInJobForm({
   // as Restore Bike assignment from the Arrival Listing tab.
   const eligibleMechanics = branchMechanics.filter((m) => {
     if (m.id === mechanicId) return true;
+    // On Leave (or moved to another branch) — kept for their past jobs,
+    // but not offered for new ones.
+    if (m.status !== "Active") return false;
     if (isHeavyJob && m.category !== "Heavy Repair") return false;
     return true;
   });

@@ -119,6 +119,49 @@ export async function updateMechanicCategoryAction(id: string, branch: Branch, c
   revalidatePath("/repairs/walk-in");
 }
 
+// Moving a mechanic to another branch: their record at the old branch is set
+// On Leave (so every past job there keeps their name and still counts for
+// that branch), and they're made Active at the new branch — reusing their
+// old record there if they've worked at that branch before, otherwise a new
+// one with the same name and code.
+export async function moveMechanicAction(id: string, fromBranch: Branch, toBranch: Branch): Promise<{ error: string } | void> {
+  const user = await requireApproved();
+  assertCanEditBranch(user, fromBranch);
+  assertCanEditBranch(user, toBranch);
+  if (fromBranch === toBranch) return { error: "Pick a different branch." };
+
+  const { data: mech, error: readError } = await supabaseAdmin.from("cc_mechanics").select("*").eq("id", id).single();
+  if (readError || !mech) return { error: readError?.message ?? "Mechanic not found." };
+
+  const { data: existing } = await supabaseAdmin
+    .from("cc_mechanics")
+    .select("id")
+    .eq("branch", toBranch)
+    .eq("short_code", mech.short_code)
+    .limit(1);
+  if (existing && existing.length > 0) {
+    const { error } = await supabaseAdmin.from("cc_mechanics").update({ status: "Active" }).eq("id", existing[0].id);
+    if (error) return { error: error.message };
+  } else {
+    const { error } = await supabaseAdmin.from("cc_mechanics").insert({
+      branch: toBranch,
+      full_name: mech.full_name,
+      short_name: mech.short_name,
+      short_code: mech.short_code,
+      category: mech.category,
+      status: "Active",
+    });
+    if (error) return { error: error.message };
+  }
+
+  const { error: leaveError } = await supabaseAdmin.from("cc_mechanics").update({ status: "On Leave" }).eq("id", id);
+  if (leaveError) return { error: leaveError.message };
+
+  await logActivity(user, "Moved mechanic", `${mech.full_name} (${mech.short_code}) — ${fromBranch} → ${toBranch}`);
+  revalidatePath("/mechanics");
+  updateTag("mechanics");
+}
+
 // Deleting a mechanic blanks the mechanic on every job and combo sale they
 // ever did (the database sets those to empty), so it's refused once they
 // have any — staff moving someone to another branch should set them On

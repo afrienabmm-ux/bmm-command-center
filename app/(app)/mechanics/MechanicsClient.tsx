@@ -1,10 +1,16 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Plus, Trash2, Wrench, ChevronDown } from "lucide-react";
-import { addMechanicAction, toggleMechanicStatusAction, updateMechanicCategoryAction, deleteMechanicAction } from "@/lib/mechanics-actions";
+import { Plus, Trash2, Wrench, ChevronDown, ArrowRightLeft } from "lucide-react";
+import {
+  addMechanicAction,
+  toggleMechanicStatusAction,
+  updateMechanicCategoryAction,
+  deleteMechanicAction,
+  moveMechanicAction,
+} from "@/lib/mechanics-actions";
 import { MECHANIC_CATEGORIES, type Mechanic, type MechanicStatus, type MechanicCategory } from "@/lib/types";
-import { BRANCHES, branchLabel, type BranchSelection } from "@/lib/branch";
+import { BRANCHES, branchLabel, type Branch, type BranchSelection } from "@/lib/branch";
 import ModalPortal from "@/components/ModalPortal";
 
 const CATEGORY_STYLES: Record<MechanicCategory, string> = {
@@ -22,7 +28,10 @@ export default function MechanicsClient({
   const [modalOpen, setModalOpen] = useState(false);
   const [categoryFilter, setCategoryFilter] = useState<MechanicCategory | "All">("All");
   const showBranch = activeBranch === "all";
-  const filtered = categoryFilter === "All" ? mechanics : mechanics.filter((m) => m.category === categoryFilter);
+  // Active mechanics first; On Leave (including anyone moved away) at the end.
+  const filtered = (categoryFilter === "All" ? mechanics : mechanics.filter((m) => m.category === categoryFilter))
+    .slice()
+    .sort((a, b) => Number(b.status === "Active") - Number(a.status === "Active"));
 
   return (
     <div>
@@ -73,6 +82,9 @@ function MechanicCard({ mechanic, showBranch }: { mechanic: Mechanic; showBranch
   const [isPending, startTransition] = useTransition();
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [moveOpen, setMoveOpen] = useState(false);
+  const [moveTo, setMoveTo] = useState<Branch | "">("");
+  const [moveError, setMoveError] = useState<string | null>(null);
   const isActive = mechanic.status === "Active";
 
   function toggle() {
@@ -137,6 +149,66 @@ function MechanicCard({ mechanic, showBranch }: { mechanic: Mechanic; showBranch
       >
         {isActive ? "● Active — click to set On Leave" : "● On Leave — click to set Active"}
       </button>
+
+      {isActive && (
+        <button
+          onClick={() => setMoveOpen(true)}
+          disabled={isPending}
+          className="mt-2 w-full flex items-center justify-center gap-1.5 text-xs font-medium py-2 rounded-lg border border-neutral-200 text-neutral-700 hover:border-red-300 hover:text-red-700 transition-colors disabled:opacity-50"
+        >
+          <ArrowRightLeft size={13} /> Move to another branch
+        </button>
+      )}
+
+      {moveOpen && (
+        <ModalPortal><div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 px-4">
+          <div className="bg-white border border-neutral-200 rounded-xl w-full max-w-sm p-6">
+            <h2 className="text-sm font-semibold text-neutral-900 mb-2">Move {mechanic.shortName} to another branch</h2>
+            <p className="text-sm text-neutral-600 mb-4">
+              Their past jobs stay at {branchLabel(mechanic.branch)} under their name. From now on they&apos;ll be listed at
+              the branch you pick.
+            </p>
+            <select
+              value={moveTo}
+              onChange={(e) => setMoveTo(e.target.value as Branch)}
+              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3 py-2.5 text-sm text-neutral-800 mb-4"
+            >
+              <option value="">Choose a branch…</option>
+              {BRANCHES.filter((b) => b.value !== mechanic.branch).map((b) => (
+                <option key={b.value} value={b.value}>
+                  {b.label}
+                </option>
+              ))}
+            </select>
+            {moveError && <p className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2 mb-4">{moveError}</p>}
+            <div className="flex items-center justify-end gap-3">
+              <button
+                onClick={() => {
+                  setMoveOpen(false);
+                  setMoveError(null);
+                  setMoveTo("");
+                }}
+                className="text-sm font-medium text-neutral-600 hover:text-neutral-800 px-4 py-2 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                disabled={!moveTo || isPending}
+                onClick={() =>
+                  startTransition(async () => {
+                    const result = await moveMechanicAction(mechanic.id, mechanic.branch, moveTo as Branch);
+                    if (result && "error" in result) setMoveError(result.error);
+                    else setMoveOpen(false);
+                  })
+                }
+                className="bg-red-500 hover:bg-red-400 disabled:opacity-50 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+              >
+                {isPending ? "Moving…" : "Move"}
+              </button>
+            </div>
+          </div>
+        </div></ModalPortal>
+      )}
 
       {confirmDelete && (
         <ModalPortal><div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 px-4">
