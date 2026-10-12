@@ -27,6 +27,7 @@ import type { Mechanic, CatalogProduct, Package } from "@/lib/types";
 import { BRANCHES, branchLabel, type Branch, type BranchSelection } from "@/lib/branch";
 import { formatCurrency } from "@/lib/format";
 import { useToast } from "@/lib/useToast";
+import DropdownDate from "@/components/DropdownDate";
 
 type ItemInput = { code: string; description: string; quantity: string; price: string };
 
@@ -1262,12 +1263,7 @@ export default function WalkInJobForm({
             </div>
             <div>
               <label className="block text-xs font-medium text-neutral-600 mb-1.5">Sales Date</label>
-              <input
-                type="date"
-                value={salesDate}
-                onChange={(e) => setSalesDate(e.target.value)}
-                className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
-              />
+              <DropdownDate value={salesDate} onChange={setSalesDate} />
             </div>
             <div>
               <label className="block text-xs font-medium text-neutral-600 mb-1.5">Warranty Card No.</label>
