@@ -999,7 +999,9 @@ function EndDateCell({ job, editable }: { job: RepairJob; editable: boolean }) {
   function handleClick() {
     startTransition(async () => {
       try {
-        await setWalkInEndDateAction(job.id, job.branch, date ? null : new Date().toISOString().slice(0, 10));
+        // End Date = the jobsheet's own Job Date, not the day this is
+        // clicked — a jobsheet entered days later still ends on its date.
+        await setWalkInEndDateAction(job.id, job.branch, date ? null : (job.startedDate ?? todayInMalaysia()));
       } catch (err) {
         showError(err instanceof Error ? err.message : "Something went wrong.");
       }
@@ -1013,7 +1015,7 @@ function EndDateCell({ job, editable }: { job: RepairJob; editable: boolean }) {
         type="button"
         onClick={handleClick}
         disabled={isPending || !editable}
-        title={date ? `${formatDate(date)} — click to clear` : "Click to mark done today"}
+        title={date ? `${formatDate(date)} — click to clear` : "Click to mark done (End Date = Job Date)"}
         className={`flex items-center justify-center w-8 h-8 rounded-lg border text-[10px] font-semibold transition-colors disabled:opacity-50 ${
           date
             ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-700"
