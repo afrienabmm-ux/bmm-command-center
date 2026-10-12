@@ -2,13 +2,14 @@
 
 import { useState, useTransition } from "react";
 import { Download, Trash2, Check, X as XIcon } from "lucide-react";
-import { deleteGenbluTransactionAction } from "@/lib/genblu-actions";
+import { deleteGenbluTransactionAction, getScreenshotUrls } from "@/lib/genblu-actions";
 import { branchLabel } from "@/lib/branch";
 import { formatDate, toCsv } from "@/lib/format";
 import type { GenbluTransaction } from "@/lib/types";
 import ModalPortal from "@/components/ModalPortal";
 
-type TransactionWithUrl = GenbluTransaction & { screenshotUrl: string | null };
+// The screenshot link is fetched when a row is opened, not with the page.
+type TransactionWithUrl = GenbluTransaction;
 
 // Same column order as the admin's own spreadsheet (No, Transaction Date,
 // Time, Points, Categories, Remark, Customer Name, Service Coupon, Branch)
@@ -91,9 +92,16 @@ export default function GenbluTransactionsList({
               {transactions.map((t, i) => (
                 <tr
                   key={t.id}
-                  onDoubleClick={t.screenshotUrl ? () => setPreviewUrl(t.screenshotUrl) : undefined}
-                  title={t.screenshotUrl ? "Double-click to view the uploaded screenshot" : undefined}
-                  className={`border-t border-neutral-100 ${t.screenshotUrl ? "cursor-pointer hover:bg-neutral-50" : ""}`}
+                  onDoubleClick={
+                    t.screenshotPath
+                      ? async () => {
+                          const urlOf = await getScreenshotUrls([t.screenshotPath!]);
+                          if (urlOf[t.screenshotPath!]) setPreviewUrl(urlOf[t.screenshotPath!]);
+                        }
+                      : undefined
+                  }
+                  title={t.screenshotPath ? "Double-click to view the uploaded screenshot" : undefined}
+                  className={`border-t border-neutral-100 ${t.screenshotPath ? "cursor-pointer hover:bg-neutral-50" : ""}`}
                 >
                   <td className="px-4 py-2.5 text-neutral-500">{i + 1}</td>
                   <td className="px-4 py-2.5 text-neutral-700">{t.transactionDate ? formatDate(t.transactionDate) : "—"}</td>

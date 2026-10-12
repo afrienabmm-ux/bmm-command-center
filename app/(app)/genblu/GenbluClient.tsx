@@ -2,7 +2,12 @@
 
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { Plus, Download, X, Pencil, Trash2, Search, Award, ChevronDown, ChevronUp, MessageSquareWarning } from "lucide-react";
-import { addGenbluRegistrationAction, updateGenbluRegistrationAction, deleteGenbluRegistrationAction } from "@/lib/genblu-actions";
+import {
+  addGenbluRegistrationAction,
+  updateGenbluRegistrationAction,
+  deleteGenbluRegistrationAction,
+  getScreenshotUrls,
+} from "@/lib/genblu-actions";
 import { exportGenbluCsv, exportAllBranchesGenbluCsv } from "@/lib/export-actions";
 import { BRANCHES, branchLabel, type Branch, type BranchSelection } from "@/lib/branch";
 import { formatDate, formatCurrency } from "@/lib/format";
@@ -16,8 +21,8 @@ type RegWithUrl = {
   salespersonCode: string;
   customerName: string;
   customerPlateNo: string;
-  screenshotUrl: string | null;
-  extraScreenshotUrls?: string[];
+  screenshotPath: string | null;
+  extraScreenshotPaths?: string[];
   createdAt: string;
   points: number;
   pointsAreActual: boolean;
@@ -59,6 +64,13 @@ export default function GenbluClient({
   const [editing, setEditing] = useState<RegWithUrl | null>(null);
   const [deleting, setDeleting] = useState<RegWithUrl | null>(null);
   const [lightboxUrls, setLightboxUrls] = useState<string[] | null>(null);
+
+  // Screenshot links are fetched when a row is opened, not with the page.
+  async function openScreenshots(paths: string[]) {
+    const urlOf = await getScreenshotUrls(paths);
+    const urls = paths.map((p) => urlOf[p]).filter((u): u is string => !!u);
+    if (urls.length) setLightboxUrls(urls);
+  }
   const [exporting, setExporting] = useState(false);
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
@@ -233,9 +245,9 @@ export default function GenbluClient({
               {visibleRows.map((r) => (
                 <tr
                   key={r.id}
-                  className={`border-t border-neutral-100 ${r.screenshotUrl ? "cursor-pointer hover:bg-neutral-50" : ""}`}
-                  onDoubleClick={() => r.screenshotUrl && setLightboxUrls([r.screenshotUrl, ...(r.extraScreenshotUrls ?? [])])}
-                  title={r.screenshotUrl ? ((r.extraScreenshotUrls?.length ?? 0) > 0 ? "Double-click to view all uploaded screenshots" : "Double-click to view the uploaded screenshot") : undefined}
+                  className={`border-t border-neutral-100 ${r.screenshotPath ? "cursor-pointer hover:bg-neutral-50" : ""}`}
+                  onDoubleClick={() => r.screenshotPath && void openScreenshots([r.screenshotPath, ...(r.extraScreenshotPaths ?? [])])}
+                  title={r.screenshotPath ? ((r.extraScreenshotPaths?.length ?? 0) > 0 ? "Double-click to view all uploaded screenshots" : "Double-click to view the uploaded screenshot") : undefined}
                 >
                   <td className="px-4 py-2.5 text-neutral-800 font-medium">
                     <span className="relative inline-flex items-center gap-1.5">
@@ -598,6 +610,17 @@ function EditModal({
   const [plateNo, setPlateNo] = useState(registration.customerPlateNo);
   const [screenshot, setScreenshot] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [currentScreenshotUrl, setCurrentScreenshotUrl] = useState<string | null>(null);
+  useEffect(() => {
+    if (!registration.screenshotPath) return;
+    let cancelled = false;
+    getScreenshotUrls([registration.screenshotPath]).then((m) => {
+      if (!cancelled) setCurrentScreenshotUrl(m[registration.screenshotPath!] ?? null);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [registration.screenshotPath]);
   const [isPending, startTransition] = useTransition();
 
   function handleMechanicChange(id: string) {
@@ -701,10 +724,10 @@ function EditModal({
           </div>
           <div>
             <label className="block text-xs font-medium text-neutral-600 mb-1.5">Screenshot</label>
-            {registration.screenshotUrl && !screenshot && (
+            {currentScreenshotUrl && !screenshot && (
               // eslint-disable-next-line @next/next/no-img-element
               <img
-                src={registration.screenshotUrl}
+                src={currentScreenshotUrl}
                 alt="Current GenBlu screenshot"
                 className="w-full h-28 object-cover rounded-lg border border-neutral-200 mb-2"
               />
@@ -716,7 +739,7 @@ function EditModal({
               className="w-full text-sm text-neutral-700 file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:bg-neutral-100 file:text-neutral-800 file:text-xs"
             />
             <p className="text-xs text-neutral-500 mt-1.5">
-              {registration.screenshotUrl ? "Pick a new photo to replace the one above." : "No screenshot on file yet."}
+              {registration.screenshotPath ? "Pick a new photo to replace the one above." : "No screenshot on file yet."}
             </p>
           </div>
         </div>

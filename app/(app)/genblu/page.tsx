@@ -2,7 +2,6 @@ import { requirePageContext, requirePage, canViewAllBranches, getActiveBranchSel
 import {
   getGenbluRegistrations,
   getAllBranchesGenbluRegistrations,
-  getScreenshotUrls,
   getGenbluPointsByName,
   getGenbluMonthlySummary,
   getGenbluTransactions,
@@ -69,22 +68,15 @@ export default async function GenbluPage({
     extrasByReg.set(ownerId, (extrasByReg.get(ownerId) ?? new Set()).add(t.screenshotPath));
   }
   const matchingExtras = (r: (typeof registrations)[number]) => [...(extrasByReg.get(r.id) ?? [])];
-  const urlOf = await getScreenshotUrls([
-    ...transactions.map((t) => t.screenshotPath ?? ""),
-    ...registrations.map((r) => r.screenshotPath ?? ""),
-    ...registrations.flatMap((r) => matchingExtras(r)),
-  ]);
-  const transactionsWithUrls = transactions.map((t) => ({
-    ...t,
-    screenshotUrl: t.screenshotPath ? (urlOf[t.screenshotPath] ?? null) : null,
-  }));
+  // Screenshot links are made when someone opens a screenshot, not here —
+  // signing all ~700 on every visit was the slowest part of this page.
+  const transactionsWithUrls = transactions;
   const withUrls = registrations.map((r) => ({
     ...r,
-    screenshotUrl: r.screenshotPath ? (urlOf[r.screenshotPath] ?? null) : null,
     // Same customer uploaded again for another visit (different time/
     // price) — the row's points are already their combined running
     // total, so double-clicking should show every screenshot behind it.
-    extraScreenshotUrls: matchingExtras(r).map((path) => urlOf[path]).filter((u): u is string => !!u),
+    extraScreenshotPaths: matchingExtras(r),
     // The running total built from actual "proof of award" screenshots
     // wins when there's at least one — real points the admin gave this
     // customer, not our own RM-spent estimate.

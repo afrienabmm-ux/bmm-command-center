@@ -30,6 +30,9 @@ const STATUS_STYLES: Record<RepairStatus, string> = {
   Completed: "bg-emerald-500/10 text-emerald-700 border-emerald-500/20",
 };
 
+// Rows drawn before "Show all" — see displayed below.
+const ROW_CAP = 100;
+
 export default function WalkInClient({
   active,
   completed,
@@ -78,8 +81,12 @@ export default function WalkInClient({
   // Filters by Job Date (the same field the "Job Date" column shows) —
   // a plain flat list with no way to narrow down to a specific day or
   // range made it easy to lose track of which rows were even from.
-  const [dateFrom, setDateFrom] = useState("");
-  const [dateTo, setDateTo] = useState("");
+  // Starts on today straight away when opening on Completed — set later in
+  // an effect instead, the first render drew every loaded job (600+ rows,
+  // ~3 MB) only to hide nearly all of them a moment after.
+  const startsOnTodayOnly = !highlightId && active.length === 0;
+  const [dateFrom, setDateFrom] = useState(() => (startsOnTodayOnly ? todayInMalaysia() : ""));
+  const [dateTo, setDateTo] = useState(() => (startsOnTodayOnly ? todayInMalaysia() : ""));
   // On top of the automatic Yamaha/Non-Yamaha detection (see
   // lib/yamaha-model.ts) — this just narrows which of those the table
   // shows, it never changes what a job was actually classified as.
@@ -209,6 +216,18 @@ export default function WalkInClient({
       return sortDir === "desc" ? dateOf(b).localeCompare(dateOf(a)) : dateOf(a).localeCompare(dateOf(b));
     });
   }, [jobs, searchResults, sortDir, sortBy, dateFrom, dateTo, brandFilter]);
+  // Draw at most ROW_CAP rows until asked for the rest — "See All" on
+  // Completed is 600+ jobs, which is slow to draw on a phone. A deep-linked
+  // job always shows everything so it can't land in the hidden part.
+  const [showAllRows, setShowAllRows] = useState(false);
+  useEffect(() => {
+    setShowAllRows(false);
+  }, [tab, query, dateFrom, dateTo, brandFilter]);
+  const displayed = useMemo(
+    () => (showAllRows || highlightId ? visible : visible.slice(0, ROW_CAP)),
+    [visible, showAllRows, highlightId]
+  );
+  const hiddenRows = visible.length - displayed.length;
   const allJobs = useMemo(() => [...active, ...completed], [active, completed]);
   const showBranchColumn = branchSelection === "all";
 
@@ -232,10 +251,14 @@ export default function WalkInClient({
   // branch's own section.
   const branchGroups = useMemo(() => {
     if (!showBranchColumn) return [];
-    return BRANCHES.map(({ value: branch }) => ({ branch, rows: visible.filter((j) => j.branch === branch) })).filter(
+    return BRANCHES.map(({ value: branch }) => ({
+      branch,
+      rows: displayed.filter((j) => j.branch === branch),
+      total: visible.filter((j) => j.branch === branch).length,
+    })).filter(
       (g) => g.rows.length > 0
     );
-  }, [visible, showBranchColumn]);
+  }, [visible, displayed, showBranchColumn]);
 
   // Selection is scoped to whatever's currently visible — switching tabs
   // or typing a new search clears it rather than silently carrying over
@@ -260,7 +283,7 @@ export default function WalkInClient({
       observer.disconnect();
       window.removeEventListener("resize", update);
     };
-  }, [visible, showBranchColumn]);
+  }, [displayed, showBranchColumn]);
 
   function handleTopScroll() {
     if (syncingFrom.current === "table") return;
@@ -650,7 +673,7 @@ export default function WalkInClient({
                           colSpan={(canEditHere ? 1 : 0) + 13}
                           className="px-5 py-2 whitespace-nowrap text-xs font-semibold text-neutral-600 uppercase tracking-wide"
                         >
-                          {branchLabel(g.branch)} — {g.rows.length} job{g.rows.length === 1 ? "" : "s"}
+                          {branchLabel(g.branch)} — {g.total} job{g.total === 1 ? "" : "s"}
                         </td>
                       </tr>
                       {g.rows.map((job) => (
@@ -670,7 +693,7 @@ export default function WalkInClient({
                       ))}
                     </Fragment>
                   ))
-                : visible.map((job) => (
+                : displayed.map((job) => (
                     <WalkInRow
                       showIc={tab === "ic"}
                       key={job.id}
@@ -685,6 +708,19 @@ export default function WalkInClient({
                       onToggleSelect={() => toggleSelectOne(job.id)}
                     />
                   ))}
+              {hiddenRows > 0 && (
+                <tr>
+                  <td colSpan={13 + (canEditHere ? 1 : 0)} className="px-5 py-3 text-center">
+                    <button
+                      type="button"
+                      onClick={() => setShowAllRows(true)}
+                      className="text-sm font-medium text-red-600 hover:text-red-700"
+                    >
+                      Show all {visible.length} jobs ({hiddenRows} more)
+                    </button>
+                  </td>
+                </tr>
+              )}
               {visible.length === 0 && (
                 <tr>
                   <td colSpan={13 + (canEditHere ? 1 : 0)} className="px-5 py-10 text-center text-neutral-500 text-sm">
