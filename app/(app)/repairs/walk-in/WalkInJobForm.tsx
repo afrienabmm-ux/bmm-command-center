@@ -343,7 +343,14 @@ export default function WalkInJobForm({
   // The TOTAL printed on the scanned jobsheet — null until a scan reads one.
   const [printedTotal, setPrintedTotal] = useState<number | null>(null);
   const [model, setModel] = useState(job?.model ?? "");
-  const [completedDate, setCompletedDate] = useState(job?.completedDate ?? "");
+  // A new job's End Date follows its Job Date (nearly every job is done the
+  // same day) until someone changes the End Date by hand. Editing an
+  // existing job keeps whatever End Date it already has.
+  const [completedDate, setCompletedDate] = useState(job ? (job.completedDate ?? "") : startedDate);
+  const [endDateTouched, setEndDateTouched] = useState(!!job);
+  useEffect(() => {
+    if (!endDateTouched) setCompletedDate(startedDate);
+  }, [startedDate, endDateTouched]);
   const [isBigItem, setIsBigItem] = useState(job?.isBigItem ?? false);
   const [items, setItems] = useState<ItemInput[]>(job ? itemsFromJob(job) : []);
   const [hasGenblu, setHasGenblu] = useState(false);
@@ -725,6 +732,10 @@ export default function WalkInJobForm({
     }
     if (hasGenblu && !genbluAlreadyRegistered && !genbluScreenshot) {
       showError("Upload the customer's GenBlu screenshot before saving, or switch \"Customer has GenBlu?\" to No.");
+      return;
+    }
+    if (completedDate && startedDate && completedDate < startedDate) {
+      showError("The End Date can't be before the Job Date.");
       return;
     }
     if (wantsCombo && !comboPackageId) {
@@ -1420,10 +1431,16 @@ export default function WalkInJobForm({
             <input
               type="date"
               value={completedDate}
-              onChange={(e) => setCompletedDate(e.target.value)}
+              min={startedDate || undefined}
+              onChange={(e) => {
+                setCompletedDate(e.target.value);
+                setEndDateTouched(true);
+              }}
               className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
             />
-            <p className="text-xs text-neutral-500 mt-1.5">Set this to the date the job is officially done.</p>
+            <p className="text-xs text-neutral-500 mt-1.5">
+              Same as the Job Date unless you change it. Clear it if the bike is still being worked on.
+            </p>
           </div>
           {isScan && <SectionHeader icon={Sparkles} title="Extras" />}
           <div className="grid grid-cols-2 gap-3">
