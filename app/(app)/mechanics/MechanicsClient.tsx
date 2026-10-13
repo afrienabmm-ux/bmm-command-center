@@ -28,10 +28,14 @@ export default function MechanicsClient({
   const [modalOpen, setModalOpen] = useState(false);
   const [categoryFilter, setCategoryFilter] = useState<MechanicCategory | "All">("All");
   const showBranch = activeBranch === "all";
-  // Active mechanics first; On Leave (including anyone moved away) at the end.
-  const filtered = (categoryFilter === "All" ? mechanics : mechanics.filter((m) => m.category === categoryFilter))
-    .slice()
+  const [showResigned, setShowResigned] = useState(false);
+  // Active mechanics first; On Leave (including anyone moved away) after.
+  // Resigned ones are kept apart in their own closed section at the bottom.
+  const inCategory = categoryFilter === "All" ? mechanics : mechanics.filter((m) => m.category === categoryFilter);
+  const filtered = inCategory
+    .filter((m) => m.status !== "Resigned")
     .sort((a, b) => Number(b.status === "Active") - Number(a.status === "Active"));
+  const resigned = inCategory.filter((m) => m.status === "Resigned");
 
   return (
     <div>
@@ -71,6 +75,26 @@ export default function MechanicsClient({
         )}
       </div>
 
+      {resigned.length > 0 && (
+        <div className="mt-8">
+          <button
+            type="button"
+            onClick={() => setShowResigned((v) => !v)}
+            className="flex items-center gap-1.5 text-sm font-medium text-neutral-500 hover:text-neutral-800"
+          >
+            <ChevronDown size={15} className={`transition-transform ${showResigned ? "" : "-rotate-90"}`} />
+            Resigned mechanics ({resigned.length})
+          </button>
+          {showResigned && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-3 opacity-75">
+              {resigned.map((m) => (
+                <MechanicCard key={m.id} mechanic={m} showBranch={showBranch} />
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
       {modalOpen && (
         <AddMechanicModal activeBranch={activeBranch} onClose={() => setModalOpen(false)} />
       )}
@@ -86,6 +110,15 @@ function MechanicCard({ mechanic, showBranch }: { mechanic: Mechanic; showBranch
   const [moveTo, setMoveTo] = useState<Branch | "">("");
   const [moveError, setMoveError] = useState<string | null>(null);
   const isActive = mechanic.status === "Active";
+  const isResigned = mechanic.status === "Resigned";
+
+  function markResigned() {
+    startTransition(async () => {
+      await toggleMechanicStatusAction(mechanic.id, mechanic.branch, "Resigned");
+      setConfirmDelete(false);
+      setDeleteError(null);
+    });
+  }
 
   function toggle() {
     const next: MechanicStatus = isActive ? "On Leave" : "Active";
@@ -144,10 +177,16 @@ function MechanicCard({ mechanic, showBranch }: { mechanic: Mechanic; showBranch
         className={`mt-2 w-full text-xs font-medium py-2 rounded-lg border transition-colors disabled:opacity-50 ${
           isActive
             ? "bg-emerald-500/10 text-emerald-700 border-emerald-500/20 hover:bg-emerald-500/20"
-            : "bg-amber-500/10 text-amber-700 border-amber-500/20 hover:bg-amber-500/20"
+            : isResigned
+              ? "bg-neutral-100 text-neutral-600 border-neutral-200 hover:bg-neutral-200"
+              : "bg-amber-500/10 text-amber-700 border-amber-500/20 hover:bg-amber-500/20"
         }`}
       >
-        {isActive ? "● Active — click to set On Leave" : "● On Leave — click to set Active"}
+        {isActive
+          ? "● Active — click to set On Leave"
+          : isResigned
+            ? "● Resigned — click to set Active again"
+            : "● On Leave — click to set Active"}
       </button>
 
       {isActive && (
@@ -231,18 +270,30 @@ function MechanicCard({ mechanic, showBranch }: { mechanic: Mechanic; showBranch
               >
                 Cancel
               </button>
-              <button
-                onClick={() =>
-                  startTransition(async () => {
-                    const result = await deleteMechanicAction(mechanic.id, mechanic.branch);
-                    if (result && "error" in result) setDeleteError(result.error);
-                  })
-                }
-                disabled={isPending || !!deleteError}
-                className="bg-red-500 hover:bg-red-400 disabled:opacity-50 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
-              >
-                Remove
-              </button>
+              {deleteError && !isResigned ? (
+                // Has jobs, so can't be deleted — the right way out for
+                // someone who has left.
+                <button
+                  onClick={markResigned}
+                  disabled={isPending}
+                  className="bg-red-500 hover:bg-red-400 disabled:opacity-50 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+                >
+                  {isPending ? "Saving…" : "Mark as resigned"}
+                </button>
+              ) : (
+                <button
+                  onClick={() =>
+                    startTransition(async () => {
+                      const result = await deleteMechanicAction(mechanic.id, mechanic.branch);
+                      if (result && "error" in result) setDeleteError(result.error);
+                    })
+                  }
+                  disabled={isPending || !!deleteError}
+                  className="bg-red-500 hover:bg-red-400 disabled:opacity-50 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+                >
+                  Remove
+                </button>
+              )}
             </div>
           </div>
         </div></ModalPortal>

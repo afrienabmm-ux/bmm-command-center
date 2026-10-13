@@ -175,7 +175,7 @@ export async function deleteMechanicAction(id: string, branch: Branch): Promise<
   ]);
   if ((jobCount ?? 0) > 0 || (comboCount ?? 0) > 0) {
     return {
-      error: `Can't remove — this mechanic has ${jobCount ?? 0} job${jobCount === 1 ? "" : "s"} on record, and removing them would wipe their name off every one. Set them to On Leave instead. If they moved branch, add them again at the new branch.`,
+      error: `This mechanic has ${jobCount ?? 0} job${jobCount === 1 ? "" : "s"} on record, so they can't be deleted — that would wipe their name off every one. If they've left, mark them as resigned: they'll be hidden from the team list and job forms, and their past jobs keep their name. If they moved branch, use "Move to another branch" instead.`,
     };
   }
   const { data: mech } = await supabaseAdmin.from("cc_mechanics").select("full_name").eq("id", id).single();

@@ -8,7 +8,7 @@ export type MonthlyTarget = {
   targetAmount: number;
 };
 
-export type MechanicStatus = "Active" | "On Leave";
+export type MechanicStatus = "Active" | "On Leave" | "Resigned";
 export type MechanicCategory = "Heavy Repair" | "Normal Repair";
 export const MECHANIC_CATEGORIES: MechanicCategory[] = ["Heavy Repair", "Normal Repair"];
 export type Mechanic = {
