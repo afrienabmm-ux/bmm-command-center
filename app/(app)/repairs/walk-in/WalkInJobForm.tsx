@@ -28,6 +28,7 @@ import { BRANCHES, branchLabel, type Branch, type BranchSelection } from "@/lib/
 import { formatCurrency } from "@/lib/format";
 import { useToast } from "@/lib/useToast";
 import DropdownDate from "@/components/DropdownDate";
+import { takePendingJobsheet } from "@/lib/pending-jobsheet";
 
 type ItemInput = { code: string; description: string; quantity: string; price: string };
 
@@ -450,6 +451,15 @@ export default function WalkInJobForm({
       img.src = url;
     });
   }
+
+  // A jobsheet picked straight from the list's "Add Job" button — scan it
+  // as soon as the form opens. New jobs only.
+  useEffect(() => {
+    if (isEdit) return;
+    const file = takePendingJobsheet();
+    if (file) void handleScanFile(file);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   async function handleScanFile(file: File) {
     setIsScanning(true);

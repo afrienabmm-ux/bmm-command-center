@@ -18,6 +18,7 @@ import type { Mechanic } from "@/lib/types";
 import { BRANCHES, branchLabel, type Branch, type BranchSelection } from "@/lib/branch";
 import { formatCurrency, formatDate, daysBetween, toCsv } from "@/lib/format";
 import { todayInMalaysia } from "@/lib/malaysia-time";
+import { setPendingJobsheet } from "@/lib/pending-jobsheet";
 import { useToast } from "@/lib/useToast";
 import ModalPortal from "@/components/ModalPortal";
 
@@ -149,6 +150,8 @@ export default function WalkInClient({
   // one moves the same content; a ref guards against the two onScroll
   // handlers feeding back into each other in an infinite loop.
   const tableScrollRef = useRef<HTMLDivElement>(null);
+  const addJobFileRef = useRef<HTMLInputElement>(null);
+  const router = useRouter();
   const topScrollRef = useRef<HTMLDivElement>(null);
   const [tableScrollWidth, setTableScrollWidth] = useState(0);
   const syncingFrom = useRef<"top" | "table" | null>(null);
@@ -597,13 +600,37 @@ export default function WalkInClient({
             </button>
           )}
           {canEdit && (
-            <Link
-              href="/repairs/walk-in/new"
-              prefetch={false}
-              className="flex items-center gap-1.5 bg-red-500 hover:bg-red-400 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
-            >
-              <Plus size={15} /> Add Job
-            </Link>
+            <>
+              {/* Add Job goes straight to picking the jobsheet photo/PDF;
+                  the form then opens and scans it automatically. */}
+              <input
+                ref={addJobFileRef}
+                type="file"
+                accept="image/jpeg,image/png,application/pdf"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  e.target.value = "";
+                  if (!file) return;
+                  setPendingJobsheet(file);
+                  router.push("/repairs/walk-in/new");
+                }}
+              />
+              <button
+                type="button"
+                onClick={() => addJobFileRef.current?.click()}
+                className="flex items-center gap-1.5 bg-red-500 hover:bg-red-400 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+              >
+                <Plus size={15} /> Add Job
+              </button>
+              <Link
+                href="/repairs/walk-in/new"
+                prefetch={false}
+                className="text-xs font-medium text-neutral-500 hover:text-red-600 underline underline-offset-2"
+              >
+                Type in without a photo
+              </Link>
+            </>
           )}
         </div>
       </div>
