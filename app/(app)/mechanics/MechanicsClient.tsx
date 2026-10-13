@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Plus, Trash2, Wrench, ChevronDown, ArrowRightLeft } from "lucide-react";
+import { Plus, Trash2, Wrench, ChevronDown, ArrowRightLeft, UserX } from "lucide-react";
 import {
   addMechanicAction,
   toggleMechanicStatusAction,
@@ -107,6 +107,7 @@ function MechanicCard({ mechanic, showBranch }: { mechanic: Mechanic; showBranch
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [moveOpen, setMoveOpen] = useState(false);
+  const [resignOpen, setResignOpen] = useState(false);
   const [moveTo, setMoveTo] = useState<Branch | "">("");
   const [moveError, setMoveError] = useState<string | null>(null);
   const isActive = mechanic.status === "Active";
@@ -197,6 +198,46 @@ function MechanicCard({ mechanic, showBranch }: { mechanic: Mechanic; showBranch
         >
           <ArrowRightLeft size={13} /> Move to another branch
         </button>
+      )}
+
+      {!isResigned && (
+        <button
+          onClick={() => setResignOpen(true)}
+          disabled={isPending}
+          className="mt-2 w-full flex items-center justify-center gap-1.5 text-xs font-medium py-2 rounded-lg border border-neutral-200 text-neutral-500 hover:border-red-300 hover:text-red-700 transition-colors disabled:opacity-50"
+        >
+          <UserX size={13} /> Mark as resigned
+        </button>
+      )}
+
+      {resignOpen && (
+        <ModalPortal><div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 px-4">
+          <div className="bg-white border border-neutral-200 rounded-xl w-full max-w-sm p-6">
+            <h2 className="text-sm font-semibold text-neutral-900 mb-2">Mark {mechanic.shortName} as resigned?</h2>
+            <p className="text-sm text-neutral-600 mb-6">
+              They&apos;ll be hidden from the team list, the job form and Today&apos;s Job Check. Their past jobs keep their
+              name. You can set them Active again any time.
+            </p>
+            <div className="flex items-center justify-end gap-3">
+              <button
+                onClick={() => setResignOpen(false)}
+                className="text-sm font-medium text-neutral-600 hover:text-neutral-800 px-4 py-2 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  markResigned();
+                  setResignOpen(false);
+                }}
+                disabled={isPending}
+                className="bg-red-500 hover:bg-red-400 disabled:opacity-50 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+              >
+                Mark as resigned
+              </button>
+            </div>
+          </div>
+        </div></ModalPortal>
       )}
 
       {moveOpen && (
