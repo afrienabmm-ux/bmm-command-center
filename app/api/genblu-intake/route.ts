@@ -37,6 +37,9 @@ interface GenbluPayload {
 // registration somewhere staff never think to look for it.
 const BRANCH_LABEL_MAP: Record<string, Branch> = {
   kapar: "kapar",
+  // Kapar is the HQ branch — the Sales Dashboard sometimes sends it as "HQ".
+  hq: "kapar",
+  "kapar (hq)": "kapar",
   "setia alam": "setia_alam",
   "puncak alam": "puncak_alam",
 };
