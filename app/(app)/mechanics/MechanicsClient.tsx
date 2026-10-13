@@ -20,11 +20,21 @@ const CATEGORY_STYLES: Record<MechanicCategory, string> = {
 
 export default function MechanicsClient({
   mechanics,
+  allMechanics,
   activeBranch,
 }: {
   mechanics: Mechanic[];
+  allMechanics: Mechanic[];
   activeBranch: BranchSelection;
 }) {
+  // Where a mechanic who is no longer at this branch went: the same person
+  // (name and code) Active at another branch. None means they resigned.
+  const movedTo = (m: Mechanic): string | undefined => {
+    const there = allMechanics.find(
+      (o) => o.id !== m.id && o.branch !== m.branch && o.status === "Active" && o.shortCode === m.shortCode && o.fullName === m.fullName
+    );
+    return there ? branchLabel(there.branch) : undefined;
+  };
   const [modalOpen, setModalOpen] = useState(false);
   const [categoryFilter, setCategoryFilter] = useState<MechanicCategory | "All">("All");
   const showBranch = activeBranch === "all";
@@ -83,12 +93,12 @@ export default function MechanicsClient({
             className="flex items-center gap-1.5 text-sm font-medium text-neutral-500 hover:text-neutral-800"
           >
             <ChevronDown size={15} className={`transition-transform ${showResigned ? "" : "-rotate-90"}`} />
-            Resigned mechanics ({resigned.length})
+            Moved or resigned ({resigned.length})
           </button>
           {showResigned && (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-3 opacity-75">
               {resigned.map((m) => (
-                <MechanicCard key={m.id} mechanic={m} showBranch={showBranch} />
+                <MechanicCard key={m.id} mechanic={m} showBranch={showBranch} movedTo={movedTo(m)} />
               ))}
             </div>
           )}
@@ -102,7 +112,7 @@ export default function MechanicsClient({
   );
 }
 
-function MechanicCard({ mechanic, showBranch }: { mechanic: Mechanic; showBranch: boolean }) {
+function MechanicCard({ mechanic, showBranch, movedTo }: { mechanic: Mechanic; showBranch: boolean; movedTo?: string }) {
   const [isPending, startTransition] = useTransition();
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
@@ -186,7 +196,9 @@ function MechanicCard({ mechanic, showBranch }: { mechanic: Mechanic; showBranch
         {isActive
           ? "● Active — click to set On Leave"
           : isResigned
-            ? "● Resigned — click to set Active again"
+            ? movedTo
+              ? `● Moved to ${movedTo} — click to set Active here again`
+              : "● Resigned — click to set Active again"
             : "● On Leave — click to set Active"}
       </button>
 

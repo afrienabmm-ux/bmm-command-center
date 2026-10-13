@@ -119,9 +119,9 @@ export async function updateMechanicCategoryAction(id: string, branch: Branch, c
   revalidatePath("/repairs/walk-in");
 }
 
-// Moving a mechanic to another branch: their record at the old branch is set
-// On Leave (so every past job there keeps their name and still counts for
-// that branch), and they're made Active at the new branch — reusing their
+// Moving a mechanic to another branch: their record at the old branch comes
+// off that branch's list (every past job there keeps their name and still
+// counts for that branch), and they're made Active at the new branch — reusing their
 // old record there if they've worked at that branch before, otherwise a new
 // one with the same name and code.
 export async function moveMechanicAction(id: string, fromBranch: Branch, toBranch: Branch): Promise<{ error: string } | void> {
@@ -154,7 +154,10 @@ export async function moveMechanicAction(id: string, fromBranch: Branch, toBranc
     if (error) return { error: error.message };
   }
 
-  const { error: leaveError } = await supabaseAdmin.from("cc_mechanics").update({ status: "On Leave" }).eq("id", id);
+  // Off the old branch's list (the same hidden state as resigned — the
+  // Mechanics page shows it as "Moved to …"); their past jobs there keep
+  // their name.
+  const { error: leaveError } = await supabaseAdmin.from("cc_mechanics").update({ status: "Resigned" }).eq("id", id);
   if (leaveError) return { error: leaveError.message };
 
   await logActivity(user, "Moved mechanic", `${mech.full_name} (${mech.short_code}) — ${fromBranch} → ${toBranch}`);

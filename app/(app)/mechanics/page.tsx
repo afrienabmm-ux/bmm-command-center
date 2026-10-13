@@ -9,20 +9,21 @@ export const dynamic = "force-dynamic";
 export default async function MechanicsPage() {
   const user = await requirePage("mechanics");
   const selection = await getActiveBranchSelection(user);
-  const mechanics = selection === "all" ? await getAllMechanics() : await getMechanics(selection);
+  // Every branch's roster too, so a mechanic who moved can show where to.
+  const allMechanics = await getAllMechanics();
+  const mechanics = selection === "all" ? allMechanics : await getMechanics(selection);
+  const onTeam = mechanics.filter((m) => m.status !== "Resigned").length;
 
   return (
     <div className="flex flex-col h-full">
       <PageHeader
         title="Mechanics"
         subtitle={
-          selection === "all"
-            ? `All branches — ${mechanics.length} on the team`
-            : `${branchLabel(selection)} — ${mechanics.length} on the team`
+          selection === "all" ? `All branches — ${onTeam} on the team` : `${branchLabel(selection)} — ${onTeam} on the team`
         }
       />
       <div className="p-4 md:p-8">
-        <MechanicsClient mechanics={mechanics} activeBranch={selection} />
+        <MechanicsClient mechanics={mechanics} allMechanics={allMechanics} activeBranch={selection} />
       </div>
     </div>
   );
