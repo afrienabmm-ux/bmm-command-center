@@ -224,9 +224,14 @@ export async function deleteCustomerCardAction(id: string, branch: Branch): Prom
 }
 
 // Admin ticks/unticks stamps by hand — never derived from jobsheet visits.
+// Front Desk can tick stamps on any branch's card (a customer can service at
+// any branch); everyone else only on their own branch's cards. The card's
+// real branch is read here rather than trusted from the caller.
 export async function setCardStampsAction(id: string, branch: Branch, stamps: number[]): Promise<{ error: string } | void> {
   const user = await requireApproved();
-  assertCanEditBranch(user, branch);
+  const { data: card } = await supabaseAdmin.from("cc_customer_cards").select("branch").eq("id", id).single();
+  if (!card) return { error: "Card not found." };
+  if (user.role !== "Front Desk") assertCanEditBranch(user, card.branch as Branch);
   const clean = Array.from(new Set(stamps.filter((n) => Number.isInteger(n) && n >= 1 && n <= 10))).sort((a, b) => a - b);
   const { error } = await supabaseAdmin.from("cc_customer_cards").update({ stamps: clean }).eq("id", id);
   if (error) return { error: error.message };

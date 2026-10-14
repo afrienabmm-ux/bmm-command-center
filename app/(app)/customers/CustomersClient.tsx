@@ -24,6 +24,7 @@ export default function CustomersClient({
   locked,
   canManageCards,
   canAddCards,
+  stampAnyBranch = false,
 }: {
   customers: CustomerCard[];
   branch: Branch;
@@ -34,6 +35,8 @@ export default function CustomersClient({
   // Add a brand new card — everyone who can reach this page, including
   // Front Desk, since issuing a card is exactly their day-to-day job here.
   canAddCards: boolean;
+  // Front Desk: may tick stamps on every branch's card.
+  stampAnyBranch?: boolean;
 }) {
   const [query, setQuery] = useState("");
   const [cardModalFor, setCardModalFor] = useState<CustomerCard | "new" | null>(null);
@@ -292,7 +295,15 @@ export default function CustomersClient({
         />
       )}
 
-      {stampModalFor && <StampModal card={stampModalFor} onClose={() => setStampModalFor(null)} />}
+      {stampModalFor && (
+        <StampModal
+          card={stampModalFor}
+          // Another branch's card for someone limited to their own branch:
+          // stamps can be looked at but not ticked (Front Desk can tick any).
+          readOnly={locked && !stampAnyBranch && stampModalFor.branch !== branch}
+          onClose={() => setStampModalFor(null)}
+        />
+      )}
 
       {deleting && (
         <ModalPortal><div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 px-4">
@@ -611,7 +622,7 @@ function CardModal({
 
 // Stamps are ticked by hand here, one click at a time — completely
 // independent of jobsheet/visit counts.
-function StampModal({ card, onClose }: { card: CustomerCard; onClose: () => void }) {
+function StampModal({ card, readOnly = false, onClose }: { card: CustomerCard; readOnly?: boolean; onClose: () => void }) {
   const [stamps, setStamps] = useState<number[]>(card.stamps);
   const [isPending, startTransition] = useTransition();
   const size = stampCardSize();
@@ -640,6 +651,11 @@ function StampModal({ card, onClose }: { card: CustomerCard; onClose: () => void
           </button>
         </div>
         <p className="text-xs text-neutral-500 mb-4">{card.cardNumber || "No card number"}</p>
+        {readOnly && (
+          <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mb-4">
+            This is a {branchLabel(card.branch)} card — only {branchLabel(card.branch)} can tick its stamps.
+          </p>
+        )}
 
         <div className="grid grid-cols-5 gap-2.5">
           {Array.from({ length: size }).map((_, i) => {
@@ -651,7 +667,7 @@ function StampModal({ card, onClose }: { card: CustomerCard; onClose: () => void
                 key={stampNo}
                 type="button"
                 onClick={() => toggle(stampNo)}
-                disabled={isPending}
+                disabled={isPending || readOnly}
                 className={`flex flex-col items-center gap-1 py-2 rounded-lg border transition-colors ${
                   filled
                     ? "bg-gradient-to-br from-red-500 to-rose-600 border-red-500 text-white"
@@ -675,7 +691,7 @@ function StampModal({ card, onClose }: { card: CustomerCard; onClose: () => void
         </p>
 
         <div className="flex items-center justify-between gap-3 mt-5">
-          {complete ? (
+          {complete && !readOnly ? (
             <button
               onClick={() => save([])}
               disabled={isPending}

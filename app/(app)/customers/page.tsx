@@ -20,22 +20,29 @@ export default async function CustomersPage() {
   const [todayYear, todayMonth] = todayInMalaysia().split("-").map(Number);
   const sinceDate = new Date(todayYear, todayMonth - 1 - 6, 1).toISOString().slice(0, 10);
 
-  const customers = showAllBranches ? await getAllBranchesCustomers(sinceDate) : await getCustomers(branch, sinceDate);
+  // A customer can service at any branch, so Front Desk accounts see — and
+  // can stamp — every branch's cards here (this page only), even though
+  // they're tied to one branch everywhere else.
+  const locked = !canViewAllBranches(user);
+  const isFrontDesk = user.role === "Front Desk";
+  const listAllBranches = showAllBranches || isFrontDesk;
+  const customers = listAllBranches ? await getAllBranchesCustomers(sinceDate) : await getCustomers(branch, sinceDate);
 
   return (
     <div className="flex flex-col h-full">
       <PageHeader
         title="E-Service Card"
-        subtitle={`${showAllBranches ? "All Branches" : branchLabel(branch)} — ${customers.length} cards issued in the last 6 months`}
+        subtitle={`${listAllBranches ? "All Branches" : branchLabel(branch)} — ${customers.length} cards issued in the last 6 months`}
       />
       <div className="p-4 md:p-8">
         <CustomersClient
           customers={customers}
           branch={branch}
-          branchSelection={branchSelection}
-          locked={!canViewAllBranches(user)}
+          branchSelection={listAllBranches ? "all" : branchSelection}
+          locked={locked}
           canManageCards={user.role !== "Front Desk"}
           canAddCards
+          stampAnyBranch={isFrontDesk}
         />
       </div>
     </div>
