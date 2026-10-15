@@ -9,6 +9,7 @@
 import { createHmac, timingSafeEqual, createHash } from "crypto";
 import { supabaseAdmin } from "@/lib/supabase-server";
 import type { Branch } from "@/lib/branch";
+import { compressScreenshotForStorage } from "@/lib/vision";
 
 export const runtime = "nodejs";
 export const maxDuration = 30;
@@ -79,9 +80,14 @@ async function mirrorScreenshot(url: string, branch: Branch): Promise<{ path: st
     if (!res.ok) return { path: null, hash: null };
     const buffer = Buffer.from(await res.arrayBuffer());
     const hash = createHash("sha256").update(buffer).digest("hex");
-    const ext = url.split("?")[0].split(".").pop()?.toLowerCase() || "jpg";
+    // Hash is taken from the original above; only the stored copy is
+    // shrunk (see compressScreenshotForStorage). Kept as-is if that fails.
+    const shrunk = await compressScreenshotForStorage(buffer).catch(() => null);
+    const ext = shrunk ? "jpg" : url.split("?")[0].split(".").pop()?.toLowerCase() || "jpg";
     const path = `${branch}/intake-${Date.now()}-${Math.random().toString(36).slice(2)}.${ext.length <= 4 ? ext : "jpg"}`;
-    const { error } = await supabaseAdmin.storage.from(SCREENSHOT_BUCKET).upload(path, buffer, { contentType: `image/${ext}` });
+    const { error } = await supabaseAdmin.storage
+      .from(SCREENSHOT_BUCKET)
+      .upload(path, shrunk ?? buffer, { contentType: shrunk ? "image/jpeg" : `image/${ext}` });
     if (error) return { path: null, hash: null };
     return { path, hash };
   } catch {

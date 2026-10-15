@@ -6,7 +6,7 @@ import { supabaseAdmin } from "./supabase-server";
 import { requireApproved, assertCanEditBranch } from "./current-user";
 import type { GenbluRegistration, GenbluTransaction } from "./types";
 import { BRANCHES, type Branch } from "./branch";
-import { extractTextFromImage, extractTextAndWordsFromImage, type PositionedWord } from "./vision";
+import { extractTextFromImage, extractTextAndWordsFromImage, compressScreenshotForStorage, type PositionedWord } from "./vision";
 import { extractGenbluEventWithAi } from "./ai-genblu-extract";
 import { logActivity } from "./activity-log";
 import { normalizeName, namesLikelyMatch, expandNameConnectors } from "./name-matching";
@@ -76,6 +76,23 @@ async function findMatchingRegistration(
 // picked the same photo from their gallery twice" case this guards against.
 function hashScreenshotBuffer(buffer: Buffer): string {
   return createHash("sha256").update(buffer).digest("hex");
+}
+
+// The stored copy of a screenshot, shrunk to a small JPEG (see
+// compressScreenshotForStorage) so file storage doesn't fill up. Always
+// called with the ORIGINAL bytes, after the hash above was already taken
+// from them, so duplicate detection keeps working on what staff upload.
+// Falls back to the untouched original if shrinking fails for any reason
+// (an odd file format) — an oversized photo beats a lost one.
+async function screenshotForStorage(buffer: Buffer, original: File, folder: string, prefix = "") {
+  const base = `${folder}/${prefix}${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  try {
+    const body = await compressScreenshotForStorage(buffer);
+    return { path: `${base}.jpg`, body, contentType: "image/jpeg" };
+  } catch {
+    const ext = original.name.split(".").pop() || "jpg";
+    return { path: `${base}.${ext}`, body: buffer, contentType: original.type || "image/jpeg" };
+  }
 }
 
 // Checked across BOTH tables — a customer's award can have been logged as
@@ -589,15 +606,15 @@ export async function addGenbluRegistrationAction(formData: FormData): Promise<{
   if (screenshot && screenshot.size > 0) {
     const buffer = Buffer.from(await screenshot.arrayBuffer());
     screenshotHash = hashScreenshotBuffer(buffer);
-    const ext = screenshot.name.split(".").pop() || "jpg";
-    const path = `${branch}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+    const stored = await screenshotForStorage(buffer, screenshot, branch);
+    const path = stored.path;
     // OCR and the storage upload don't depend on each other — run them
     // together instead of waiting for OCR before even starting the upload.
     const [result, uploadResult] = await Promise.all([
       // Points extraction is a bonus, not a requirement — don't block the
       // registration if OCR hiccups.
       analyzeGenbluScreenshot(screenshot, customerName).catch(() => null),
-      supabaseAdmin.storage.from(BUCKET).upload(path, screenshot, { contentType: screenshot.type || "image/jpeg" }),
+      supabaseAdmin.storage.from(BUCKET).upload(path, stored.body, { contentType: stored.contentType }),
     ]);
     if (uploadResult.error) return { error: `Couldn't upload the screenshot: ${uploadResult.error.message}` };
     screenshotPath = path;
@@ -685,14 +702,14 @@ export async function updateGenbluRegistrationAction(
   if (input.screenshot && input.screenshot.size > 0) {
     const buffer = Buffer.from(await input.screenshot.arrayBuffer());
     newScreenshotHash = hashScreenshotBuffer(buffer);
-    const ext = input.screenshot.name.split(".").pop() || "jpg";
-    const path = `${branch}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+    const stored = await screenshotForStorage(buffer, input.screenshot, branch);
+    const path = stored.path;
     // OCR and the storage upload don't depend on each other — run them
     // together.
     const [result, uploadResult] = await Promise.all([
       // Points extraction is a bonus, not a requirement — don't block the save.
       analyzeGenbluScreenshot(input.screenshot, customerName).catch(() => null),
-      supabaseAdmin.storage.from(BUCKET).upload(path, input.screenshot, { contentType: input.screenshot.type || "image/jpeg" }),
+      supabaseAdmin.storage.from(BUCKET).upload(path, stored.body, { contentType: stored.contentType }),
     ]);
     if (uploadResult.error) return { error: `Couldn't upload the screenshot: ${uploadResult.error.message}` };
     analysis = result;
@@ -859,15 +876,15 @@ export async function ensureGenbluRegistrationAction(input: {
       }
     }
 
-    const ext = screenshot.name.split(".").pop() || "jpg";
-    const path = `${input.branch}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+    const stored = await screenshotForStorage(buffer, screenshot, input.branch);
+    const path = stored.path;
     // The name-match check and the storage upload don't depend on each
     // other, so run them together — on a mismatch the upload is simply
     // discarded (its path never gets saved anywhere), same as any other
     // save that fails after the file is already uploaded.
     const [result, uploadResult] = await Promise.all([
       analyzeGenbluScreenshot(screenshot, customerName).catch(() => null),
-      supabaseAdmin.storage.from(BUCKET).upload(path, screenshot, { contentType: screenshot.type || "image/jpeg" }),
+      supabaseAdmin.storage.from(BUCKET).upload(path, stored.body, { contentType: stored.contentType }),
     ]);
     if (uploadResult.error) return { error: `Couldn't upload the GenBlu screenshot: ${uploadResult.error.message}` };
     // If the OCR check itself fails (e.g. Vision hiccup), don't block the
@@ -973,13 +990,13 @@ export async function attachGenbluScreenshotAction(input: {
     }
   }
 
-  const ext = input.screenshot.name.split(".").pop() || "jpg";
-  const path = `${input.branch}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+  const stored = await screenshotForStorage(buffer, input.screenshot, input.branch);
+  const path = stored.path;
   // The name-match check and the storage upload don't depend on each
   // other, so run them together instead of one after the other.
   const [analysis, uploadResult] = await Promise.all([
     analyzeGenbluScreenshot(input.screenshot, customerName).catch(() => null),
-    supabaseAdmin.storage.from(BUCKET).upload(path, input.screenshot, { contentType: input.screenshot.type || "image/jpeg" }),
+    supabaseAdmin.storage.from(BUCKET).upload(path, stored.body, { contentType: stored.contentType }),
   ]);
   if (uploadResult.error) return { error: `Couldn't upload the screenshot: ${uploadResult.error.message}` };
   const nameMatches = analysis?.nameMatches ?? true;
@@ -1334,10 +1351,10 @@ export async function addGenbluTransactionAction(input: {
     }
   }
 
-  const ext = input.screenshot.name.split(".").pop() || "jpg";
-  const path = `${input.branch}/txn-${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
-  const { error: uploadError } = await supabaseAdmin.storage.from(TRANSACTIONS_BUCKET).upload(path, input.screenshot, {
-    contentType: input.screenshot.type || "image/jpeg",
+  const stored = await screenshotForStorage(buffer, input.screenshot, input.branch, "txn-");
+  const path = stored.path;
+  const { error: uploadError } = await supabaseAdmin.storage.from(TRANSACTIONS_BUCKET).upload(path, stored.body, {
+    contentType: stored.contentType,
   });
   if (uploadError) return { error: `Couldn't upload the screenshot: ${uploadError.message}` };
 

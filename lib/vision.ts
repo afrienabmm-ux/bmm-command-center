@@ -113,7 +113,12 @@ export async function preprocessForOcr(buffer: Buffer): Promise<Buffer> {
   return pipeline.grayscale().normalize().sharpen().jpeg({ quality: 85 }).toBuffer();
 }
 
-const DEFAULT_MAX_STORED_PHOTO_BYTES = 500 * 1024;
+// Was 500 KB at up to 1600 px — tightened 2026-10-15 when file storage
+// neared the free plan's 1 GB. Tested on real jobsheets: 1200 px at
+// quality ~60 averages ~100 KB and every printed line, handwritten note
+// and signature is still clearly readable.
+const DEFAULT_MAX_STORED_PHOTO_BYTES = 150 * 1024;
+const MAX_STORED_PHOTO_WIDTH = 1200;
 
 // Shrinks a jobsheet photo for long-term storage, entirely separate from
 // preprocessForOcr above — the OCR pass always reads the original,
@@ -130,19 +135,34 @@ const DEFAULT_MAX_STORED_PHOTO_BYTES = 500 * 1024;
 export async function compressPhotoForStorage(buffer: Buffer, maxBytes: number = DEFAULT_MAX_STORED_PHOTO_BYTES): Promise<Buffer> {
   const oriented = await sharp(buffer, { failOn: "none" }).rotate().toBuffer();
   const metadata = await sharp(oriented).metadata();
-  let width = Math.min(metadata.width ?? 1600, 1600);
+  let width = Math.min(metadata.width ?? MAX_STORED_PHOTO_WIDTH, MAX_STORED_PHOTO_WIDTH);
 
   let best = oriented;
-  for (const quality of [80, 70, 60, 50]) {
-    best = await sharp(oriented).resize({ width, withoutEnlargement: true }).jpeg({ quality }).toBuffer();
+  for (const quality of [65, 60, 55, 50]) {
+    best = await sharp(oriented).resize({ width, withoutEnlargement: true }).jpeg({ quality, mozjpeg: true }).toBuffer();
     if (best.length <= maxBytes) return best;
   }
-  while (width > 600) {
-    width = Math.round(width * 0.75);
-    best = await sharp(oriented).resize({ width, withoutEnlargement: true }).jpeg({ quality: 60 }).toBuffer();
+  while (width > 800) {
+    width = Math.round(width * 0.85);
+    best = await sharp(oriented).resize({ width, withoutEnlargement: true }).jpeg({ quality: 55, mozjpeg: true }).toBuffer();
     if (best.length <= maxBytes) return best;
   }
   return best;
+}
+
+// Same idea for GenBlu app screenshots, which were stored exactly as
+// uploaded (often a 1179×2556 PNG, sometimes a 4 MB JPEG). A phone
+// screenshot is big, clean text on a flat background, so 900 px wide at
+// quality 70 stays perfectly readable at ~60 KB — about 80% smaller.
+// Only the stored copy is shrunk: the OCR/AI reading and the duplicate
+// hash always use the original upload (see lib/genblu-actions.ts).
+export async function compressScreenshotForStorage(buffer: Buffer): Promise<Buffer> {
+  return sharp(buffer, { failOn: "none" })
+    .rotate()
+    .resize({ width: 900, withoutEnlargement: true })
+    .flatten({ background: "#ffffff" })
+    .jpeg({ quality: 70, mozjpeg: true })
+    .toBuffer();
 }
 
 type OcrSpaceWord = { WordText?: string; Left?: number; Top?: number; Width?: number; Height?: number };
