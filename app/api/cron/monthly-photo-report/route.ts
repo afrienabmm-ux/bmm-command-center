@@ -25,8 +25,8 @@ export async function GET(req: NextRequest) {
   }
 
   // Optional manual override for testing a specific past month, e.g.
-  // /api/cron/monthly-photo-report?year=2026&month=8 — defaults to last
-  // calendar month, which is what the real monthly cron run always uses.
+  // /api/cron/monthly-photo-report?year=2026&month=8 — defaults to
+  // the month two back (one month is always kept), which the cron uses.
   const { searchParams } = new URL(req.url);
   const yearParam = searchParams.get("year");
   const monthParam = searchParams.get("month");

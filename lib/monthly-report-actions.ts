@@ -43,10 +43,12 @@ function uniqueName(base: string, ext: string, used: Map<string, number>): strin
 // Calendar month right before `reference` (defaults to now) — the cron
 // fires at the start of a month and should archive the month that just
 // finished, not the one that's only just begun.
-function previousMonth(reference = new Date()): { year: number; month: number } {
-  const y = reference.getUTCFullYear();
-  const m = reference.getUTCMonth(); // 0-based; previous month index is m - 1
-  return m === 0 ? { year: y - 1, month: 12 } : { year: y, month: m };
+// The month two before the current one — one full month is always kept on
+// the dashboard (user's choice, 2026-10-15): the run on 1 December archives
+// and clears October, so November's photos are still there to look at.
+function monthToArchive(reference = new Date()): { year: number; month: number } {
+  const d = new Date(Date.UTC(reference.getUTCFullYear(), reference.getUTCMonth() - 2, 1));
+  return { year: d.getUTCFullYear(), month: d.getUTCMonth() + 1 };
 }
 
 const MONTH_NAMES = [
@@ -88,7 +90,7 @@ export async function runMonthlyPhotoReport(
   // itself) before ever letting the irreversible cleanup run for real.
   dryRun = false
 ): Promise<MonthlyPhotoReportResult> {
-  const { year, month } = target ?? previousMonth();
+  const { year, month } = target ?? monthToArchive();
   const from = `${year}-${pad(month)}-01T00:00:00`;
   const nextMonth = month === 12 ? { year: year + 1, month: 1 } : { year, month: month + 1 };
   const to = `${nextMonth.year}-${pad(nextMonth.month)}-01T00:00:00`;
