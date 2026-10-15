@@ -8,7 +8,8 @@ import { fetchAllRows } from "./fetch-all";
 // edit or a mass delete (like 6-7 Oct, when deleting mechanics blanked 684
 // jobs) be put back from the night before.
 export const BACKUP_BUCKET = "db-backups";
-const KEEP_DAYS = 30;
+// Two weeks — plenty to spot and undo a mistake, at half the storage of a month.
+const KEEP_DAYS = 14;
 // One-time login codes — short-lived and worthless after a few minutes.
 const SKIP_TABLES = new Set(["cc_email_otps"]);
 
@@ -52,7 +53,7 @@ export async function runDatabaseBackup(dateKey: string): Promise<BackupResult> 
     .upload(file, body, { contentType: "application/gzip", upsert: true });
   if (uploadError) throw new Error(`Upload failed: ${uploadError.message}`);
 
-  // Keep the last month only.
+  // Keep the last two weeks only.
   const cutoff = new Date(`${dateKey}T00:00:00Z`);
   cutoff.setUTCDate(cutoff.getUTCDate() - KEEP_DAYS);
   const cutoffKey = cutoff.toISOString().slice(0, 10);
