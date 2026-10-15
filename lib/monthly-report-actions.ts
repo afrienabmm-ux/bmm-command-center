@@ -193,42 +193,70 @@ export async function runMonthlyPhotoReport(
     }
   }
 
-  const zip = new JSZip();
-  const usedNames = new Map<string, Map<string, number>>();
-  const successfullyZipped: PendingFile[] = [];
-  for (const { file, buffer } of downloaded) {
-    const ext = extensionOf(file.path);
-    const folderNames = usedNames.get(file.zipFolder) ?? new Map<string, number>();
-    usedNames.set(file.zipFolder, folderNames);
-    const filename = uniqueName(file.baseName, ext, folderNames);
-    zip.folder(file.zipFolder)?.file(filename, buffer);
-    successfullyZipped.push(file);
+  // Gmail refuses anything over 25 MB per email (and attachments grow by a
+  // third when sent), while a month of photos is ~100 MB — so the archive
+  // goes out as several zips of up to ~17 MB each, "part 1 of N". Photos
+  // compress very little, so a part's size is about the sum of its files.
+  const PART_LIMIT_BYTES = 17 * 1024 * 1024;
+  const parts: { file: PendingFile; buffer: Buffer }[][] = [[]];
+  let partBytes = 0;
+  for (const d of downloaded) {
+    if (partBytes + d.buffer.length > PART_LIMIT_BYTES && parts[parts.length - 1].length > 0) {
+      parts.push([]);
+      partBytes = 0;
+    }
+    parts[parts.length - 1].push(d);
+    partBytes += d.buffer.length;
   }
 
-  const zipBuffer = await zip.generateAsync({ type: "nodebuffer", compression: "DEFLATE" });
+  const successfullyZipped: PendingFile[] = downloaded.map((d) => d.file);
   const jobsheetPhotoCount = successfullyZipped.filter((f) => f.table === "cc_repair_jobs").length;
   const genbluScreenshotCount = successfullyZipped.length - jobsheetPhotoCount;
 
-  const sizeMb = (zipBuffer.length / (1024 * 1024)).toFixed(1);
-  const emailResult = await sendEmail({
-    to: recipientEmail(),
-    subject: `BMM Photo Archive — ${label}`,
-    html: `
-      <p>Attached: every jobsheet photo and GenBlu screenshot uploaded in ${label}.</p>
-      <ul>
-        <li>${jobsheetPhotoCount} jobsheet photo${jobsheetPhotoCount === 1 ? "" : "s"} (named by jobsheet no.)</li>
-        <li>${genbluScreenshotCount} GenBlu screenshot${genbluScreenshotCount === 1 ? "" : "s"} (named by customer name)</li>
-      </ul>
-      ${failedDownloads > 0 ? `<p>${failedDownloads} file(s) couldn't be read from storage and were skipped — they were left untouched.</p>` : ""}
-      <p>Zip size: ${sizeMb} MB.</p>
-      ${dryRun ? `<p><strong>This was a test run — the original files were left in place, nothing was deleted.</strong></p>` : ""}
-    `,
-    attachments: [{ filename: `BMM Photo Archive - ${label}.zip`, content: zipBuffer, cid: "monthly-photo-archive" }],
-  });
+  let emailResult: Awaited<ReturnType<typeof sendEmail>> = { sent: true };
+  for (let p = 0; p < parts.length; p++) {
+    const zip = new JSZip();
+    const usedNames = new Map<string, Map<string, number>>();
+    for (const { file, buffer } of parts[p]) {
+      const ext = extensionOf(file.path);
+      const folderNames = usedNames.get(file.zipFolder) ?? new Map<string, number>();
+      usedNames.set(file.zipFolder, folderNames);
+      zip.folder(file.zipFolder)?.file(uniqueName(file.baseName, ext, folderNames), buffer);
+    }
+    const zipBuffer = await zip.generateAsync({ type: "nodebuffer", compression: "DEFLATE" });
+    const partLabel = parts.length > 1 ? ` (part ${p + 1} of ${parts.length})` : "";
+    const sizeMb = (zipBuffer.length / (1024 * 1024)).toFixed(1);
+    emailResult = await sendEmail({
+      to: recipientEmail(),
+      subject: `BMM Photo Archive — ${label}${partLabel}`,
+      html: `
+        <p>Attached${partLabel ? ` — part ${p + 1} of ${parts.length}` : ""}: jobsheet photos and GenBlu screenshots uploaded in ${label}.</p>
+        ${
+          p === 0
+            ? `<ul>
+          <li>${jobsheetPhotoCount} jobsheet photo${jobsheetPhotoCount === 1 ? "" : "s"} in total (named by jobsheet no.)</li>
+          <li>${genbluScreenshotCount} GenBlu screenshot${genbluScreenshotCount === 1 ? "" : "s"} in total (named by customer name)</li>
+        </ul>
+        ${parts.length > 1 ? `<p>The month is split into ${parts.length} emails to stay under Gmail's size limit — keep all of them.</p>` : ""}
+        ${failedDownloads > 0 ? `<p>${failedDownloads} file(s) couldn't be read from storage and were skipped — they were left untouched.</p>` : ""}`
+            : ""
+        }
+        <p>This zip: ${parts[p].length} files, ${sizeMb} MB.</p>
+        ${dryRun ? `<p><strong>Test run — the original files were left in place, nothing was deleted.</strong></p>` : ""}
+      `,
+      attachments: [{ filename: `BMM Photo Archive - ${label}${partLabel}.zip`, content: zipBuffer, cid: `monthly-photo-archive-${p + 1}` }],
+    });
+    if ("error" in emailResult) break;
+  }
 
   if ("error" in emailResult) {
-    // Nothing gets deleted unless the email genuinely went out — a failed
+    // Nothing gets deleted unless every part genuinely went out — a failed
     // send must never be the reason photos disappear with no backup.
+    await sendEmail({
+      to: recipientEmail(),
+      subject: `BMM Photo Archive — ${label}: not finished`,
+      html: `<p>Sending the ${label} photo archive stopped partway (${emailResult.error}). <strong>Nothing was deleted</strong> — every photo is still on the dashboard.</p>`,
+    }).catch(() => null);
     return {
       skipped: false,
       year,
