@@ -119,6 +119,8 @@ export default async function ReportDetailPage({ params }: { params: Promise<{ t
   let mechanicSummary:
     | { fullName: string; shortCode: string; walkInCount: number; walkInRevenue: number; packageRevenue: number; totalRevenue: number }[]
     | undefined;
+  // The same figures for each single month, newest first, for the month picker.
+  let mechanicMonths: { label: string; mechanics: NonNullable<typeof mechanicSummary> }[] | undefined;
 
   if (type === "jobsheet") {
     const [active, completed, mechanics] = await Promise.all([
@@ -479,6 +481,24 @@ export default async function ReportDetailPage({ params }: { params: Promise<{ t
       }
     }
     mechanicSummary = [...totalsByMechanic.values()].sort((a, b) => b.totalRevenue - a.totalRevenue);
+    // Per month, merged by code like the totals (someone at two branches is one row).
+    mechanicMonths = monthRows.map((m) => {
+      const byCode = new Map<string, NonNullable<typeof mechanicSummary>[number]>();
+      for (const r of m.rows) {
+        const e = byCode.get(r.shortCode) ?? { fullName: r.fullName, shortCode: r.shortCode, walkInCount: 0, walkInRevenue: 0, packageRevenue: 0, totalRevenue: 0 };
+        e.walkInCount += r.walkInCount;
+        e.walkInRevenue += r.walkInRevenue;
+        e.packageRevenue += r.packageRevenue;
+        e.totalRevenue += r.totalRevenue;
+        byCode.set(r.shortCode, e);
+      }
+      return {
+        label: m.label,
+        mechanics: [...byCode.values()]
+          .filter((e) => e.walkInCount > 0 || e.packageRevenue > 0)
+          .sort((a, b) => b.totalRevenue - a.totalRevenue),
+      };
+    });
     summarySections = [
       {
         title: "Total Revenue by Mechanic (last 12 months)",
@@ -530,7 +550,7 @@ export default async function ReportDetailPage({ params }: { params: Promise<{ t
                   branchColumns={revenueSummary.branchColumns}
                 />
               )}
-              {mechanicSummary && <MechanicRevenueSummary mechanics={mechanicSummary} />}
+              {mechanicSummary && <MechanicRevenueSummary mechanics={mechanicSummary} months={mechanicMonths ?? []} />}
             </div>
             <div className="flex-1 min-w-0 w-full">
               <ReportTable
