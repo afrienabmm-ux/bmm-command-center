@@ -117,7 +117,7 @@ export default async function ReportDetailPage({ params }: { params: Promise<{ t
   // much has each mechanic brought in overall" doesn't need adding up 12
   // rows by hand.
   let mechanicSummary:
-    | { fullName: string; shortCode: string; walkInRevenue: number; packageRevenue: number; totalRevenue: number }[]
+    | { fullName: string; shortCode: string; walkInCount: number; walkInRevenue: number; packageRevenue: number; totalRevenue: number }[]
     | undefined;
 
   if (type === "jobsheet") {
@@ -445,6 +445,7 @@ export default async function ReportDetailPage({ params }: { params: Promise<{ t
       { key: "month", label: "Month" },
       { key: "fullName", label: "Mechanic" },
       { key: "shortCode", label: "Code" },
+      { key: "walkInCount", label: "Jobsheets" },
       { key: "walkInRevenue", label: "Walk-in (RM)" },
       { key: "packageRevenue", label: "Services Combo (RM)" },
       { key: "packagesSold", label: "Combos Sold" },
@@ -457,6 +458,7 @@ export default async function ReportDetailPage({ params }: { params: Promise<{ t
         month: m.label,
         fullName: r.fullName,
         shortCode: r.shortCode,
+        walkInCount: r.walkInCount,
         walkInRevenue: r.walkInRevenue.toFixed(2),
         packageRevenue: r.packageRevenue.toFixed(2),
         packagesSold: r.packagesSold || "—",
@@ -464,11 +466,12 @@ export default async function ReportDetailPage({ params }: { params: Promise<{ t
       }))
     );
 
-    const totalsByMechanic = new Map<string, { fullName: string; shortCode: string; walkInRevenue: number; packageRevenue: number; totalRevenue: number }>();
+    const totalsByMechanic = new Map<string, { fullName: string; shortCode: string; walkInCount: number; walkInRevenue: number; packageRevenue: number; totalRevenue: number }>();
     for (const m of monthRows) {
       for (const r of m.rows) {
         const key = r.shortCode;
-        const entry = totalsByMechanic.get(key) ?? { fullName: r.fullName, shortCode: r.shortCode, walkInRevenue: 0, packageRevenue: 0, totalRevenue: 0 };
+        const entry = totalsByMechanic.get(key) ?? { fullName: r.fullName, shortCode: r.shortCode, walkInCount: 0, walkInRevenue: 0, packageRevenue: 0, totalRevenue: 0 };
+        entry.walkInCount += r.walkInCount;
         entry.walkInRevenue += r.walkInRevenue;
         entry.packageRevenue += r.packageRevenue;
         entry.totalRevenue += r.totalRevenue;
@@ -479,8 +482,8 @@ export default async function ReportDetailPage({ params }: { params: Promise<{ t
     summarySections = [
       {
         title: "Total Revenue by Mechanic (last 12 months)",
-        columns: ["Mechanic", "Code", "Walk-in (RM)", "Services Combo (RM)", "Total (RM)"],
-        rows: mechanicSummary.map((r) => [r.fullName, r.shortCode, r.walkInRevenue.toFixed(2), r.packageRevenue.toFixed(2), r.totalRevenue.toFixed(2)]),
+        columns: ["Mechanic", "Code", "Jobsheets", "Walk-in (RM)", "Services Combo (RM)", "Total (RM)"],
+        rows: mechanicSummary.map((r) => [r.fullName, r.shortCode, String(r.walkInCount), r.walkInRevenue.toFixed(2), r.packageRevenue.toFixed(2), r.totalRevenue.toFixed(2)]),
       },
     ];
   }
