@@ -1,8 +1,8 @@
 import type { RewardIconName } from "@/lib/membership";
 
 // Line icons for the free items on the stamp card (same drawings as the
-// printed/shared card image). Drawn in currentColor so they follow the
-// text colour of wherever they're placed.
+// shared card image — the boss picked these on 2026-10-20). Drawn in
+// currentColor so they follow the text colour of wherever they're placed.
 export default function RewardIcon({ name, size = 16, className }: { name: RewardIconName; size?: number; className?: string }) {
   const common = {
     width: size,
@@ -17,46 +17,51 @@ export default function RewardIcon({ name, size = 16, className }: { name: Rewar
     "aria-hidden": true,
   };
   switch (name) {
+    // Engine oil bottle
     case "oil":
       return (
         <svg {...common}>
-          <rect x="9" y="20" width="22" height="18" rx="3" />
-          <rect x="15" y="15" width="8" height="5" rx="1" />
-          <path d="M31 24 L41 18.5 L42.5 21 L31 30" />
-          <path d="M9 24 C3 24 3 34 9 34" />
-          <path d="M42 26 C42 26 39.5 29.5 39.5 31.5 A2.5 2.5 0 0 0 44.5 31.5 C44.5 29.5 42 26 42 26 Z" fill="currentColor" />
-          <path d="M14 27 H26" />
+          <path d="M17 6 H25 V11 H17 Z" />
+          <path d="M13 11 H31 L35 17 V40 A3 3 0 0 1 32 43 H14 A3 3 0 0 1 11 40 V14 Z" />
+          <path d="M27 11 L34 6" />
+          <rect x="16" y="22" width="14" height="12" rx="2" />
+          <path d="M23 25 C23 25 20.5 28.5 20.5 30 A2.5 2.5 0 0 0 25.5 30 C25.5 28.5 23 25 23 25 Z" fill="currentColor" />
         </svg>
       );
-    case "plug":
+    // Diagnostic scanner with a spark plug beside it
+    case "scannerPlug":
       return (
         <svg {...common}>
-          <rect x="20.5" y="3" width="7" height="5" rx="1" />
-          <path d="M19 8 H29 L30 21 H18 Z" />
-          <path d="M21 12 H27 M21 16 H27" />
-          <rect x="14" y="21" width="20" height="6" rx="1.5" />
-          <rect x="18" y="27" width="12" height="10" rx="1" />
-          <path d="M18 30.5 H30 M18 33.5 H30" />
-          <path d="M24 37 V41" />
-          <path d="M20 37 V44 H27" />
+          <rect x="6" y="9" width="21" height="27" rx="3.5" />
+          <rect x="10" y="13" width="13" height="9" rx="1.5" />
+          <path d="M12 19 L15 16 L18 19 L21 15" />
+          <path d="M16.5 36 V42" />
+          <rect x="34" y="4" width="5" height="4" rx="1" />
+          <path d="M33 8 H40 L40.6 18 H32.4 Z" />
+          <rect x="30" y="18" width="13" height="5" rx="1" />
+          <rect x="33" y="23" width="7" height="9" rx="1" />
+          <path d="M36.5 32 V37 M33.5 32 V39 H38.5" />
         </svg>
       );
+    // Coolant bottle with a snowflake
     case "coolant":
       return (
         <svg {...common}>
-          <path d="M21 9 A3 3 0 0 1 27 9 V24 A6.5 6.5 0 1 1 21 24 Z" />
-          <path d="M24 15 V28" />
-          <circle cx="24" cy="29.5" r="2.4" fill="currentColor" />
-          <path d="M30 12 H34 M30 17 H34 M30 22 H34" />
-          <path d="M5 41 Q9.5 37.5 14 41 T23 41 T32 41 T41 41 T45 40" />
+          <path d="M18 5 H26 V10 H18 Z" />
+          <path d="M14 10 H30 L34 16 V40 A3 3 0 0 1 31 43 H15 A3 3 0 0 1 12 40 V13 Z" />
+          <path d="M23 21 V35 M17 24.5 L29 31.5 M29 24.5 L17 31.5" />
+          <path d="M21 21 L23 23 L25 21 M21 35 L23 33 L25 35" />
         </svg>
       );
-    case "helmet":
+    // RM50 voucher ticket
+    case "voucher":
       return (
         <svg {...common}>
-          <path d="M6 32 C6 18 15.5 9 27 9 C37.5 9 43.5 16.5 43.5 25 V33 A3.5 3.5 0 0 1 40 36.5 H9.5 A3.5 3.5 0 0 1 6 33 Z" />
-          <path d="M43.5 21 H29 C26 21 24.5 23 24.5 25.5 C24.5 28 26 30 29 30 H43.5" />
-          <path d="M11 26 C12 19 16 15 21 13.5" />
+          <path d="M3 13 H45 V20 A4 4 0 0 0 45 28 V35 H3 V28 A4 4 0 0 0 3 20 Z" />
+          <path d="M12 13 V35" strokeDasharray="3 3" />
+          <text x="27.5" y="27.4" textAnchor="middle" fontSize="7.4" fontWeight={800} fill="currentColor" stroke="none">
+            RM50
+          </text>
         </svg>
       );
   }

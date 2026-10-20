@@ -6,7 +6,7 @@ export function stampCardSize(): number {
   return STAMP_CARD_SIZE;
 }
 
-export type RewardIconName = "oil" | "plug" | "coolant" | "helmet";
+export type RewardIconName = "oil" | "scannerPlug" | "coolant" | "voucher";
 export type StampReward = { stamp: number; label: string; icon: RewardIconName };
 
 // The real physical Yamaha Cares punch card — specific free items/vouchers
@@ -15,9 +15,9 @@ export type StampReward = { stamp: number; label: string; icon: RewardIconName }
 // (components/RewardIcon.tsx).
 export const STAMP_REWARDS: StampReward[] = [
   { stamp: 1, label: "Free Oil", icon: "oil" },
-  { stamp: 4, label: "Free Diagnostic Tool + Plug", icon: "plug" },
+  { stamp: 4, label: "Free Diagnostic Tool + Plug", icon: "scannerPlug" },
   { stamp: 7, label: "Free Coolant", icon: "coolant" },
-  { stamp: 10, label: "RM50 Voucher — Helmet & Apparels", icon: "helmet" },
+  { stamp: 10, label: "RM50 Voucher — Helmet & Apparels", icon: "voucher" },
 ];
 
 // The reward just earned by landing exactly on this stamp, if any.
