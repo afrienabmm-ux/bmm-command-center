@@ -5,7 +5,8 @@ import { useSearchParams } from "next/navigation";
 import { Search, Phone, Sparkles, Wrench, Loader2 } from "lucide-react";
 import { lookupCustomerCardAction, type MembershipLookup, type LookupChoice } from "@/lib/customer-registration-actions";
 import { formatCurrency, formatDate } from "@/lib/format";
-import { stampCardSize, rewardForStamp, nextReward } from "@/lib/membership";
+import { stampCardSize, rewardForStamp, rewardIconForStamp, nextReward } from "@/lib/membership";
+import RewardIcon from "@/components/RewardIcon";
 
 // How long a "check my card" screen survives a page refresh before the
 // customer has to type their phone number again.
@@ -102,7 +103,13 @@ function StampProgress({ stamps }: { stamps: number[] }) {
                       : "bg-neutral-100 text-neutral-300 border border-neutral-200"
                 }`}
               >
-                {filled ? <Wrench size={13} /> : <span className="text-[10px] font-semibold">{stampNo}</span>}
+                {rewardIconForStamp(stampNo) ? (
+                  <RewardIcon name={rewardIconForStamp(stampNo)!} size={17} />
+                ) : filled ? (
+                  <Wrench size={13} />
+                ) : (
+                  <span className="text-[10px] font-semibold">{stampNo}</span>
+                )}
               </div>
               {reward && <p className="text-[7px] text-neutral-500 text-center leading-tight">{reward}</p>}
             </div>

@@ -5,7 +5,8 @@ import { Plus, Search, Pencil, Trash2, CreditCard, X, Link2, Check, ArrowUpDown,
 import { addCustomerCardAction, updateCustomerCardAction, deleteCustomerCardAction, setCardStampsAction } from "@/lib/customers-actions";
 import { BRANCHES, branchLabel, type Branch, type BranchSelection } from "@/lib/branch";
 import { formatDate } from "@/lib/format";
-import { stampCardSize, rewardForStamp, nextReward } from "@/lib/membership";
+import { stampCardSize, rewardForStamp, rewardIconForStamp, nextReward } from "@/lib/membership";
+import RewardIcon from "@/components/RewardIcon";
 import type { CustomerCard } from "@/lib/types";
 import ModalPortal from "@/components/ModalPortal";
 import { isOver250ccModel } from "@/lib/bike-models";
@@ -675,7 +676,13 @@ function StampModal({ card, readOnly = false, onClose }: { card: CustomerCard; r
                 }`}
                 title={reward ?? `Stamp ${stampNo}`}
               >
-                {filled ? <Wrench size={14} /> : <span className="text-xs font-semibold">{stampNo}</span>}
+                {rewardIconForStamp(stampNo) ? (
+                  <RewardIcon name={rewardIconForStamp(stampNo)!} size={22} />
+                ) : filled ? (
+                  <Wrench size={14} />
+                ) : (
+                  <span className="text-xs font-semibold">{stampNo}</span>
+                )}
                 {reward && <span className="text-[8px] leading-tight text-center px-0.5">{reward}</span>}
               </button>
             );
