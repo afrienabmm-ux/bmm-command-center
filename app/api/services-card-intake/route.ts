@@ -109,13 +109,28 @@ export async function POST(req: Request): Promise<Response> {
   // Idempotency — a retry can arrive after a response we never saw, so the
   // same id may be delivered twice. Answer 2xx either way; only the first
   // delivery actually issues a card.
+  //
+  // The Sales Dashboard also re-sends the same id when a salesperson corrects
+  // the sale afterwards — most often the plate (a half-typed "V" fixed to
+  // "VRU8425"). Those corrections are applied to the card already issued, so
+  // this dashboard doesn't keep showing the first thing typed.
   const { data: existing } = await supabaseAdmin
     .from("cc_customer_cards")
-    .select("id, card_number")
+    .select("id, card_number, customer_name, customer_phone, plate_no, model")
     .eq("external_source_id", body.id)
     .maybeSingle();
   if (existing) {
-    return Response.json({ ok: true, duplicate: true, card_number: existing.card_number });
+    const phone = normalizePhone(body.customer_phone?.trim() ?? "");
+    const patch: Record<string, string> = {};
+    if (body.plate_no.trim() && body.plate_no !== existing.plate_no) patch.plate_no = body.plate_no;
+    if (body.customer_name.trim() && body.customer_name !== existing.customer_name) patch.customer_name = body.customer_name;
+    if (phone && phone !== existing.customer_phone) patch.customer_phone = phone;
+    if (body.model?.trim() && body.model !== existing.model) patch.model = body.model;
+    if (Object.keys(patch).length) {
+      const { error } = await supabaseAdmin.from("cc_customer_cards").update(patch).eq("id", existing.id);
+      if (error) return Response.json({ error: error.message }, { status: 500 });
+    }
+    return Response.json({ ok: true, duplicate: true, updated: Object.keys(patch), card_number: existing.card_number });
   }
 
   // A customer can hold more than one card — a repeat buyer's second bike
