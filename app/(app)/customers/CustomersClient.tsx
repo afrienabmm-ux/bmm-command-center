@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, useTransition } from "react";
-import { Plus, Search, Pencil, Trash2, CreditCard, X, Link2, Check, ArrowUpDown, ChevronDown, ChevronUp, Wrench, ArrowLeftRight } from "lucide-react";
+import { Plus, Search, Pencil, Trash2, CreditCard, X, Link2, Check, ExternalLink, ArrowUpDown, ChevronDown, ChevronUp, Wrench, ArrowLeftRight } from "lucide-react";
 import { addCustomerCardAction, updateCustomerCardAction, deleteCustomerCardAction, setCardStampsAction } from "@/lib/customers-actions";
 import { BRANCHES, branchLabel, type Branch, type BranchSelection } from "@/lib/branch";
 import { formatDate } from "@/lib/format";
@@ -158,13 +158,27 @@ export default function CustomersClient({
           </button>
         </div>
         <div className="flex items-center gap-3 flex-wrap">
-          <button
-            onClick={handleCopyLink}
-            className="flex items-center gap-1.5 bg-neutral-100 hover:bg-neutral-200 text-neutral-800 text-sm font-medium px-4 py-2 rounded-lg transition-colors whitespace-nowrap"
-          >
-            {linkCopied ? <Check size={15} className="text-emerald-600" /> : <Link2 size={15} />}
-            {linkCopied ? "Link copied" : "Copy Check-Card Link"}
-          </button>
+          {/* Opens the customer-facing card page; the small button beside it
+              still copies the link for sending to a customer. */}
+          <div className="flex items-center">
+            <a
+              href="/join"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1.5 bg-neutral-100 hover:bg-neutral-200 text-neutral-800 text-sm font-medium pl-4 pr-3 py-2 rounded-l-lg transition-colors whitespace-nowrap"
+            >
+              <ExternalLink size={15} /> Open Check-Card Page
+            </a>
+            <button
+              onClick={handleCopyLink}
+              title={linkCopied ? "Link copied" : "Copy the link"}
+              aria-label="Copy the check-card link"
+              className="flex items-center gap-1 bg-neutral-100 hover:bg-neutral-200 text-neutral-600 text-sm font-medium px-3 py-2 rounded-r-lg border-l border-neutral-200 transition-colors whitespace-nowrap"
+            >
+              {linkCopied ? <Check size={15} className="text-emerald-600" /> : <Link2 size={15} />}
+              {linkCopied && <span className="text-emerald-700">Copied</span>}
+            </button>
+          </div>
           {canAddCards && (
             <button
               onClick={() => setCardModalFor("new")}
