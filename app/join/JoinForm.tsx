@@ -79,8 +79,17 @@ function StampProgress({ stamps }: { stamps: number[] }) {
   const count = stamps.length;
   const upcoming = nextReward(count);
   const justEarned = rewardForStamp(count);
+  const [big, setBig] = useState(false);
   return (
-    <div className="bg-white border border-neutral-200 rounded-xl p-3 mt-3">
+    <>
+    {/* Double-click / double-tap shows the card large (touch-action stops a
+        phone treating the double-tap as zoom). */}
+    <div
+      className="bg-white border border-neutral-200 rounded-xl p-3 mt-3 cursor-zoom-in select-none"
+      style={{ touchAction: "manipulation" }}
+      onDoubleClick={() => setBig(true)}
+      title="Double-tap to see your card larger"
+    >
       <div className="flex items-center justify-between mb-2">
         <p className="text-[11px] font-semibold text-neutral-700 uppercase tracking-wide">Your Stamp Card</p>
         <p className="text-xs font-bold text-red-600">
@@ -123,6 +132,54 @@ function StampProgress({ stamps }: { stamps: number[] }) {
             ? `Next reward: ${upcoming.label} at stamp ${upcoming.stamp}.`
             : "Card complete — a new one starts on your next visit."}
       </p>
+      <p className="text-[10px] text-neutral-300 mt-1 text-center">Double-tap the card to see it larger</p>
+    </div>
+    {big && <BigStampCard stamps={stamps} onClose={() => setBig(false)} />}
+    </>
+  );
+}
+
+// The same card, full screen and large — easy to show at the counter.
+function BigStampCard({ stamps, onClose }: { stamps: number[]; onClose: () => void }) {
+  const size = stampCardSize();
+  return (
+    <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-white rounded-3xl w-full max-w-md overflow-hidden shadow-2xl" onClick={(e) => e.stopPropagation()}>
+        <div className="bg-gradient-to-br from-rose-600 to-red-700 text-white px-5 py-4 flex items-center justify-between">
+          <div>
+            <p className="text-lg font-bold">Service Stamp Card</p>
+            <p className="text-xs opacity-90">Berjaya Mega Motors · E-Service Card</p>
+          </div>
+          <p className="text-2xl font-extrabold">{stamps.length}/{size}</p>
+        </div>
+        <div className="grid grid-cols-5 gap-2.5 p-4">
+          {Array.from({ length: size }).map((_, i) => {
+            const n = i + 1;
+            const filled = stamps.includes(n);
+            const icon = rewardIconForStamp(n);
+            const reward = rewardForStamp(n);
+            return (
+              <div
+                key={n}
+                className={`relative aspect-[1/1.15] rounded-2xl flex flex-col items-center justify-center gap-1 p-1 text-center ${
+                  filled
+                    ? "bg-gradient-to-br from-red-500 to-rose-600 text-white shadow"
+                    : icon
+                      ? "bg-red-50 text-red-300 border-2 border-dashed border-red-200"
+                      : "bg-neutral-100 text-neutral-300 border border-neutral-200"
+                }`}
+              >
+                <span className="absolute top-1 left-1.5 text-[10px] font-bold opacity-80">{n}</span>
+                {icon ? <RewardIcon name={icon} size={30} /> : filled ? <Wrench size={22} /> : <span className="text-sm font-semibold">{n}</span>}
+                {reward && <span className="text-[8px] leading-tight font-semibold">{reward}</span>}
+              </div>
+            );
+          })}
+        </div>
+        <button onClick={onClose} className="w-full py-3 text-sm font-medium text-neutral-600 border-t border-neutral-100 hover:bg-neutral-50">
+          Close
+        </button>
+      </div>
     </div>
   );
 }
