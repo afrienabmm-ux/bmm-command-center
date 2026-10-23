@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ClipboardList, Wallet, Layers, PackageCheck, ArrowUp, ArrowDown } from "lucide-react";
 import { formatCurrency, monthLabel } from "@/lib/format";
+import { todayInMalaysia } from "@/lib/malaysia-time";
 import { branchLabel, type Branch, type BranchSelection } from "@/lib/branch";
 import StatCard from "@/components/StatCard";
 import CombinedTargetEditor from "./CombinedTargetEditor";
@@ -99,6 +100,16 @@ export default async function AllBranchesOverview({
         { target: 0, achieved: 0, approvedClaims: 0 }
       );
   const pct = totals.target > 0 ? Math.min(100, Math.round((totals.achieved / totals.target) * 100)) : 0;
+  // Working days (Mon–Sat; branches are closed Sundays) left this month,
+  // counting today — only for the current month.
+  const workingDaysLeft = (() => {
+    const [ty, tm, td] = todayInMalaysia().split("-").map(Number);
+    if (ty !== year || tm !== month) return 0;
+    const last = new Date(Date.UTC(year, month, 0)).getUTCDate();
+    let n = 0;
+    for (let d = td; d <= last; d++) if (new Date(Date.UTC(year, month - 1, d)).getUTCDay() !== 0) n++;
+    return n;
+  })();
 
   const serviceRevenueToday = revenuePace.branches.reduce((sum, b) => sum + b.revenueToday, 0);
 
@@ -157,6 +168,26 @@ export default async function AllBranchesOverview({
         <div className="mt-4 h-2 bg-neutral-100 rounded-full overflow-hidden">
           <div className="h-full bg-red-500 transition-all" style={{ width: `${pct}%` }} />
         </div>
+        {totals.target > 0 && (
+          <p className="mt-2 text-sm font-medium">
+            {totals.achieved >= totals.target ? (
+              <span className="text-emerald-700">
+                🎉 Target reached — {formatCurrency(totals.achieved - totals.target)} over
+              </span>
+            ) : (
+              <span className="text-neutral-800">
+                {formatCurrency(totals.target - totals.achieved)} more to reach the target
+                {workingDaysLeft > 0 && (
+                  <span className="text-neutral-500 font-normal">
+                    {" "}
+                    · about {formatCurrency((totals.target - totals.achieved) / workingDaysLeft)} a day for the{" "}
+                    {workingDaysLeft} working day{workingDaysLeft === 1 ? "" : "s"} left
+                  </span>
+                )}
+              </span>
+            )}
+          </p>
+        )}
       </div>
 
       {/* Alerts — anything that needs action or a heads-up, most urgent first. */}
