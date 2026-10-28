@@ -1,3 +1,7 @@
+"use client";
+
+import { useState } from "react";
+
 export type PieSlice = { label: string; value: number; colorClass: string; dot: string };
 
 function pointOnCircle(cx: number, cy: number, r: number, angleDeg: number): [number, number] {
@@ -14,6 +18,17 @@ function PieChart({ slices, size = 148 }: { slices: PieSlice[]; size?: number })
   const cx = radius;
   const cy = radius;
   const nonZero = slices.filter((s) => s.value > 0);
+  const [hovered, setHovered] = useState<string | null>(null);
+  const hoveredSlice = slices.find((s) => s.label === hovered);
+  // Small box in the middle of the pie naming the slice under the mouse.
+  const hoverBox = hoveredSlice && (
+    <div className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-10 bg-neutral-900 text-white text-xs rounded-lg px-3 py-2 shadow-lg whitespace-nowrap text-center">
+      <p className="font-semibold">{hoveredSlice.label}</p>
+      <p>
+        {hoveredSlice.value} ({Math.round((hoveredSlice.value / (total || 1)) * 100)}%)
+      </p>
+    </div>
+  );
 
   if (total === 0) {
     return (
@@ -25,8 +40,17 @@ function PieChart({ slices, size = 148 }: { slices: PieSlice[]; size?: number })
 
   if (nonZero.length === 1) {
     return (
+      <div className="relative">
       <svg width={size} height={size}>
-        <circle cx={cx} cy={cy} r={radius - 2} className={nonZero[0].colorClass} />
+        <circle
+          cx={cx}
+          cy={cy}
+          r={radius - 2}
+          className={`${nonZero[0].colorClass} cursor-pointer`}
+          onMouseEnter={() => setHovered(nonZero[0].label)}
+          onMouseLeave={() => setHovered(null)}
+          onClick={() => setHovered(hovered ? null : nonZero[0].label)}
+        />
         <text
           x={cx}
           y={cy}
@@ -38,6 +62,8 @@ function PieChart({ slices, size = 148 }: { slices: PieSlice[]; size?: number })
           100%
         </text>
       </svg>
+      {hoverBox}
+      </div>
     );
   }
 
@@ -53,6 +79,7 @@ function PieChart({ slices, size = 148 }: { slices: PieSlice[]; size?: number })
   });
 
   return (
+    <div className="relative">
     <svg width={size} height={size}>
       {wedges.map(({ slice: s, fraction, startAngle, endAngle }) => {
         const large = endAngle - startAngle > 180 ? 1 : 0;
@@ -65,13 +92,23 @@ function PieChart({ slices, size = 148 }: { slices: PieSlice[]; size?: number })
         const [labelX, labelY] = pointOnCircle(cx, cy, radius * 0.62, (startAngle + endAngle) / 2);
         return (
           <g key={s.label}>
-            <path d={d} className={s.colorClass} stroke="white" strokeWidth={1} />
+            <path
+              d={d}
+              className={`${s.colorClass} cursor-pointer transition-opacity`}
+              stroke="white"
+              strokeWidth={1}
+              opacity={hovered && hovered !== s.label ? 0.55 : 1}
+              onMouseEnter={() => setHovered(s.label)}
+              onMouseLeave={() => setHovered(null)}
+              onClick={() => setHovered(hovered === s.label ? null : s.label)}
+            />
             {pct >= 8 && (
               <text
                 x={labelX}
                 y={labelY}
                 textAnchor="middle"
                 dominantBaseline="middle"
+                pointerEvents="none"
                 className="fill-white text-[11px] font-semibold"
                 style={{ paintOrder: "stroke", stroke: "rgba(0,0,0,0.25)", strokeWidth: 2 }}
               >
@@ -82,6 +119,8 @@ function PieChart({ slices, size = 148 }: { slices: PieSlice[]; size?: number })
         );
       })}
     </svg>
+    {hoverBox}
+    </div>
   );
 }
 

@@ -156,6 +156,7 @@ const SERIES_Y_NUDGE: Record<Branch, number> = { kapar: -2, setia_alam: 0, punca
 // label mechanics as the revenue chart, just three series instead of two.
 export function BranchJobsChart({ points }: { points: MonthlyTrendPoint[] }) {
   const [containerRef, containerWidth] = useContainerWidth(640);
+  const [hovered, setHovered] = useState<number | null>(null);
   const dataMax = Math.max(1, ...points.flatMap((p) => BRANCH_SERIES.map((s) => p.repairJobsByBranch[s.key])));
   // Small integer counts need at least LINE_CHART_TICKS worth of range, or
   // gridline values round to the same number and the axis shows duplicates.
@@ -187,7 +188,7 @@ export function BranchJobsChart({ points }: { points: MonthlyTrendPoint[] }) {
           ))}
         </div>
       </div>
-      <div ref={containerRef} className="overflow-x-auto">
+      <div ref={containerRef} className="overflow-x-auto relative">
         <svg width={width + LEFT_AXIS_WIDTH} height={monthLabelY + 10} className="min-w-full">
           <g transform={`translate(${LEFT_AXIS_WIDTH}, 0)`}>
             {ticks.map((t) => (
@@ -215,7 +216,18 @@ export function BranchJobsChart({ points }: { points: MonthlyTrendPoint[] }) {
               // no single branch color would be accurate.
               const seen = new Set<number>();
               return (
-                <g key={`${p.year}-${p.month}`}>
+                <g
+                  key={`${p.year}-${p.month}`}
+                  onMouseEnter={() => setHovered(i)}
+                  onMouseLeave={() => setHovered(null)}
+                  onClick={() => setHovered(hovered === i ? null : i)}
+                  className="cursor-pointer"
+                >
+                  {/* Invisible column around each month so hovering anywhere near it shows the numbers. */}
+                  <rect x={xAt(i) - step / 2} y={PAD_TOP} width={Math.max(step, 24)} height={chartHeight} fill="transparent" />
+                  {hovered === i && (
+                    <line x1={xAt(i)} x2={xAt(i)} y1={PAD_TOP} y2={plotBottom} strokeDasharray="3 3" className="stroke-neutral-300" />
+                  )}
                   {BRANCH_SERIES.map((s) => {
                     const value = p.repairJobsByBranch[s.key];
                     if (seen.has(value)) return null;
@@ -241,6 +253,30 @@ export function BranchJobsChart({ points }: { points: MonthlyTrendPoint[] }) {
             })}
           </g>
         </svg>
+        {hovered !== null && points[hovered] && (() => {
+          const p = points[hovered];
+          const total = BRANCH_SERIES.reduce((sum, s) => sum + p.repairJobsByBranch[s.key], 0);
+          const onRight = xAt(hovered) < width * 0.6;
+          return (
+            <div
+              className="pointer-events-none absolute z-10 bg-neutral-900 text-white text-xs rounded-lg px-3 py-2 shadow-lg whitespace-nowrap"
+              style={{
+                top: PAD_TOP,
+                left: onRight ? LEFT_AXIS_WIDTH + xAt(hovered) + 12 : undefined,
+                right: onRight ? undefined : width - xAt(hovered) + 12,
+              }}
+            >
+              <p className="font-semibold mb-1">{p.label}</p>
+              {BRANCH_SERIES.map((s) => (
+                <p key={s.key} className="flex items-center gap-1.5">
+                  <span className={`w-2 h-2 rounded-full inline-block ${s.dot}`} />
+                  {s.label}: {p.repairJobsByBranch[s.key]}
+                </p>
+              ))}
+              <p className="text-neutral-300 mt-1">Total: {total} jobs</p>
+            </div>
+          );
+        })()}
       </div>
     </div>
   );
