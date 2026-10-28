@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { MONTH_NAMES, formatCurrency } from "@/lib/format";
 import { niceMax, shortAmount, useContainerWidth, LEFT_AXIS_WIDTH, PAD_TOP } from "./TrendCharts";
 import type { MonthlyTargetHistoryPoint } from "@/lib/reports-actions";
@@ -23,6 +24,7 @@ export default function MonthlyPaceChart({
   title?: string;
 }) {
   const [containerRef, containerWidth] = useContainerWidth(640);
+  const [hovered, setHovered] = useState<number | null>(null);
   const current = points[points.length - 1];
   const target = current?.target ?? 0;
   const achieved = current?.achieved ?? 0;
@@ -78,14 +80,26 @@ export default function MonthlyPaceChart({
               const barHeight = Math.max(0, plotBottom - yAt(p.achieved));
               const x = i * slot + (slot - barWidth) / 2;
               return (
-                <g key={`${p.year}-${p.month}`}>
+                <g
+                  key={`${p.year}-${p.month}`}
+                  onMouseEnter={() => setHovered(i)}
+                  onMouseLeave={() => setHovered(null)}
+                  onClick={() => setHovered(hovered === i ? null : i)}
+                  className="cursor-pointer"
+                >
+                  {/* Invisible full-height hit area, so short bars are easy to hover too. */}
+                  <rect x={i * slot} y={PAD_TOP} width={slot} height={CHART_HEIGHT} fill="transparent" />
                   <rect
                     x={x}
                     y={yAt(p.achieved)}
                     width={barWidth}
                     height={barHeight}
                     rx={4}
-                    className={isCurrent ? "fill-sky-400" : "fill-neutral-300"}
+                    className={
+                      isCurrent
+                        ? hovered === i ? "fill-sky-500" : "fill-sky-400"
+                        : hovered === i ? "fill-neutral-400" : "fill-neutral-300"
+                    }
                   />
                   <text x={x + barWidth / 2} y={plotBottom + 18} textAnchor="middle" className="fill-neutral-500 text-[10px]">
                     {MONTH_NAMES[p.month - 1].slice(0, 3)}
@@ -95,6 +109,35 @@ export default function MonthlyPaceChart({
             })}
           </g>
         </svg>
+        {hovered !== null && points[hovered] && (() => {
+          const p = points[hovered];
+          const barTop = yAt(p.achieved);
+          const left = LEFT_AXIS_WIDTH + hovered * slot + slot / 2;
+          // Edge bars anchor the box inward so it isn't cut off.
+          const tx = hovered === 0 && points.length > 1 ? "-25%" : hovered === points.length - 1 && points.length > 1 ? "-75%" : "-50%";
+          const above = barTop > 70;
+          const pctOf = p.target > 0 ? Math.round((p.achieved / p.target) * 100) : null;
+          return (
+            <div
+              className="pointer-events-none absolute z-10 bg-neutral-900 text-white text-xs rounded-lg px-3 py-2 shadow-lg whitespace-nowrap"
+              style={{
+                left,
+                top: above ? barTop - 8 : barTop + 8,
+                transform: `translate(${tx}, ${above ? "-100%" : "0"})`,
+              }}
+            >
+              <p className="font-semibold">
+                {MONTH_NAMES[p.month - 1]} {p.year}
+              </p>
+              <p>{formatCurrency(p.achieved)} achieved</p>
+              {p.target > 0 && (
+                <p className="text-neutral-300">
+                  Target {formatCurrency(p.target)} ({pctOf}%)
+                </p>
+              )}
+            </div>
+          );
+        })()}
       </div>
       <p className="text-xs text-neutral-400 mt-2">
         Last {points.length} months · current month (blue) is month-to-date.
