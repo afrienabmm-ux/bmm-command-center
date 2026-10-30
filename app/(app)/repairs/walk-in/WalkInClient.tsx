@@ -10,6 +10,7 @@ import {
   getJobsheetPhotoUrlAction,
   resolveSignatureIssueAction,
   searchWalkInJobsAction,
+  getCompletedWalkInJobsInRangeAction,
 } from "@/lib/repairs-actions";
 import { isYamahaModel, classifyYamahaModel } from "@/lib/yamaha-model";
 import { checkCustomerCode, customerCodeReason } from "@/lib/customer-code";
@@ -118,6 +119,53 @@ export default function WalkInClient({
     return () => clearTimeout(t);
   }, [query]);
 
+  // The Completed list on the page only holds each branch's latest 200 jobs,
+  // so a date range reaching further back than that (a whole month at a busy
+  // branch) would show too few. When the picked start date is older than the
+  // oldest job loaded, the full range is fetched from the database instead.
+  const [rangeResults, setRangeResults] = useState<RepairJob[] | null>(null);
+  const [rangeLoading, setRangeLoading] = useState(false);
+  // Each branch is capped separately, so what matters is the branch whose
+  // loaded jobs stop soonest — the latest of the per-branch oldest dates.
+  const oldestLoadedCompleted = useMemo(() => {
+    const oldestByBranch = new Map<string, string>();
+    for (const j of completed) {
+      if (!j.startedDate) continue;
+      const cur = oldestByBranch.get(j.branch);
+      if (!cur || j.startedDate < cur) oldestByBranch.set(j.branch, j.startedDate);
+    }
+    return [...oldestByBranch.values()].reduce((max, d) => (d > max ? d : max), "");
+  }, [completed]);
+  const needsRangeFetch =
+    tab === "completed" && !!dateFrom && completed.length < completedTotal && dateFrom <= oldestLoadedCompleted;
+  useEffect(() => {
+    if (!needsRangeFetch) {
+      setRangeResults(null);
+      setRangeLoading(false);
+      return;
+    }
+    let cancelled = false;
+    setRangeLoading(true);
+    const t = setTimeout(async () => {
+      const results = await getCompletedWalkInJobsInRangeAction(dateFrom, dateTo);
+      if (cancelled) return;
+      // Signature errors live on their own tab, same as the page does.
+      const errorIds = new Set(errors.map((j) => j.id));
+      setRangeResults(
+        results.filter(
+          (j) =>
+            !errorIds.has(j.id) &&
+            !((j.signatureStatus === "not_detected" || j.signatureStatus === "unchecked") && !j.signatureIssueResolved)
+        )
+      );
+      setRangeLoading(false);
+    }, 300);
+    return () => {
+      cancelled = true;
+      clearTimeout(t);
+    };
+  }, [needsRangeFetch, dateFrom, dateTo, errors]);
+
   // Completed defaults to today only — years of history dumped into one
   // flat list was the whole complaint. Active/Errors still show
   // everything regardless of date, since a job started days ago still
@@ -195,7 +243,8 @@ export default function WalkInClient({
   // The IC errors tab is a report: rows can be looked at, but not selected,
   // opened for editing or deleted from here (fix the code in the Customer Code report).
   const canEditHere = canEdit && tab !== "ic";
-  const jobs = tab === "active" ? active : tab === "completed" ? completed : tab === "ic" ? icErrors : errors;
+  const jobs =
+    tab === "active" ? active : tab === "completed" ? rangeResults ?? completed : tab === "ic" ? icErrors : errors;
   const visible = useMemo(() => {
     // An active search overrides the current tab/date range entirely —
     // it's already a database-wide match, not just whatever happens to be
@@ -476,6 +525,7 @@ export default function WalkInClient({
             />
           </div>
           {searching && <span className="text-xs text-neutral-400">Searching every job…</span>}
+          {!searching && rangeLoading && <span className="text-xs text-neutral-400">Loading every job in these dates…</span>}
           {!searching && searchResults !== null && (
             <span className="text-xs text-neutral-400">
               {searchResults.length} match{searchResults.length === 1 ? "" : "es"} across all tabs and dates

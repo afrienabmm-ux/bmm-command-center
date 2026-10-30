@@ -353,6 +353,34 @@ export async function searchWalkInJobsAction(query: string): Promise<RepairJob[]
   return (data as unknown as Row[]).map((r) => toJob(r, genbluPlates, genbluTxs));
 }
 
+// Every completed walk-in job within a date range (by Job Date). The page
+// itself only loads each branch's latest 200 completed jobs, so picking a
+// range older or bigger than that (e.g. a whole month at a busy branch)
+// would quietly come up short — the Jobsheet page fetches the full range
+// through this instead.
+export async function getCompletedWalkInJobsInRangeAction(dateFrom: string, dateTo: string): Promise<RepairJob[]> {
+  const user = await requireApproved();
+  const branchSelection = await getActiveBranchSelection(user);
+  const PAGE = 1000;
+  const rows: Row[] = [];
+  const [genbluPlates, genbluTxs] = await Promise.all([getGenbluPlatePoints(), getGenbluTxLite()]);
+  for (let from = 0; ; from += PAGE) {
+    let q = supabaseAdmin
+      .from("cc_repair_jobs")
+      .select(SELECT_WITH_ITEMS)
+      .eq("status", "Completed")
+      .eq("job_type", "Walk-in")
+      .gte("started_date", dateFrom);
+    if (dateTo) q = q.lte("started_date", dateTo);
+    if (branchSelection !== "all") q = q.eq("branch", branchSelection);
+    const { data, error } = await q.order("id", { ascending: true }).range(from, from + PAGE - 1);
+    if (error) throw new Error(error.message);
+    rows.push(...(data as unknown as Row[]));
+    if (!data || data.length < PAGE) break;
+  }
+  return rows.map((r) => toJob(r, genbluPlates, genbluTxs));
+}
+
 // Looked up by id alone (no branch filter) — used by the full-page edit
 // route, which only has the job id from the URL.
 export async function getRepairJobById(id: string): Promise<RepairJob | null> {
