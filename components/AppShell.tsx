@@ -91,7 +91,7 @@ export default function AppShell({
       <div className="flex-1 min-w-0 flex flex-col">
         {/* Stays pinned to the top on a phone so the branch is always in
             reach while scrolling a long list. */}
-        <div className="sticky top-0 z-30 md:static h-14 bg-white/95 backdrop-blur md:bg-transparent md:backdrop-blur-none border-b border-neutral-200 flex items-center justify-between gap-3 px-4 md:px-8 shrink-0">
+        <div className="sticky top-0 z-30 h-14 bg-white/70 backdrop-blur-xl border-b border-black/[0.06] flex items-center justify-between gap-3 px-4 md:px-8 shrink-0">
           <div className="flex items-center gap-2.5 min-w-0">
             {/* Phone: the bottom bar's "More" opens the menu, so the top
                 just shows who we are. */}

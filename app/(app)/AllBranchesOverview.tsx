@@ -4,6 +4,7 @@ import { formatCurrency, monthLabel } from "@/lib/format";
 import { todayInMalaysia } from "@/lib/malaysia-time";
 import { branchLabel, type Branch, type BranchSelection } from "@/lib/branch";
 import StatCard from "@/components/StatCard";
+import CountUp from "@/components/CountUp";
 import CombinedTargetEditor from "./CombinedTargetEditor";
 import BranchBreakdownTable, { getBranchBreakdown, getAllBranchesAchievedTotal } from "./BranchBreakdownTable";
 import MonthlyTrends from "./MonthlyTrends";
@@ -25,6 +26,47 @@ import PackageBreakdownCharts from "./PackageBreakdownCharts";
 import ClaimStatusPieCard from "./ClaimStatusPieCard";
 import BranchMechanicLeaderboard from "./BranchMechanicLeaderboard";
 import SuspiciousJobsBanner from "./SuspiciousJobsBanner";
+
+// Big circular "% of target" gauge for the dashboard banner. Fills up on
+// page load (ring-fill keyframes in globals.css); can go past 100%.
+function ProgressRing({ pct }: { pct: number }) {
+  const size = 148;
+  const stroke = 12;
+  const r = (size - stroke) / 2;
+  const c = 2 * Math.PI * r;
+  const offset = c * (1 - Math.min(100, pct) / 100);
+  return (
+    <div className="relative shrink-0" style={{ width: size, height: size }}>
+      <svg width={size} height={size} className="-rotate-90 drop-shadow-[0_0_14px_rgba(239,68,68,0.45)]">
+        <defs>
+          <linearGradient id="target-ring" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stopColor="#f59e0b" />
+            <stop offset="55%" stopColor="#f97316" />
+            <stop offset="100%" stopColor="#dc2626" />
+          </linearGradient>
+        </defs>
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth={stroke} />
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={r}
+          fill="none"
+          stroke="url(#target-ring)"
+          strokeWidth={stroke}
+          strokeLinecap="round"
+          strokeDasharray={c}
+          strokeDashoffset={offset}
+          className="animate-ring-fill"
+          style={{ "--ring-c": `${c}px` } as React.CSSProperties}
+        />
+      </svg>
+      <div className="absolute inset-0 flex flex-col items-center justify-center">
+        <CountUp value={pct} kind="percent" className="text-3xl font-extrabold text-white" />
+        <span className="text-[10px] uppercase tracking-[0.2em] text-neutral-400 mt-0.5">of target</span>
+      </div>
+    </div>
+  );
+}
 
 // Rolls (year, month) back one month, correctly crossing a year boundary.
 function previousMonth(year: number, month: number): { year: number; month: number } {
@@ -130,64 +172,94 @@ export default async function AllBranchesOverview({
   const trendPct = prevAchieved > 0 ? Math.round(((totals.achieved - prevAchieved) / prevAchieved) * 100) : null;
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 stagger">
       {/* Headline number first: this month's target vs achieved. */}
-      <div className="bg-gradient-to-br from-red-50 to-white border border-red-200 rounded-xl p-6">
-        <div className="flex items-start justify-between flex-wrap gap-4">
-          <div>
-            <div className="flex items-center gap-2 text-xs text-neutral-600 mb-1">
-              <Layers size={13} className="text-red-600" />
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-neutral-950 via-neutral-900 to-red-950 text-white p-6 md:p-8 shadow-2xl shadow-red-950/25">
+        {/* Background glows and a faint grid, purely decorative. */}
+        <div aria-hidden="true" className="pointer-events-none absolute inset-0">
+          <div className="absolute -right-24 -top-28 w-96 h-96 rounded-full bg-red-600/35 blur-3xl animate-float-glow" />
+          <div className="absolute -left-16 -bottom-24 w-72 h-72 rounded-full bg-orange-500/15 blur-3xl" />
+          <div
+            className="absolute inset-0 opacity-[0.07]"
+            style={{
+              backgroundImage:
+                "linear-gradient(rgba(255,255,255,0.6) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.6) 1px, transparent 1px)",
+              backgroundSize: "36px 36px",
+              maskImage: "radial-gradient(ellipse at 70% 30%, black 20%, transparent 75%)",
+            }}
+          />
+        </div>
+
+        <div className="relative grid gap-8 md:grid-cols-[1fr_auto] md:items-center">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-red-200/80">
+              <Layers size={13} className="text-red-400" />
               <span>
-                {onlyBranch ? branchLabel(onlyBranch) : "All Branches"} — {monthLabel(month, year)} Target
-                {onlyBranch ? "" : " (combined)"}
+                {onlyBranch ? branchLabel(onlyBranch) : "All Branches"} · {monthLabel(month, year)}
+                {onlyBranch ? "" : " · combined"}
               </span>
             </div>
-            <p className="text-3xl font-semibold text-neutral-900">{formatCurrency(totals.target)}</p>
-            <div className="flex items-center gap-2 mt-1">
-              <p className="text-sm text-neutral-600">
-                {formatCurrency(totals.achieved)} achieved ({pct}%)
+            <p className="mt-3 text-sm text-neutral-400">Achieved so far</p>
+            <p className="text-4xl md:text-6xl font-extrabold tracking-tight bg-gradient-to-r from-white via-white to-red-200 bg-clip-text text-transparent">
+              <CountUp value={totals.achieved} kind="currency" />
+            </p>
+            <div className="flex items-center gap-3 mt-2 flex-wrap">
+              <p className="text-sm text-neutral-300">
+                of <span className="font-semibold text-white">{formatCurrency(totals.target)}</span> target
               </p>
               {trendPct !== null && (
                 <span
-                  className={`inline-flex items-center gap-0.5 text-xs font-medium px-2 py-0.5 rounded-full ${
-                    trendPct >= 0 ? "bg-emerald-500/10 text-emerald-700" : "bg-red-500/10 text-red-700"
+                  className={`inline-flex items-center gap-0.5 text-xs font-semibold px-2.5 py-1 rounded-full ring-1 ring-inset ${
+                    trendPct >= 0
+                      ? "bg-emerald-400/10 text-emerald-300 ring-emerald-400/30"
+                      : "bg-red-400/10 text-red-300 ring-red-400/30"
                   }`}
                 >
-                  {trendPct >= 0 ? <ArrowUp size={11} /> : <ArrowDown size={11} />}
+                  {trendPct >= 0 ? <ArrowUp size={12} /> : <ArrowDown size={12} />}
                   {Math.abs(trendPct)}% vs {monthLabel(prev.month, prev.year)}
                 </span>
               )}
             </div>
-          </div>
-          <CombinedTargetEditor
-            year={year}
-            month={month}
-            branchTargets={rows.reduce((acc, b) => ({ ...acc, [b.branch]: b.target }), {} as Record<Branch, number>)}
-          />
-        </div>
-        <div className="mt-4 h-2 bg-neutral-100 rounded-full overflow-hidden">
-          <div className="h-full bg-red-500 transition-all" style={{ width: `${pct}%` }} />
-        </div>
-        {totals.target > 0 && (
-          <p className="mt-2 text-sm font-medium">
-            {totals.achieved >= totals.target ? (
-              <span className="text-emerald-700">
-                🎉 Target reached — {formatCurrency(totals.achieved - totals.target)} over
-              </span>
-            ) : (
-              <span className="text-neutral-800">
-                {formatCurrency(totals.target - totals.achieved)} more to reach the target
-                {workingDaysLeft > 0 && (
-                  <span className="text-neutral-500 font-normal">
-                    {" "}
-                    · about {formatCurrency((totals.target - totals.achieved) / workingDaysLeft)} a day for the{" "}
-                    {workingDaysLeft} working day{workingDaysLeft === 1 ? "" : "s"} left
+
+            <div className="relative mt-6 h-3 bg-white/10 rounded-full overflow-hidden">
+              <div
+                className="relative h-full rounded-full bg-gradient-to-r from-red-600 via-orange-500 to-amber-300 animate-grow-x shadow-[0_0_16px_rgba(249,115,22,0.6)] overflow-hidden"
+                style={{ width: `${pct}%` }}
+              >
+                <div className="absolute inset-y-0 left-0 w-1/3 bg-gradient-to-r from-transparent via-white/50 to-transparent animate-shine" />
+              </div>
+            </div>
+            {totals.target > 0 && (
+              <p className="mt-3 text-sm font-medium">
+                {totals.achieved >= totals.target ? (
+                  <span className="text-emerald-300">
+                    🎉 Target reached — {formatCurrency(totals.achieved - totals.target)} over
+                  </span>
+                ) : (
+                  <span className="text-white">
+                    {formatCurrency(totals.target - totals.achieved)} more to reach the target
+                    {workingDaysLeft > 0 && (
+                      <span className="text-neutral-400 font-normal">
+                        {" "}
+                        · about {formatCurrency((totals.target - totals.achieved) / workingDaysLeft)} a day for the{" "}
+                        {workingDaysLeft} working day{workingDaysLeft === 1 ? "" : "s"} left
+                      </span>
+                    )}
                   </span>
                 )}
-              </span>
+              </p>
             )}
-          </p>
-        )}
+          </div>
+
+          <div className="flex md:flex-col items-center gap-5 md:gap-4">
+            <ProgressRing pct={totals.target > 0 ? Math.round((totals.achieved / totals.target) * 100) : 0} />
+            <CombinedTargetEditor
+              year={year}
+              month={month}
+              branchTargets={rows.reduce((acc, b) => ({ ...acc, [b.branch]: b.target }), {} as Record<Branch, number>)}
+            />
+          </div>
+        </div>
       </div>
 
       {/* Alerts — anything that needs action or a heads-up, most urgent first. */}

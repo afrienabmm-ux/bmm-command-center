@@ -118,23 +118,31 @@ export default function Sidebar({
       <aside
         className={`${mobileOpen ? "fixed inset-y-0 left-0 z-50 flex" : "hidden md:flex"} flex-col md:sticky md:top-0 md:h-screen md:z-auto w-64 ${
           collapsed ? "md:w-16" : "md:w-64"
-        } shrink-0 bg-neutral-50 border-r border-neutral-200 transition-[width] duration-200`}
+        } shrink-0 bg-neutral-950 text-white border-r border-white/5 transition-[width] duration-200`}
       >
+        {/* Decorative red glow at the top of the menu. */}
+        <div aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden">
+          <div className="absolute -top-24 -left-16 w-72 h-72 rounded-full bg-red-600/25 blur-3xl animate-float-glow" />
+        </div>
         <div
-          className={`flex items-center border-b border-neutral-200 ${visuallyCollapsed ? "h-auto md:flex-col gap-2.5 px-5 md:px-2 py-4" : "h-16 gap-2.5 px-5"}`}
+          className={`relative flex items-center border-b border-white/10 ${visuallyCollapsed ? "h-auto md:flex-col gap-2.5 px-5 md:px-2 py-4" : "h-16 gap-2.5 px-5"}`}
         >
-          <img src="/bmm-logo.png" alt="Berjaya Mega Motors" className="w-8 h-8 rounded-full object-cover shrink-0" />
+          <img
+            src="/bmm-logo.png"
+            alt="Berjaya Mega Motors"
+            className="w-9 h-9 rounded-full object-cover shrink-0 bg-white ring-2 ring-red-500/70 shadow-[0_0_18px_rgba(239,68,68,0.55)]"
+          />
           {!visuallyCollapsed && (
             <div className="leading-none min-w-0 flex-1">
-              <p className="text-sm font-semibold text-neutral-900">After-Sales</p>
-              <p className="text-[11px] text-neutral-500 truncate">Berjaya Mega Motors</p>
+              <p className="text-sm font-bold tracking-wide text-white">After-Sales</p>
+              <p className="text-[11px] text-neutral-400 truncate mt-0.5">Berjaya Mega Motors</p>
             </div>
           )}
           {mobileOpen ? (
             <button
               onClick={onMobileClose}
               aria-label="Close menu"
-              className="w-7 h-7 flex items-center justify-center rounded-full border border-neutral-200 text-neutral-500 hover:text-red-600 hover:border-red-300 transition-colors shrink-0 md:hidden"
+              className="w-7 h-7 flex items-center justify-center rounded-full border border-white/15 text-neutral-400 hover:text-white hover:border-red-400 transition-colors shrink-0 md:hidden"
             >
               <X size={14} />
             </button>
@@ -143,7 +151,7 @@ export default function Sidebar({
             onClick={onToggle}
             title={collapsed ? "Expand menu" : "Collapse menu"}
             aria-label={collapsed ? "Expand menu" : "Collapse menu"}
-            className="hidden md:flex w-6 h-6 items-center justify-center rounded-full border border-neutral-200 text-neutral-500 hover:text-red-600 hover:border-red-300 transition-colors shrink-0"
+            className="hidden md:flex w-6 h-6 items-center justify-center rounded-full border border-white/15 text-neutral-400 hover:text-white hover:border-red-400 transition-colors shrink-0"
           >
             {collapsed ? <ChevronRight size={13} /> : <ChevronLeft size={13} />}
           </button>
@@ -155,7 +163,7 @@ export default function Sidebar({
             triggering a full server render of every other page in the nav —
             on every single page load — for nothing, since nobody had
             clicked them. That background load was the real "lag". */}
-        <nav className={`flex-1 py-4 space-y-1 overflow-y-auto ${visuallyCollapsed ? "px-3 md:px-2" : "px-3"}`}>
+        <nav className={`relative flex-1 py-4 space-y-1 overflow-y-auto ${visuallyCollapsed ? "px-3 md:px-2" : "px-3"}`}>
           {[...mainNavLinks, ...trailingNavLinks].map((link, i) => {
             const active = pathname === link.href;
             const Icon = link.icon;
@@ -164,20 +172,20 @@ export default function Sidebar({
             const isFirstTrailing = i === mainNavLinks.length && trailingNavLinks.length > 0;
             return (
               <div key={link.href}>
-                {isFirstTrailing && <hr className="my-2 border-neutral-200" />}
+                {isFirstTrailing && <hr className="my-3 border-white/10" />}
                 <Link
                   href={link.href}
                   prefetch={false}
                   title={visuallyCollapsed ? link.label : undefined}
-                  className={`flex items-center rounded-lg text-sm font-medium transition-colors ${
+                  className={`group relative flex items-center rounded-xl text-sm font-medium transition-all duration-200 ${
                     visuallyCollapsed ? "gap-3 md:justify-center px-3 md:px-2 py-2.5" : "gap-3 px-3 py-2.5"
                   } ${
                     active
-                      ? "bg-red-500/10 text-red-700"
-                      : "text-neutral-600 hover:bg-neutral-100 hover:text-neutral-800"
+                      ? "bg-gradient-to-r from-red-600 to-red-500 text-white shadow-lg shadow-red-900/50"
+                      : "text-neutral-400 hover:bg-white/[0.06] hover:text-white"
                   }`}
                 >
-                  <Icon size={17} className={`shrink-0 ${active ? "text-red-600" : link.color}`} />
+                  <Icon size={17} className={`shrink-0 transition-transform group-hover:scale-110 ${active ? "text-white" : link.color}`} />
                   {!visuallyCollapsed && link.label}
                 </Link>
               </div>
@@ -185,23 +193,23 @@ export default function Sidebar({
           })}
         </nav>
 
-        <div ref={profileRef} className={`relative border-t border-neutral-200 ${visuallyCollapsed ? "px-3 md:px-2 py-3" : "px-3 py-3"}`}>
+        <div ref={profileRef} className={`relative border-t border-white/10 ${visuallyCollapsed ? "px-3 md:px-2 py-3" : "px-3 py-3"}`}>
           <button
             type="button"
             onClick={() => setProfileOpen((v) => !v)}
             title={visuallyCollapsed ? name || email : undefined}
-            className={`w-full flex items-center rounded-lg transition-colors hover:bg-neutral-100 ${
+            className={`w-full flex items-center rounded-xl transition-colors hover:bg-white/[0.06] ${
               visuallyCollapsed ? "md:justify-center gap-2.5 md:gap-0 px-2 py-1.5" : "gap-2.5 px-2 py-1.5"
             }`}
           >
-            <span className="w-8 h-8 rounded-full bg-red-500/10 text-red-700 text-xs font-semibold flex items-center justify-center shrink-0">
+            <span className="w-8 h-8 rounded-full bg-gradient-to-br from-red-500 to-orange-500 text-white text-xs font-bold flex items-center justify-center shrink-0 shadow-md shadow-red-900/40">
               {initials(name, email)}
             </span>
             {!visuallyCollapsed && (
               <>
                 <span className="min-w-0 flex-1 text-left leading-none">
-                  <p className="text-sm font-medium text-neutral-800 truncate">{name || email}</p>
-                  <p className="text-xs text-neutral-500 truncate mt-0.5">{positionTitle || role}</p>
+                  <p className="text-sm font-medium text-white truncate">{name || email}</p>
+                  <p className="text-xs text-neutral-400 truncate mt-0.5">{positionTitle || role}</p>
                 </span>
                 <ChevronDown size={14} className={`text-neutral-400 shrink-0 transition-transform ${profileOpen ? "rotate-180" : ""}`} />
               </>
