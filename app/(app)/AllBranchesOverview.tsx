@@ -141,7 +141,7 @@ export default async function AllBranchesOverview({
         }),
         { target: 0, achieved: 0, approvedClaims: 0 }
       );
-  const pct = totals.target > 0 ? Math.min(100, Math.round((totals.achieved / totals.target) * 100)) : 0;
+  const pct = totals.target > 0 ? Math.min(100, Math.floor((totals.achieved / totals.target) * 100)) : 0;
   // Working days (Mon–Sat; branches are closed Sundays) left this month,
   // counting today — only for the current month.
   const workingDaysLeft = (() => {
@@ -252,7 +252,7 @@ export default async function AllBranchesOverview({
           </div>
 
           <div className="flex md:flex-col items-center gap-5 md:gap-4">
-            <ProgressRing pct={totals.target > 0 ? Math.round((totals.achieved / totals.target) * 100) : 0} />
+            <ProgressRing pct={totals.target > 0 ? Math.floor((totals.achieved / totals.target) * 100) : 0} />
             <CombinedTargetEditor
               year={year}
               month={month}

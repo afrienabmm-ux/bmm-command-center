@@ -28,7 +28,7 @@ export default function MonthlyPaceChart({
   const current = points[points.length - 1];
   const target = current?.target ?? 0;
   const achieved = current?.achieved ?? 0;
-  const pct = target > 0 ? Math.round((achieved / target) * 100) : 0;
+  const pct = target > 0 ? Math.floor((achieved / target) * 100) : 0;
   const remaining = Math.max(0, target - achieved);
   const perDay = workingDaysRemaining > 0 ? Math.ceil(remaining / workingDaysRemaining) : 0;
 
@@ -116,7 +116,7 @@ export default function MonthlyPaceChart({
           // Edge bars anchor the box inward so it isn't cut off.
           const tx = hovered === 0 && points.length > 1 ? "-25%" : hovered === points.length - 1 && points.length > 1 ? "-75%" : "-50%";
           const above = barTop > 70;
-          const pctOf = p.target > 0 ? Math.round((p.achieved / p.target) * 100) : null;
+          const pctOf = p.target > 0 ? Math.floor((p.achieved / p.target) * 100) : null;
           return (
             <div
               className="pointer-events-none absolute z-10 bg-neutral-900 text-white text-xs rounded-lg px-3 py-2 shadow-lg whitespace-nowrap"

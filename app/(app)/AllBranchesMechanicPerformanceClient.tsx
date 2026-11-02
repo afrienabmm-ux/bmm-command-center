@@ -11,7 +11,7 @@ import { MECHANIC_KPI_WORKING_DAYS } from "@/lib/types";
 const COLLAPSED_COUNT = 5;
 
 function TodayProgressBar({ value, target }: { value: number; target: number }) {
-  const pct = target > 0 ? Math.min(100, Math.round((value / target) * 100)) : 0;
+  const pct = target > 0 ? Math.min(100, Math.floor((value / target) * 100)) : 0;
   return (
     <div className="w-24 h-1.5 bg-neutral-100 rounded-full overflow-hidden">
       <div
@@ -219,7 +219,7 @@ export default function AllBranchesMechanicPerformanceClient({
     branchFilter === "all"
       ? BRANCHES.reduce((s, b) => s + weekAchievedByBranch[b.value], 0)
       : weekAchievedByBranch[branchFilter];
-  const targetPct = scopedTarget > 0 ? Math.round((achievedAmount / scopedTarget) * 100) : 0;
+  const targetPct = scopedTarget > 0 ? Math.floor((achievedAmount / scopedTarget) * 100) : 0;
 
   function handleExport() {
     const csv = toCsv(

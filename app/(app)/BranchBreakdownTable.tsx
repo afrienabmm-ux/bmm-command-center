@@ -68,7 +68,7 @@ export default function BranchBreakdownTable({ rows }: { rows: BranchBreakdownRo
                 <td className="px-5 py-3.5 text-neutral-900 font-medium whitespace-nowrap">{branchLabel(b.branch)}</td>
                 <td className="px-5 py-3.5 whitespace-nowrap">
                   {(() => {
-                    const pct = b.target > 0 ? Math.min(100, Math.round((b.achieved / b.target) * 100)) : 0;
+                    const pct = b.target > 0 ? Math.min(100, Math.floor((b.achieved / b.target) * 100)) : 0;
                     return (
                       <div className="min-w-[160px]">
                         <p className="text-xs text-neutral-600">

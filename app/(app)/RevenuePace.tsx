@@ -148,7 +148,7 @@ function BranchRevenueCard({
   asOfDay: number;
   isRealToday: boolean;
 }) {
-  const pct = pace.target > 0 ? Math.min(100, Math.round((pace.achieved / pace.target) * 100)) : 0;
+  const pct = pace.target > 0 ? Math.min(100, Math.floor((pace.achieved / pace.target) * 100)) : 0;
   const markerPct = pace.target > 0 ? Math.min(100, Math.round((pace.expectedByToday / pace.target) * 100)) : 0;
 
   return (
