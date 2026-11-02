@@ -35,6 +35,43 @@ const STATUS_STYLES: Record<RepairStatus, string> = {
 // Rows drawn before "Show all" — see displayed below.
 const ROW_CAP = 100;
 
+// Opening a jobsheet leaves this page, which forgets its tab, dates and
+// scroll position. They're kept for this browser tab so coming back from a
+// jobsheet lands where the PIC left off. A plain visit from the menu has no
+// return flag, so it still opens fresh on today.
+const VIEW_KEY = "walk-in-view";
+const RETURN_KEY = "walk-in-view-return";
+
+type SavedView = {
+  tab: "active" | "completed" | "errors" | "ic";
+  query: string;
+  dateFrom: string;
+  dateTo: string;
+  brandFilter: "all" | "yamaha" | "other";
+  sortBy: "date" | "jobNo";
+  sortDir: "desc" | "asc";
+  showAllFor: string | null;
+  scrollY: number;
+  scrollX: number;
+};
+
+function readSavedView(): SavedView | null {
+  try {
+    const raw = sessionStorage.getItem(VIEW_KEY);
+    return raw ? (JSON.parse(raw) as SavedView) : null;
+  } catch {
+    return null;
+  }
+}
+
+function markReturnToJobsheetList() {
+  try {
+    sessionStorage.setItem(RETURN_KEY, "1");
+  } catch {
+    // Storage blocked — the page just opens fresh on return.
+  }
+}
+
 export default function WalkInClient({
   active,
   completed,
@@ -175,9 +212,9 @@ export default function WalkInClient({
   // effect fires right after that one switches to Completed and immediately
   // resets the date range back to today, hiding an older highlighted job
   // again the moment it's found.
-  useEffect(() => {
-    if (highlightId) return;
-    if (tab === "completed") {
+  function selectTab(next: "active" | "completed" | "errors" | "ic") {
+    setTab(next);
+    if (next === "completed") {
       const today = todayInMalaysia();
       setDateFrom(today);
       setDateTo(today);
@@ -185,7 +222,7 @@ export default function WalkInClient({
       setDateFrom("");
       setDateTo("");
     }
-  }, [tab, highlightId]);
+  }
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
   const [bulkDeleting, setBulkDeleting] = useState(false);
@@ -271,10 +308,73 @@ export default function WalkInClient({
   // Draw at most ROW_CAP rows until asked for the rest — "See All" on
   // Completed is 600+ jobs, which is slow to draw on a phone. A deep-linked
   // job always shows everything so it can't land in the hidden part.
-  const [showAllRows, setShowAllRows] = useState(false);
+  const filterKey = [tab, query, dateFrom, dateTo, brandFilter].join("|");
+  const [showAllFor, setShowAllFor] = useState<string | null>(null);
+  const showAllRows = showAllFor === filterKey;
+
+  // Coming back from a jobsheet: put the filters back first, then the scroll
+  // position once the rows it depends on have actually loaded.
+  const [viewReady, setViewReady] = useState(false);
+  const pendingScroll = useRef<{ y: number; x: number } | null>(null);
   useEffect(() => {
-    setShowAllRows(false);
-  }, [tab, query, dateFrom, dateTo, brandFilter]);
+    let isReturn = false;
+    try {
+      isReturn = sessionStorage.getItem(RETURN_KEY) === "1";
+      sessionStorage.removeItem(RETURN_KEY);
+    } catch {
+      // Storage blocked — stay on the fresh view.
+    }
+    const saved = isReturn && !highlightId ? readSavedView() : null;
+    if (saved) {
+      const tabStillThere =
+        saved.tab === "completed" ||
+        (saved.tab === "active" && active.length > 0) ||
+        (saved.tab === "errors" && errors.length > 0) ||
+        (saved.tab === "ic" && icErrors.length > 0);
+      if (tabStillThere) setTab(saved.tab);
+      setQuery(saved.query);
+      setDateFrom(saved.dateFrom);
+      setDateTo(saved.dateTo);
+      setBrandFilter(saved.brandFilter);
+      setSortBy(saved.sortBy);
+      setSortDir(saved.sortDir);
+      setShowAllFor(saved.showAllFor);
+      pendingScroll.current = { y: saved.scrollY, x: saved.scrollX };
+    }
+    setViewReady(true);
+    // Only ever runs once, when the page opens.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const rowsSettled =
+    viewReady &&
+    !searching &&
+    !rangeLoading &&
+    (query.trim().length < 2 || searchResults !== null) &&
+    (!needsRangeFetch || rangeResults !== null);
+
+  const latestView = useRef<SavedView | null>(null);
+  useEffect(() => {
+    if (!viewReady) return;
+    const previous = latestView.current ?? readSavedView();
+    latestView.current = {
+      tab,
+      query,
+      dateFrom,
+      dateTo,
+      brandFilter,
+      sortBy,
+      sortDir,
+      showAllFor,
+      scrollY: pendingScroll.current ? pendingScroll.current.y : (previous?.scrollY ?? 0),
+      scrollX: pendingScroll.current ? pendingScroll.current.x : (previous?.scrollX ?? 0),
+    };
+    try {
+      sessionStorage.setItem(VIEW_KEY, JSON.stringify(latestView.current));
+    } catch {
+      // Storage blocked — nothing to remember, the page still works.
+    }
+  }, [viewReady, tab, query, dateFrom, dateTo, brandFilter, sortBy, sortDir, showAllFor]);
   const displayed = useMemo(
     () => (showAllRows || highlightId ? visible : visible.slice(0, ROW_CAP)),
     [visible, showAllRows, highlightId]
@@ -318,6 +418,39 @@ export default function WalkInClient({
   useEffect(() => {
     setSelectedIds(new Set());
   }, [tab, query]);
+
+  useEffect(() => {
+    if (!rowsSettled || !pendingScroll.current) return;
+    const { y, x } = pendingScroll.current;
+    pendingScroll.current = null;
+    window.scrollTo(0, y);
+    if (tableScrollRef.current) tableScrollRef.current.scrollLeft = x;
+  }, [rowsSettled]);
+
+  const rememberScroll = useRef(() => {});
+  rememberScroll.current = () => {
+    if (!viewReady || pendingScroll.current || !latestView.current) return;
+    latestView.current = {
+      ...latestView.current,
+      scrollY: window.scrollY,
+      scrollX: tableScrollRef.current?.scrollLeft ?? 0,
+    };
+    try {
+      sessionStorage.setItem(VIEW_KEY, JSON.stringify(latestView.current));
+    } catch {
+      // Storage blocked — nothing to remember, the page still works.
+    }
+  };
+  useEffect(() => {
+    const onScroll = () => rememberScroll.current();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    const table = tableScrollRef.current;
+    table?.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      table?.removeEventListener("scroll", onScroll);
+    };
+  }, []);
 
   // Re-measures whenever the row count or column set changes (branch
   // column toggling, tab switch) — those are the things that actually
@@ -475,7 +608,7 @@ export default function WalkInClient({
         <div className="flex gap-1 bg-white border border-neutral-200 rounded-lg p-1">
           {active.length > 0 && (
             <button
-              onClick={() => setTab("active")}
+              onClick={() => selectTab("active")}
               className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
                 tab === "active" ? "bg-red-500 text-white" : "text-neutral-600 hover:text-neutral-800"
               }`}
@@ -484,7 +617,7 @@ export default function WalkInClient({
             </button>
           )}
           <button
-            onClick={() => setTab("completed")}
+            onClick={() => selectTab("completed")}
             title={completedTotal > completed.length ? `${completedTotal} completed in total — showing the latest ${completed.length}` : undefined}
             className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
               tab === "completed" ? "bg-red-500 text-white" : "text-neutral-600 hover:text-neutral-800"
@@ -494,7 +627,7 @@ export default function WalkInClient({
           </button>
           {errors.length > 0 && (
             <button
-              onClick={() => setTab("errors")}
+              onClick={() => selectTab("errors")}
               className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors whitespace-nowrap ${
                 tab === "errors" ? "bg-red-500 text-white" : "text-red-600 hover:text-red-700"
               }`}
@@ -504,7 +637,7 @@ export default function WalkInClient({
           )}
           {icErrors.length > 0 && (
             <button
-              onClick={() => setTab("ic")}
+              onClick={() => selectTab("ic")}
               className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors whitespace-nowrap ${
                 tab === "ic" ? "bg-red-500 text-white" : "text-red-600 hover:text-red-700"
               }`}
@@ -790,7 +923,7 @@ export default function WalkInClient({
                   <td colSpan={13 + (canEditHere ? 1 : 0)} className="px-5 py-3 text-center">
                     <button
                       type="button"
-                      onClick={() => setShowAllRows(true)}
+                      onClick={() => setShowAllFor(filterKey)}
                       className="text-sm font-medium text-red-600 hover:text-red-700"
                     >
                       Show all {visible.length} jobs ({hiddenRows} more)
@@ -1164,6 +1297,7 @@ function WalkInRow({
   function handleRowDoubleClick(e: React.MouseEvent<HTMLTableRowElement>) {
     if (!canEdit) return;
     if ((e.target as HTMLElement).closest("a, button, input")) return;
+    markReturnToJobsheetList();
     router.push(`/repairs/walk-in/${job.id}/edit`);
   }
 
@@ -1302,6 +1436,7 @@ function WalkInRow({
             <Link
               href={`/repairs/walk-in/${job.id}/edit`}
               prefetch={false}
+              onClick={markReturnToJobsheetList}
               className="text-neutral-400 hover:text-red-600 transition-colors p-1 inline-block"
               title="Edit job"
               aria-label="Edit job"
