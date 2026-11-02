@@ -110,6 +110,7 @@ export default async function GenbluPage({
           tracker={
             <GenbluClient
               registrations={trackerRegistrations}
+              exportName="tracker"
               mechanics={mechanics}
               branch={branch}
               branchSelection={branchSelection}
@@ -119,6 +120,7 @@ export default async function GenbluPage({
           salesmanRegistrations={
             <GenbluClient
               registrations={salesmanRegistrations}
+              exportName="salesman"
               mechanics={mechanics}
               branch={branch}
               branchSelection={branchSelection}
@@ -128,6 +130,7 @@ export default async function GenbluPage({
           adminRegistrations={
             <GenbluClient
               registrations={adminRegistrations}
+              exportName="admin"
               mechanics={mechanics}
               branch={branch}
               branchSelection={branchSelection}

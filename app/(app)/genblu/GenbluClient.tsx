@@ -8,9 +8,8 @@ import {
   deleteGenbluRegistrationAction,
   getScreenshotUrls,
 } from "@/lib/genblu-actions";
-import { exportGenbluCsv, exportAllBranchesGenbluCsv } from "@/lib/export-actions";
 import { BRANCHES, branchLabel, type Branch, type BranchSelection } from "@/lib/branch";
-import { formatDate, formatCurrency } from "@/lib/format";
+import { formatDate, formatCurrency, toCsv } from "@/lib/format";
 import type { Mechanic } from "@/lib/types";
 import ModalPortal from "@/components/ModalPortal";
 
@@ -53,7 +52,9 @@ export default function GenbluClient({
   branch,
   branchSelection,
   locked,
+  exportName,
 }: {
+  exportName: string;
   registrations: RegWithUrl[];
   mechanics: Mechanic[];
   branch: Branch;
@@ -71,7 +72,6 @@ export default function GenbluClient({
     const urls = paths.map((p) => urlOf[p]).filter((u): u is string => !!u);
     if (urls.length) setLightboxUrls(urls);
   }
-  const [exporting, setExporting] = useState(false);
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
   const [query, setQuery] = useState("");
@@ -120,24 +120,29 @@ export default function GenbluClient({
   const visibleRows = showAll ? visible : visible.slice(0, COLLAPSED_COUNT);
   const hiddenCount = visible.length - visibleRows.length;
 
-  async function handleExport() {
-    setExporting(true);
-    try {
-      const showAllBranches = branchSelection === "all";
-      const csv = showAllBranches
-        ? await exportAllBranchesGenbluCsv(fromDate || undefined, toDate || undefined)
-        : await exportGenbluCsv(branch, fromDate || undefined, toDate || undefined);
-      const blob = new Blob([csv], { type: "text/csv" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      const suffix = fromDate || toDate ? `-${fromDate || "start"}_${toDate || "end"}` : "";
-      a.download = `bmm-genblu-${showAllBranches ? "all" : branch}${suffix}.csv`;
-      a.click();
-      URL.revokeObjectURL(url);
-    } finally {
-      setExporting(false);
-    }
+  // Exports exactly the rows on screen — this tab, with the same search and
+  // dates — so a Salesman export can't pick up Admin registrations.
+  function handleExport() {
+    const rows = visible.map((r) => [
+      r.customerName,
+      r.customerPlateNo,
+      r.salespersonName,
+      r.salespersonCode,
+      formatDate(r.createdAt),
+      branchLabel(r.branch),
+      // Same as the Points column: a screenshot reading is exact, a
+      // spending estimate gets "~", and nothing known stays blank.
+      r.pointsAreActual ? r.points : r.points > 0 ? `~${r.points}` : "",
+    ]);
+    const csv = toCsv(["Customer Name", "Customer Plate No", "Registered By", "Code", "Date", "Branch", "Points"], rows);
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    const suffix = fromDate || toDate ? `-${fromDate || "start"}_${toDate || "end"}` : "";
+    a.download = `bmm-genblu-${exportName}-${branchSelection}${suffix}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
   }
 
   function handleDelete() {
@@ -213,10 +218,9 @@ export default function GenbluClient({
         </div>
         <button
           onClick={handleExport}
-          disabled={exporting}
           className="flex items-center gap-1.5 bg-neutral-100 hover:bg-neutral-200 disabled:opacity-50 text-neutral-800 text-sm font-medium px-4 py-2 rounded-lg transition-colors whitespace-nowrap"
         >
-          <Download size={15} /> {exporting ? "Exporting…" : "Export to Excel / CSV"}
+          <Download size={15} /> Export to Excel / CSV
         </button>
         <button
           onClick={() => setModalOpen(true)}
