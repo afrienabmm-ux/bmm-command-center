@@ -5,26 +5,31 @@ import { useState } from "react";
 // GenBlu Register (customer enrollment), New Registration — split by who
 // signed the customer up: a salesperson (forwarded from the Sales
 // Dashboard) or our own admin/service staff, kept apart so the two never
-// mix — and Point Allocation (the monthly counts/points log). Tab-switched
+// mix, with salesman sign-ups who already had points kept on a tab of their
+// own — and Point Allocation (the monthly counts/points log). Tab-switched
 // rather than stacked, same pattern as the Claims page.
-type Tab = "tracker" | "salesman" | "admin" | "allocations";
+type Tab = "tracker" | "salesman" | "salesmanExisting" | "admin" | "allocations";
 
 export default function GenbluTabs({
   registeredCount,
   salesmanCount,
+  salesmanExistingCount,
   adminCount,
   allocationCount,
   tracker,
   salesmanRegistrations,
+  salesmanExistingRegistrations,
   adminRegistrations,
   allocations,
 }: {
   registeredCount: number;
   salesmanCount: number;
+  salesmanExistingCount: number;
   adminCount: number;
   allocationCount: number;
   tracker: React.ReactNode;
   salesmanRegistrations: React.ReactNode;
+  salesmanExistingRegistrations: React.ReactNode;
   adminRegistrations: React.ReactNode;
   allocations: React.ReactNode;
 }) {
@@ -32,13 +37,14 @@ export default function GenbluTabs({
   const tabs: { key: Tab; label: string }[] = [
     { key: "tracker", label: `GenBlu Tracker (${registeredCount})` },
     { key: "salesman", label: `New Reg — Salesman (${salesmanCount})` },
+    { key: "salesmanExisting", label: `Salesman — Existing (${salesmanExistingCount})` },
     { key: "admin", label: `New Reg — Admin (${adminCount})` },
     { key: "allocations", label: `GenBlu Allocations (${allocationCount})` },
   ];
 
   return (
     <div>
-      <div className="flex flex-wrap gap-1 bg-neutral-100 border border-neutral-200 rounded-lg p-1 mb-6 max-w-3xl">
+      <div className="flex flex-wrap gap-1 bg-neutral-100 border border-neutral-200 rounded-lg p-1 mb-6 max-w-5xl">
         {tabs.map((t) => (
           <button
             key={t.key}
@@ -53,6 +59,7 @@ export default function GenbluTabs({
       </div>
       <div className={tab === "tracker" ? "" : "hidden"}>{tracker}</div>
       <div className={tab === "salesman" ? "" : "hidden"}>{salesmanRegistrations}</div>
+      <div className={tab === "salesmanExisting" ? "" : "hidden"}>{salesmanExistingRegistrations}</div>
       <div className={tab === "admin" ? "" : "hidden"}>{adminRegistrations}</div>
       <div className={tab === "allocations" ? "" : "hidden"}>{allocations}</div>
     </div>
