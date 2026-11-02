@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { ClipboardList, Wallet, Layers, PackageCheck, ArrowUp, ArrowDown } from "lucide-react";
-import { formatCurrency, monthLabel } from "@/lib/format";
+import { formatCurrency, monthLabel, MONTH_NAMES } from "@/lib/format";
 import { todayInMalaysia } from "@/lib/malaysia-time";
 import { branchLabel, type Branch, type BranchSelection } from "@/lib/branch";
 import StatCard from "@/components/StatCard";
@@ -76,17 +76,20 @@ function previousMonth(year: number, month: number): { year: number; month: numb
 export default async function AllBranchesOverview({
   year,
   month,
+  day,
   isManagement,
   showSuspiciousJobs,
   branchSelection,
 }: {
   year: number;
   month: number;
+  day: number;
   isManagement: boolean;
   showSuspiciousJobs: boolean;
   branchSelection: BranchSelection;
 }) {
   const prev = previousMonth(year, month);
+  const selectedDate = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
   // "all" shows the company-wide combined view (unchanged); picking a
   // specific branch in the switcher scopes every section on this page down
   // to just that branch instead.
@@ -115,14 +118,14 @@ export default async function AllBranchesOverview({
       ? getBranchMonthSummary(onlyBranch, prev.year, prev.month).then((s) => s.achievedAmount)
       : getAllBranchesAchievedTotal(prev.year, prev.month),
     getMonthlyTrends(year, month, 6, onlyBranch),
-    getRevenuePace(year, month, onlyBranch),
+    getRevenuePace(year, month, onlyBranch, day),
     getWarrantyClaimStatusBreakdown(year, month, onlyBranch),
     getDeliveryClaimStatusBreakdown(year, month, onlyBranch),
     getPackageSalesBreakdown(year, month),
     isManagement
       ? getMechanicCommitment(onlyBranch)
       : Promise.resolve({ date: "", dailyTargetByBranch: {} as Record<Branch, number>, rows: [] }),
-    getTodayActivity(onlyBranch),
+    getTodayActivity(onlyBranch, selectedDate),
     onlyBranch ? getBranchPerformance(onlyBranch, year, month) : Promise.resolve([]),
   ]);
 
@@ -154,6 +157,7 @@ export default async function AllBranchesOverview({
   })();
 
   const serviceRevenueToday = revenuePace.branches.reduce((sum, b) => sum + b.revenueToday, 0);
+  const dayLabel = `${day} ${MONTH_NAMES[month - 1]} ${year}`;
 
   // Same achieved-vs-target figures the trend chart above already fetched
   // (one range query per table, covering all 6 months) — reused here
@@ -269,25 +273,25 @@ export default async function AllBranchesOverview({
         <TodaysJobCheck rows={mechanicCommitment.rows} />
       )}
 
-      {/* Today, at a glance. */}
+      {/* The picked day (today by default), at a glance. */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         <StatCard
           icon={ClipboardList}
-          label="Jobsheet Today"
+          label={revenuePace.isRealToday ? "Jobsheet Today" : `Jobsheet — ${dayLabel}`}
           value={todayActivity.jobsheetCount}
           color="text-red-700 bg-red-500/10"
           href="/repairs/walk-in"
         />
         <StatCard
           icon={Wallet}
-          label="Service Revenue Today"
+          label={revenuePace.isRealToday ? "Service Revenue Today" : `Service Revenue — ${dayLabel}`}
           value={formatCurrency(serviceRevenueToday)}
           color="text-emerald-700 bg-emerald-500/10"
           href="/repairs/walk-in"
         />
         <StatCard
           icon={PackageCheck}
-          label="Services Combo Today"
+          label={revenuePace.isRealToday ? "Services Combo Today" : `Services Combo — ${dayLabel}`}
           value={todayActivity.packagesSoldCount}
           detail={`${todayActivity.packagesByType.Yamalube} Yamalube · ${todayActivity.packagesByType["Rock Oil"]} Rock Oil`}
           color="text-teal-700 bg-teal-500/10"

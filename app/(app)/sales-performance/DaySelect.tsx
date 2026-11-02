@@ -6,9 +6,19 @@ import { useTransition } from "react";
 // Picks a single day within the month already chosen by MonthPicker — lets
 // the GM review any past day's pace (Revenue Today / Today's Status /
 // streak on the Mechanic Performance table) instead of only ever seeing
-// today's numbers. Scoped to this page only; MonthPicker itself stays
-// month/year-only everywhere else it's used.
-export default function DaySelect({ year, month, day }: { year: number; month: number; day: number }) {
+// today's numbers. Used here and on the Dashboard; MonthPicker itself stays
+// month/year-only.
+export default function DaySelect({
+  year,
+  month,
+  day,
+  basePath = "/sales-performance",
+}: {
+  year: number;
+  month: number;
+  day: number;
+  basePath?: string;
+}) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
 
@@ -18,9 +28,9 @@ export default function DaySelect({ year, month, day }: { year: number; month: n
   const now = new Date();
   const isToday = year === now.getFullYear() && month === now.getMonth() + 1 && day === now.getDate();
 
-  function go(nextDay: number) {
+  function go(nextDay: number, nextYear = year, nextMonth = month) {
     startTransition(() => {
-      router.push(`/sales-performance?year=${year}&month=${month}&day=${nextDay}`);
+      router.push(`${basePath}?year=${nextYear}&month=${nextMonth}&day=${nextDay}`);
     });
   }
 
@@ -40,7 +50,7 @@ export default function DaySelect({ year, month, day }: { year: number; month: n
       </select>
       {!isToday && (
         <button
-          onClick={() => go(now.getDate())}
+          onClick={() => go(now.getDate(), now.getFullYear(), now.getMonth() + 1)}
           disabled={isPending}
           className="text-xs font-medium text-red-600 hover:text-red-700 disabled:opacity-50 whitespace-nowrap"
         >

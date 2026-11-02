@@ -5,6 +5,7 @@ import { todayInMalaysia } from "@/lib/malaysia-time";
 import PageHeader from "@/components/PageHeader";
 import MonthPicker from "@/components/MonthPicker";
 import AllBranchesOverview from "./AllBranchesOverview";
+import DaySelect from "./sales-performance/DaySelect";
 
 export const dynamic = "force-dynamic";
 
@@ -14,7 +15,7 @@ export const dynamic = "force-dynamic";
 export default async function CommandCenterPage({
   searchParams,
 }: {
-  searchParams: Promise<{ year?: string; month?: string }>;
+  searchParams: Promise<{ year?: string; month?: string; day?: string }>;
 }) {
   const user = await requireApproved();
   // Mechanic is jobsheet-scanning only — sent to the phone-optimized /scan
@@ -29,21 +30,32 @@ export default async function CommandCenterPage({
   if (user.role === "Sales Advisor") redirect("/genblu-upload");
   const branchSelection = await getActiveBranchSelection(user);
   const params = await searchParams;
-  const [todayYear, todayMonth] = todayInMalaysia().split("-").map(Number);
+  const [todayYear, todayMonth, todayDay] = todayInMalaysia().split("-").map(Number);
   const year = params.year ? Number(params.year) : todayYear;
   const month = params.month ? Number(params.month) : todayMonth;
+  // The day the "at a glance" cards report on — today in the current month,
+  // otherwise that month's last day, until another day is picked.
+  const daysInMonth = new Date(year, month, 0).getDate();
+  const defaultDay = year === todayYear && month === todayMonth ? todayDay : daysInMonth;
+  const day = Math.min(params.day ? Number(params.day) : defaultDay, daysInMonth);
 
   return (
     <div className="flex flex-col h-full">
       <PageHeader
         title="Dashboard"
         subtitle={branchSelection === "all" ? "All branches — after-sales overview" : `${branchLabel(branchSelection)} — after-sales overview`}
-        action={<MonthPicker year={year} month={month} />}
+        action={
+          <div className="flex items-center gap-2">
+            <DaySelect year={year} month={month} day={day} basePath="/" />
+            <MonthPicker year={year} month={month} />
+          </div>
+        }
       />
       <div className="p-4 md:p-8">
         <AllBranchesOverview
           year={year}
           month={month}
+          day={day}
           isManagement={isManagementLevel(user.role)}
           // The Suspicious Jobsheets banner is only for this one account
           // (Afriena, IT Support) rather than every Management login — set

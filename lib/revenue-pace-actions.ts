@@ -76,8 +76,7 @@ export async function getRevenuePace(
   onlyBranch?: Branch,
   // Sales Performance's Day selector — lets the GM replay this whole
   // section (achieved-so-far, behind-amount, the chart's default marker)
-  // as of any past day in the month. Omitted by the Dashboard's own call
-  // site, which always means the real clock's today, same as before.
+  // as of any past day in the month. Omitted means the real clock's today.
   selectedDay?: number
 ): Promise<RevenuePace> {
   await requireApproved();
@@ -92,7 +91,7 @@ export async function getRevenuePace(
   const isPastMonth = year < todayYear || (year === todayYear && month < todayMonthNum);
   const realToday = isCurrentMonth ? todayDate : isPastMonth ? totalDays : 0;
   const today = selectedDay ? Math.min(selectedDay, totalDays) : realToday;
-  const isRealToday = today === realToday;
+  const isRealToday = isCurrentMonth && today === todayDate;
 
   const [{ data: targets, error: targetsErr }, { data: jobs, error: jobsErr }, { data: sales, error: salesErr }] = await Promise.all([
     supabaseAdmin
