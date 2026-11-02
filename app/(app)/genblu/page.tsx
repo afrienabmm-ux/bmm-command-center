@@ -92,10 +92,10 @@ export default async function GenbluPage({
   // New Registration is split by who signed the customer up: a salesperson
   // (forwarded from the Sales Dashboard) or our own admin/service staff.
   const newRegistrations = withUrls.filter((r) => r.source === "new_customer");
-  // A truly new member shows 0 points, or 100 or 200 with a sign-up bonus. Any
+  // A truly new member shows 0 points, or 100 with the sign-up bonus. Any
   // other figure, or none read off the screenshot, goes on the Existing tab.
   const fromSalesman = newRegistrations.filter((r) => r.externalSourceId);
-  const isNewMemberPoints = (r: (typeof fromSalesman)[number]) => r.pointsAreActual && [0, 100, 200].includes(r.points);
+  const isNewMemberPoints = (r: (typeof fromSalesman)[number]) => r.pointsAreActual && (r.points === 0 || r.points === 100);
   const salesmanRegistrations = fromSalesman.filter(isNewMemberPoints);
   const salesmanExistingRegistrations = fromSalesman.filter((r) => !isNewMemberPoints(r));
   const adminRegistrations = newRegistrations.filter((r) => !r.externalSourceId);

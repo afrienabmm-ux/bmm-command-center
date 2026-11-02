@@ -47,6 +47,8 @@ function toReg(r: Row): GenbluRegistration {
 }
 
 // Looked up fresh by name each time (rather than stored as a link) so
+type MatchedRegistration = { id: string; points_accrued: number | null; source: string; created_at: string };
+
 // Point Allocation and GenBlu Register stay two independent tables — this
 // only ever updates an existing Tracker entry, never creates one, so a
 // points event for someone not yet registered just logs normally with no
@@ -54,17 +56,32 @@ function toReg(r: Row): GenbluRegistration {
 async function findMatchingRegistration(
   branch: Branch,
   customerName: string
-): Promise<{ id: string; points_accrued: number | null } | null> {
+): Promise<MatchedRegistration | null> {
   const { data } = await fetchAllRows((a, b) =>
     supabaseAdmin
       .from("cc_genblu_registrations")
-      .select("id, customer_name, points_accrued")
+      .select("id, customer_name, points_accrued, source, created_at")
       .eq("branch", branch)
       .order("id")
       .range(a, b),
   );
   const match = (data ?? []).find((r) => namesLikelyMatch(r.customer_name, customerName));
-  return match ? { id: match.id, points_accrued: match.points_accrued } : null;
+  return match
+    ? { id: match.id, points_accrued: match.points_accrued, source: match.source, created_at: match.created_at }
+    : null;
+}
+
+// A new customer's sign-up award is often uploaded twice: once with the
+// registration and again as a Point Allocation, on a different screenshot,
+// so the duplicate checks can't see it. Same points within a week of
+// registering is treated as that one award, so it logs without being added
+// to (or, when deleted, taken off) the registration's total.
+const SIGNUP_AWARD_WINDOW_DAYS = 7;
+
+function isSignupAwardAlreadyCounted(reg: MatchedRegistration, points: number, transactionDate: string | null): boolean {
+  if (reg.source !== "new_customer" || reg.points_accrued !== points || !transactionDate) return false;
+  const gapMs = Math.abs(new Date(transactionDate).getTime() - new Date(reg.created_at).getTime());
+  return gapMs <= SIGNUP_AWARD_WINDOW_DAYS * 24 * 60 * 60 * 1000;
 }
 
 // A plain content hash of the uploaded file — catches the exact same photo
@@ -1381,7 +1398,7 @@ export async function addGenbluTransactionAction(input: {
   // never creates a new one, so an unregistered customer's award/deduction
   // still logs here without leaving a stray, mostly-empty Tracker card.
   const matchedReg = await findMatchingRegistration(input.branch, customerName);
-  if (matchedReg) {
+  if (matchedReg && !isSignupAwardAlreadyCounted(matchedReg, points, transactionDate)) {
     await supabaseAdmin
       .from("cc_genblu_registrations")
       .update({ points_accrued: Math.max(0, (matchedReg.points_accrued ?? 0) + points) })
@@ -1420,7 +1437,7 @@ export async function getAllBranchesGenbluTransactions(): Promise<GenbluTransact
 export async function deleteGenbluTransactionAction(id: string, branch: Branch): Promise<void> {
   const user = await requireApproved();
   assertCanEditBranch(user, branch);
-  const { data: txn } = await supabaseAdmin.from("cc_genblu_transactions").select("customer_name, points").eq("id", id).single();
+  const { data: txn } = await supabaseAdmin.from("cc_genblu_transactions").select("customer_name, points, transaction_date").eq("id", id).single();
   const { error } = await supabaseAdmin.from("cc_genblu_transactions").delete().eq("id", id);
   if (error) throw new Error(error.message);
 
@@ -1429,7 +1446,7 @@ export async function deleteGenbluTransactionAction(id: string, branch: Branch):
   // Tracker total overstated (or understated, for a deduction).
   if (txn) {
     const matchedReg = await findMatchingRegistration(branch, txn.customer_name);
-    if (matchedReg) {
+    if (matchedReg && !isSignupAwardAlreadyCounted(matchedReg, txn.points, txn.transaction_date)) {
       await supabaseAdmin
         .from("cc_genblu_registrations")
         .update({ points_accrued: Math.max(0, (matchedReg.points_accrued ?? 0) - txn.points) })
