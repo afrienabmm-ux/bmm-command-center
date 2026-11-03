@@ -62,15 +62,25 @@ export default function GenbluTabs({
   allocations: React.ReactNode;
 }) {
   const [tab, setTab] = useState<Tab>("tracker");
-  const [month, setMonth] = useState("");
-  const [fromDate, setFromDate] = useState("");
-  const [toDate, setToDate] = useState("");
+  // Opens on the current month rather than every month at once.
+  const [openingMonth] = useState(() => malaysiaDate(new Date().toISOString()).slice(0, 7));
+  const [month, setMonth] = useState(openingMonth);
+  const [fromDate, setFromDate] = useState(() => `${openingMonth}-01`);
+  const [toDate, setToDate] = useState(() => {
+    const [y, m] = openingMonth.split("-").map(Number);
+    return `${openingMonth}-${String(new Date(y, m, 0).getDate()).padStart(2, "0")}`;
+  });
   const months = useMemo(
     () =>
-      [...new Set([...registeredDates, ...salesmanDates, ...salesmanExistingDates, ...adminDates].map((d) => malaysiaDate(d).slice(0, 7)))]
+      [
+        ...new Set([
+          openingMonth,
+          ...[...registeredDates, ...salesmanDates, ...salesmanExistingDates, ...adminDates].map((d) => malaysiaDate(d).slice(0, 7)),
+        ]),
+      ]
         .sort()
         .reverse(),
-    [registeredDates, salesmanDates, salesmanExistingDates, adminDates]
+    [openingMonth, registeredDates, salesmanDates, salesmanExistingDates, adminDates]
   );
   const count = (dates: string[]) => dates.filter((d) => inGenbluDates(d, fromDate, toDate)).length;
   const tabs: { key: Tab; label: string }[] = [

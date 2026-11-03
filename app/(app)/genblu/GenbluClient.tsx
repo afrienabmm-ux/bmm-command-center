@@ -185,7 +185,11 @@ export default function GenbluClient({
             onChange={(e) => pickMonth(e.target.value)}
             className="appearance-none bg-white border border-neutral-200 hover:border-red-300 rounded-lg pl-3.5 pr-9 py-2 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50 focus:ring-2 focus:ring-red-100 transition-colors cursor-pointer"
           >
-            <option value="">All Months</option>
+            {!month && (
+              <option value="" disabled>
+                Custom dates
+              </option>
+            )}
             {months.map((m) => (
               <option key={m} value={m}>
                 {monthLabel(m)}
