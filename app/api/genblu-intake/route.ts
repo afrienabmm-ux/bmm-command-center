@@ -59,6 +59,59 @@ function initialsFromName(name: string): string {
   return (words[0][0] + words[1][0]).toUpperCase();
 }
 
+function normalizeName(name: string | null): string {
+  return (name ?? "").toUpperCase().replace(/[^A-Z]/g, "");
+}
+
+function normalizePlate(plate: string | null): string {
+  return (plate ?? "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+}
+
+// Plates one typo apart ("BSY2890" vs "BSU2890") — the usual reason a
+// salesman uploads the same customer a second time.
+function platesNearlyMatch(a: string, b: string): boolean {
+  if (a === b) return true;
+  if (a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) if (a[i] !== b[i] && ++diff > 1) return false;
+  return true;
+}
+
+const DUPLICATE_WINDOW_DAYS = 30;
+
+// The same customer sent again with the same points is a repeat upload and
+// is turned away. Different points means a separate visit, and the same
+// name on a clearly different plate is a second bike — both are kept.
+async function findDuplicateUpload(
+  branch: Branch,
+  body: GenbluPayload,
+  screenshotHash: string | null
+): Promise<boolean> {
+  const submitted = body.submitted_at ? new Date(body.submitted_at) : new Date();
+  const from = new Date(submitted.getTime() - DUPLICATE_WINDOW_DAYS * 86400_000).toISOString();
+  const to = new Date(submitted.getTime() + DUPLICATE_WINDOW_DAYS * 86400_000).toISOString();
+  const { data } = await supabaseAdmin
+    .from("cc_genblu_registrations")
+    .select("customer_name, customer_plate_no, points_accrued, screenshot_hash")
+    .eq("branch", branch)
+    .gte("created_at", from)
+    .lte("created_at", to);
+
+  const name = normalizeName(body.customer_name);
+  const plate = normalizePlate(body.plate_no);
+  return (data ?? []).some((r) => {
+    if ((r.points_accrued ?? null) !== (body.reward_points ?? null)) return false;
+    if (screenshotHash && r.screenshot_hash === screenshotHash) return true;
+    const otherPlate = normalizePlate(r.customer_plate_no);
+    if (plate && otherPlate === plate) return true;
+    // A shortened name ("NURUL ATIKA AKMA BINTI" vs the full name) still
+    // counts as the same customer.
+    const otherName = normalizeName(r.customer_name);
+    const sameName = name.length >= 8 && otherName.length >= 8 && (otherName.startsWith(name) || name.startsWith(otherName));
+    return sameName && platesNearlyMatch(plate, otherPlate);
+  });
+}
+
 function signatureValid(rawBody: string, provided: string): boolean {
   if (!SECRET) return false;
   const expected = createHmac("sha256", SECRET).update(rawBody).digest("hex");
@@ -141,6 +194,11 @@ export async function POST(req: Request): Promise<Response> {
   const { path: screenshotPath, hash: screenshotHash } = body.screenshot_url
     ? await mirrorScreenshot(body.screenshot_url, branch)
     : { path: null, hash: null };
+
+  if (await findDuplicateUpload(branch, body, screenshotHash)) {
+    if (screenshotPath) await supabaseAdmin.storage.from(SCREENSHOT_BUCKET).remove([screenshotPath]);
+    return Response.json({ ok: true, duplicate: true });
+  }
 
   const { error } = await supabaseAdmin.from("cc_genblu_registrations").insert({
     branch,
