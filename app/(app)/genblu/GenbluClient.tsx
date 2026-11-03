@@ -71,7 +71,18 @@ export default function GenbluClient({
   }
   const { months, month, setMonth, fromDate, setFromDate, toDate, setToDate } = useGenbluDates();
   const [query, setQuery] = useState("");
-  const [sourceFilter, setSourceFilter] = useState<"all" | "new_customer" | "has_jobsheet">("all");
+  // Narrows the list to one person who registered the customer. Names are
+  // matched ignoring case, since the same person is sometimes typed "Afriena"
+  // and sometimes "afriena".
+  const [person, setPerson] = useState("");
+  const people = useMemo(() => {
+    const byKey = new Map<string, string>();
+    for (const r of registrations) {
+      const name = r.salespersonName.trim();
+      if (name && !byKey.has(name.toLowerCase())) byKey.set(name.toLowerCase(), name);
+    }
+    return [...byKey.entries()].sort((a, b) => a[1].localeCompare(b[1]));
+  }, [registrations]);
   const [isPending, startTransition] = useTransition();
   const [openRemarkId, setOpenRemarkId] = useState<string | null>(null);
   const [showAll, setShowAll] = useState(false);
@@ -93,15 +104,15 @@ export default function GenbluClient({
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase();
     return registrations.filter((r) => {
-      if (sourceFilter !== "all" && r.source !== sourceFilter) return false;
+      if (person && r.salespersonName.trim().toLowerCase() !== person) return false;
       if (q && !r.customerName.toLowerCase().includes(q) && !r.customerPlateNo.toLowerCase().includes(q)) return false;
       return inGenbluDates(r.createdAt, fromDate, toDate);
     });
-  }, [registrations, query, sourceFilter, fromDate, toDate]);
+  }, [registrations, query, person, fromDate, toDate]);
 
   useEffect(() => {
     setShowAll(false);
-  }, [query, sourceFilter, fromDate, toDate]);
+  }, [query, person, fromDate, toDate]);
 
   const visibleRows = showAll ? visible : visible.slice(0, COLLAPSED_COUNT);
   const hiddenCount = visible.length - visibleRows.length;
@@ -155,13 +166,16 @@ export default function GenbluClient({
         <div className="flex items-center gap-3 flex-wrap">
         <div className="relative">
           <select
-            value={sourceFilter}
-            onChange={(e) => setSourceFilter(e.target.value as "all" | "new_customer" | "has_jobsheet")}
+            value={person}
+            onChange={(e) => setPerson(e.target.value)}
             className="appearance-none bg-white border border-neutral-200 hover:border-red-300 rounded-lg pl-3.5 pr-9 py-2 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50 focus:ring-2 focus:ring-red-100 transition-colors cursor-pointer"
           >
-            <option value="all">All Registrations</option>
-            <option value="new_customer">New Registration</option>
-            <option value="has_jobsheet">Has Jobsheet</option>
+            <option value="">All Staff</option>
+            {people.map(([key, name]) => (
+              <option key={key} value={key}>
+                {name}
+              </option>
+            ))}
           </select>
           <ChevronDown size={15} className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none" />
         </div>
