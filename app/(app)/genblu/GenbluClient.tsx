@@ -12,6 +12,7 @@ import { BRANCHES, branchLabel, type Branch, type BranchSelection } from "@/lib/
 import { formatDate, formatCurrency, toCsv } from "@/lib/format";
 import type { Mechanic } from "@/lib/types";
 import ModalPortal from "@/components/ModalPortal";
+import { useGenbluDates, inGenbluDates } from "./GenbluTabs";
 
 type RegWithUrl = {
   id: string;
@@ -37,10 +38,6 @@ type RegWithUrl = {
 const COLLAPSED_COUNT = 50;
 
 // Registration timestamps are stored in UTC — filter on the Malaysia date.
-function malaysiaDate(iso: string): string {
-  return new Date(new Date(iso).getTime() + 8 * 3600_000).toISOString().slice(0, 10);
-}
-
 function monthLabel(ym: string): string {
   const [y, m] = ym.split("-").map(Number);
   return new Date(y, m - 1, 1).toLocaleString("en-MY", { month: "long", year: "numeric" });
@@ -72,20 +69,12 @@ export default function GenbluClient({
     const urls = paths.map((p) => urlOf[p]).filter((u): u is string => !!u);
     if (urls.length) setLightboxUrls(urls);
   }
-  const [fromDate, setFromDate] = useState("");
-  const [toDate, setToDate] = useState("");
+  const { months, month, setMonth, fromDate, setFromDate, toDate, setToDate } = useGenbluDates();
   const [query, setQuery] = useState("");
   const [sourceFilter, setSourceFilter] = useState<"all" | "new_customer" | "has_jobsheet">("all");
   const [isPending, startTransition] = useTransition();
   const [openRemarkId, setOpenRemarkId] = useState<string | null>(null);
   const [showAll, setShowAll] = useState(false);
-
-  const [month, setMonth] = useState("");
-
-  const months = useMemo(
-    () => [...new Set(registrations.map((r) => malaysiaDate(r.createdAt).slice(0, 7)))].sort().reverse(),
-    [registrations]
-  );
 
   // Picking a month fills From/To with that month, so the table and the
   // export always show the same rows.
@@ -106,10 +95,7 @@ export default function GenbluClient({
     return registrations.filter((r) => {
       if (sourceFilter !== "all" && r.source !== sourceFilter) return false;
       if (q && !r.customerName.toLowerCase().includes(q) && !r.customerPlateNo.toLowerCase().includes(q)) return false;
-      const d = malaysiaDate(r.createdAt);
-      if (fromDate && d < fromDate) return false;
-      if (toDate && d > toDate) return false;
-      return true;
+      return inGenbluDates(r.createdAt, fromDate, toDate);
     });
   }, [registrations, query, sourceFilter, fromDate, toDate]);
 

@@ -108,10 +108,10 @@ export default async function GenbluPage({
       />
       <div className="p-4 md:p-8">
         <GenbluTabs
-          registeredCount={trackerRegistrations.length}
-          salesmanCount={salesmanRegistrations.length}
-          salesmanExistingCount={salesmanExistingRegistrations.length}
-          adminCount={adminRegistrations.length}
+          registeredDates={trackerRegistrations.map((r) => r.createdAt)}
+          salesmanDates={salesmanRegistrations.map((r) => r.createdAt)}
+          salesmanExistingDates={salesmanExistingRegistrations.map((r) => r.createdAt)}
+          adminDates={adminRegistrations.map((r) => r.createdAt)}
           allocationCount={transactions.length}
           tracker={
             <GenbluClient

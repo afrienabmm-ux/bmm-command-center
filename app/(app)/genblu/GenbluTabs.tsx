@@ -1,6 +1,34 @@
 "use client";
 
-import { useState } from "react";
+import { createContext, useContext, useMemo, useState } from "react";
+
+function malaysiaDate(iso: string): string {
+  return new Date(new Date(iso).getTime() + 8 * 3600_000).toISOString().slice(0, 10);
+}
+
+// The month and dates are shared by every registration tab, so the counts on
+// the tab buttons and the list underneath always cover the same period.
+type GenbluDates = {
+  months: string[];
+  month: string;
+  setMonth: (ym: string) => void;
+  fromDate: string;
+  setFromDate: (d: string) => void;
+  toDate: string;
+  setToDate: (d: string) => void;
+};
+const GenbluDatesContext = createContext<GenbluDates | null>(null);
+
+export function useGenbluDates(): GenbluDates {
+  const dates = useContext(GenbluDatesContext);
+  if (!dates) throw new Error("useGenbluDates must be used inside GenbluTabs");
+  return dates;
+}
+
+export function inGenbluDates(iso: string, fromDate: string, toDate: string): boolean {
+  const d = malaysiaDate(iso);
+  return (!fromDate || d >= fromDate) && (!toDate || d <= toDate);
+}
 
 // GenBlu Register (customer enrollment), New Registration — split by who
 // signed the customer up: a salesperson (forwarded from the Sales
@@ -11,10 +39,10 @@ import { useState } from "react";
 type Tab = "tracker" | "salesman" | "salesmanExisting" | "admin" | "allocations";
 
 export default function GenbluTabs({
-  registeredCount,
-  salesmanCount,
-  salesmanExistingCount,
-  adminCount,
+  registeredDates,
+  salesmanDates,
+  salesmanExistingDates,
+  adminDates,
   allocationCount,
   tracker,
   salesmanRegistrations,
@@ -22,10 +50,10 @@ export default function GenbluTabs({
   adminRegistrations,
   allocations,
 }: {
-  registeredCount: number;
-  salesmanCount: number;
-  salesmanExistingCount: number;
-  adminCount: number;
+  registeredDates: string[];
+  salesmanDates: string[];
+  salesmanExistingDates: string[];
+  adminDates: string[];
   allocationCount: number;
   tracker: React.ReactNode;
   salesmanRegistrations: React.ReactNode;
@@ -34,15 +62,27 @@ export default function GenbluTabs({
   allocations: React.ReactNode;
 }) {
   const [tab, setTab] = useState<Tab>("tracker");
+  const [month, setMonth] = useState("");
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
+  const months = useMemo(
+    () =>
+      [...new Set([...registeredDates, ...salesmanDates, ...salesmanExistingDates, ...adminDates].map((d) => malaysiaDate(d).slice(0, 7)))]
+        .sort()
+        .reverse(),
+    [registeredDates, salesmanDates, salesmanExistingDates, adminDates]
+  );
+  const count = (dates: string[]) => dates.filter((d) => inGenbluDates(d, fromDate, toDate)).length;
   const tabs: { key: Tab; label: string }[] = [
-    { key: "tracker", label: `GenBlu Tracker (${registeredCount})` },
-    { key: "salesman", label: `New Reg — Salesman (${salesmanCount})` },
-    { key: "salesmanExisting", label: `Salesman — Existing (${salesmanExistingCount})` },
-    { key: "admin", label: `New Reg — Admin (${adminCount})` },
+    { key: "tracker", label: `GenBlu Tracker (${count(registeredDates)})` },
+    { key: "salesman", label: `New Reg — Salesman (${count(salesmanDates)})` },
+    { key: "salesmanExisting", label: `Salesman — Existing (${count(salesmanExistingDates)})` },
+    { key: "admin", label: `New Reg — Admin (${count(adminDates)})` },
     { key: "allocations", label: `GenBlu Allocations (${allocationCount})` },
   ];
 
   return (
+    <GenbluDatesContext.Provider value={{ months, month, setMonth, fromDate, setFromDate, toDate, setToDate }}>
     <div>
       <div className="flex flex-wrap gap-1 bg-neutral-100 border border-neutral-200 rounded-lg p-1 mb-6 max-w-5xl">
         {tabs.map((t) => (
@@ -63,5 +103,6 @@ export default function GenbluTabs({
       <div className={tab === "admin" ? "" : "hidden"}>{adminRegistrations}</div>
       <div className={tab === "allocations" ? "" : "hidden"}>{allocations}</div>
     </div>
+    </GenbluDatesContext.Provider>
   );
 }
