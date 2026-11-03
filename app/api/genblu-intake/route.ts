@@ -81,25 +81,29 @@ const DUPLICATE_WINDOW_DAYS = 30;
 
 // The same customer sent again with the same points is a repeat upload and
 // is turned away. Different points means a separate visit, and the same
-// name on a clearly different plate is a second bike — both are kept.
+// name on a clearly different plate is a second bike — both are kept. Only
+// other salesman sign-ups are compared: an After-Sales service entry for the
+// same customer is never a duplicate of one.
 async function findDuplicateUpload(
   branch: Branch,
   body: GenbluPayload,
   screenshotHash: string | null
-): Promise<boolean> {
+): Promise<{ id: string; customer_plate_no: string | null } | null> {
   const submitted = body.submitted_at ? new Date(body.submitted_at) : new Date();
   const from = new Date(submitted.getTime() - DUPLICATE_WINDOW_DAYS * 86400_000).toISOString();
   const to = new Date(submitted.getTime() + DUPLICATE_WINDOW_DAYS * 86400_000).toISOString();
   const { data } = await supabaseAdmin
     .from("cc_genblu_registrations")
-    .select("customer_name, customer_plate_no, points_accrued, screenshot_hash")
+    .select("id, customer_name, customer_plate_no, points_accrued, screenshot_hash")
     .eq("branch", branch)
+    .eq("source", "new_customer")
+    .not("external_source_id", "is", null)
     .gte("created_at", from)
     .lte("created_at", to);
 
   const name = normalizeName(body.customer_name);
   const plate = normalizePlate(body.plate_no);
-  return (data ?? []).some((r) => {
+  return (data ?? []).find((r) => {
     if ((r.points_accrued ?? null) !== (body.reward_points ?? null)) return false;
     if (screenshotHash && r.screenshot_hash === screenshotHash) return true;
     const otherPlate = normalizePlate(r.customer_plate_no);
@@ -109,7 +113,7 @@ async function findDuplicateUpload(
     const otherName = normalizeName(r.customer_name);
     const sameName = name.length >= 8 && otherName.length >= 8 && (otherName.startsWith(name) || name.startsWith(otherName));
     return sameName && platesNearlyMatch(plate, otherPlate);
-  });
+  }) ?? null;
 }
 
 function signatureValid(rawBody: string, provided: string): boolean {
@@ -195,8 +199,14 @@ export async function POST(req: Request): Promise<Response> {
     ? await mirrorScreenshot(body.screenshot_url, branch)
     : { path: null, hash: null };
 
-  if (await findDuplicateUpload(branch, body, screenshotHash)) {
+  const repeat = await findDuplicateUpload(branch, body, screenshotHash);
+  if (repeat) {
     if (screenshotPath) await supabaseAdmin.storage.from(SCREENSHOT_BUCKET).remove([screenshotPath]);
+    // A salesman usually uploads again to correct a mistyped plate, so the
+    // later plate replaces the earlier one rather than being thrown away.
+    if (normalizePlate(repeat.customer_plate_no) !== normalizePlate(body.plate_no)) {
+      await supabaseAdmin.from("cc_genblu_registrations").update({ customer_plate_no: body.plate_no }).eq("id", repeat.id);
+    }
     return Response.json({ ok: true, duplicate: true });
   }
 
