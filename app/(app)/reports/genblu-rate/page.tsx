@@ -12,6 +12,10 @@ import WeekSelector from "./WeekSelector";
 
 export const dynamic = "force-dynamic";
 
+// The Sales Dashboard sends 10 as the points target, but the real target is
+// 100 (confirmed by the business owner), so ours is fixed here instead.
+const POINTS_TARGET = 100;
+
 function pad(n: number): string {
   return String(n).padStart(2, "0");
 }
@@ -142,11 +146,9 @@ export default async function GenbluSalesRatePage({
                     E-coupon target: <span className="font-semibold text-neutral-900">{targets.ecoupon_pct}%</span>
                   </span>
                 )}
-                {(targets.ecoupon_points ?? targets.points) !== undefined && (
-                  <span className="text-xs bg-white border border-neutral-200 rounded-lg px-3 py-1.5 text-neutral-600">
-                    Points target: <span className="font-semibold text-neutral-900">{targets.ecoupon_points ?? targets.points}</span>
-                  </span>
-                )}
+                <span className="text-xs bg-white border border-neutral-200 rounded-lg px-3 py-1.5 text-neutral-600">
+                  Points target: <span className="font-semibold text-neutral-900">{POINTS_TARGET}</span>
+                </span>
                 {monthly && (
                   <span className="text-xs text-neutral-400 ml-auto">
                     Received {new Date(monthly.receivedAt).toLocaleString("en-MY", { dateStyle: "medium", timeStyle: "short" })}
