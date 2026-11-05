@@ -72,7 +72,7 @@ export default function BranchBreakdownTable({ rows }: { rows: BranchBreakdownRo
                     return (
                       <div className="min-w-[160px]">
                         <p className="text-xs text-neutral-600">
-                          {formatCurrency(b.achieved)} <span className="text-neutral-400">/ {formatCurrency(b.target)}</span>
+                          {formatCurrency(b.achieved)} <span className="text-neutral-500">/ {formatCurrency(b.target)}</span>
                         </p>
                         <div className="flex items-center gap-2 mt-1">
                           <div className="w-20 h-1.5 bg-neutral-100 rounded-full overflow-hidden shrink-0">

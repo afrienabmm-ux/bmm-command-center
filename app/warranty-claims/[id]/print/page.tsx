@@ -21,7 +21,7 @@ export default async function PrintWarrantyClaimPage({ params }: { params: Promi
       <div className="max-w-3xl mx-auto bg-white p-8 print:p-0 print:max-w-none text-black">
         <div className="flex items-start justify-between mb-1">
           <div>
-            <p className="text-[10px] font-bold">WARRANTY CLAIM</p>
+            <p className="text-[11px] font-bold">WARRANTY CLAIM</p>
             <img src="/bmm-logo-full.png" alt="Berjaya Mega Motors" className="h-16 mt-1" />
           </div>
           <div className="text-sm text-right pt-2 space-y-0.5">

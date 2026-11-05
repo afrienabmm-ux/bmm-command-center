@@ -191,7 +191,7 @@ export default function GenbluQuickForm({
             <div>
               <label className="block text-xs font-medium text-neutral-600 mb-1.5">Search by name or plate</label>
               <div className="relative">
-                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
+                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-500" />
                 <input
                   type="text"
                   value={search}
@@ -216,7 +216,7 @@ export default function GenbluQuickForm({
                     </option>
                   ))}
                 </select>
-                <ChevronDown size={15} className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none" />
+                <ChevronDown size={15} className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-500 pointer-events-none" />
               </div>
             </div>
           </div>
@@ -253,7 +253,7 @@ export default function GenbluQuickForm({
                   </option>
                 ))}
               </select>
-              <ChevronDown size={15} className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none" />
+              <ChevronDown size={15} className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-500 pointer-events-none" />
             </div>
           </div>
           <div>

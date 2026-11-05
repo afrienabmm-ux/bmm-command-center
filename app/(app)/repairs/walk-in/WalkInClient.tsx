@@ -648,7 +648,7 @@ export default function WalkInClient({
         </div>
         <div className="flex items-center gap-3 flex-wrap">
           <div className="relative">
-            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-500" />
             <input
               type="text"
               value={query}
@@ -657,10 +657,10 @@ export default function WalkInClient({
               className="bg-white border border-neutral-200 rounded-lg pl-8 pr-3 py-2 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50 w-64"
             />
           </div>
-          {searching && <span className="text-xs text-neutral-400">Searching every job…</span>}
-          {!searching && rangeLoading && <span className="text-xs text-neutral-400">Loading every job in these dates…</span>}
+          {searching && <span className="text-xs text-neutral-500">Searching every job…</span>}
+          {!searching && rangeLoading && <span className="text-xs text-neutral-500">Loading every job in these dates…</span>}
           {!searching && searchResults !== null && (
-            <span className="text-xs text-neutral-400">
+            <span className="text-xs text-neutral-500">
               {searchResults.length} match{searchResults.length === 1 ? "" : "es"} across all tabs and dates
             </span>
           )}
@@ -671,7 +671,7 @@ export default function WalkInClient({
             title="Job Date from"
             className="bg-white border border-neutral-200 rounded-lg px-3 py-2 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
           />
-          <span className="text-sm text-neutral-400">to</span>
+          <span className="text-sm text-neutral-500">to</span>
           <input
             type="date"
             value={dateTo}
@@ -1035,13 +1035,13 @@ function ExportFilteredModal({
                   </option>
                 ))}
               </select>
-              <ChevronDown size={15} className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none" />
+              <ChevronDown size={15} className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-500 pointer-events-none" />
             </div>
           </div>
           <div>
             <label className="block text-xs font-medium text-neutral-600 mb-1.5">Job No. / Plate No. / Customer</label>
             <div className="relative">
-              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
+              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-500" />
               <input
                 type="text"
                 value={query}
@@ -1106,7 +1106,7 @@ function ExportJobModal({
         <h2 className="text-sm font-semibold text-neutral-900 mb-1">Export One Job</h2>
         <p className="text-xs text-neutral-500 mb-4">Search by Job No. or Plate No. — the export will include every item and price for that job.</p>
         <div className="relative mb-3">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-500" />
           <input
             type="text"
             autoFocus
@@ -1128,7 +1128,7 @@ function ExportJobModal({
                 <p className="text-sm font-medium text-neutral-800">{job.jobNo} — {job.plateNo}</p>
                 <p className="text-xs text-neutral-500">{job.customerName || "—"} · {job.items.length} item{job.items.length === 1 ? "" : "s"} · {formatCurrency(job.revenueAmount)}</p>
               </div>
-              <Download size={14} className="text-neutral-400 shrink-0" />
+              <Download size={14} className="text-neutral-500 shrink-0" />
             </button>
           ))}
         </div>
@@ -1155,7 +1155,7 @@ function SignatureBadge({ who, status, resolved }: { who: string; status: string
     return (
       <span
         title={`Scan found no ${who} signature, but staff confirmed it was signed anyway`}
-        className="text-[10px] font-medium px-2 py-0.5 rounded-full border bg-red-500/10 text-red-700 border-red-500/20"
+        className="text-[11px] font-medium px-2 py-0.5 rounded-full border bg-red-500/10 text-red-700 border-red-500/20"
       >
         No {who} sign
       </span>
@@ -1165,7 +1165,7 @@ function SignatureBadge({ who, status, resolved }: { who: string; status: string
     return (
       <span
         title={`Scan couldn't check for a ${who} signature — staff confirmed by hand`}
-        className="text-[10px] font-medium px-2 py-0.5 rounded-full border bg-neutral-100 text-neutral-500 border-neutral-200"
+        className="text-[11px] font-medium px-2 py-0.5 rounded-full border bg-neutral-100 text-neutral-500 border-neutral-200"
       >
         {who[0].toUpperCase() + who.slice(1)} sign unchecked
       </span>
@@ -1226,10 +1226,10 @@ function EndDateCell({ job, editable }: { job: RepairJob; editable: boolean }) {
         onClick={handleClick}
         disabled={isPending || !editable}
         title={date ? `${formatDate(date)} — click to clear` : "Click to mark done (End Date = Job Date)"}
-        className={`flex items-center justify-center w-8 h-8 rounded-lg border text-[10px] font-semibold transition-colors disabled:opacity-50 ${
+        className={`flex items-center justify-center w-8 h-8 rounded-lg border text-[11px] font-semibold transition-colors disabled:opacity-50 ${
           date
             ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-700"
-            : "bg-neutral-50 border-neutral-200 text-neutral-400 hover:border-red-300 hover:text-red-600"
+            : "bg-neutral-50 border-neutral-200 text-neutral-500 hover:border-red-300 hover:text-red-600"
         }`}
       >
         {date ? <Check size={13} /> : "End"}
@@ -1421,7 +1421,7 @@ function WalkInRow({
                 handleViewPhoto();
               }}
               disabled={photoPending}
-              className="text-neutral-400 hover:text-red-600 transition-colors p-1 disabled:opacity-50"
+              className="text-neutral-500 hover:text-red-600 transition-colors p-1 disabled:opacity-50"
               title="View scanned jobsheet photo"
               aria-label="View scanned jobsheet photo"
             >
@@ -1437,7 +1437,7 @@ function WalkInRow({
               href={`/repairs/walk-in/${job.id}/edit`}
               prefetch={false}
               onClick={markReturnToJobsheetList}
-              className="text-neutral-400 hover:text-red-600 transition-colors p-1 inline-block"
+              className="text-neutral-500 hover:text-red-600 transition-colors p-1 inline-block"
               title="Edit job"
               aria-label="Edit job"
             >
@@ -1448,7 +1448,7 @@ function WalkInRow({
             href={`/repairs/walk-in/${job.id}/print`}
             prefetch={false}
             target="_blank"
-            className="text-neutral-400 hover:text-red-600 transition-colors p-1 inline-block"
+            className="text-neutral-500 hover:text-red-600 transition-colors p-1 inline-block"
             title="Print job"
             aria-label="Print job"
           >
@@ -1457,7 +1457,7 @@ function WalkInRow({
           {canEdit && (
             <button
               onClick={() => setConfirmOpen(true)}
-              className="text-neutral-400 hover:text-red-600 transition-colors p-1"
+              className="text-neutral-500 hover:text-red-600 transition-colors p-1"
               title="Delete job"
               aria-label="Delete job"
             >

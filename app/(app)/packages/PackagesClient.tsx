@@ -92,7 +92,7 @@ export default function PackagesClient({
           <p className="text-sm font-semibold text-neutral-900">Recorded Package Sales Log</p>
           <div className="flex items-center gap-3 flex-wrap">
             <div className="relative">
-              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
+              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-500" />
               <input
                 type="text"
                 value={query}
@@ -253,7 +253,7 @@ function SaleRow({ sale }: { sale: PackageSaleWithNames }) {
         <button
           onClick={() => startTransition(() => deletePackageSaleAction(sale.id, sale.branch))}
           disabled={isPending}
-          className="text-neutral-400 hover:text-red-600 disabled:opacity-50 transition-colors"
+          className="text-neutral-500 hover:text-red-600 disabled:opacity-50 transition-colors"
           aria-label="Delete sale record"
         >
           <Trash2 size={14} />

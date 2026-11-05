@@ -173,7 +173,7 @@ function ItemsEditor({
               key={i}
               className="grid grid-cols-1 sm:grid-cols-[auto_150px_1fr_55px_80px_auto] gap-2 sm:items-center border-b border-neutral-100 sm:border-0 pb-3 sm:pb-0 last:border-0 last:pb-0"
             >
-              <span className="text-xs text-neutral-400 w-5 text-right tabular-nums">{i + 1}.</span>
+              <span className="text-xs text-neutral-500 w-5 text-right tabular-nums">{i + 1}.</span>
               <div className="relative">
                 <input
                   type="text"
@@ -228,7 +228,7 @@ function ItemsEditor({
                       >
                         <span className="text-neutral-800">
                           {catalogLabel(p)}
-                          {p.code && <span className="text-neutral-400"> ({p.code})</span>}
+                          {p.code && <span className="text-neutral-500"> ({p.code})</span>}
                         </span>
                         <span className="text-neutral-500 shrink-0">{formatCurrency(p.price)}</span>
                       </button>
@@ -254,7 +254,7 @@ function ItemsEditor({
               <button
                 type="button"
                 onClick={() => removeRow(i)}
-                className="text-neutral-400 hover:text-red-600 transition-colors p-1"
+                className="text-neutral-500 hover:text-red-600 transition-colors p-1"
                 aria-label="Remove item"
               >
                 <Trash2 size={14} />
@@ -1192,7 +1192,7 @@ export default function WalkInJobForm({
               placeholder="e.g. 012-3456789"
               className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
             />
-            <p className="text-[11px] text-neutral-400 mt-1">Matches this visit to their e-service card, even if the name is spelled differently.</p>
+            <p className="text-[11px] text-neutral-500 mt-1">Matches this visit to their e-service card, even if the name is spelled differently.</p>
           </div>
           {isScan && <SectionHeader icon={Bike} title="Vehicle" />}
           <div>
@@ -1379,7 +1379,7 @@ export default function WalkInJobForm({
                   </option>
                 ))}
               </select>
-              <ChevronDown size={15} className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none" />
+              <ChevronDown size={15} className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-500 pointer-events-none" />
             </div>
             {isHeavyJob && (
               <p className="text-xs text-amber-700 mt-1.5">
@@ -1613,7 +1613,7 @@ export default function WalkInJobForm({
                     </option>
                   ))}
                 </select>
-                <ChevronDown size={15} className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none" />
+                <ChevronDown size={15} className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-500 pointer-events-none" />
               </div>
               {packages.length === 0 && <p className="text-xs text-neutral-500 mt-1">No packages set up yet.</p>}
               <div className="mt-3">

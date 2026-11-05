@@ -60,7 +60,7 @@ export default function PackagesSoldSummary({ types, mechanics }: { types: Combo
                 mechanics.map((m) => (
                   <tr key={m.mechanicCode} className="border-t border-neutral-100">
                     <td className={`${TD} text-neutral-700`}>
-                      {m.mechanicName} <span className="text-neutral-400">({m.mechanicCode})</span>
+                      {m.mechanicName} <span className="text-neutral-500">({m.mechanicCode})</span>
                     </td>
                     {COMBO_TYPES.map((t) => (
                       <td key={t} className={`${TD} text-right text-neutral-700`}>{m.byType[t]}</td>

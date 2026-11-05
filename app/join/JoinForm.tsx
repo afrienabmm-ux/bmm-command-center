@@ -55,17 +55,17 @@ function TierCard({
       <div className="absolute -right-8 -top-8 w-32 h-32 bg-white/10 rounded-full" />
       <div className="absolute -right-1 bottom-1 w-20 h-20 bg-white/10 rounded-full" />
       <div className="flex items-center justify-between relative z-10">
-        <p className="text-[10px] font-semibold tracking-widest uppercase opacity-80">BMM E-Service Card</p>
+        <p className="text-[11px] font-semibold tracking-widest uppercase opacity-80">BMM E-Service Card</p>
         <Sparkles size={16} className="opacity-90" />
       </div>
-      <p className="text-[10px] uppercase tracking-widest opacity-70 mt-7">Member</p>
+      <p className="text-[11px] uppercase tracking-widest opacity-70 mt-7">Member</p>
       <p className="text-xl font-bold tracking-widest mt-1">{cardNumber}</p>
       <div className="flex items-end justify-between mt-4 relative z-10">
         <div className="min-w-0">
           <p className="text-xs opacity-90 uppercase tracking-wide leading-snug">{name}</p>
-          {plateNo && <p className="text-[10px] opacity-70 truncate uppercase tracking-wide mt-0.5">{plateNo}</p>}
+          {plateNo && <p className="text-[11px] opacity-70 truncate uppercase tracking-wide mt-0.5">{plateNo}</p>}
         </div>
-        {memberSince && <p className="text-[10px] opacity-70 shrink-0 ml-2">Since {memberSince}</p>}
+        {memberSince && <p className="text-[11px] opacity-70 shrink-0 ml-2">Since {memberSince}</p>}
       </div>
     </div>
   );
@@ -117,7 +117,7 @@ function StampProgress({ stamps }: { stamps: number[] }) {
                 ) : filled ? (
                   <Wrench size={13} />
                 ) : (
-                  <span className="text-[10px] font-semibold">{stampNo}</span>
+                  <span className="text-[11px] font-semibold">{stampNo}</span>
                 )}
               </div>
               {reward && <p className="text-[7px] text-neutral-500 text-center leading-tight">{reward}</p>}
@@ -125,14 +125,14 @@ function StampProgress({ stamps }: { stamps: number[] }) {
           );
         })}
       </div>
-      <p className="text-[11px] text-neutral-400 mt-2 text-center">
+      <p className="text-[11px] text-neutral-500 mt-2 text-center">
         {justEarned
           ? `🎉 You've earned: ${justEarned} — redeem it at the counter!`
           : upcoming
             ? `Next reward: ${upcoming.label} at stamp ${upcoming.stamp}.`
             : "Card complete — a new one starts on your next visit."}
       </p>
-      <p className="text-[10px] text-neutral-300 mt-1 text-center">Double-tap the card to see it larger</p>
+      <p className="text-[11px] text-neutral-300 mt-1 text-center">Double-tap the card to see it larger</p>
     </div>
     {big && <BigStampCard stamps={stamps} onClose={() => setBig(false)} />}
     </>
@@ -169,7 +169,7 @@ function BigStampCard({ stamps, onClose }: { stamps: number[]; onClose: () => vo
                       : "bg-neutral-100 text-neutral-300 border border-neutral-200"
                 }`}
               >
-                <span className="absolute top-1 left-1.5 text-[10px] font-bold opacity-80">{n}</span>
+                <span className="absolute top-1 left-1.5 text-[11px] font-bold opacity-80">{n}</span>
                 {icon ? <RewardIcon name={icon} size={30} /> : filled ? <Wrench size={22} /> : <span className="text-sm font-semibold">{n}</span>}
                 {reward && <span className="text-[8px] leading-tight font-semibold">{reward}</span>}
               </div>
@@ -293,7 +293,7 @@ export default function JoinForm() {
     return (
       <div className="flex flex-col items-center justify-center py-10">
         <Loader2 size={22} className="text-red-400 animate-spin" />
-        <p className="text-xs text-neutral-400 mt-3">Finding your card…</p>
+        <p className="text-xs text-neutral-500 mt-3">Finding your card…</p>
       </div>
     );
   }
@@ -337,7 +337,7 @@ export default function JoinForm() {
           memberSince={formatDate(result.issuedDate)}
         />
         {result.expiryDate && (
-          <p className="text-[11px] text-neutral-400 text-center mt-1.5">Expires {formatDate(result.expiryDate)}</p>
+          <p className="text-[11px] text-neutral-500 text-center mt-1.5">Expires {formatDate(result.expiryDate)}</p>
         )}
         <div className="grid grid-cols-2 gap-2.5 mt-3">
           <div className="bg-gradient-to-br from-red-50 to-rose-50 border border-red-100 rounded-xl py-2 text-center">
@@ -351,7 +351,7 @@ export default function JoinForm() {
         </div>
         <StampProgress stamps={result.stamps} />
         <div className="flex items-center justify-between mt-3">
-          <p className="text-[11px] text-neutral-400">Show this screen at the counter</p>
+          <p className="text-[11px] text-neutral-500">Show this screen at the counter</p>
           <button onClick={handleReset} className="text-[11px] font-medium text-neutral-500 hover:text-neutral-700">
             Check another number
           </button>
@@ -368,7 +368,7 @@ export default function JoinForm() {
       </p>
       <div className="space-y-3.5">
         <div className="relative">
-          <Phone size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-400" />
+          <Phone size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-500" />
           <input
             type="text"
             autoCapitalize="characters"

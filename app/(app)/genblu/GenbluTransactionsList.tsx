@@ -121,7 +121,7 @@ export default function GenbluTransactionsList({
                   <td className="px-4 py-2.5">
                     <button
                       onClick={() => setDeleting(t)}
-                      className="text-neutral-400 hover:text-red-600 transition-colors p-1"
+                      className="text-neutral-500 hover:text-red-600 transition-colors p-1"
                       title="Delete transaction"
                       aria-label="Delete transaction"
                     >

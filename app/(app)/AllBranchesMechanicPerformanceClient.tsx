@@ -285,7 +285,7 @@ export default function AllBranchesMechanicPerformanceClient({
         )}
         <div className="flex items-center gap-2 flex-wrap">
           <div className="relative">
-            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-500" />
             <input
               type="text"
               value={query}
@@ -326,7 +326,7 @@ export default function AllBranchesMechanicPerformanceClient({
                   </option>
                 ))}
               </select>
-              <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none" />
+              <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-neutral-500 pointer-events-none" />
             </div>
           )}
           <button
@@ -345,7 +345,7 @@ export default function AllBranchesMechanicPerformanceClient({
               <Target size={14} className="text-red-500" />
             </div>
             <p className="text-xl font-semibold text-neutral-900 mt-1">{formatCurrency(scopedTarget)}</p>
-            <p className="text-xs text-neutral-400 mt-0.5">
+            <p className="text-xs text-neutral-500 mt-0.5">
               {branchFilter === "all" ? "all branches" : branchLabel(branchFilter)}
             </p>
           </div>
@@ -355,19 +355,19 @@ export default function AllBranchesMechanicPerformanceClient({
               <BarChart3 size={14} className="text-indigo-500" />
             </div>
             <p className="text-xl font-semibold text-neutral-900 mt-1">{targetPct}%</p>
-            <p className="text-xs text-neutral-400 mt-0.5">
+            <p className="text-xs text-neutral-500 mt-0.5">
               {formatCurrency(achievedAmount)} / {formatCurrency(scopedTarget)}
             </p>
           </div>
           <div className="bg-neutral-50 border border-neutral-200 rounded-lg p-3.5">
             <p className="text-[11px] font-medium text-neutral-500 tracking-wide">TEAM REVENUE {dayLabel.toUpperCase()}</p>
             <p className="text-xl font-semibold text-neutral-900 mt-1">{formatCurrency(teamRevenueToday)}</p>
-            <p className="text-xs text-neutral-400 mt-0.5">target {formatCurrency(teamDailyTarget)}</p>
+            <p className="text-xs text-neutral-500 mt-0.5">target {formatCurrency(teamDailyTarget)}</p>
           </div>
           <div className="bg-neutral-50 border border-neutral-200 rounded-lg p-3.5">
             <p className="text-[11px] font-medium text-neutral-500 tracking-wide">JOBS {dayLabel.toUpperCase()}</p>
             <p className="text-xl font-semibold text-neutral-900 mt-1">{teamJobsToday}</p>
-            <p className="text-xs text-neutral-400 mt-0.5">across {todayRows.length} mechanics</p>
+            <p className="text-xs text-neutral-500 mt-0.5">across {todayRows.length} mechanics</p>
           </div>
         </div>
       )}

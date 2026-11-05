@@ -100,7 +100,7 @@ export default function AppShell({
             {/* Desktop: stands in for the sidebar's own logo/name once it's
                 collapsed to icons. */}
             <p className={`hidden text-sm font-semibold text-neutral-800 tracking-wide truncate ${collapsed ? "md:block" : ""}`}>
-              BERJAYA MEGA MOTORS <span className="text-neutral-400 font-normal">— AFTERSALES</span>
+              BERJAYA MEGA MOTORS <span className="text-neutral-500 font-normal">— AFTERSALES</span>
             </p>
           </div>
           <BranchSwitcher activeBranch={activeBranch} locked={locked} allowAll={allowAll} />

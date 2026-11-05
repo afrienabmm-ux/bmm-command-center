@@ -62,7 +62,7 @@ export default function MonthlyPaceChart({
             {ticks.map((t) => (
               <g key={t}>
                 <line x1={0} x2={width} y1={yAt(t)} y2={yAt(t)} className="stroke-neutral-100" strokeWidth={1} />
-                <text x={-8} y={yAt(t)} dy={3} textAnchor="end" className="fill-neutral-400 text-[10px]">
+                <text x={-8} y={yAt(t)} dy={3} textAnchor="end" className="fill-neutral-400 text-[11px]">
                   {shortAmount(t)}
                 </text>
               </g>
@@ -70,7 +70,7 @@ export default function MonthlyPaceChart({
             {target > 0 && (
               <>
                 <line x1={0} x2={width} y1={targetY} y2={targetY} strokeDasharray="6 4" strokeWidth={2} className="stroke-red-400" />
-                <text x={width} y={targetY - 6} textAnchor="end" className="fill-red-500 text-[10px] font-medium">
+                <text x={width} y={targetY - 6} textAnchor="end" className="fill-red-500 text-[11px] font-medium">
                   Target {shortAmount(target)}
                 </text>
               </>
@@ -101,7 +101,7 @@ export default function MonthlyPaceChart({
                         : hovered === i ? "fill-neutral-400" : "fill-neutral-300"
                     }
                   />
-                  <text x={x + barWidth / 2} y={plotBottom + 18} textAnchor="middle" className="fill-neutral-500 text-[10px]">
+                  <text x={x + barWidth / 2} y={plotBottom + 18} textAnchor="middle" className="fill-neutral-500 text-[11px]">
                     {MONTH_NAMES[p.month - 1].slice(0, 3)}
                   </text>
                 </g>
@@ -139,7 +139,7 @@ export default function MonthlyPaceChart({
           );
         })()}
       </div>
-      <p className="text-xs text-neutral-400 mt-2">
+      <p className="text-xs text-neutral-500 mt-2">
         Last {points.length} months · current month (blue) is month-to-date.
       </p>
     </div>

@@ -26,7 +26,7 @@ export default function JobsheetRevenueSummary({
         <div className="bg-white border border-neutral-200 rounded-lg overflow-x-auto max-w-full">
           <table className="w-full text-xs">
             <thead>
-              <tr className="bg-neutral-50 text-left text-[10px] font-medium text-neutral-500 uppercase tracking-wide">
+              <tr className="bg-neutral-50 text-left text-[11px] font-medium text-neutral-500 uppercase tracking-wide">
                 <th className="px-2.5 py-1.5 whitespace-nowrap">{periodLabel}</th>
                 {branchColumns?.map((b) => (
                   <th key={b.key} className="px-2.5 py-1.5 text-right whitespace-nowrap">

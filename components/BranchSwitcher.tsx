@@ -64,7 +64,7 @@ export default function BranchSwitcher({
           </option>
         ))}
       </select>
-      <ChevronDown size={14} className="absolute right-2 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none" />
+      <ChevronDown size={14} className="absolute right-2 top-1/2 -translate-y-1/2 text-neutral-500 pointer-events-none" />
     </div>
     <div className="hidden md:flex items-center gap-1 bg-white border border-black/[0.06] shadow-sm rounded-xl p-1 overflow-x-auto max-w-full">
       {options.map((opt) => (
@@ -75,7 +75,7 @@ export default function BranchSwitcher({
           disabled={isPending}
           className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap shrink-0 disabled:opacity-50 ${
             activeBranch === opt.value
-              ? "bg-gradient-to-r from-red-600 to-red-500 text-white shadow-md shadow-red-500/30"
+              ? "bg-red-600 text-white shadow-sm"
               : "text-neutral-600 hover:text-neutral-900 hover:bg-neutral-100"
           }`}
         >

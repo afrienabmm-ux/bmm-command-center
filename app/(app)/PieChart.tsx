@@ -143,7 +143,7 @@ export function PieChartBody({ slices }: { slices: PieSlice[] }) {
               {s.label}
             </span>
             <span className="font-medium text-neutral-900">
-              {s.value} <span className="text-neutral-400 font-normal">({Math.round((s.value / total) * 100)}%)</span>
+              {s.value} <span className="text-neutral-500 font-normal">({Math.round((s.value / total) * 100)}%)</span>
             </span>
           </div>
         ))}

@@ -112,7 +112,7 @@ export default function CustomersClient({
       <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
         <div className="flex items-center gap-2 flex-wrap">
           <div className="relative w-full sm:w-auto">
-            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-500" />
             <input
               type="text"
               value={query}
@@ -130,7 +130,7 @@ export default function CustomersClient({
               <option value="issued">Sort: Issued Date</option>
               <option value="name">Sort: Name</option>
             </select>
-            <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none" />
+            <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-neutral-500 pointer-events-none" />
           </div>
           {salespeople.length > 0 && (
             <div className="relative">
@@ -146,7 +146,7 @@ export default function CustomersClient({
                   </option>
                 ))}
               </select>
-              <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none" />
+              <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-neutral-500 pointer-events-none" />
             </div>
           )}
           <button
@@ -223,7 +223,7 @@ export default function CustomersClient({
                 <td className="px-4 py-3 font-medium text-neutral-800">
                   {c.customerName}
                   {showAllBranches && (
-                    <span className="ml-2 text-[10px] font-medium text-neutral-500 bg-neutral-100 rounded-full px-1.5 py-0.5 align-middle">
+                    <span className="ml-2 text-[11px] font-medium text-neutral-500 bg-neutral-100 rounded-full px-1.5 py-0.5 align-middle">
                       {branchLabel(c.branch)}
                     </span>
                   )}
@@ -253,7 +253,7 @@ export default function CustomersClient({
                     <div className="flex items-center gap-1 justify-end">
                       <button
                         onClick={() => setCardModalFor(c)}
-                        className="text-neutral-400 hover:text-red-600 transition-colors p-1"
+                        className="text-neutral-500 hover:text-red-600 transition-colors p-1"
                         title="Edit e-service card"
                         aria-label="Edit e-service card"
                       >
@@ -261,7 +261,7 @@ export default function CustomersClient({
                       </button>
                       <button
                         onClick={() => setDeleting(c)}
-                        className="text-neutral-400 hover:text-red-600 transition-colors p-1"
+                        className="text-neutral-500 hover:text-red-600 transition-colors p-1"
                         title="Delete e-service card"
                         aria-label="Delete e-service card"
                       >
@@ -434,7 +434,7 @@ function CardModal({
           <h2 className="text-sm font-semibold text-neutral-900">
             {existing ? "Edit E-Service Card" : "New E-Service Card"}
           </h2>
-          <button onClick={onClose} className="text-neutral-400 hover:text-neutral-700" aria-label="Close">
+          <button onClick={onClose} className="text-neutral-500 hover:text-neutral-700" aria-label="Close">
             <X size={16} />
           </button>
         </div>
@@ -520,7 +520,7 @@ function CardModal({
               className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
             />
             {existing && (
-              <p className="text-[11px] text-neutral-400 mt-1.5">
+              <p className="text-[11px] text-neutral-500 mt-1.5">
                 Changed their number? Update it here — they&apos;ll use the new one to check their card on /join.
               </p>
             )}
@@ -661,7 +661,7 @@ function StampModal({ card, readOnly = false, onClose }: { card: CustomerCard; r
       <div className="bg-white border border-neutral-200 rounded-xl w-full max-w-sm p-6">
         <div className="flex items-center justify-between mb-1">
           <h2 className="text-sm font-semibold text-neutral-900">{card.customerName}&apos;s Stamp Card</h2>
-          <button onClick={onClose} className="text-neutral-400 hover:text-neutral-700" aria-label="Close">
+          <button onClick={onClose} className="text-neutral-500 hover:text-neutral-700" aria-label="Close">
             <X size={16} />
           </button>
         </div>
@@ -686,7 +686,7 @@ function StampModal({ card, readOnly = false, onClose }: { card: CustomerCard; r
                 className={`flex flex-col items-center gap-1 py-2 rounded-lg border transition-colors ${
                   filled
                     ? "bg-gradient-to-br from-red-500 to-rose-600 border-red-500 text-white"
-                    : "bg-neutral-50 border-neutral-200 text-neutral-400 hover:border-red-300"
+                    : "bg-neutral-50 border-neutral-200 text-neutral-500 hover:border-red-300"
                 }`}
                 title={reward ?? `Stamp ${stampNo}`}
               >

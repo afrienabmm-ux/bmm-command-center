@@ -204,7 +204,7 @@ export default function ReportTable({
     <div>
       <div className="flex items-center gap-3 flex-wrap mb-4">
         <div className="relative">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-500" />
           <input
             type="text"
             value={query}
@@ -250,7 +250,7 @@ export default function ReportTable({
               onChange={(e) => setFrom(e.target.value)}
               className="bg-white border border-neutral-200 rounded-lg px-3 py-2 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
             />
-            <span className="text-sm text-neutral-400">to</span>
+            <span className="text-sm text-neutral-500">to</span>
             <input
               type="date"
               value={to}
@@ -317,7 +317,7 @@ export default function ReportTable({
                             className="flex items-center gap-1.5 text-neutral-700 hover:text-red-600 group"
                             title="Click to fill in the correct number"
                           >
-                            {r[c.key] || <span className="text-neutral-400 italic">blank — click to fill in</span>}
+                            {r[c.key] || <span className="text-neutral-500 italic">blank — click to fill in</span>}
                             <Pencil size={12} className="opacity-0 group-hover:opacity-100" />
                           </button>
                         </td>
@@ -379,7 +379,7 @@ export default function ReportTable({
                 placeholder="e.g. 880101-14-5566"
                 className="w-full bg-white border border-neutral-200 rounded-lg px-3 py-2 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
               />
-              {editHint && <p className="text-xs text-neutral-400 mt-2">{editHint}</p>}
+              {editHint && <p className="text-xs text-neutral-500 mt-2">{editHint}</p>}
               {editError && <p className="text-xs text-red-600 mt-2">{editError}</p>}
               <div className="flex items-center justify-end gap-2 mt-4">
                 <button

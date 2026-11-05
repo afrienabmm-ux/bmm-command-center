@@ -64,7 +64,7 @@ export default async function ReportsPage() {
                 <div className="w-12 h-12 rounded-lg flex items-center justify-center text-neutral-700 bg-neutral-500/10">
                   <History size={22} />
                 </div>
-                <span className="text-[10px] font-semibold text-neutral-400 uppercase tracking-wide mt-1.5">Admin</span>
+                <span className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wide mt-1.5">Admin</span>
               </div>
               <p className="text-base font-semibold text-neutral-900">Logs</p>
               <p className="text-sm text-neutral-500 mt-1.5 leading-relaxed">Who logged in and every team-management action.</p>
@@ -87,7 +87,7 @@ export default async function ReportsPage() {
                   <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${card.color}`}>
                     <Icon size={22} />
                   </div>
-                  <span className="text-[10px] font-semibold text-neutral-400 uppercase tracking-wide mt-1.5">{card.category}</span>
+                  <span className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wide mt-1.5">{card.category}</span>
                 </div>
                 <p className="text-base font-semibold text-neutral-900">{card.title}</p>
                 <p className="text-sm text-neutral-500 mt-1.5 leading-relaxed">{card.description}</p>

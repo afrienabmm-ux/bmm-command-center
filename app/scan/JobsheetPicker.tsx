@@ -28,7 +28,7 @@ export default function JobsheetPicker({ jobs, selectedId }: { jobs: JobsheetOpt
             </option>
           ))}
         </select>
-        <ChevronDown size={15} className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none" />
+        <ChevronDown size={15} className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-500 pointer-events-none" />
       </div>
       {jobs.length === 0 && selectedId === undefined && (
         <p className="text-xs text-neutral-500 mt-1.5">No jobsheets waiting on an End Date right now.</p>

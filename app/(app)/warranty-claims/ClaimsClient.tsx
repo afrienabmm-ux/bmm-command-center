@@ -190,7 +190,7 @@ export default function ClaimsClient({
 
       <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
         <div className="relative">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-500" />
           <input
             type="text"
             value={query}
@@ -220,7 +220,7 @@ export default function ClaimsClient({
                 </option>
               ))}
             </select>
-            <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none" />
+            <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-neutral-500 pointer-events-none" />
           </div>
           <div className="relative">
             <select
@@ -235,7 +235,7 @@ export default function ClaimsClient({
                 </option>
               ))}
             </select>
-            <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none" />
+            <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-neutral-500 pointer-events-none" />
           </div>
           <button
             onClick={handleExport}
@@ -346,7 +346,7 @@ function ClaimRow({ claim, showBranch, knownPics }: { claim: WarrantyClaim; show
       <td className="px-5 py-3.5 whitespace-nowrap">
         <button
           onClick={() => setNotesOpen(true)}
-          className="text-neutral-400 hover:text-red-600 transition-colors p-1"
+          className="text-neutral-500 hover:text-red-600 transition-colors p-1"
           title="Edit PIC"
           aria-label="Edit PIC"
         >
@@ -356,7 +356,7 @@ function ClaimRow({ claim, showBranch, knownPics }: { claim: WarrantyClaim; show
           href={`/warranty-claims/${claim.id}/print`}
           prefetch={false}
           target="_blank"
-          className="text-neutral-400 hover:text-red-600 transition-colors p-1 inline-block"
+          className="text-neutral-500 hover:text-red-600 transition-colors p-1 inline-block"
           title="Print claim"
           aria-label="Print claim"
         >
@@ -364,7 +364,7 @@ function ClaimRow({ claim, showBranch, knownPics }: { claim: WarrantyClaim; show
         </Link>
         <button
           onClick={() => setConfirmOpen(true)}
-          className="text-neutral-400 hover:text-red-600 transition-colors p-1"
+          className="text-neutral-500 hover:text-red-600 transition-colors p-1"
           title="Delete claim"
           aria-label="Delete claim"
         >
@@ -508,7 +508,7 @@ function LatestStatusCell({ claim }: { claim: WarrantyClaim }) {
         >
           <Check size={14} />
         </button>
-        <button onClick={handleCancel} className="text-neutral-400 hover:text-red-600 p-1" title="Cancel" aria-label="Cancel">
+        <button onClick={handleCancel} className="text-neutral-500 hover:text-red-600 p-1" title="Cancel" aria-label="Cancel">
           <X size={14} />
         </button>
       </div>
@@ -522,7 +522,7 @@ function LatestStatusCell({ claim }: { claim: WarrantyClaim }) {
       </span>
       <button
         onClick={() => setEditing(true)}
-        className="text-neutral-400 hover:text-red-600 transition-colors p-1 shrink-0"
+        className="text-neutral-500 hover:text-red-600 transition-colors p-1 shrink-0"
         title="Update latest status"
         aria-label="Update latest status"
       >
@@ -719,7 +719,7 @@ function AddClaimModal({
                     </option>
                   ))}
                 </select>
-                <ChevronDown size={15} className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none" />
+                <ChevronDown size={15} className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-500 pointer-events-none" />
               </div>
             </div>
           )}
@@ -779,7 +779,7 @@ function AddClaimModal({
                   </option>
                 ))}
               </select>
-              <ChevronDown size={15} className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none" />
+              <ChevronDown size={15} className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-500 pointer-events-none" />
             </div>
           </div>
           <div>
@@ -817,7 +817,7 @@ function AddClaimModal({
                     </option>
                   ))}
                 </select>
-                <ChevronDown size={15} className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none" />
+                <ChevronDown size={15} className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-500 pointer-events-none" />
               </div>
             </div>
             <div>

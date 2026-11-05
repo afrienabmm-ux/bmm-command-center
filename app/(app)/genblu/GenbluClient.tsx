@@ -154,7 +154,7 @@ export default function GenbluClient({
     <div>
       <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
         <div className="relative">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-500" />
           <input
             type="text"
             value={query}
@@ -177,7 +177,7 @@ export default function GenbluClient({
               </option>
             ))}
           </select>
-          <ChevronDown size={15} className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none" />
+          <ChevronDown size={15} className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-500 pointer-events-none" />
         </div>
         <div className="relative">
           <select
@@ -196,7 +196,7 @@ export default function GenbluClient({
               </option>
             ))}
           </select>
-          <ChevronDown size={15} className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none" />
+          <ChevronDown size={15} className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-500 pointer-events-none" />
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           <label className="text-xs font-medium text-neutral-500">From</label>
@@ -317,7 +317,7 @@ export default function GenbluClient({
                     <div className="flex items-center gap-1 shrink-0">
                       <button
                         onClick={() => setEditing(r)}
-                        className="text-neutral-400 hover:text-red-600 transition-colors p-1"
+                        className="text-neutral-500 hover:text-red-600 transition-colors p-1"
                         title="Edit registration"
                         aria-label="Edit registration"
                       >
@@ -325,7 +325,7 @@ export default function GenbluClient({
                       </button>
                       <button
                         onClick={() => setDeleting(r)}
-                        className="text-neutral-400 hover:text-red-600 transition-colors p-1"
+                        className="text-neutral-500 hover:text-red-600 transition-colors p-1"
                         title="Delete registration"
                         aria-label="Delete registration"
                       >
@@ -491,7 +491,7 @@ function RegisterModal({
                   </option>
                 ))}
               </select>
-              <ChevronDown size={15} className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none" />
+              <ChevronDown size={15} className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-500 pointer-events-none" />
             </div>
             <p className="text-xs text-neutral-500 mt-1.5">Pick the branch first — it decides which salespeople show up below.</p>
           </div>
@@ -511,7 +511,7 @@ function RegisterModal({
                   ))}
                   <option value="custom">Other (type manually)</option>
                 </select>
-                <ChevronDown size={15} className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none" />
+                <ChevronDown size={15} className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-500 pointer-events-none" />
               </div>
             ) : (
               <input
@@ -683,7 +683,7 @@ function EditModal({
                   ))}
                   <option value="custom">Other (type manually)</option>
                 </select>
-                <ChevronDown size={15} className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none" />
+                <ChevronDown size={15} className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-500 pointer-events-none" />
               </div>
             ) : null}
           </div>

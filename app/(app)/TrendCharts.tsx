@@ -96,7 +96,7 @@ export function RevenueTrendChart({ points }: { points: MonthlyTrendPoint[] }) {
             {ticks.map((t) => (
               <g key={t}>
                 <line x1={0} x2={width} y1={yAt(t)} y2={yAt(t)} className="stroke-neutral-100" strokeWidth={1} />
-                <text x={-8} y={yAt(t)} dy={3} textAnchor="end" className="fill-neutral-400 text-[10px]">
+                <text x={-8} y={yAt(t)} dy={3} textAnchor="end" className="fill-neutral-400 text-[11px]">
                   {shortAmount(t)}
                 </text>
               </g>
@@ -113,7 +113,7 @@ export function RevenueTrendChart({ points }: { points: MonthlyTrendPoint[] }) {
                     x={xAt(i)}
                     y={achievedAbove ? labelBelow(targetY) : labelAbove(targetY)}
                     textAnchor="middle"
-                    className="fill-neutral-500 text-[10px] font-medium"
+                    className="fill-neutral-500 text-[11px] font-medium"
                   >
                     {shortAmount(p.targetAmount)}
                   </text>
@@ -121,11 +121,11 @@ export function RevenueTrendChart({ points }: { points: MonthlyTrendPoint[] }) {
                     x={xAt(i)}
                     y={achievedAbove ? labelAbove(achievedY) : labelBelow(achievedY)}
                     textAnchor="middle"
-                    className="fill-red-600 text-[10px] font-semibold"
+                    className="fill-red-600 text-[11px] font-semibold"
                   >
                     {shortAmount(p.achievedAmount)}
                   </text>
-                  <text x={xAt(i)} y={monthLabelY} textAnchor="middle" className="fill-neutral-500 text-[10px] font-medium uppercase">
+                  <text x={xAt(i)} y={monthLabelY} textAnchor="middle" className="fill-neutral-500 text-[11px] font-medium uppercase">
                     {p.label}
                   </text>
                 </g>
@@ -194,7 +194,7 @@ export function BranchJobsChart({ points }: { points: MonthlyTrendPoint[] }) {
             {ticks.map((t) => (
               <g key={t}>
                 <line x1={0} x2={width} y1={yAt(t)} y2={yAt(t)} className="stroke-neutral-100" strokeWidth={1} />
-                <text x={-8} y={yAt(t)} dy={3} textAnchor="end" className="fill-neutral-400 text-[10px]">
+                <text x={-8} y={yAt(t)} dy={3} textAnchor="end" className="fill-neutral-400 text-[11px]">
                   {Math.round(t)}
                 </text>
               </g>
@@ -239,13 +239,13 @@ export function BranchJobsChart({ points }: { points: MonthlyTrendPoint[] }) {
                         x={xAt(i)}
                         y={labelAbove(yAt(value))}
                         textAnchor="middle"
-                        className={`text-[10px] font-semibold ${tally > 1 ? "fill-neutral-500" : s.text}`}
+                        className={`text-[11px] font-semibold ${tally > 1 ? "fill-neutral-500" : s.text}`}
                       >
                         {value}
                       </text>
                     );
                   })}
-                  <text x={xAt(i)} y={monthLabelY} textAnchor="middle" className="fill-neutral-500 text-[10px] font-medium uppercase">
+                  <text x={xAt(i)} y={monthLabelY} textAnchor="middle" className="fill-neutral-500 text-[11px] font-medium uppercase">
                     {p.label}
                   </text>
                 </g>

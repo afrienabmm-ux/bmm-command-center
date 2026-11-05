@@ -122,7 +122,6 @@ export default function Sidebar({
       >
         {/* Decorative red glow at the top of the menu. */}
         <div aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden">
-          <div className="absolute -top-24 -left-16 w-72 h-72 rounded-full bg-red-600/25 blur-3xl animate-float-glow" />
         </div>
         <div
           className={`relative flex items-center border-b border-white/10 ${visuallyCollapsed ? "h-auto md:flex-col gap-2.5 px-5 md:px-2 py-4" : "h-16 gap-2.5 px-5"}`}
@@ -181,11 +180,11 @@ export default function Sidebar({
                     visuallyCollapsed ? "gap-3 md:justify-center px-3 md:px-2 py-2.5" : "gap-3 px-3 py-2.5"
                   } ${
                     active
-                      ? "bg-gradient-to-r from-red-600 to-red-500 text-white shadow-lg shadow-red-900/50"
+                      ? "bg-red-600 text-white"
                       : "text-neutral-400 hover:bg-white/[0.06] hover:text-white"
                   }`}
                 >
-                  <Icon size={17} className={`shrink-0 transition-transform group-hover:scale-110 ${active ? "text-white" : link.color}`} />
+                  <Icon size={17} className={`shrink-0 ${active ? "text-white" : link.color}`} />
                   {!visuallyCollapsed && link.label}
                 </Link>
               </div>
@@ -202,7 +201,7 @@ export default function Sidebar({
               visuallyCollapsed ? "md:justify-center gap-2.5 md:gap-0 px-2 py-1.5" : "gap-2.5 px-2 py-1.5"
             }`}
           >
-            <span className="w-8 h-8 rounded-full bg-gradient-to-br from-red-500 to-orange-500 text-white text-xs font-bold flex items-center justify-center shrink-0 shadow-md shadow-red-900/40">
+            <span className="w-8 h-8 rounded-full bg-red-600 text-white text-xs font-bold flex items-center justify-center shrink-0 shadow-md shadow-red-900/40">
               {initials(name, email)}
             </span>
             {!visuallyCollapsed && (

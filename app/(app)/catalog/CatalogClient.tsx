@@ -107,7 +107,7 @@ export default function CatalogClient({
       </div>
 
       <div className="relative mb-4 max-w-sm">
-        <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
+        <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-500" />
         <input
           type="text"
           value={query}
@@ -280,7 +280,7 @@ function DeleteButton({ id }: { id: string }) {
     <button
       onClick={() => startTransition(() => deleteCatalogProductAction(id))}
       disabled={isPending}
-      className="text-neutral-400 hover:text-red-700 transition-colors disabled:opacity-50"
+      className="text-neutral-500 hover:text-red-700 transition-colors disabled:opacity-50"
       aria-label="Delete product"
     >
       <Trash2 size={14} />
@@ -338,7 +338,7 @@ function AddProductModal({ brand, branch, onClose }: { brand: CatalogBrand; bran
           </div>
           <div>
             <label className="block text-xs font-medium text-neutral-600 mb-1.5">
-              Code / Barcode <span className="text-neutral-400">(optional)</span>
+              Code / Barcode <span className="text-neutral-500">(optional)</span>
             </label>
             <input
               type="text"
@@ -359,7 +359,7 @@ function AddProductModal({ brand, branch, onClose }: { brand: CatalogBrand; bran
           </div>
           <div>
             <label className="block text-xs font-medium text-neutral-600 mb-1.5">
-              Spec <span className="text-neutral-400">(optional)</span>
+              Spec <span className="text-neutral-500">(optional)</span>
             </label>
             <input
               type="text"
@@ -496,7 +496,7 @@ function LabourChargeRow({ charge }: { charge: LabourCharge }) {
         <button
           onClick={() => startTransition(() => deleteLabourChargeAction(charge.id))}
           disabled={isPending}
-          className="text-neutral-400 hover:text-red-700 transition-colors disabled:opacity-50"
+          className="text-neutral-500 hover:text-red-700 transition-colors disabled:opacity-50"
           aria-label="Delete labour charge"
         >
           <Trash2 size={14} />

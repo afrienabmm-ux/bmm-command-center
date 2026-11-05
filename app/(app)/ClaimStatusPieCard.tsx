@@ -53,7 +53,7 @@ export default function ClaimStatusPieCard({
             <option value="warranty">Warranty Claim</option>
             <option value="delivery">Delivery Claim</option>
           </select>
-          <ChevronDown size={12} className="absolute right-2 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none" />
+          <ChevronDown size={12} className="absolute right-2 top-1/2 -translate-y-1/2 text-neutral-500 pointer-events-none" />
         </div>
       </div>
       <PieChartBody slices={slices} />

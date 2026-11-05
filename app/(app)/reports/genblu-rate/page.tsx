@@ -36,7 +36,7 @@ function matchesBranch(rowBranch: string | undefined, branch: Branch): boolean {
 }
 
 function pctColor(pct: number | undefined, target: number | undefined): string {
-  if (pct === undefined) return "text-neutral-400";
+  if (pct === undefined) return "text-neutral-500";
   if (target !== undefined) return pct >= target ? "text-emerald-700" : "text-red-600";
   return "text-neutral-700";
 }
@@ -150,7 +150,7 @@ export default async function GenbluSalesRatePage({
                   Points target: <span className="font-semibold text-neutral-900">{POINTS_TARGET}</span>
                 </span>
                 {monthly && (
-                  <span className="text-xs text-neutral-400 ml-auto">
+                  <span className="text-xs text-neutral-500 ml-auto">
                     Received {new Date(monthly.receivedAt).toLocaleString("en-MY", { dateStyle: "medium", timeStyle: "short" })}
                   </span>
                 )}
@@ -252,7 +252,7 @@ export default async function GenbluSalesRatePage({
               </div>
             )}
 
-            <details className="text-xs text-neutral-400">
+            <details className="text-xs text-neutral-500">
               <summary className="cursor-pointer select-none hover:text-neutral-600">Raw data received</summary>
               <pre className="mt-2 bg-neutral-50 border border-neutral-200 rounded-lg p-4 overflow-x-auto text-neutral-600">
                 {JSON.stringify(selectedWeek ?? fullReport, null, 2)}

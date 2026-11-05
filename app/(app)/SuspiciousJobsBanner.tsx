@@ -93,7 +93,7 @@ export default function SuspiciousJobsBanner({ jobs, showBranch }: { jobs: Suspi
               </button>
               {pickerOpen && (
                 <div className="absolute z-20 top-full left-0 mt-1 bg-white border border-neutral-200 rounded-lg shadow-lg py-1 w-64">
-                  <p className="px-3 py-1.5 text-[11px] font-medium text-neutral-400 uppercase tracking-wide">
+                  <p className="px-3 py-1.5 text-[11px] font-medium text-neutral-500 uppercase tracking-wide">
                     Which one?
                   </p>
                   {jobs.map((j) => (

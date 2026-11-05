@@ -57,7 +57,7 @@ export default function MechanicRevenueSummary({
             ))}
             <option value="all">Last 12 months</option>
           </select>
-          <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none" />
+          <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-neutral-500 pointer-events-none" />
         </div>
       </div>
       <div className="bg-white border border-neutral-200 rounded-xl overflow-x-auto max-w-2xl">

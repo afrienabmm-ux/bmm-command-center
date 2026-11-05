@@ -159,7 +159,7 @@ function MechanicCard({ mechanic, showBranch, movedTo }: { mechanic: Mechanic; s
         </div>
         <button
           onClick={() => setConfirmDelete(true)}
-          className="text-neutral-400 hover:text-red-700 transition-colors"
+          className="text-neutral-500 hover:text-red-700 transition-colors"
           aria-label="Remove mechanic"
         >
           <Trash2 size={14} />
@@ -405,7 +405,7 @@ function AddMechanicModal({
                     </option>
                   ))}
                 </select>
-                <ChevronDown size={15} className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none" />
+                <ChevronDown size={15} className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-500 pointer-events-none" />
               </div>
             </div>
           )}
@@ -454,7 +454,7 @@ function AddMechanicModal({
                   </option>
                 ))}
               </select>
-              <ChevronDown size={15} className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none" />
+              <ChevronDown size={15} className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-500 pointer-events-none" />
             </div>
           </div>
         </div>

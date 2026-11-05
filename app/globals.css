@@ -10,7 +10,7 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
-  --animate-pop: pop 2.2s ease-in-out infinite;
+  --animate-pop: pop 0.6s ease-out 1;
 }
 
 @keyframes pop {
@@ -29,14 +29,33 @@ body {
 }
 
 /* ---- Look & feel ------------------------------------------------------
-   A soft warm glow behind every page instead of flat grey, cards that
-   float slightly off it, and gentle entrance animations on the dashboard. */
+   A plain, calm background so the cards and numbers stand out rather than
+   the backdrop, cards that sit slightly off it, and gentle entrance
+   animations on the dashboard. */
 body {
-  background:
-    radial-gradient(1100px 650px at 100% -5%, rgb(239 68 68 / 0.35), transparent 60%),
-    radial-gradient(900px 600px at 0% 100%, rgb(249 115 22 / 0.18), transparent 60%),
-    linear-gradient(160deg, #fff5f5 0%, #ffe4e6 45%, #fecdd3 100%);
-  background-attachment: fixed;
+  background: #f5f5f4;
+}
+
+/* Tailwind v4 no longer gives buttons a hand cursor by default. */
+button:not(:disabled),
+[role="button"]:not([aria-disabled="true"]),
+select:not(:disabled),
+summary,
+label[for] {
+  cursor: pointer;
+}
+
+/* A clear ring when moving around with the keyboard (Tab), never on a
+   mouse click. */
+:where(a, button, [role="button"], summary, [tabindex]):focus-visible {
+  outline: 2px solid #dc2626;
+  outline-offset: 2px;
+}
+
+/* Figures in tables line up digit under digit, so columns are easy to
+   compare. */
+table {
+  font-variant-numeric: tabular-nums;
 }
 
 /* Every white card in the app (they all share these classes) gets a soft
@@ -122,7 +141,8 @@ body {
   .animate-grow-x,
   .animate-shine,
   .animate-ring-fill,
-  .animate-float-glow {
+  .animate-float-glow,
+  .animate-pop {
     animation: none;
   }
 }

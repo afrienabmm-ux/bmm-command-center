@@ -79,7 +79,7 @@ export default function TeamClient({ members, currentUserId }: { members: TeamMe
           <p className="text-sm font-medium text-neutral-800">Team members ({visibleOthers.length})</p>
           <div className="flex items-center gap-2">
             <div className="relative">
-              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
+              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-500" />
               <input
                 type="text"
                 value={query}
@@ -169,7 +169,7 @@ function PendingRow({ member }: { member: TeamMember }) {
             </option>
           ))}
         </select>
-        <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none" />
+        <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-neutral-500 pointer-events-none" />
       </div>
       <input
         type="text"
@@ -191,7 +191,7 @@ function PendingRow({ member }: { member: TeamMember }) {
           ))}
           <option value="all">All Branches</option>
         </select>
-        <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none" />
+        <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-neutral-500 pointer-events-none" />
       </div>
       <button
         onClick={approve}
@@ -250,7 +250,7 @@ function MemberRow({ member, isSelf }: { member: TeamMember; isSelf: boolean }) 
                   </option>
                 ))}
               </select>
-              <ChevronDown size={12} className="absolute right-2 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none" />
+              <ChevronDown size={12} className="absolute right-2 top-1/2 -translate-y-1/2 text-neutral-500 pointer-events-none" />
             </div>
             <input
               type="text"
@@ -278,7 +278,7 @@ function MemberRow({ member, isSelf }: { member: TeamMember; isSelf: boolean }) 
               ))}
               <option value="all">All Branches</option>
             </select>
-            <ChevronDown size={12} className="absolute right-2 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none" />
+            <ChevronDown size={12} className="absolute right-2 top-1/2 -translate-y-1/2 text-neutral-500 pointer-events-none" />
           </div>
         </td>
         <td className="px-5 py-3.5 text-center">
@@ -301,7 +301,7 @@ function MemberRow({ member, isSelf }: { member: TeamMember; isSelf: boolean }) 
                 disabled={isPending}
                 title="Reset Password"
                 aria-label="Reset Password"
-                className="text-neutral-400 hover:text-red-700 disabled:opacity-50 transition-colors p-1.5"
+                className="text-neutral-500 hover:text-red-700 disabled:opacity-50 transition-colors p-1.5"
               >
                 <KeyRound size={15} />
               </button>
@@ -312,7 +312,7 @@ function MemberRow({ member, isSelf }: { member: TeamMember; isSelf: boolean }) 
                 disabled={isPending}
                 title="Deactivate"
                 aria-label="Deactivate"
-                className="text-neutral-400 hover:text-red-700 disabled:opacity-50 transition-colors p-1.5"
+                className="text-neutral-500 hover:text-red-700 disabled:opacity-50 transition-colors p-1.5"
               >
                 <ShieldOff size={15} />
               </button>
@@ -323,7 +323,7 @@ function MemberRow({ member, isSelf }: { member: TeamMember; isSelf: boolean }) 
                 disabled={isPending}
                 title="Activate"
                 aria-label="Activate"
-                className="text-neutral-400 hover:text-emerald-700 disabled:opacity-50 transition-colors p-1.5"
+                className="text-neutral-500 hover:text-emerald-700 disabled:opacity-50 transition-colors p-1.5"
               >
                 <RefreshCcw size={15} />
               </button>
@@ -334,7 +334,7 @@ function MemberRow({ member, isSelf }: { member: TeamMember; isSelf: boolean }) 
                 disabled={isPending}
                 title="Delete"
                 aria-label="Delete"
-                className="text-neutral-400 hover:text-red-700 disabled:opacity-50 transition-colors p-1.5"
+                className="text-neutral-500 hover:text-red-700 disabled:opacity-50 transition-colors p-1.5"
               >
                 <Trash2 size={15} />
               </button>
@@ -429,7 +429,7 @@ function DetailModal({
       <div className="bg-white border border-neutral-200 rounded-xl w-full max-w-sm p-6">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-sm font-semibold text-neutral-900">{member.name || member.email}</h2>
-          <button onClick={onClose} className="text-neutral-400 hover:text-neutral-700" aria-label="Close">
+          <button onClick={onClose} className="text-neutral-500 hover:text-neutral-700" aria-label="Close">
             <X size={16} />
           </button>
         </div>
@@ -441,7 +441,7 @@ function DetailModal({
           <DetailRow label="Status" value={member.status === "approved" ? "Active" : "Deactivated"} />
           <DetailRow label="Joined" value={formatDate(member.createdAt)} />
         </div>
-        <p className="text-[11px] text-neutral-400 mt-4">
+        <p className="text-[11px] text-neutral-500 mt-4">
           Passwords can&apos;t be viewed — they&apos;re stored as one-way hashes, not even we can read them back. Use
           Reset Password to set a new one instead.
         </p>
@@ -630,7 +630,7 @@ function AddUserModal({ onClose }: { onClose: () => void }) {
                     </option>
                   ))}
                 </select>
-                <ChevronDown size={15} className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none" />
+                <ChevronDown size={15} className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-500 pointer-events-none" />
               </div>
             </div>
             <div className="flex-1">
@@ -659,7 +659,7 @@ function AddUserModal({ onClose }: { onClose: () => void }) {
                 ))}
                 <option value="all">All Branches</option>
               </select>
-              <ChevronDown size={15} className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none" />
+              <ChevronDown size={15} className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-500 pointer-events-none" />
             </div>
           </div>
         </div>

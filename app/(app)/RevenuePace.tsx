@@ -80,14 +80,14 @@ function RevenueRunRateChart({ data, title }: { data: RevenuePaceData; title: st
             {ticks.map((t) => (
               <g key={t}>
                 <line x1={0} x2={width} y1={yAt(t)} y2={yAt(t)} className="stroke-neutral-100" strokeWidth={1} />
-                <text x={-8} y={yAt(t)} dy={3} textAnchor="end" className="fill-neutral-400 text-[10px]">
+                <text x={-8} y={yAt(t)} dy={3} textAnchor="end" className="fill-neutral-400 text-[11px]">
                   {shortAmount(t)}
                 </text>
               </g>
             ))}
             {dailyPoints.map((p, i) =>
               i % Math.max(1, Math.ceil(dailyPoints.length / 20)) === 0 ? (
-                <text key={p.day} x={xAt(i)} y={dayLabelY} textAnchor="middle" className="fill-neutral-500 text-[10px]">
+                <text key={p.day} x={xAt(i)} y={dayLabelY} textAnchor="middle" className="fill-neutral-500 text-[11px]">
                   {p.day}
                 </text>
               ) : null
@@ -174,7 +174,7 @@ function BranchRevenueCard({
 
       <p className="text-2xl font-semibold text-neutral-900">
         {formatCurrency(pace.achieved)}
-        {pace.hasTarget && <span className="text-sm font-normal text-neutral-400"> / {formatCurrency(pace.target)}</span>}
+        {pace.hasTarget && <span className="text-sm font-normal text-neutral-500"> / {formatCurrency(pace.target)}</span>}
       </p>
 
       {pace.hasTarget && (
@@ -187,7 +187,7 @@ function BranchRevenueCard({
             <p className="text-xs text-neutral-500">
               marker = should be {formatCurrency(pace.expectedByToday)} by {isRealToday ? "today" : `Day ${asOfDay}`}
             </p>
-            <p className="text-xs text-neutral-400 whitespace-nowrap">
+            <p className="text-xs text-neutral-500 whitespace-nowrap">
               {formatCurrency(revenueToday)} {isRealToday ? "today" : `on Day ${asOfDay}`}
             </p>
           </div>

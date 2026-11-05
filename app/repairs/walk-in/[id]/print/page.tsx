@@ -31,7 +31,7 @@ export default async function PrintWalkInJobPage({ params }: { params: Promise<{
       <div className="max-w-3xl mx-auto bg-white p-8 print:p-0 print:max-w-none text-black">
         <div className="flex items-start justify-between mb-1">
           <div>
-            <p className="text-[10px] font-bold">JOBSHEET</p>
+            <p className="text-[11px] font-bold">JOBSHEET</p>
             <img src="/bmm-logo-full.png" alt="Berjaya Mega Motors" className="h-16 mt-1" />
           </div>
           <div className="text-sm text-right pt-2 space-y-0.5">
@@ -154,7 +154,7 @@ export default async function PrintWalkInJobPage({ params }: { params: Promise<{
 
       {photoUrl && (
         <div className="max-w-3xl mx-auto bg-white p-8 print:p-0 print:max-w-none print:break-before-page mt-6 print:mt-0 text-black">
-          <p className="text-[10px] font-bold mb-2">SCANNED JOBSHEET PHOTO</p>
+          <p className="text-[11px] font-bold mb-2">SCANNED JOBSHEET PHOTO</p>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={photoUrl} alt="Scanned jobsheet" className="w-full h-auto" />
         </div>
