@@ -27,44 +27,47 @@ import ClaimStatusPieCard from "./ClaimStatusPieCard";
 import BranchMechanicLeaderboard from "./BranchMechanicLeaderboard";
 import SuspiciousJobsBanner from "./SuspiciousJobsBanner";
 
-// Big circular "% of target" gauge for the dashboard banner. Fills up on
-// page load (ring-fill keyframes in globals.css); can go past 100%.
+// Circular "% of target" gauge for the dashboard banner. Fills up on page
+// load (ring-fill keyframes in globals.css); the number can go past 100%.
 function ProgressRing({ pct }: { pct: number }) {
-  const size = 148;
-  const stroke = 12;
+  const size = 132;
+  const stroke = 10;
   const r = (size - stroke) / 2;
   const c = 2 * Math.PI * r;
   const offset = c * (1 - Math.min(100, pct) / 100);
   return (
     <div className="relative shrink-0" style={{ width: size, height: size }}>
-      <svg width={size} height={size} className="-rotate-90 drop-shadow-[0_0_14px_rgba(239,68,68,0.45)]">
-        <defs>
-          <linearGradient id="target-ring" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0%" stopColor="#f59e0b" />
-            <stop offset="55%" stopColor="#f97316" />
-            <stop offset="100%" stopColor="#dc2626" />
-          </linearGradient>
-        </defs>
-        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth={stroke} />
+      <svg width={size} height={size} className="-rotate-90" aria-hidden="true">
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" className="stroke-neutral-100" strokeWidth={stroke} />
         <circle
           cx={size / 2}
           cy={size / 2}
           r={r}
           fill="none"
-          stroke="url(#target-ring)"
+          className={`animate-ring-fill ${pct >= 100 ? "stroke-emerald-500" : "stroke-red-600"}`}
           strokeWidth={stroke}
           strokeLinecap="round"
           strokeDasharray={c}
           strokeDashoffset={offset}
-          className="animate-ring-fill"
           style={{ "--ring-c": `${c}px` } as React.CSSProperties}
         />
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <CountUp value={pct} kind="percent" className="text-3xl font-extrabold text-white" />
-        <span className="text-[10px] uppercase tracking-[0.2em] text-neutral-400 mt-0.5">of target</span>
+        <CountUp value={pct} kind="percent" className="text-3xl font-bold tabular-nums text-neutral-900" />
+        <span className="text-[11px] font-medium uppercase tracking-wider text-neutral-500 mt-0.5">of target</span>
       </div>
     </div>
+  );
+}
+
+// Heading that groups the dashboard into Today / This Month / Trends / Team,
+// so it reads top to bottom instead of as one long stack of cards.
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <section className="space-y-4">
+      <h2 className="text-xs font-semibold uppercase tracking-wider text-neutral-500">{title}</h2>
+      {children}
+    </section>
   );
 }
 
@@ -178,72 +181,61 @@ export default async function AllBranchesOverview({
   return (
     <div className="space-y-8 stagger">
       {/* Headline number first: this month's target vs achieved. */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-neutral-950 via-neutral-900 to-red-950 text-white p-6 md:p-8 shadow-2xl shadow-red-950/25">
-        {/* Background glows and a faint grid, purely decorative. */}
-        <div aria-hidden="true" className="pointer-events-none absolute inset-0">
-          <div className="absolute -right-24 -top-28 w-96 h-96 rounded-full bg-red-600/35 blur-3xl animate-float-glow" />
-          <div className="absolute -left-16 -bottom-24 w-72 h-72 rounded-full bg-orange-500/15 blur-3xl" />
-          <div
-            className="absolute inset-0 opacity-[0.07]"
-            style={{
-              backgroundImage:
-                "linear-gradient(rgba(255,255,255,0.6) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.6) 1px, transparent 1px)",
-              backgroundSize: "36px 36px",
-              maskImage: "radial-gradient(ellipse at 70% 30%, black 20%, transparent 75%)",
-            }}
-          />
-        </div>
-
-        <div className="relative grid gap-8 md:grid-cols-[1fr_auto] md:items-center">
+      <div className="relative overflow-hidden rounded-2xl bg-white border border-neutral-200 p-6 md:p-8">
+        <div aria-hidden="true" className="absolute inset-y-0 left-0 w-1 bg-red-600" />
+        <div className="grid gap-8 md:grid-cols-[1fr_auto] md:items-center">
           <div className="min-w-0">
-            <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-red-200/80">
-              <Layers size={13} className="text-red-400" />
+            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-red-700">
+              <Layers size={14} aria-hidden="true" />
               <span>
                 {onlyBranch ? branchLabel(onlyBranch) : "All Branches"} · {monthLabel(month, year)}
                 {onlyBranch ? "" : " · combined"}
               </span>
             </div>
-            <p className="mt-3 text-sm text-neutral-400">Achieved so far</p>
-            <p className="text-4xl md:text-6xl font-extrabold tracking-tight bg-gradient-to-r from-white via-white to-red-200 bg-clip-text text-transparent">
+            <p className="mt-3 text-sm text-neutral-500">Achieved so far</p>
+            <p className="text-4xl md:text-5xl font-bold tracking-tight tabular-nums text-neutral-900">
               <CountUp value={totals.achieved} kind="currency" />
             </p>
             <div className="flex items-center gap-3 mt-2 flex-wrap">
-              <p className="text-sm text-neutral-300">
-                of <span className="font-semibold text-white">{formatCurrency(totals.target)}</span> target
+              <p className="text-sm text-neutral-600">
+                of <span className="font-semibold text-neutral-900 tabular-nums">{formatCurrency(totals.target)}</span> target
               </p>
               {trendPct !== null && (
                 <span
-                  className={`inline-flex items-center gap-0.5 text-xs font-semibold px-2.5 py-1 rounded-full ring-1 ring-inset ${
-                    trendPct >= 0
-                      ? "bg-emerald-400/10 text-emerald-300 ring-emerald-400/30"
-                      : "bg-red-400/10 text-red-300 ring-red-400/30"
+                  className={`inline-flex items-center gap-0.5 text-xs font-semibold px-2.5 py-1 rounded-full ${
+                    trendPct >= 0 ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-700"
                   }`}
                 >
-                  {trendPct >= 0 ? <ArrowUp size={12} /> : <ArrowDown size={12} />}
+                  {trendPct >= 0 ? <ArrowUp size={12} aria-hidden="true" /> : <ArrowDown size={12} aria-hidden="true" />}
                   {Math.abs(trendPct)}% vs {monthLabel(prev.month, prev.year)}
                 </span>
               )}
             </div>
 
-            <div className="relative mt-6 h-3 bg-white/10 rounded-full overflow-hidden">
+            <div
+              className="mt-6 h-2.5 bg-neutral-100 rounded-full overflow-hidden"
+              role="progressbar"
+              aria-valuenow={pct}
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-label="Progress to monthly target"
+            >
               <div
-                className="relative h-full rounded-full bg-gradient-to-r from-red-600 via-orange-500 to-amber-300 animate-grow-x shadow-[0_0_16px_rgba(249,115,22,0.6)] overflow-hidden"
+                className={`h-full rounded-full animate-grow-x ${pct >= 100 ? "bg-emerald-500" : "bg-red-600"}`}
                 style={{ width: `${pct}%` }}
-              >
-                <div className="absolute inset-y-0 left-0 w-1/3 bg-gradient-to-r from-transparent via-white/50 to-transparent animate-shine" />
-              </div>
+              />
             </div>
             {totals.target > 0 && (
               <p className="mt-3 text-sm font-medium">
                 {totals.achieved >= totals.target ? (
-                  <span className="text-emerald-300">
-                    🎉 Target reached — {formatCurrency(totals.achieved - totals.target)} over
+                  <span className="text-emerald-700">
+                    Target reached — {formatCurrency(totals.achieved - totals.target)} over
                   </span>
                 ) : (
-                  <span className="text-white">
+                  <span className="text-neutral-900">
                     {formatCurrency(totals.target - totals.achieved)} more to reach the target
                     {workingDaysLeft > 0 && (
-                      <span className="text-neutral-400 font-normal">
+                      <span className="text-neutral-500 font-normal">
                         {" "}
                         · about {formatCurrency((totals.target - totals.achieved) / workingDaysLeft)} a day for the{" "}
                         {workingDaysLeft} working day{workingDaysLeft === 1 ? "" : "s"} left
@@ -274,6 +266,7 @@ export default async function AllBranchesOverview({
       )}
 
       {/* The picked day (today by default), at a glance. */}
+      <Section title={revenuePace.isRealToday ? "Today" : dayLabel}>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         <StatCard
           icon={ClipboardList}
@@ -298,7 +291,9 @@ export default async function AllBranchesOverview({
           href="/packages"
         />
       </div>
+      </Section>
 
+      <Section title="This Month">
       <RevenuePace
         data={revenuePace}
         title={onlyBranch ? `Revenue Run-Rate — ${branchLabel(onlyBranch)}` : "Revenue Run-Rate — all branches"}
@@ -310,20 +305,24 @@ export default async function AllBranchesOverview({
         title={onlyBranch ? `Pace to Target — ${branchLabel(onlyBranch)}` : "Pace to Target"}
       />
 
-      {/* Current status, at a glance — claims. */}
-      <div className="max-w-md">
+      {/* Claims and combo sales side by side on wide screens. */}
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,22rem)_minmax(0,1fr)] xl:items-start">
         <ClaimStatusPieCard
           warranty={claimStatusBreakdown}
           delivery={deliveryClaimStatusBreakdown}
           subtitle={onlyBranch ? "This month" : "All branches, this month"}
         />
+        <PackageBreakdownCharts packageBreakdown={packageBreakdown} onlyBranch={onlyBranch} />
       </div>
+      </Section>
 
-      <PackageBreakdownCharts packageBreakdown={packageBreakdown} onlyBranch={onlyBranch} />
+      <Section title="Last 6 Months">
+        <MonthlyTrends points={trendPoints} />
+      </Section>
 
-      <MonthlyTrends points={trendPoints} />
-
-      {onlyBranch ? <BranchMechanicLeaderboard rows={branchMechanicRows} /> : <BranchBreakdownTable rows={rows} />}
+      <Section title={onlyBranch ? "Mechanics" : "Branches"}>
+        {onlyBranch ? <BranchMechanicLeaderboard rows={branchMechanicRows} /> : <BranchBreakdownTable rows={rows} />}
+      </Section>
     </div>
   );
 }

@@ -28,25 +28,19 @@ export default function StatCard({
     <Link
       href={href}
       prefetch={false}
-      className="group relative overflow-hidden bg-white border rounded-2xl p-5 transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl"
+      className="group relative bg-white border border-neutral-200 rounded-2xl p-5 transition-colors duration-200 hover:border-neutral-300 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500"
     >
-      {/* Soft colour wash in the corner, in the card's own colour. */}
-      <div
-        aria-hidden="true"
-        className={`absolute -right-10 -top-10 w-36 h-36 rounded-full blur-2xl opacity-70 transition-transform duration-500 group-hover:scale-125 ${color}`}
-      />
-      <div className="relative flex items-start justify-between">
-        <div
-          className={`w-11 h-11 rounded-xl flex items-center justify-center ring-1 ring-inset ring-black/5 transition-transform duration-300 group-hover:scale-110 group-hover:-rotate-6 ${color}`}
-        >
-          <Icon size={20} />
+      <div className="flex items-start justify-between">
+        <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${color}`}>
+          <Icon size={20} aria-hidden="true" />
         </div>
         <ArrowUpRight
           size={18}
-          className="text-neutral-300 transition-all duration-300 group-hover:text-neutral-700 group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
+          aria-hidden="true"
+          className="text-neutral-300 transition-colors duration-200 group-hover:text-neutral-700"
         />
       </div>
-      <p className="relative mt-5 text-3xl font-bold tracking-tight text-neutral-900">
+      <p className="mt-4 text-3xl font-bold tracking-tight tabular-nums text-neutral-900">
         {typeof value === "number" ? (
           <CountUp value={value} />
         ) : currency !== null ? (
@@ -55,8 +49,8 @@ export default function StatCard({
           value
         )}
       </p>
-      <p className="relative text-sm font-medium text-neutral-500 mt-1">{label}</p>
-      {detail && <p className="relative text-xs text-neutral-400 mt-0.5">{detail}</p>}
+      <p className="text-sm font-medium text-neutral-600 mt-1">{label}</p>
+      {detail && <p className="text-xs text-neutral-500 mt-0.5">{detail}</p>}
     </Link>
   );
 }
