@@ -1,4 +1,4 @@
-import { requirePageContext, requirePage, canViewAllBranches, getActiveBranchSelection } from "@/lib/current-user";
+import { requirePageContext, requirePage, canViewAllBranches, canStampAnyBranch, getActiveBranchSelection } from "@/lib/current-user";
 import { getCustomers, getAllBranchesCustomers } from "@/lib/customers-actions";
 import { branchLabel } from "@/lib/branch";
 import { todayInMalaysia } from "@/lib/malaysia-time";
@@ -20,12 +20,12 @@ export default async function CustomersPage() {
   const [todayYear, todayMonth] = todayInMalaysia().split("-").map(Number);
   const sinceDate = new Date(todayYear, todayMonth - 1 - 6, 1).toISOString().slice(0, 10);
 
-  // A customer can service at any branch, so Front Desk accounts see — and
-  // can stamp — every branch's cards here (this page only), even though
-  // they're tied to one branch everywhere else.
+  // A customer can service at any branch, so Front Desk and Branch PIC
+  // accounts see — and can stamp — every branch's cards here (this page
+  // only), even though they're tied to one branch everywhere else.
   const locked = !canViewAllBranches(user);
-  const isFrontDesk = user.role === "Front Desk";
-  const listAllBranches = showAllBranches || isFrontDesk;
+  const stampAnyBranch = canStampAnyBranch(user.role);
+  const listAllBranches = showAllBranches || (locked && stampAnyBranch);
   const customers = listAllBranches ? await getAllBranchesCustomers(sinceDate) : await getCustomers(branch, sinceDate);
 
   return (
@@ -42,7 +42,7 @@ export default async function CustomersPage() {
           locked={locked}
           canManageCards={user.role !== "Front Desk"}
           canAddCards
-          stampAnyBranch={isFrontDesk}
+          stampAnyBranch={stampAnyBranch}
         />
       </div>
     </div>

@@ -119,6 +119,13 @@ export async function getActiveBranchSelection(user: CurrentUser): Promise<Branc
   return getRawBranchSelection(fallback);
 }
 
+// A customer can service at any branch, so on the E-Service Card page these
+// roles see every branch's cards and can tick stamps on any of them, even
+// though they're tied to one branch everywhere else.
+export function canStampAnyBranch(role: Role | null): boolean {
+  return role === "Front Desk" || role === "Branch PIC";
+}
+
 export function assertCanEditBranch(user: CurrentUser, branch: Branch) {
   if (canViewAllBranches(user)) return;
   if (user.homeBranch !== branch) {

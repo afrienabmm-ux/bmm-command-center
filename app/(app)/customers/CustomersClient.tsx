@@ -251,6 +251,9 @@ export default function CustomersClient({
                 <td className="px-4 py-3 text-neutral-500">{c.issuedDate ? formatDate(c.issuedDate) : "—"}</td>
                 {canManageCards && (
                   <td className="px-4 py-3">
+                    {/* Another branch's card can be stamped but not edited or
+                        deleted by someone tied to one branch. */}
+                    {(!locked || c.branch === branch) && (
                     <div className="flex items-center gap-1 justify-end">
                       <button
                         onClick={() => setCardModalFor(c)}
@@ -269,6 +272,7 @@ export default function CustomersClient({
                         <Trash2 size={14} />
                       </button>
                     </div>
+                    )}
                   </td>
                 )}
               </tr>
