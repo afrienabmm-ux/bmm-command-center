@@ -107,7 +107,13 @@ export default async function ReportDetailPage({ params }: { params: Promise<{ t
   let revenueSummary:
     | {
         weeks: { label: string; total: number; byBranch?: Record<string, number> }[];
-        months: { label: string; total: number; byBranch?: Record<string, number> }[];
+        months: {
+          label: string;
+          total: number;
+          byBranch?: Record<string, number>;
+          jobs: number;
+          jobsByBranch?: Record<string, number>;
+        }[];
         branches?: { label: string; jobs: number; revenue: number }[];
         branchColumns?: { key: string; label: string }[];
       }
@@ -174,6 +180,8 @@ export default async function ReportDetailPage({ params }: { params: Promise<{ t
       // way, whether or not the per-branch columns end up shown.
       const weekTotals = new Map<string, Record<string, number>>();
       const monthTotals = new Map<string, Record<string, number>>();
+      // Number of jobsheets per month, kept the same way (per branch + "all").
+      const monthJobs = new Map<string, Record<string, number>>();
       function addTo(map: Map<string, Record<string, number>>, key: string, branch: Branch, amount: number) {
         const entry = map.get(key) ?? {};
         entry[branch] = (entry[branch] ?? 0) + amount;
@@ -185,6 +193,7 @@ export default async function ReportDetailPage({ params }: { params: Promise<{ t
         if (!date) continue;
         addTo(weekTotals, startOfWeekInMalaysia(date), j.branch, j.revenueAmount);
         addTo(monthTotals, date.slice(0, 7), j.branch, j.revenueAmount);
+        addTo(monthJobs, date.slice(0, 7), j.branch, 1);
       }
       // Branch breakdown only makes sense on the combined view — a
       // single-branch selection only ever has the one branch anyway.
@@ -200,10 +209,13 @@ export default async function ReportDetailPage({ params }: { params: Promise<{ t
         .sort(([a], [b]) => a.localeCompare(b))
         .map(([key, byBranch]) => {
           const [y, m] = key.split("-").map(Number);
+          const jobCounts = monthJobs.get(key) ?? {};
           return {
             label: monthLabel(m, y),
             total: byBranch.all ?? 0,
             byBranch: branchList ? Object.fromEntries(branchList.map((b) => [b, byBranch[b] ?? 0])) : undefined,
+            jobs: jobCounts.all ?? 0,
+            jobsByBranch: branchList ? Object.fromEntries(branchList.map((b) => [b, jobCounts[b] ?? 0])) : undefined,
           };
         });
 
@@ -238,9 +250,14 @@ export default async function ReportDetailPage({ params }: { params: Promise<{ t
           rows: weeks.map((w) => [w.label, ...(branchList ?? []).map((b) => (w.byBranch?.[b] ?? 0).toFixed(2)), w.total.toFixed(2)]),
         },
         {
-          title: "Jobsheet Revenue by Month",
-          columns: ["Month", ...branchColumnLabels, "Total (RM)"],
-          rows: months.map((m) => [m.label, ...(branchList ?? []).map((b) => (m.byBranch?.[b] ?? 0).toFixed(2)), m.total.toFixed(2)]),
+          title: "Jobsheet Revenue & Jobs by Month",
+          columns: ["Month", ...branchColumnLabels.flatMap((l) => [`${l} Jobs`, `${l} (RM)`]), "Total Jobs", "Total (RM)"],
+          rows: months.map((m) => [
+            m.label,
+            ...(branchList ?? []).flatMap((b) => [m.jobsByBranch?.[b] ?? 0, (m.byBranch?.[b] ?? 0).toFixed(2)]),
+            m.jobs,
+            m.total.toFixed(2),
+          ]),
         },
         ...(branches
           ? [{ title: "Jobsheet Summary by Branch", columns: ["Branch", "Jobs", "Revenue (RM)"], rows: branches.map((b) => [b.label, b.jobs, b.revenue.toFixed(2)]) }]

@@ -1,6 +1,23 @@
 import { formatCurrency } from "@/lib/format";
 
-type PeriodRow = { label: string; total: number; byBranch?: Record<string, number> };
+// jobs/jobsByBranch are only filled in for months; weeks show revenue only.
+type PeriodRow = {
+  label: string;
+  total: number;
+  byBranch?: Record<string, number>;
+  jobs?: number;
+  jobsByBranch?: Record<string, number>;
+};
+
+// Job count shown as a small second line under the RM figure.
+function JobsLine({ count }: { count: number | undefined }) {
+  if (count === undefined) return null;
+  return (
+    <span className="block text-[11px] font-normal text-neutral-500">
+      {count} job{count === 1 ? "" : "s"}
+    </span>
+  );
+}
 
 // Same idea as GenBlu's Monthly Point Allocation Summary — a small table
 // alongside the full transaction list, built entirely from the same rows
@@ -50,10 +67,12 @@ export default function JobsheetRevenueSummary({
                     {branchColumns?.map((b) => (
                       <td key={b.key} className="px-2.5 py-1.5 text-right text-neutral-700 whitespace-nowrap">
                         {formatCurrency(r.byBranch?.[b.key] ?? 0)}
+                        <JobsLine count={r.jobsByBranch?.[b.key] ?? (r.jobs !== undefined ? 0 : undefined)} />
                       </td>
                     ))}
                     <td className="px-2.5 py-1.5 text-right text-neutral-900 font-medium whitespace-nowrap">
                       {formatCurrency(r.total)}
+                      <JobsLine count={r.jobs} />
                     </td>
                   </tr>
                 ))
@@ -102,7 +121,7 @@ export default function JobsheetRevenueSummary({
       )}
 
       {renderPeriodTable("Revenue by Week", weeks, "Week")}
-      {renderPeriodTable("Revenue by Month", months, "Month")}
+      {renderPeriodTable("Revenue & Jobs by Month", months, "Month")}
     </div>
   );
 }
