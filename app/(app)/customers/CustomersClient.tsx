@@ -11,6 +11,7 @@ import type { CustomerCard } from "@/lib/types";
 import ModalPortal from "@/components/ModalPortal";
 import { isOver250ccModel } from "@/lib/bike-models";
 import { SALESPEOPLE_BY_BRANCH } from "@/lib/services-card-salespeople";
+import { looseIncludes } from "@/lib/search";
 
 // The page already limits what's fetched to the last 6 months (see
 // app/(app)/customers/page.tsx), but that can still be hundreds of cards
@@ -83,8 +84,8 @@ export default function CustomersClient({
         (c) =>
           !q ||
           c.customerName.toLowerCase().includes(q) ||
-          c.plateNo.toLowerCase().includes(q) ||
-          c.customerPhone.toLowerCase().includes(q)
+          looseIncludes(c.plateNo, q) ||
+          looseIncludes(c.customerPhone, q)
       )
       .filter((c) => !salespersonFilter || c.salespersonName.trim().toLowerCase() === salespersonFilter.trim().toLowerCase());
     return [...filtered].sort((a, b) => {

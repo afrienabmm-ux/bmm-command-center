@@ -13,6 +13,7 @@ import { formatDate, formatCurrency, toCsv } from "@/lib/format";
 import type { Mechanic } from "@/lib/types";
 import ModalPortal from "@/components/ModalPortal";
 import { useGenbluDates, inGenbluDates } from "./GenbluTabs";
+import { looseIncludes } from "@/lib/search";
 
 type RegWithUrl = {
   id: string;
@@ -105,7 +106,7 @@ export default function GenbluClient({
     const q = query.trim().toLowerCase();
     return registrations.filter((r) => {
       if (person && r.salespersonName.trim().toLowerCase() !== person) return false;
-      if (q && !r.customerName.toLowerCase().includes(q) && !r.customerPlateNo.toLowerCase().includes(q)) return false;
+      if (q && !r.customerName.toLowerCase().includes(q) && !looseIncludes(r.customerPlateNo, q)) return false;
       return inGenbluDates(r.createdAt, fromDate, toDate);
     });
   }, [registrations, query, person, fromDate, toDate]);

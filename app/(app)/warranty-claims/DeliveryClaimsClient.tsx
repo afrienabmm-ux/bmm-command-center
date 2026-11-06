@@ -14,6 +14,7 @@ import { BRANCHES, branchLabel, type Branch, type BranchSelection } from "@/lib/
 import { formatDate, toCsv } from "@/lib/format";
 import { useToast } from "@/lib/useToast";
 import ModalPortal from "@/components/ModalPortal";
+import { looseIncludes } from "@/lib/search";
 
 // Native <datalist> renders as a disconnected floating box on iOS Safari
 // instead of anchoring under the input, so PIC suggestions use a plain
@@ -101,7 +102,7 @@ export default function DeliveryClaimsClient({
     const filtered = claims.filter((c) => {
       if (statusFilter !== "All" && c.status !== statusFilter) return false;
       if (!q) return true;
-      return [c.plateNo, c.ticketId, c.status, c.pic, c.model, c.chassisNo].some((f) => (f ?? "").toLowerCase().includes(q));
+      return [c.plateNo, c.ticketId, c.status, c.pic, c.model, c.chassisNo].some((f) => looseIncludes(f, q));
     });
     return [...filtered].sort((a, b) =>
       sortDir === "desc" ? b.submittedDate.localeCompare(a.submittedDate) : a.submittedDate.localeCompare(b.submittedDate)

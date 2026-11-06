@@ -22,6 +22,7 @@ import { todayInMalaysia } from "@/lib/malaysia-time";
 import { setPendingJobsheet } from "@/lib/pending-jobsheet";
 import { useToast } from "@/lib/useToast";
 import ModalPortal from "@/components/ModalPortal";
+import { looseIncludes } from "@/lib/search";
 
 // Walk-in jobs never enter QC (that's Restore Bike only), but the shared
 // RepairStatus type still includes it, so this map needs an entry too.
@@ -1003,7 +1004,7 @@ function ExportFilteredModal({
     const q = query.trim().toLowerCase();
     return jobs.filter((j) => {
       if (mechanicId !== "all" && j.mechanicId !== mechanicId) return false;
-      if (q && !(j.plateNo.toLowerCase().includes(q) || j.jobNo.toLowerCase().includes(q) || j.customerName.toLowerCase().includes(q))) {
+      if (q && !(looseIncludes(j.plateNo, q) || looseIncludes(j.jobNo, q) || j.customerName.toLowerCase().includes(q))) {
         return false;
       }
       return true;
@@ -1095,7 +1096,7 @@ function ExportJobModal({
   const matches = useMemo(() => {
     const q = query.trim().toLowerCase();
     const list = q
-      ? jobs.filter((j) => j.jobNo.toLowerCase().includes(q) || j.plateNo.toLowerCase().includes(q))
+      ? jobs.filter((j) => looseIncludes(j.jobNo, q) || looseIncludes(j.plateNo, q))
       : jobs;
     return list.slice(0, 20);
   }, [jobs, query]);

@@ -5,6 +5,7 @@ import { ChevronDown, Search } from "lucide-react";
 import { attachGenbluScreenshotAction, scanGenbluScreenshotForNameAction } from "@/lib/genblu-actions";
 import { BRANCHES, branchLabel, type Branch, type BranchSelection } from "@/lib/branch";
 import { formatDate } from "@/lib/format";
+import { looseIncludes } from "@/lib/search";
 
 export type RecentJobsheetCustomer = {
   jobId: string;
@@ -87,7 +88,7 @@ export default function GenbluQuickForm({
       return recentJobs.filter((j) => j.date >= cutoff);
     }
     return recentJobs.filter(
-      (j) => j.customerName.toLowerCase().includes(q) || j.customerPlateNo.toLowerCase().includes(q)
+      (j) => j.customerName.toLowerCase().includes(q) || looseIncludes(j.customerPlateNo, q)
     );
   }, [recentJobs, search]);
 
