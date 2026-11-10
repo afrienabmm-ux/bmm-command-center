@@ -29,6 +29,7 @@ import { formatCurrency } from "@/lib/format";
 import { useToast } from "@/lib/useToast";
 import DropdownDate from "@/components/DropdownDate";
 import { takePendingJobsheet } from "@/lib/pending-jobsheet";
+import { cleanJobsheetNo, checkJobsheetNo, JOBSHEET_PREFIX } from "@/lib/jobsheet-no";
 
 type ItemInput = { code: string; description: string; quantity: string; price: string };
 
@@ -530,7 +531,7 @@ export default function WalkInJobForm({
         filled.push("chassis no.");
       }
       if (scanned.jobsheetNo) {
-        setJobsheetNo(scanned.jobsheetNo);
+        setJobsheetNo(cleanJobsheetNo(scanned.jobsheetNo) ?? scanned.jobsheetNo);
         filled.push("job no.");
       }
       if (scanned.salesNo) {
@@ -665,6 +666,17 @@ export default function WalkInJobForm({
   });
   const selectedMechanic = branchMechanics.find((m) => m.id === mechanicId) ?? null;
   const effectiveBranch: Branch | null = locationBranch !== "all" ? locationBranch : (selectedMechanic?.branch ?? null);
+  // Warn as soon as the Job No. doesn't look like this branch's jobsheet number
+  // (JBA/JBT/JBP + 6 digits); the save checks it again on the server.
+  const jobsheetNoProblem: string | null =
+    jobsheetNo.trim() && effectiveBranch
+      ? (() => {
+          const r = checkJobsheetNo(jobsheetNo, effectiveBranch);
+          return "error" in r ? r.error : null;
+        })()
+      : jobsheetNo.trim() && !cleanJobsheetNo(jobsheetNo)
+        ? "Not a valid jobsheet number. It should be 3 letters + 6 numbers, e.g. JBA009890."
+        : null;
 
   const itemsTotal = items.reduce((sum, it) => sum + (Number(it.quantity) || 0) * (Number(it.price) || 0), 0);
   const totalMismatch = printedTotal !== null && items.length > 0 && Math.abs(itemsTotal - printedTotal) >= 0.01;
@@ -1259,8 +1271,12 @@ export default function WalkInJobForm({
                 type="text"
                 value={jobsheetNo}
                 onChange={(e) => setJobsheetNo(e.target.value)}
-                className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
+                onBlur={() => setJobsheetNo((v) => cleanJobsheetNo(v) ?? v)}
+                placeholder={effectiveBranch ? `${JOBSHEET_PREFIX[effectiveBranch]}000000` : "JBA000000"}
+                aria-invalid={jobsheetNoProblem ? true : undefined}
+                className={`w-full bg-neutral-50 border rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50 ${jobsheetNoProblem ? "border-red-400" : "border-neutral-200"}`}
               />
+              {jobsheetNoProblem && <p className="mt-1 text-[11px] text-red-600">{jobsheetNoProblem}</p>}
             </div>
             <div>
               <label className="block text-xs font-medium text-neutral-600 mb-1.5">Sales No.</label>

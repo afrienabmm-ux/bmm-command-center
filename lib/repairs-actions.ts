@@ -11,6 +11,7 @@ import { BRANCHES, type Branch } from "./branch";
 import { normalizeName } from "./name-matching";
 import { checkCustomerCode, customerCodeReason } from "./customer-code";
 import { normalizePlate } from "./plate";
+import { checkJobsheetNo } from "./jobsheet-no";
 import { fetchAllRows } from "./fetch-all";
 import { getGenbluPlatePoints, getGenbluTxLite, jobGenbluPoints, type GenbluTxLite, type GenbluPlateInfo } from "./genblu-plates";
 
@@ -602,7 +603,15 @@ export async function addRepairJobAction(input: {
   // job_no directly instead of an auto-generated one, so the number shown
   // everywhere in the app matches the physical job card. Restore Bike has
   // no such source, so it always gets the auto-generated RJ-{code}-#### one.
-  const scannedJobNo = input.jobType === "Walk-in" ? input.jobsheetNo?.trim() : undefined;
+  // Walk-in jobs must carry a proper jobsheet number for this branch
+  // (JBA/JBT/JBP + 6 digits). Stray text after it is dropped.
+  let scannedJobNo: string | undefined;
+  if (input.jobType === "Walk-in") {
+    const checked = checkJobsheetNo(input.jobsheetNo, input.branch);
+    if ("error" in checked) return checked;
+    scannedJobNo = checked.jobNo;
+    input = { ...input, jobsheetNo: checked.jobNo };
+  }
   if (scannedJobNo && (await findDuplicateJobNo(input.branch, scannedJobNo))) {
     return {
       error: `Job number ${scannedJobNo} is already saved at this branch — check whether this jobsheet was already added before saving it again.`,
@@ -838,7 +847,10 @@ export async function updateRepairJobAction(
   // Keep the displayed job number in sync if the PIC edits/re-scans the
   // jobsheet's own Job No. field after the job was created.
   if (input.jobType === "Walk-in" && input.jobsheetNo?.trim()) {
-    const newJobNo = input.jobsheetNo.trim();
+    const checked = checkJobsheetNo(input.jobsheetNo, targetBranch);
+    if ("error" in checked) return checked;
+    const newJobNo = checked.jobNo;
+    update.jobsheet_no = newJobNo;
     if (await findDuplicateJobNo(targetBranch, newJobNo, id)) {
       return { error: `Job number ${newJobNo} is already saved at this branch — check whether this jobsheet was already added before saving it again.` };
     }
