@@ -9,6 +9,7 @@ import { logActivity } from "./activity-log";
 import { generateUniqueCardNumber } from "./card-number";
 import { namesLikelyMatch } from "./name-matching";
 import { fetchAllRows } from "./fetch-all";
+import { normalizePlate } from "./plate";
 
 type CardRow = {
   id: string;
@@ -122,7 +123,7 @@ export async function addCustomerCardAction(input: {
     // reintroduce the same "FARAH" vs "farah" split the filter dropdown
     // already had to be fixed for once.
     salesperson_name: input.salespersonName.trim().toLowerCase(),
-    plate_no: input.plateNo.trim(),
+    plate_no: normalizePlate(input.plateNo), // saved without spaces: "VRX 4798" -> "VRX4798"
     model: input.model.trim(),
     bought_bike_here: input.boughtBikeHere,
     under_250cc: input.under250cc,
@@ -199,7 +200,7 @@ export async function updateCustomerCardAction(
       customer_phone: customerPhone,
       card_number: input.cardNumber.trim(),
       salesperson_name: input.salespersonName.trim().toLowerCase(),
-      plate_no: input.plateNo.trim(),
+      plate_no: normalizePlate(input.plateNo), // saved without spaces: "VRX 4798" -> "VRX4798"
       model: input.model.trim(),
       bought_bike_here: input.boughtBikeHere,
       under_250cc: input.under250cc,

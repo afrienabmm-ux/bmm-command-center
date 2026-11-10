@@ -122,7 +122,7 @@ export async function POST(req: Request): Promise<Response> {
   if (existing) {
     const phone = normalizePhone(body.customer_phone?.trim() ?? "");
     const patch: Record<string, string> = {};
-    if (body.plate_no.trim() && body.plate_no !== existing.plate_no) patch.plate_no = body.plate_no;
+    if (body.plate_no.trim() && normalizePlate(body.plate_no) !== existing.plate_no) patch.plate_no = normalizePlate(body.plate_no);
     if (body.customer_name.trim() && body.customer_name !== existing.customer_name) patch.customer_name = body.customer_name;
     if (phone && phone !== existing.customer_phone) patch.customer_phone = phone;
     if (body.model?.trim() && body.model !== existing.model) patch.model = body.model;
@@ -181,7 +181,7 @@ export async function POST(req: Request): Promise<Response> {
     // and the Services Card filter/dropdown both key off this being
     // consistent.
     salesperson_name: body.salesperson.trim().toLowerCase(),
-    plate_no: body.plate_no,
+    plate_no: normalizePlate(body.plate_no),
     model: body.model ?? "",
     bought_bike_here: true,
     under_250cc: true,
