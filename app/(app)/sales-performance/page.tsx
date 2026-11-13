@@ -7,6 +7,7 @@ import {
   type MechanicPerformanceRowWithBranch,
 } from "@/lib/reports-actions";
 import { getMechanicCommitment } from "@/lib/mechanic-commitment-actions";
+import { getAllMechanics } from "@/lib/mechanics-actions";
 import { getMonthlyTarget } from "@/lib/targets-actions";
 import { getRevenuePace } from "@/lib/revenue-pace-actions";
 import { getTodayActivity, getPackageSalesBreakdown } from "@/lib/dashboard-breakdowns-actions";
@@ -73,7 +74,7 @@ export default async function SalesPerformancePage({
   const weekStart = startOfWeekInMalaysia(selectedDate);
   const weekEnd = endOfWeekInMalaysia(selectedDate);
 
-  const [rows, prevRows, commitment, targetList, weekAchievedList, revenuePace, todayActivity, packageBreakdown] = await Promise.all([
+  const [allRows, prevRows, commitment, targetList, weekAchievedList, revenuePace, todayActivity, packageBreakdown, mechanicList] = await Promise.all([
     onlyBranch
       ? getBranchPerformance(onlyBranch, year, month).then(
           (r): MechanicPerformanceRowWithBranch[] => r.map((row) => ({ ...row, branch: onlyBranch }))
@@ -89,7 +90,22 @@ export default async function SalesPerformancePage({
     getRevenuePace(year, month, onlyBranch, day),
     getTodayActivity(onlyBranch, selectedDate),
     getPackageSalesBreakdown(year, month),
+    getAllMechanics(),
   ]);
+
+  // Resigned mechanics drop off the table — unless they did work in the
+  // month being viewed, so an older month still shows (and totals) what they
+  // did before leaving. On Leave mechanics stay: they're still on the team.
+  const resignedIds = new Set(mechanicList.filter((m) => m.status === "Resigned").map((m) => m.id));
+  const rows = allRows.filter(
+    (r) =>
+      !resignedIds.has(r.mechanicId) ||
+      r.walkInCount > 0 ||
+      r.restoreBikeCount > 0 ||
+      r.packageSetsSold > 0 ||
+      r.genbluCount > 0 ||
+      r.totalRevenue > 0
+  );
 
   const serviceRevenueToday = revenuePace.branches.reduce((sum, b) => sum + b.revenueToday, 0);
 
