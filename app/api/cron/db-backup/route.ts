@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { runDatabaseBackup } from "@/lib/db-backup";
+import { runDatabaseBackup, backupExists } from "@/lib/db-backup";
 import { sendTelegram } from "@/lib/telegram-digest";
 import { todayInMalaysia } from "@/lib/malaysia-time";
 
@@ -19,7 +19,13 @@ function isAuthorized(req: NextRequest): boolean {
 export async function GET(req: NextRequest) {
   if (!isAuthorized(req)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const dateKey = todayInMalaysia();
+  // The 4am run is a second try: it only does anything if the 2am backup
+  // didn't happen (4 and 11 Nov 2026 were skipped without any error).
+  const ifMissing = new URL(req.url).searchParams.get("ifMissing") === "1";
   try {
+    if (ifMissing && (await backupExists(dateKey))) {
+      return NextResponse.json({ ok: true, skipped: `${dateKey} backup already there` });
+    }
     const result = await runDatabaseBackup(dateKey);
     return NextResponse.json({ ok: true, ...result });
   } catch (err) {

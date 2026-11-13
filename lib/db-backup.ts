@@ -32,6 +32,14 @@ async function ensureBucket(): Promise<void> {
   if (error && !/already exists/i.test(error.message)) throw new Error(`Couldn't create backup bucket: ${error.message}`);
 }
 
+// Whether the backup file for this Malaysia date is already in the bucket.
+export async function backupExists(dateKey: string): Promise<boolean> {
+  const file = `${dateKey}.json.gz`;
+  const { data, error } = await supabaseAdmin.storage.from(BACKUP_BUCKET).list("", { search: file, limit: 10 });
+  if (error) throw new Error(`Couldn't check backups: ${error.message}`);
+  return (data ?? []).some((f) => f.name === file);
+}
+
 export type BackupResult = { file: string; tables: Record<string, number>; bytes: number; deletedOld: string[] };
 
 export async function runDatabaseBackup(dateKey: string): Promise<BackupResult> {
