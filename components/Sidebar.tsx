@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
 import {
   LayoutDashboard,
+  CalendarCheck,
   ShieldCheck,
   Wrench as MechanicIcon,
   Smartphone,
@@ -40,6 +41,7 @@ const mainLinks: NavLink[] = [
   { href: "/warranty-claims", label: "Claims", icon: ShieldCheck, page: "warranty-claims", color: "text-amber-500" },
   { href: "/customers", label: "E-Service Card", icon: CreditCard, page: "customers", color: "text-rose-600" },
   { href: "/reports", label: "Reports", icon: FileBarChart, page: "reports", color: "text-indigo-500" },
+  { href: "/bookings", label: "Bookings", icon: CalendarCheck, page: "bookings", color: "text-teal-500" },
 ];
 
 const trailingLinks: NavLink[] = [{ href: "/mechanics", label: "Mechanics", icon: MechanicIcon, page: "mechanics", color: "text-emerald-500" }];

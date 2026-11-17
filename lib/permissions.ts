@@ -11,6 +11,7 @@ export const PAGE_DEFS = [
   { key: "packages", label: "Services Combo", href: "/packages" },
   { key: "customers", label: "Services Card", href: "/customers" },
   { key: "reports", label: "Reports", href: "/reports" },
+  { key: "bookings", label: "Bookings", href: "/bookings" },
 ] as const;
 
 export type PageKey = (typeof PAGE_DEFS)[number]["key"];
@@ -31,7 +32,7 @@ export const ALL_PAGE_KEYS: PageKey[] = PAGE_DEFS.map((p) => p.key);
 export function resolveAllowedPages(role: Role | null): PageKey[] {
   if (!role) return [];
   if (role === "Mechanic") return ["walk-in"];
-  if (role === "Front Desk") return ["customers", "walk-in", "genblu", "reports"];
+  if (role === "Front Desk") return ["customers", "walk-in", "genblu", "reports", "bookings"];
   if (role === "Sales Advisor") return ["genblu"];
   return ALL_PAGE_KEYS;
 }
