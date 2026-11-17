@@ -5,6 +5,8 @@
 import { timingSafeEqual } from "crypto";
 import { lookupCustomerCardAction, type MembershipLookup } from "@/lib/customer-registration-actions";
 import { STAMP_REWARDS } from "@/lib/membership";
+import { supabaseAdmin } from "@/lib/supabase-server";
+import { fetchAllRows } from "@/lib/fetch-all";
 
 export const runtime = "nodejs";
 export const maxDuration = 15;
@@ -20,6 +22,11 @@ function authorized(req: Request): boolean {
   return want.length === got.length && timingSafeEqual(want, got);
 }
 
+// "  ali  BIN abu " and "Ali bin Abu" are the same name.
+function sameName(s: string): string {
+  return s.trim().replace(/\s+/g, " ").toLowerCase();
+}
+
 function isCard(r: unknown): r is MembershipLookup {
   return typeof r === "object" && r !== null && "cardNumber" in r;
 }
@@ -27,7 +34,7 @@ function isCard(r: unknown): r is MembershipLookup {
 export async function POST(req: Request): Promise<Response> {
   if (!authorized(req)) return Response.json({ error: "unauthorized" }, { status: 401 });
 
-  let body: { phone?: unknown; plates?: unknown };
+  let body: { phone?: unknown; plates?: unknown; name?: unknown };
   try {
     body = await req.json();
   } catch {
@@ -51,6 +58,21 @@ export async function POST(req: Request): Promise<Response> {
     for (const plate of queue) {
       const r = await lookupCustomerCardAction(plate);
       if (isCard(r)) found.set(r.cardNumber, r);
+    }
+
+    // Nothing by phone or plate: try the exact full name, but only when exactly
+    // ONE card has that name, so a common name never shows a stranger's card.
+    const name = typeof body.name === "string" ? sameName(body.name) : "";
+    if (found.size === 0 && name.length >= 3) {
+      const { data: all, error } = await fetchAllRows((a, b) =>
+        supabaseAdmin.from("cc_customer_cards").select("customer_name, plate_no").order("id").range(a, b)
+      );
+      if (error) throw new Error(error.message);
+      const same = (all ?? []).filter((c) => sameName(c.customer_name ?? "") === name);
+      if (same.length === 1) {
+        const r = await lookupCustomerCardAction(same[0].plate_no);
+        if (isCard(r)) found.set(r.cardNumber, r);
+      }
     }
 
     return Response.json({
