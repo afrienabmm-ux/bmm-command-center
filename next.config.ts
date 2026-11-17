@@ -34,8 +34,41 @@ const TESSERACT_TRACE_INCLUDES = [
 // one that turns out to be.
 const PDFJS_TRACE_INCLUDES = ["./node_modules/pdfjs-dist/**/*", "./node_modules/@napi-rs/**/*"];
 
+// Browser security settings sent with every page (from a security scan,
+// Nov 2026). The Content-Security-Policy starts in "report only" mode: the
+// browser logs anything it would have blocked but blocks nothing, so a rule
+// that's too strict can't break login, photo upload or scanning. Switch the
+// header name to "Content-Security-Policy" once it has run clean.
+// Every outside service (Vision, Gemini, OCR.space, Telegram) is called from
+// the server, so the browser itself only talks to this site and Supabase.
+const CSP = [
+  "default-src 'self'",
+  "script-src 'self' 'unsafe-inline'" + (process.env.NODE_ENV === "development" ? " 'unsafe-eval'" : ""),
+  "style-src 'self' 'unsafe-inline'",
+  "img-src 'self' data: blob: https://*.supabase.co",
+  "font-src 'self' data:",
+  "connect-src 'self' https://*.supabase.co wss://*.supabase.co",
+  "worker-src 'self' blob:",
+  "media-src 'self' blob:",
+  "object-src 'none'",
+  "base-uri 'self'",
+  "form-action 'self'",
+  "frame-ancestors 'none'",
+].join("; ");
+
+const SECURITY_HEADERS = [
+  { key: "Content-Security-Policy-Report-Only", value: CSP },
+  { key: "X-Content-Type-Options", value: "nosniff" },
+  { key: "X-Frame-Options", value: "DENY" },
+  { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+];
+
 const nextConfig: NextConfig = {
-  /* config options here */
+  // Don't advertise "X-Powered-By: Next.js" on every response.
+  poweredByHeader: false,
+  async headers() {
+    return [{ source: "/:path*", headers: SECURITY_HEADERS }];
+  },
   experimental: {
     // Jobsheet photos sent to the Scan Jobsheet server action, base64
     // encoded, comfortably exceed Next's 1MB default body limit.
