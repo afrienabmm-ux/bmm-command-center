@@ -7,7 +7,7 @@ import type { GenbluMonthlySummaryRow } from "@/lib/genblu-actions";
 export default function GenbluMonthlySummary({
   summary,
 }: {
-  summary: { rows: GenbluMonthlySummaryRow[]; total: GenbluMonthlySummaryRow };
+  summary: { rows: GenbluMonthlySummaryRow[]; total: GenbluMonthlySummaryRow; newBike?: { counts: number; points: number } };
 }) {
   return (
     <div>
@@ -37,6 +37,12 @@ export default function GenbluMonthlySummary({
           </tbody>
         </table>
       </div>
+      {summary.newBike && summary.newBike.counts > 0 && (
+        <p className="mt-2 text-xs text-neutral-500 max-w-md">
+          Not counted above: {summary.newBike.counts} new-bike award{summary.newBike.counts === 1 ? "" : "s"} of exactly 100 points
+          ({summary.newBike.points.toLocaleString()} pts) — these are from salesmen.
+        </p>
+      )}
     </div>
   );
 }

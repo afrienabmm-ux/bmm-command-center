@@ -1462,7 +1462,15 @@ export type GenbluMonthlySummaryRow = { branch: Branch | "unknown"; label: strin
 
 // Matches the admin's own spreadsheet "Finding" table: how many awards and
 // how many total points were given this month, split by branch.
-export async function getGenbluMonthlySummary(year: number, month: number): Promise<{ rows: GenbluMonthlySummaryRow[]; total: GenbluMonthlySummaryRow }> {
+// Exactly 100 points is a salesman's new-bike award, not a service point
+// allocation (owner's rule, Nov 2026) — left out of this table so it tallies
+// with the spreadsheet's point-allocation tab, and counted separately.
+const NEW_BIKE_POINTS = 100;
+
+export async function getGenbluMonthlySummary(
+  year: number,
+  month: number
+): Promise<{ rows: GenbluMonthlySummaryRow[]; total: GenbluMonthlySummaryRow; newBike: { counts: number; points: number } }> {
   await requireApproved();
   const prefix = `${year}-${String(month).padStart(2, "0")}`;
   const { data, error } = await fetchAllRows((a, b) =>
@@ -1479,7 +1487,13 @@ export async function getGenbluMonthlySummary(year: number, month: number): Prom
   const byBranch = new Map<Branch, { counts: number; points: number }>();
   for (const b of BRANCHES) byBranch.set(b.value, { counts: 0, points: 0 });
   const total = { counts: 0, points: 0 };
+  const newBike = { counts: 0, points: 0 };
   for (const row of data ?? []) {
+    if (Number(row.points) === NEW_BIKE_POINTS) {
+      newBike.counts += 1;
+      newBike.points += Number(row.points);
+      continue;
+    }
     const entry = byBranch.get(row.branch as Branch);
     if (entry) {
       entry.counts += 1;
@@ -1495,5 +1509,5 @@ export async function getGenbluMonthlySummary(year: number, month: number): Prom
     counts: byBranch.get(b.value)!.counts,
     points: byBranch.get(b.value)!.points,
   }));
-  return { rows, total: { branch: "unknown", label: "Total", counts: total.counts, points: total.points } };
+  return { rows, total: { branch: "unknown", label: "Total", counts: total.counts, points: total.points }, newBike };
 }
