@@ -11,6 +11,7 @@ import {
   Smartphone,
   TrendingUp,
   UserCog,
+  Users,
   LogOut,
   ChevronLeft,
   ChevronRight,
@@ -102,7 +103,12 @@ export default function Sidebar({
   const mainNavLinks = visible(mainLinks);
   const trailingNavLinks: NavLink[] = [
     ...visible(trailingLinks),
-    ...(canSeeTeam ? [{ href: "/team", label: "Manage Team", icon: UserCog, page: null, color: TEAM_LINK_COLOR }] : []),
+    ...(canSeeTeam
+      ? [
+          { href: "/app-customers", label: "App Customers", icon: Users, page: null, color: "text-teal-600" },
+          { href: "/team", label: "Manage Team", icon: UserCog, page: null, color: TEAM_LINK_COLOR },
+        ]
+      : []),
   ];
 
   // The mobile drawer always shows the full labeled sidebar (never the
