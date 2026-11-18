@@ -1,7 +1,9 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { ChevronDown, Download, Search } from "lucide-react";
+import { useMemo, useState, useTransition } from "react";
+import { ChevronDown, Download, Search, Trash2 } from "lucide-react";
+import { deleteAppCustomerAction } from "@/lib/app-customer-actions";
+import ModalPortal from "@/components/ModalPortal";
 import { toCsv } from "@/lib/format";
 import { branchLabel } from "@/lib/branch";
 import type { AppCustomer } from "@/lib/app-customers";
@@ -19,6 +21,25 @@ function plain(s: string): string {
 export default function AppCustomersClient({ customers }: { customers: AppCustomer[] }) {
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState<AppCustomer | null>(null);
+  const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
+  const [pending, start] = useTransition();
+  const [todayStr] = useState(() => new Date(Date.now() + 8 * 3600_000).toISOString().slice(0, 10));
+  const upcomingOf = (c: AppCustomer) => c.bookings.filter((b) => b.status === "booked" && b.date >= todayStr);
+
+  function confirmDelete() {
+    if (!deleting) return;
+    const who = deleting;
+    start(async () => {
+      const r = await deleteAppCustomerAction(who.id);
+      setDeleting(null);
+      setMessage(
+        r.error
+          ? { ok: false, text: r.error }
+          : { ok: true, text: `${who.name}'s account was deleted${r.cancelled ? ` and ${r.cancelled} upcoming booking(s) cancelled with an email to the customer` : ""}.` }
+      );
+    });
+  }
 
   const shown = useMemo(() => {
     const q = plain(query);
@@ -68,6 +89,9 @@ export default function AppCustomersClient({ customers }: { customers: AppCustom
           Download (CSV)
         </button>
       </div>
+      {message && (
+        <p className={`rounded-lg px-4 py-3 text-sm ${message.ok ? "bg-emerald-50 text-emerald-800" : "bg-red-50 text-red-700"}`}>{message.text}</p>
+      )}
       <p className="text-sm text-neutral-500">
         {shown.length} of {customers.length} customers. Emails and phone numbers are for BMM use only.
       </p>
@@ -130,12 +154,59 @@ export default function AppCustomersClient({ customers }: { customers: AppCustom
                         </ul>
                       )}
                     </div>
+                    <div className="md:col-span-2 flex justify-end">
+                      <button
+                        type="button"
+                        onClick={() => setDeleting(c)}
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-red-300 text-red-700 hover:bg-red-50 px-3 py-1.5 text-sm font-medium"
+                      >
+                        <Trash2 className="w-4 h-4" /> Delete account
+                      </button>
+                    </div>
                   </div>
                 )}
               </li>
             );
           })}
         </ul>
+      )}
+      {deleting && (
+        <ModalPortal>
+          <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 px-4">
+            <div className="bg-white border border-neutral-200 rounded-xl w-full max-w-md p-6 space-y-3">
+              <h2 className="text-base font-semibold text-neutral-900">Delete {deleting.name}&apos;s account?</h2>
+              <p className="text-sm text-neutral-600">
+                {deleting.email} · {deleting.bikes.length} saved bike{deleting.bikes.length === 1 ? "" : "s"}
+              </p>
+              <ul className="text-sm text-neutral-700 list-disc pl-5 space-y-1">
+                <li>They can&apos;t sign in with this account any more. Their saved bikes are removed.</li>
+                {upcomingOf(deleting).length > 0 && (
+                  <li className="text-red-700">
+                    {upcomingOf(deleting).length} upcoming booking{upcomingOf(deleting).length === 1 ? "" : "s"} (
+                    {upcomingOf(deleting)
+                      .map((b) => b.bookingNo)
+                      .join(", ")}
+                    ) will be cancelled and the customer gets the cancellation email.
+                  </li>
+                )}
+                <li>Past bookings stay as shop records.</li>
+                <li>This can&apos;t be undone.</li>
+              </ul>
+              <div className="flex items-center justify-end gap-3 pt-2">
+                <button onClick={() => setDeleting(null)} disabled={pending} className="text-sm font-medium text-neutral-600 hover:text-neutral-800 px-4 py-2">
+                  Cancel
+                </button>
+                <button
+                  onClick={confirmDelete}
+                  disabled={pending}
+                  className="bg-red-600 hover:bg-red-500 disabled:opacity-50 text-white text-sm font-medium px-4 py-2 rounded-lg"
+                >
+                  {pending ? "Deleting…" : "Delete account"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </ModalPortal>
       )}
     </div>
   );

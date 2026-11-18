@@ -22,6 +22,7 @@ import {
   Eye,
   EyeOff,
   FileBarChart,
+  Gauge,
   X,
 } from "lucide-react";
 import { signOutAction, changeOwnPasswordAction } from "@/lib/auth-actions";
@@ -42,7 +43,6 @@ const mainLinks: NavLink[] = [
   { href: "/warranty-claims", label: "Claims", icon: ShieldCheck, page: "warranty-claims", color: "text-amber-500" },
   { href: "/customers", label: "E-Service Card", icon: CreditCard, page: "customers", color: "text-rose-600" },
   { href: "/reports", label: "Reports", icon: FileBarChart, page: "reports", color: "text-indigo-500" },
-  { href: "/bookings", label: "Bookings", icon: CalendarCheck, page: "bookings", color: "text-teal-500" },
 ];
 
 const trailingLinks: NavLink[] = [{ href: "/mechanics", label: "Mechanics", icon: MechanicIcon, page: "mechanics", color: "text-emerald-500" }];
@@ -101,11 +101,16 @@ export default function Sidebar({
 
   const visible = (list: NavLink[]) => list.filter((l) => l.page === null || pages.includes(l.page));
   const mainNavLinks = visible(mainLinks);
+  // Booking System: its own group (Overview + App Customers are for managers).
+  const bookingNavLinks: NavLink[] = [
+    ...(canSeeTeam ? [{ href: "/booking-overview", label: "Booking Overview", icon: Gauge, page: null, color: "text-teal-400" }] : []),
+    ...visible([{ href: "/bookings", label: "Bookings", icon: CalendarCheck, page: "bookings", color: "text-teal-500" }]),
+    ...(canSeeTeam ? [{ href: "/app-customers", label: "App Customers", icon: Users, page: null, color: "text-teal-600" }] : []),
+  ];
   const trailingNavLinks: NavLink[] = [
     ...visible(trailingLinks),
     ...(canSeeTeam
       ? [
-          { href: "/app-customers", label: "App Customers", icon: Users, page: null, color: "text-teal-600" },
           { href: "/team", label: "Manage Team", icon: UserCog, page: null, color: TEAM_LINK_COLOR },
         ]
       : []),
@@ -171,14 +176,21 @@ export default function Sidebar({
             on every single page load — for nothing, since nobody had
             clicked them. That background load was the real "lag". */}
         <nav className={`relative flex-1 py-4 space-y-1 overflow-y-auto ${visuallyCollapsed ? "px-3 md:px-2" : "px-3"}`}>
-          {[...mainNavLinks, ...trailingNavLinks].map((link, i) => {
+          {[...mainNavLinks, ...bookingNavLinks, ...trailingNavLinks].map((link, i) => {
             const active = pathname === link.href;
             const Icon = link.icon;
-            // A thin divider sets Mechanics/Manage Team apart from the main
-            // nav items, right where the trailing group starts.
-            const isFirstTrailing = i === mainNavLinks.length && trailingNavLinks.length > 0;
+            // Booking System gets a small heading; a thin divider sets
+            // Mechanics/Manage Team apart, right where the trailing group starts.
+            const isFirstBooking = i === mainNavLinks.length && bookingNavLinks.length > 0;
+            const isFirstTrailing = i === mainNavLinks.length + bookingNavLinks.length && trailingNavLinks.length > 0;
             return (
               <div key={link.href}>
+                {isFirstBooking &&
+                  (visuallyCollapsed ? (
+                    <hr className="my-3 border-white/10" />
+                  ) : (
+                    <p className="mt-4 mb-1 px-3 text-[11px] font-semibold uppercase tracking-wider text-neutral-500">Booking System</p>
+                  ))}
                 {isFirstTrailing && <hr className="my-3 border-white/10" />}
                 <Link
                   href={link.href}
