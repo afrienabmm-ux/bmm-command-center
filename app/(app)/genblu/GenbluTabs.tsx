@@ -61,7 +61,7 @@ export default function GenbluTabs({
   adminRegistrations: React.ReactNode;
   allocations: React.ReactNode;
 }) {
-  const [tab, setTab] = useState<Tab>("tracker");
+  const [tab, setTab] = useState<Tab>("allocations");
   // Opens on the current month rather than every month at once.
   const [openingMonth] = useState(() => malaysiaDate(new Date().toISOString()).slice(0, 7));
   const [month, setMonth] = useState(openingMonth);
@@ -83,12 +83,14 @@ export default function GenbluTabs({
     [openingMonth, registeredDates, salesmanDates, salesmanExistingDates, adminDates]
   );
   const count = (dates: string[]) => dates.filter((d) => inGenbluDates(d, fromDate, toDate)).length;
+  // The GenBlu Tracker tab is hidden (owner's request, Nov 2026). Its records
+  // are still kept and still drive the jobsheet GenBlu %, the mechanic GenBlu
+  // numbers and the GenBlu Jobsheet report — only the tab is gone.
   const tabs: { key: Tab; label: string }[] = [
-    { key: "tracker", label: `GenBlu Tracker (${count(registeredDates)})` },
+    { key: "allocations", label: `GenBlu Allocations (${allocationCount})` },
     { key: "salesman", label: `New Reg — Salesman (${count(salesmanDates)})` },
     { key: "salesmanExisting", label: `Salesman — Existing (${count(salesmanExistingDates)})` },
     { key: "admin", label: `New Reg — Admin (${count(adminDates)})` },
-    { key: "allocations", label: `GenBlu Allocations (${allocationCount})` },
   ];
 
   return (
@@ -107,7 +109,6 @@ export default function GenbluTabs({
           </button>
         ))}
       </div>
-      <div className={tab === "tracker" ? "" : "hidden"}>{tracker}</div>
       <div className={tab === "salesman" ? "" : "hidden"}>{salesmanRegistrations}</div>
       <div className={tab === "salesmanExisting" ? "" : "hidden"}>{salesmanExistingRegistrations}</div>
       <div className={tab === "admin" ? "" : "hidden"}>{adminRegistrations}</div>
