@@ -71,6 +71,11 @@ export default async function GenbluPage({
   // Screenshot links are made when someone opens a screenshot, not here —
   // signing all ~700 on every visit was the slowest part of this page.
   const transactionsWithUrls = transactions;
+  // Exactly 100 points = a salesman's new-bike award, not a point allocation
+  // (owner's rule, Nov 2026) — listed separately so the tab count, the
+  // summary table and the main list all show the same number.
+  const pointAllocations = transactionsWithUrls.filter((t) => Number(t.points) !== 100);
+  const newBikeAwards = transactionsWithUrls.filter((t) => Number(t.points) === 100);
   const withUrls = registrations.map((r) => ({
     ...r,
     // Same customer uploaded again for another visit (different time/
@@ -104,7 +109,7 @@ export default async function GenbluPage({
     <div className="flex flex-col h-full">
       <PageHeader
         title="GenBlu"
-        subtitle={`${showAllBranches ? "All Branches" : branchLabel(branch)} — ${registrations.length} registered in the last 6 months, ${transactions.length} allocations this month`}
+        subtitle={`${showAllBranches ? "All Branches" : branchLabel(branch)} — ${registrations.length} registered in the last 6 months, ${pointAllocations.length} allocations this month`}
       />
       <div className="p-4 md:p-8">
         <GenbluTabs
@@ -112,7 +117,7 @@ export default async function GenbluPage({
           salesmanDates={salesmanRegistrations.map((r) => r.createdAt)}
           salesmanExistingDates={salesmanExistingRegistrations.map((r) => r.createdAt)}
           adminDates={adminRegistrations.map((r) => r.createdAt)}
-          allocationCount={transactions.length}
+          allocationCount={pointAllocations.length}
           tracker={
             <GenbluClient
               registrations={trackerRegistrations}
@@ -159,7 +164,15 @@ export default async function GenbluPage({
                 <MonthPicker year={year} month={month} basePath="/genblu" />
               </div>
               <GenbluMonthlySummary summary={monthlySummary} />
-              <GenbluTransactionsList transactions={transactionsWithUrls} showBranch={showAllBranches} />
+              <GenbluTransactionsList transactions={pointAllocations} showBranch={showAllBranches} />
+              {newBikeAwards.length > 0 && (
+                <GenbluTransactionsList
+                  transactions={newBikeAwards}
+                  showBranch={showAllBranches}
+                  title="New-bike awards (100 pts, salesman)"
+                  exportFile="bmm-genblu-new-bike-awards.csv"
+                />
+              )}
             </div>
           }
         />

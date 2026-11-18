@@ -21,9 +21,13 @@ const HEADERS = ["No", "Transaction Date", "Time", "Points", "Categories", "Rema
 export default function GenbluTransactionsList({
   transactions,
   showBranch,
+  title = "Point Allocation Transactions",
+  exportFile = "bmm-genblu-point-allocation.csv",
 }: {
   transactions: TransactionWithUrl[];
   showBranch: boolean;
+  title?: string;
+  exportFile?: string;
 }) {
   const [deleting, setDeleting] = useState<GenbluTransaction | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -46,7 +50,7 @@ export default function GenbluTransactionsList({
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = "bmm-genblu-point-allocation.csv";
+    a.download = exportFile;
     a.click();
     URL.revokeObjectURL(url);
   }
@@ -62,7 +66,7 @@ export default function GenbluTransactionsList({
   return (
     <div>
       <div className="flex items-center justify-between mb-3">
-        <p className="text-sm font-medium text-neutral-800">Point Allocation Transactions ({transactions.length})</p>
+        <p className="text-sm font-medium text-neutral-800">{title} ({transactions.length})</p>
         <button
           onClick={handleExport}
           disabled={transactions.length === 0}
