@@ -28,6 +28,9 @@ export type BookingItem = {
   source: "online" | "cs";
   createdByName: string | null;
   statusChangedBy: string | null;
+  doneAt: string | null;
+  doneBy: string | null;
+  doneJobsheetNo: string | null;
 };
 
 export type DaySettings = {
@@ -65,13 +68,14 @@ function assertCanSetLimits(user: CurrentUser, branch: Branch | null) {
   );
 }
 
-export async function listBookings(branch: Branch | "all", days = 14): Promise<BookingItem[]> {
+// Last 7 days are included so a booking nobody ticked can still be marked Done.
+export async function listBookings(branch: Branch | "all", days = 14, pastDays = 7): Promise<BookingItem[]> {
   await requirePage("bookings");
   const today = todayInMalaysia();
   let q = bookingDb
     .from("bookings")
-    .select("id, booking_no, branch, booking_date, session, slot_time, seq, name, phone, plate, bike_model, mileage_km, service_type, status, source, created_by_name, status_changed_by")
-    .gte("booking_date", today)
+    .select("id, booking_no, branch, booking_date, session, slot_time, seq, name, phone, plate, bike_model, mileage_km, service_type, status, source, created_by_name, status_changed_by, done_at, done_by, done_jobsheet_no")
+    .gte("booking_date", addDays(today, -pastDays))
     .lte("booking_date", addDays(today, days))
     .neq("status", "cancelled")
     .order("booking_date")
@@ -100,6 +104,9 @@ export async function listBookings(branch: Branch | "all", days = 14): Promise<B
     source: r.source,
     createdByName: r.created_by_name,
     statusChangedBy: r.status_changed_by,
+    doneAt: r.done_at ?? null,
+    doneBy: r.done_by ?? null,
+    doneJobsheetNo: r.done_jobsheet_no ?? null,
   }));
 }
 
@@ -140,6 +147,27 @@ export async function setBookingStatusAction(id: string, status: "arrived" | "no
         status_changed_by: status === "booked" ? null : user.name,
       })
       .eq("id", id);
+    if (upErr) return { error: "Couldn't update the booking." };
+    revalidatePath("/bookings");
+    return {};
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Couldn't update the booking." };
+  }
+}
+
+// Done tick. Ticking Done also counts the customer as arrived.
+export async function setBookingDoneAction(id: string, done: boolean): Promise<{ error?: string }> {
+  try {
+    const user = await requirePage("bookings");
+    const { data: b, error } = await bookingDb.from("bookings").select("branch, status").eq("id", id).single();
+    if (error || !b) return { error: "Booking not found." };
+    assertCanEditBranch(user, b.branch);
+    if (b.status === "cancelled") return { error: "This booking was cancelled." };
+    const update: Record<string, unknown> = done
+      ? { done_at: new Date().toISOString(), done_by: user.name, done_jobsheet_no: null }
+      : { done_at: null, done_by: null, done_jobsheet_no: null };
+    if (done && b.status !== "arrived") Object.assign(update, { status: "arrived", arrived_at: new Date().toISOString(), status_changed_by: user.name });
+    const { error: upErr } = await bookingDb.from("bookings").update(update).eq("id", id);
     if (upErr) return { error: "Couldn't update the booking." };
     revalidatePath("/bookings");
     return {};

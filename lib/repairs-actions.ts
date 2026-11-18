@@ -13,6 +13,7 @@ import { checkCustomerCode, customerCodeReason } from "./customer-code";
 import { normalizePlate } from "./plate";
 import { checkJobsheetNo } from "./jobsheet-no";
 import { fetchAllRows } from "./fetch-all";
+import { markBookingDoneFromJobsheet } from "./booking-db";
 import { getGenbluPlatePoints, getGenbluTxLite, jobGenbluPoints, type GenbluTxLite, type GenbluPlateInfo } from "./genblu-plates";
 
 type ItemRow = { id: string; code: string; description: string; quantity: number; price: number };
@@ -680,6 +681,11 @@ export async function addRepairJobAction(input: {
     await replaceJobItems(data.id, items);
     await deductCatalogStockForNewItems(input.branch, [], items);
   }
+  // A customer who booked online: their booking is ticked Done (same plate,
+  // branch and day) in case the PIC forgot to tick it.
+  if (input.jobType === "Walk-in") {
+    await markBookingDoneFromJobsheet(input.branch, input.plateNo, input.startedDate || todayInMalaysia(), jobNo);
+  }
   await logActivity(user, `Added ${input.jobType} job`, `${jobNo} — ${input.customerName || input.plateNo} (${input.branch})`);
   revalidatePath("/repairs");
   revalidatePath("/repairs/walk-in");
@@ -900,6 +906,10 @@ export async function updateRepairJobAction(
   // forever with no way to correct it short of editing GenBlu directly too.
   if (input.jobType === "Walk-in" && priorJob && (priorJob.customer_name !== input.customerName || priorJob.plate_no !== input.plateNo)) {
     await syncGenbluCustomerDetails(branch, priorJob.customer_name, input.customerName, input.plateNo);
+  }
+  // Plate fixed after a typo: the matching booking is ticked Done now.
+  if (input.jobType === "Walk-in" && priorJob && priorJob.plate_no !== input.plateNo) {
+    await markBookingDoneFromJobsheet(targetBranch, input.plateNo, input.startedDate || todayInMalaysia(), (update.job_no as string | undefined) ?? priorJob.job_no);
   }
   await logActivity(
     user,

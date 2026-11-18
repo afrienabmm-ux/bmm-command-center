@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useTransition } from "react";
-import { CalendarCheck, Check, Phone, RotateCcw, UserX, Lock, Unlock, Clock } from "lucide-react";
+import { useMemo, useState, useTransition } from "react";
+import { CalendarCheck, Check, CheckCircle2, Circle, Phone, RotateCcw, UserX, Lock, Unlock, Clock, ChevronLeft, ChevronRight, History, X } from "lucide-react";
 import {
   setBookingStatusAction,
+  setBookingDoneAction,
   setDefaultLimitAction,
   setDayLimitAction,
   addClosedDayAction,
@@ -83,6 +84,8 @@ export default function BookingsClient({
   const branches: Branch[] = activeBranch === "all" ? BRANCHES.map((b) => b.value) : [activeBranch];
   const todays = bookings.filter((b) => b.date === today);
   const upcoming = bookings.filter((b) => b.date > today);
+  const past = bookings.filter((b) => b.date < today);
+  const pastDates = [...new Set(past.map((b) => b.date))].sort().reverse();
   const upcomingDates = [...new Set(upcoming.map((b) => b.date))];
 
   return (
@@ -134,6 +137,38 @@ export default function BookingsClient({
       </section>
 
       <section className="space-y-3">
+        <h2 className="text-lg font-semibold flex items-center gap-2">
+          <History className="w-5 h-5 text-neutral-500" /> Last 7 days
+        </h2>
+        <p className="text-sm text-neutral-500">
+          Tick Done for bookings that were served. A booking is ticked by itself when a jobsheet with the same plate is uploaded for that day.
+        </p>
+        {pastDates.length === 0 ? (
+          <p className="text-sm text-neutral-500">No bookings in the last 7 days.</p>
+        ) : (
+          pastDates.map((date) => {
+            const list = past.filter((b) => b.date === date);
+            const done = list.filter((b) => b.doneAt).length;
+            return (
+              <details key={date} open={done < list.length} className="rounded-xl border border-neutral-200 bg-white">
+                <summary className="cursor-pointer px-4 py-3 flex flex-wrap items-center gap-x-5 gap-y-1">
+                  <span className="font-semibold w-40">{dayLabel(date, today)}</span>
+                  <span className={`text-sm ${done < list.length ? "text-amber-700" : "text-emerald-700"}`}>
+                    {done} of {list.length} done
+                  </span>
+                </summary>
+                <ul className="divide-y divide-neutral-100 border-t border-neutral-100">
+                  {list.map((b) => (
+                    <TodayRow key={b.id} b={b} late={false} lateText="" pending={pending} run={run} showBranch={branches.length > 1} />
+                  ))}
+                </ul>
+              </details>
+            );
+          })
+        )}
+      </section>
+
+      <section className="space-y-3">
         <h2 className="text-lg font-semibold">Coming up (next 14 days)</h2>
         {upcomingDates.length === 0 ? (
           <p className="text-sm text-neutral-500">No bookings yet.</p>
@@ -171,12 +206,26 @@ export default function BookingsClient({
         )}
       </section>
 
-      {canSetLimits && <LimitsPanel settings={settings} today={today} isManagement={isManagement} homeBranch={homeBranch} pending={pending} run={run} />}
+      {canSetLimits && <LimitsPanel bookings={upcoming} settings={settings} today={today} isManagement={isManagement} homeBranch={homeBranch} pending={pending} run={run} />}
     </div>
   );
 }
 
-function TodayRow({ b, late, lateText, pending, run }: { b: BookingItem; late: boolean; lateText: string; pending: boolean; run: Run }) {
+function TodayRow({
+  b,
+  late,
+  lateText,
+  pending,
+  run,
+  showBranch = false,
+}: {
+  b: BookingItem;
+  late: boolean;
+  lateText: string;
+  pending: boolean;
+  run: Run;
+  showBranch?: boolean;
+}) {
   return (
     <li className="px-4 py-3 flex flex-col xl:flex-row xl:items-center gap-2 xl:gap-4">
       <div className="flex flex-col sm:flex-row sm:items-center gap-x-4 gap-y-1 min-w-0 flex-1">
@@ -187,6 +236,7 @@ function TodayRow({ b, late, lateText, pending, run }: { b: BookingItem; late: b
       <div className="min-w-0 flex-1 text-sm">
         <p className="font-medium">
           {b.name} · {b.plate}
+          {showBranch ? <span className="text-neutral-500 font-normal"> · {branchLabel(b.branch)}</span> : null}
         </p>
         <p className="text-neutral-500">
           {b.bikeModel}
@@ -200,7 +250,7 @@ function TodayRow({ b, late, lateText, pending, run }: { b: BookingItem; late: b
       </div>
       </div>
       <div className="flex flex-wrap items-center gap-2">
-        {late && (
+        {late && !b.doneAt && (
           <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 text-amber-800 px-2 py-0.5 text-xs" title={`Not here by ${lateText}`}>
             <Clock className="w-3 h-3" /> Late – walk-in priority
           </span>
@@ -243,12 +293,34 @@ function TodayRow({ b, late, lateText, pending, run }: { b: BookingItem; late: b
             </button>
           </>
         )}
+        {b.doneAt ? (
+          <button
+            disabled={pending}
+            onClick={() => run(() => setBookingDoneAction(b.id, false))}
+            title="Click to untick"
+            className="inline-flex items-center gap-1 rounded-lg bg-emerald-600 text-white px-3 py-1.5 text-sm font-medium disabled:opacity-50"
+          >
+            <CheckCircle2 className="w-4 h-4" /> Done
+            <span className="font-normal opacity-90">
+              {b.doneJobsheetNo ? `(jobsheet ${b.doneJobsheetNo})` : b.doneBy ? `· ${b.doneBy}` : ""}
+            </span>
+          </button>
+        ) : (
+          <button
+            disabled={pending}
+            onClick={() => run(() => setBookingDoneAction(b.id, true))}
+            className="inline-flex items-center gap-1 rounded-lg border border-emerald-600 text-emerald-700 px-3 py-1.5 text-sm font-medium hover:bg-emerald-50 disabled:opacity-50"
+          >
+            <Circle className="w-4 h-4" /> Done
+          </button>
+        )}
       </div>
     </li>
   );
 }
 
 function LimitsPanel({
+  bookings,
   settings,
   today,
   isManagement,
@@ -256,6 +328,7 @@ function LimitsPanel({
   pending,
   run,
 }: {
+  bookings: BookingItem[];
   settings: DaySettings;
   today: string;
   isManagement: boolean;
@@ -270,9 +343,6 @@ function LimitsPanel({
   const [daySession, setDaySession] = useState<Session>("am");
   const [dayDate, setDayDate] = useState("");
   const [dayLimit, setDayLimit] = useState("");
-  const [closedBranch, setClosedBranch] = useState<string>(isManagement ? "all" : (myBranches[0]?.value ?? "kapar"));
-  const [closedDate, setClosedDate] = useState("");
-  const [closedNote, setClosedNote] = useState("");
 
   const input = "rounded-lg border border-neutral-300 px-3 py-2 text-sm";
   const btn = "rounded-lg bg-neutral-900 text-white px-3 py-2 text-sm font-medium disabled:opacity-50";
@@ -366,55 +436,246 @@ function LimitsPanel({
         )}
       </div>
 
-      <div className="space-y-2">
-        <h3 className="font-medium">Closed days</h3>
-        <p className="text-sm text-neutral-500">Customers can&apos;t book these days. Bookings already made stay, so call those customers.</p>
-        <div className="flex flex-wrap items-center gap-2">
-          <select value={closedBranch} onChange={(e) => setClosedBranch(e.target.value)} className={input}>
-            {isManagement && <option value="all">All branches</option>}
-            {myBranches.map((b) => (
-              <option key={b.value} value={b.value}>
-                {b.label}
-              </option>
-            ))}
-          </select>
-          <input type="date" min={today} value={closedDate} onChange={(e) => setClosedDate(e.target.value)} className={input} />
-          <input placeholder="Reason (e.g. Deepavali)" value={closedNote} onChange={(e) => setClosedNote(e.target.value)} className={`${input} w-56`} />
+      <ClosedDaysCalendar
+        bookings={bookings}
+        settings={settings}
+        today={today}
+        isManagement={isManagement}
+        myBranches={myBranches.map((b) => b.value)}
+        pending={pending}
+        run={run}
+      />
+    </section>
+  );
+}
+
+// Month calendar for closed days: pick a branch (or All branches), click a
+// date to close it, click a closed date to reopen it.
+function ClosedDaysCalendar({
+  bookings,
+  settings,
+  today,
+  isManagement,
+  myBranches,
+  pending,
+  run,
+}: {
+  bookings: BookingItem[];
+  settings: DaySettings;
+  today: string;
+  isManagement: boolean;
+  myBranches: Branch[];
+  pending: boolean;
+  run: Run;
+}) {
+  const [branch, setBranch] = useState<string>(isManagement ? "all" : (myBranches[0] ?? "kapar"));
+  const [month, setMonth] = useState(today.slice(0, 7));
+  const [picked, setPicked] = useState<string | null>(null);
+  const [note, setNote] = useState("");
+
+  const [y, m] = month.split("-").map(Number);
+  const daysInMonth = new Date(Date.UTC(y, m, 0)).getUTCDate();
+  // Monday-first grid
+  const lead = (new Date(Date.UTC(y, m - 1, 1)).getUTCDay() + 6) % 7;
+  const cells: (string | null)[] = [
+    ...Array.from({ length: lead }, () => null),
+    ...Array.from({ length: daysInMonth }, (_, i) => `${month}-${String(i + 1).padStart(2, "0")}`),
+  ];
+  const shift = (n: number) => {
+    const d = new Date(Date.UTC(y, m - 1 + n, 1));
+    setMonth(d.toISOString().slice(0, 7));
+    setPicked(null);
+  };
+
+  // All-branch closures always show; a branch view also shows its own.
+  const closedOn = useMemo(() => {
+    const map = new Map<string, DaySettings["closed"]>();
+    for (const c of settings.closed) {
+      if (branch === "all" || c.branch === null || c.branch === branch) map.set(c.date, [...(map.get(c.date) ?? []), c]);
+    }
+    return map;
+  }, [settings.closed, branch]);
+  const canEdit = (c: DaySettings["closed"][number]) => isManagement || (c.branch !== null && myBranches.includes(c.branch));
+  const bookedOn = (date: string) => bookings.filter((b) => b.date === date && (branch === "all" || b.branch === branch)).length;
+
+  const pickedClosed = picked ? (closedOn.get(picked) ?? []) : [];
+  const pickedBooked = picked ? bookedOn(picked) : 0;
+  const thisMonth = today.slice(0, 7);
+  const input = "rounded-lg border border-neutral-300 px-3 py-2 text-sm";
+
+  return (
+    <div className="space-y-3">
+      <h3 className="font-medium">Closed days</h3>
+      <p className="text-sm text-neutral-500">
+        Click a date to close it. Click a closed date to reopen it. Customers can&apos;t book closed days; bookings already made stay, so call those
+        customers.
+      </p>
+      <div className="flex flex-wrap items-center gap-2 max-w-2xl">
+        <select
+          value={branch}
+          onChange={(e) => {
+            setBranch(e.target.value);
+            setPicked(null);
+          }}
+          className={input}
+        >
+          {isManagement && <option value="all">All branches</option>}
+          {BRANCHES.filter((b) => myBranches.includes(b.value)).map((b) => (
+            <option key={b.value} value={b.value}>
+              {b.label}
+            </option>
+          ))}
+        </select>
+        <div className="flex items-center gap-1 ml-auto">
           <button
-            disabled={pending || !closedDate}
-            className={`${btn} inline-flex items-center gap-1`}
-            onClick={() =>
-              run(async () => {
-                const r = await addClosedDayAction(closedBranch === "all" ? null : (closedBranch as Branch), closedDate, closedNote);
-                if (!r.error) {
-                  setClosedDate("");
-                  setClosedNote("");
-                }
-                return r;
-              })
-            }
+            onClick={() => shift(-1)}
+            disabled={month <= thisMonth}
+            aria-label="Previous month"
+            className="rounded-lg p-2 hover:bg-neutral-100 disabled:opacity-30"
           >
-            <Lock className="w-4 h-4" /> Close day
+            <ChevronLeft className="w-4 h-4" />
+          </button>
+          <span className="w-36 text-center font-semibold text-sm">
+            {new Date(Date.UTC(y, m - 1, 1)).toLocaleDateString("en-GB", { timeZone: "UTC", month: "long", year: "numeric" })}
+          </span>
+          <button onClick={() => shift(1)} aria-label="Next month" className="rounded-lg p-2 hover:bg-neutral-100">
+            <ChevronRight className="w-4 h-4" />
           </button>
         </div>
-        {settings.closed.length > 0 && (
-          <ul className="text-sm space-y-1">
-            {settings.closed.map((c) => (
-              <li key={c.id} className="flex items-center gap-3">
-                <span>
-                  {dayLabel(c.date, today)} · {c.branch ? branchLabel(c.branch) : "All branches"}
-                  {c.note ? ` · ${c.note}` : ""}
-                </span>
-                {(isManagement || (c.branch !== null && editable(c.branch))) && (
-                  <button disabled={pending} className="inline-flex items-center gap-1 text-emerald-700 underline" onClick={() => run(() => removeClosedDayAction(c.id))}>
-                    <Unlock className="w-3 h-3" /> Reopen
-                  </button>
-                )}
-              </li>
-            ))}
-          </ul>
-        )}
       </div>
-    </section>
+
+      <div className="grid grid-cols-7 gap-1 max-w-2xl">
+        {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => (
+          <div key={d} className="text-center text-xs font-medium text-neutral-500 py-1">
+            {d}
+          </div>
+        ))}
+        {cells.map((date, i) => {
+          if (!date) return <div key={`e${i}`} />;
+          const isPast = date < today;
+          const closed = closedOn.get(date) ?? [];
+          const allClosed = closed.some((c) => c.branch === null);
+          const booked = bookedOn(date);
+          const style = isPast
+            ? "bg-neutral-50 text-neutral-300 border-neutral-100 cursor-not-allowed"
+            : allClosed
+              ? "bg-red-600 text-white border-red-600"
+              : closed.length
+                ? "bg-red-100 text-red-800 border-red-200"
+                : "bg-white hover:bg-neutral-100 border-neutral-200";
+          return (
+            <button
+              key={date}
+              disabled={isPast || pending}
+              onClick={() => {
+                setPicked(date === picked ? null : date);
+                setNote("");
+              }}
+              className={`min-h-16 rounded-lg border p-1.5 text-left text-xs flex flex-col ${style} ${
+                picked === date ? "ring-2 ring-neutral-900 ring-offset-1" : ""
+              } ${date === today ? "font-bold" : ""}`}
+            >
+              <span className="text-sm">{Number(date.slice(8))}</span>
+              {closed.length > 0 && (
+                <span className="leading-tight line-clamp-2">
+                  {closed.map((c) => c.note || (c.branch ? branchLabel(c.branch) : "Closed")).join(", ")}
+                </span>
+              )}
+              {!isPast && booked > 0 && <span className={`mt-auto ${allClosed ? "text-white/80" : "text-neutral-500"}`}>{booked} booked</span>}
+            </button>
+          );
+        })}
+      </div>
+      <div className="flex flex-wrap gap-4 text-xs text-neutral-500">
+        <span className="flex items-center gap-1">
+          <span className="w-3 h-3 rounded bg-red-600 inline-block" /> Closed, all branches
+        </span>
+        <span className="flex items-center gap-1">
+          <span className="w-3 h-3 rounded bg-red-100 border border-red-200 inline-block" /> Closed, one branch
+        </span>
+      </div>
+
+      {picked && (
+        <div className="rounded-xl border border-neutral-300 bg-neutral-50 p-4 max-w-2xl space-y-3">
+          <div className="flex items-center justify-between">
+            <p className="font-semibold">{dayLabel(picked, today)}</p>
+            <button onClick={() => setPicked(null)} aria-label="Close" className="text-neutral-500 hover:text-neutral-800">
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+          {pickedBooked > 0 && (
+            <p className="rounded-lg bg-amber-50 text-amber-800 px-3 py-2 text-sm">
+              {pickedBooked} booking{pickedBooked === 1 ? "" : "s"} already on this day{branch === "all" ? "" : ` at ${branchLabel(branch as Branch)}`}.
+              If you close it, call {pickedBooked === 1 ? "this customer" : "these customers"}.
+            </p>
+          )}
+          {pickedClosed.map((c) => (
+            <div key={c.id} className="flex flex-wrap items-center gap-3 text-sm">
+              <span>
+                Closed · {c.branch ? branchLabel(c.branch) : "All branches"}
+                {c.note ? ` · ${c.note}` : ""}
+              </span>
+              {canEdit(c) && (
+                <button
+                  disabled={pending}
+                  className="inline-flex items-center gap-1 rounded-lg bg-emerald-600 text-white px-3 py-1.5 text-sm font-medium disabled:opacity-50"
+                  onClick={() =>
+                    run(async () => {
+                      const r = await removeClosedDayAction(c.id);
+                      if (!r.error) setPicked(null);
+                      return r;
+                    })
+                  }
+                >
+                  <Unlock className="w-4 h-4" /> Reopen
+                </button>
+              )}
+            </div>
+          ))}
+          {!pickedClosed.some((c) => c.branch === null || c.branch === branch) && (
+            <div className="flex flex-wrap items-center gap-2">
+              <input
+                autoFocus
+                placeholder="Reason (e.g. Deepavali)"
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+                className={`${input} w-56 bg-white`}
+              />
+              <button
+                disabled={pending}
+                className="inline-flex items-center gap-1 rounded-lg bg-red-600 text-white px-3 py-2 text-sm font-medium disabled:opacity-50"
+                onClick={() =>
+                  run(async () => {
+                    const r = await addClosedDayAction(branch === "all" ? null : (branch as Branch), picked, note);
+                    if (!r.error) setPicked(null);
+                    return r;
+                  })
+                }
+              >
+                <Lock className="w-4 h-4" /> Close {branch === "all" ? "all branches" : branchLabel(branch as Branch)}
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {settings.closed.length > 0 && (
+        <ul className="text-sm space-y-1">
+          {settings.closed.map((c) => (
+            <li key={c.id} className="flex items-center gap-3">
+              <span>
+                {dayLabel(c.date, today)} · {c.branch ? branchLabel(c.branch) : "All branches"}
+                {c.note ? ` · ${c.note}` : ""}
+              </span>
+              {canEdit(c) && (
+                <button disabled={pending} className="inline-flex items-center gap-1 text-emerald-700 underline" onClick={() => run(() => removeClosedDayAction(c.id))}>
+                  <Unlock className="w-3 h-3" /> Reopen
+                </button>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
   );
 }
