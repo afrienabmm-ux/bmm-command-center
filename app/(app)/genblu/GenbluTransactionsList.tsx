@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { Fragment, useState, useTransition } from "react";
 import { Download, Trash2, Check, X as XIcon } from "lucide-react";
 import { deleteGenbluTransactionAction, getScreenshotUrls } from "@/lib/genblu-actions";
 import { branchLabel } from "@/lib/branch";
@@ -19,7 +19,7 @@ type TransactionWithUrl = GenbluTransaction;
 const HEADERS = ["No", "Transaction Date", "Time", "Points", "Categories", "Remark", "Customer Name", "Service Coupon", "Branch"];
 
 export default function GenbluTransactionsList({
-  transactions,
+  transactions: unsorted,
   showBranch,
   title = "Point Allocation Transactions",
   exportFile = "bmm-genblu-point-allocation.csv",
@@ -29,6 +29,20 @@ export default function GenbluTransactionsList({
   title?: string;
   exportFile?: string;
 }) {
+  // Latest day first; within a day, earliest time first (owner's request).
+  const transactions = [...unsorted].sort((a, b) => {
+    const d = (b.transactionDate ?? "").localeCompare(a.transactionDate ?? "");
+    return d !== 0 ? d : (a.transactionTime ?? "99:99").localeCompare(b.transactionTime ?? "99:99");
+  });
+  // One header row per day with that day's count and points.
+  const dayTotals = new Map<string, { counts: number; points: number }>();
+  for (const t of transactions) {
+    const k = t.transactionDate ?? "";
+    const e = dayTotals.get(k) ?? { counts: 0, points: 0 };
+    e.counts += 1;
+    e.points += Number(t.points);
+    dayTotals.set(k, e);
+  }
   const [deleting, setDeleting] = useState<GenbluTransaction | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -94,8 +108,21 @@ export default function GenbluTransactionsList({
             </thead>
             <tbody>
               {transactions.map((t, i) => (
+                <Fragment key={t.id}>
+                {(i === 0 || transactions[i - 1].transactionDate !== t.transactionDate) && (
+                  <tr className="border-t border-neutral-200 bg-neutral-50">
+                    <td colSpan={showBranch ? 10 : 9} className="px-4 py-2 text-xs font-semibold text-neutral-700">
+                      {t.transactionDate ? formatDate(t.transactionDate) : "No date"}
+                      <span className="font-normal text-neutral-500">
+                        {" "}
+                        — {dayTotals.get(t.transactionDate ?? "")!.counts} allocation
+                        {dayTotals.get(t.transactionDate ?? "")!.counts === 1 ? "" : "s"} ·{" "}
+                        {dayTotals.get(t.transactionDate ?? "")!.points.toLocaleString()} points
+                      </span>
+                    </td>
+                  </tr>
+                )}
                 <tr
-                  key={t.id}
                   onDoubleClick={
                     t.screenshotPath
                       ? async () => {
@@ -133,6 +160,7 @@ export default function GenbluTransactionsList({
                     </button>
                   </td>
                 </tr>
+                </Fragment>
               ))}
               {transactions.length === 0 && (
                 <tr>
