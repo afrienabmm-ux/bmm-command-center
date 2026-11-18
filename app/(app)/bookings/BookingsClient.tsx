@@ -34,6 +34,17 @@ function dayLabel(date: string, today: string): string {
   return diff === 0 ? `Today, ${label}` : diff === 1 ? `Tomorrow, ${label}` : label;
 }
 
+// "10:15" -> 615 minutes; 615 -> "10:15am"
+function slotMinutes(slot: string): number {
+  const [h, m] = slot.split(":").map(Number);
+  return h * 60 + m;
+}
+function timeText(minutes: number): string {
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  return `${h % 12 === 0 ? 12 : h % 12}:${String(m).padStart(2, "0")}${h < 12 ? "am" : "pm"}`;
+}
+
 function limitFor(settings: DaySettings, branch: Branch, date: string, session: Session): number {
   return settings.overrides.find((o) => o.branch === branch && o.date === date && o.session === session)?.limit ?? settings.defaults[branch][session];
 }
@@ -83,15 +94,14 @@ export default function BookingsClient({
           <CalendarCheck className="w-5 h-5 text-red-600" /> Today&apos;s bookings
         </h2>
         <p className="text-sm text-neutral-500">
-          Serve booked customers before walk-ins, in number order. Morning bookings not here by 11am, and afternoon bookings not here by
-          3pm, are served like walk-ins.
+          Serve booked customers before walk-ins at their booked time. A customer more than 15 minutes late is served like a walk-in.
         </p>
         {branches.map((branch) => (
           <div key={branch} className="rounded-xl border border-neutral-200 bg-white">
             <div className="px-4 py-3 border-b border-neutral-100 font-semibold">{branchLabel(branch)}</div>
             {SESSIONS.map((s) => {
               const list = todays.filter((b) => b.branch === branch && b.session === s.value);
-              const late = nowMinutes >= s.lateAt;
+              // Late = 15 minutes after the customer's own time (old bookings without a time: 11am / 3pm).
               return (
                 <div key={s.value} className="border-b border-neutral-100 last:border-b-0">
                   <div className="flex items-center justify-between px-4 py-2 bg-neutral-50 text-sm">
@@ -105,7 +115,14 @@ export default function BookingsClient({
                   ) : (
                     <ul className="divide-y divide-neutral-100">
                       {list.map((b) => (
-                        <TodayRow key={b.id} b={b} late={late && b.status === "booked"} lateText={s.lateText} pending={pending} run={run} />
+                        <TodayRow
+                          key={b.id}
+                          b={b}
+                          late={b.status === "booked" && nowMinutes >= (b.slotTime ? slotMinutes(b.slotTime) + 15 : s.lateAt)}
+                          lateText={b.slotTime ? timeText(slotMinutes(b.slotTime) + 15) : s.lateText}
+                          pending={pending}
+                          run={run}
+                        />
                       ))}
                     </ul>
                   )}
@@ -140,6 +157,7 @@ export default function BookingsClient({
                   .filter((b) => b.date === date)
                   .map((b) => (
                     <li key={b.id} className="px-4 py-2 text-sm flex flex-wrap gap-x-4">
+                      <span className="font-semibold w-16">{b.slotTime ? timeText(slotMinutes(b.slotTime)) : b.session.toUpperCase()}</span>
                       <span className="font-mono font-bold w-36">{b.bookingNo}</span>
                       <span>
                         {b.name} · {b.plate} · {b.bikeModel}
@@ -162,6 +180,9 @@ function TodayRow({ b, late, lateText, pending, run }: { b: BookingItem; late: b
   return (
     <li className="px-4 py-3 flex flex-col xl:flex-row xl:items-center gap-2 xl:gap-4">
       <div className="flex flex-col sm:flex-row sm:items-center gap-x-4 gap-y-1 min-w-0 flex-1">
+      <span className="shrink-0 rounded-lg bg-neutral-900 text-white px-2 py-1 text-sm font-bold w-20 text-center">
+        {b.slotTime ? timeText(slotMinutes(b.slotTime)) : b.session.toUpperCase()}
+      </span>
       <span className="font-mono text-lg font-bold sm:w-36 shrink-0">{b.bookingNo}</span>
       <div className="min-w-0 flex-1 text-sm">
         <p className="font-medium">

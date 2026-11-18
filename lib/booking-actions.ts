@@ -16,6 +16,7 @@ export type BookingItem = {
   branch: Branch;
   date: string;
   session: Session;
+  slotTime: string | null; // "09:30" etc.; null for bookings made before times existed
   seq: number;
   name: string;
   phone: string;
@@ -69,13 +70,14 @@ export async function listBookings(branch: Branch | "all", days = 14): Promise<B
   const today = todayInMalaysia();
   let q = bookingDb
     .from("bookings")
-    .select("id, booking_no, branch, booking_date, session, seq, name, phone, plate, bike_model, mileage_km, service_type, status, source, created_by_name, status_changed_by")
+    .select("id, booking_no, branch, booking_date, session, slot_time, seq, name, phone, plate, bike_model, mileage_km, service_type, status, source, created_by_name, status_changed_by")
     .gte("booking_date", today)
     .lte("booking_date", addDays(today, days))
     .neq("status", "cancelled")
     .order("booking_date")
     .order("branch")
     .order("session")
+    .order("slot_time", { nullsFirst: false })
     .order("seq");
   if (branch !== "all") q = q.eq("branch", branch);
   const { data, error } = await q;
@@ -86,6 +88,7 @@ export async function listBookings(branch: Branch | "all", days = 14): Promise<B
     branch: r.branch,
     date: r.booking_date,
     session: r.session,
+    slotTime: r.slot_time ?? null,
     seq: r.seq,
     name: r.name,
     phone: r.phone,
