@@ -54,10 +54,10 @@ function RevenueRunRateChart({ data, title }: { data: RevenuePaceData; title: st
 
   return (
     <div className="bg-white border border-neutral-200 rounded-xl p-5">
-      <div className="flex flex-col items-center mb-4 text-center">
+      <div className="flex flex-col items-start mb-4">
         <p className="text-sm font-semibold text-neutral-900">{title}</p>
         <p className="text-xs text-neutral-500 mt-0.5">
-          Actual revenue vs the pace needed to hit {formatCurrency(data.combinedTarget)}.
+          Actual revenue against the pace needed to hit {formatCurrency(data.combinedTarget)}
         </p>
         <div className="flex items-center gap-4 text-xs text-neutral-500 mt-2">
           <span className="flex items-center gap-1.5">
@@ -92,8 +92,8 @@ function RevenueRunRateChart({ data, title }: { data: RevenuePaceData; title: st
                 </text>
               ) : null
             )}
-            <path d={pacePath} fill="none" strokeWidth={2.5} strokeDasharray="6 4" className="stroke-neutral-400" />
-            {actualPath && <path d={actualPath} fill="none" strokeWidth={3} className="stroke-red-500" />}
+            <path d={pacePath} fill="none" strokeWidth={2} strokeDasharray="6 4" className="stroke-neutral-400" />
+            {actualPath && <path d={actualPath} fill="none" strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" className="stroke-red-600" />}
             {markerPoint && (
               <g>
                 <line
@@ -124,11 +124,11 @@ function RevenueRunRateChart({ data, title }: { data: RevenuePaceData; title: st
             </p>
             {markerDay <= today && (
               <p className="text-neutral-600 mt-1">
-                Actual : <span className="text-red-600 font-medium">{formatCurrency(markerPoint.actual)}</span>
+                Actual <span className="text-neutral-900 font-medium tabular-nums">{formatCurrency(markerPoint.actual)}</span>
               </p>
             )}
             <p className="text-neutral-600">
-              Pace needed : <span className="text-neutral-700 font-medium">{formatCurrency(markerPoint.paceNeeded)}</span>
+              Pace needed <span className="text-neutral-900 font-medium tabular-nums">{formatCurrency(markerPoint.paceNeeded)}</span>
             </p>
           </div>
         )}
@@ -153,61 +153,56 @@ function BranchRevenueCard({
 
   return (
     <div className="bg-white border border-neutral-200 rounded-xl p-5">
-      <div className="flex flex-col items-start gap-1.5 mb-3">
+      <div className="flex items-baseline justify-between gap-3 mb-3">
         <p className="text-sm font-semibold text-neutral-900 whitespace-nowrap">{branchLabel(pace.branch)}</p>
         {pace.hasTarget ? (
           pace.onTrack ? (
-            <span className="text-xs font-medium text-emerald-700 bg-emerald-500/10 border border-emerald-500/20 rounded-full px-2 py-0.5 whitespace-nowrap">
-              On track
-            </span>
+            <span className="text-xs text-emerald-700 whitespace-nowrap">On track</span>
           ) : (
-            <span className="text-xs font-medium text-red-700 bg-red-500/10 border border-red-500/20 rounded-full px-2 py-0.5">
-              At risk · {formatCurrency(pace.behindAmount)} behind
-            </span>
+            <span className="text-xs text-red-700 tabular-nums text-right">{formatCurrency(pace.behindAmount)} behind</span>
           )
         ) : (
-          <span className="text-xs font-medium text-neutral-500 bg-neutral-100 rounded-full px-2 py-0.5 whitespace-nowrap">
-            No target set
-          </span>
+          <span className="text-xs text-neutral-500 whitespace-nowrap">No target set</span>
         )}
       </div>
 
-      <p className="text-2xl font-semibold text-neutral-900">
+      <p className="text-2xl font-semibold tabular-nums text-neutral-900">
         {formatCurrency(pace.achieved)}
         {pace.hasTarget && <span className="text-sm font-normal text-neutral-500"> / {formatCurrency(pace.target)}</span>}
       </p>
 
       {pace.hasTarget && (
         <>
-          <div className="relative mt-3 h-2 bg-neutral-100 rounded-full overflow-hidden">
-            <div className={`h-full rounded-full ${pace.onTrack ? "bg-emerald-500" : "bg-red-500"}`} style={{ width: `${pct}%` }} />
-            <div className="absolute top-0 bottom-0 w-px bg-neutral-800/60" style={{ left: `${markerPct}%` }} />
+          <div className="relative mt-4">
+            <div className="h-2 bg-neutral-100 rounded-full overflow-hidden">
+              <div className={`h-full rounded-full ${pace.onTrack ? "bg-emerald-600" : "bg-red-600"}`} style={{ width: `${pct}%` }} />
+            </div>
+            <div aria-hidden="true" className="absolute -top-1 -bottom-1 w-0.5 -ml-px rounded-full bg-neutral-900" style={{ left: `${markerPct}%` }} />
           </div>
-          <div className="flex items-center justify-between mt-1.5">
-            <p className="text-xs text-neutral-500">
-              marker = should be {formatCurrency(pace.expectedByToday)} by {isRealToday ? "today" : `Day ${asOfDay}`}
+          <div className="flex items-center justify-between gap-3 mt-2 text-xs text-neutral-500">
+            <p className="flex items-center gap-1.5">
+              <span aria-hidden="true" className="inline-block w-0.5 h-3 rounded-full bg-neutral-900" />
+              Should be <span className="tabular-nums">{formatCurrency(pace.expectedByToday)}</span> by {isRealToday ? "today" : `day ${asOfDay}`}
             </p>
-            <p className="text-xs text-neutral-500 whitespace-nowrap">
-              {formatCurrency(revenueToday)} {isRealToday ? "today" : `on Day ${asOfDay}`}
-            </p>
-          </div>
-          <div className="mt-3 bg-neutral-50 rounded-lg px-3 py-2">
-            <p className="text-xs text-neutral-600">
-              Need <span className="font-semibold text-neutral-900">{formatCurrency(pace.dailyQuota)}/day</span> every working
-              day this month to hit target
+            <p className="whitespace-nowrap tabular-nums">
+              {formatCurrency(revenueToday)} {isRealToday ? "today" : `on day ${asOfDay}`}
             </p>
           </div>
+          <p className="mt-4 pt-3 border-t border-neutral-100 text-xs text-neutral-600">
+            Needs <span className="font-medium text-neutral-900 tabular-nums">{formatCurrency(pace.dailyQuota)}</span> a day, every working day,
+            to hit the target
+          </p>
         </>
       )}
     </div>
   );
 }
 
-export default function RevenuePace({ data, title = "Revenue Run-Rate — all branches" }: { data: RevenuePaceData; title?: string }) {
+export default function RevenuePace({ data, title = "Revenue run-rate, all branches" }: { data: RevenuePaceData; title?: string }) {
   return (
     <div className="space-y-4">
       <div>
-        <p className="text-sm font-semibold text-neutral-900">Pace to Target — Each Branch</p>
+        <p className="text-sm font-semibold text-neutral-900">Pace to target by branch</p>
         <div
           className={`mt-3 grid ${data.branches.length === 1 ? "grid-cols-1" : "grid-cols-1 md:grid-cols-3"} gap-4`}
         >

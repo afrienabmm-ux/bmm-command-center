@@ -142,7 +142,7 @@ export default function Sidebar({
           <img
             src="/bmm-logo.png"
             alt="Berjaya Mega Motors"
-            className="w-9 h-9 rounded-full object-cover shrink-0 bg-white ring-2 ring-red-500/70 shadow-[0_0_18px_rgba(239,68,68,0.55)]"
+            className="w-9 h-9 rounded-full object-cover shrink-0 bg-white ring-1 ring-white/10"
           />
           {!visuallyCollapsed && (
             <div className="leading-none min-w-0 flex-1">
@@ -189,7 +189,7 @@ export default function Sidebar({
                   (visuallyCollapsed ? (
                     <hr className="my-3 border-white/10" />
                   ) : (
-                    <p className="mt-4 mb-1 px-3 text-[11px] font-semibold uppercase tracking-wider text-neutral-500">Booking System</p>
+                    <p className="mt-6 mb-2 px-3 text-xs font-medium text-neutral-500">Booking system</p>
                   ))}
                 {isFirstTrailing && <hr className="my-3 border-white/10" />}
                 <Link
@@ -197,14 +197,15 @@ export default function Sidebar({
                   prefetch={false}
                   title={visuallyCollapsed ? link.label : undefined}
                   className={`group relative flex items-center rounded-xl text-sm font-medium transition-all duration-200 ${
-                    visuallyCollapsed ? "gap-3 md:justify-center px-3 md:px-2 py-2.5" : "gap-3 px-3 py-2.5"
+                    visuallyCollapsed ? "gap-3 md:justify-center px-3 md:px-2 py-2" : "gap-3 px-3 py-2"
                   } ${
                     active
-                      ? "bg-red-600 text-white"
-                      : "text-neutral-400 hover:bg-white/[0.06] hover:text-white"
+                      ? "bg-white/[0.08] text-white shadow-[inset_0_1px_0_rgb(255_255_255/0.06)]"
+                      : "text-neutral-400 hover:bg-white/[0.04] hover:text-neutral-100"
                   }`}
                 >
-                  <Icon size={17} className={`shrink-0 ${active ? "text-white" : link.color}`} />
+                  {active && <span aria-hidden="true" className="absolute left-0 top-2 bottom-2 w-0.5 rounded-full bg-red-500" />}
+                  <Icon size={16} strokeWidth={1.75} className={`shrink-0 ${active ? "text-red-500" : "text-neutral-500 group-hover:text-neutral-300"}`} />
                   {!visuallyCollapsed && link.label}
                 </Link>
               </div>
@@ -221,7 +222,7 @@ export default function Sidebar({
               visuallyCollapsed ? "md:justify-center gap-2.5 md:gap-0 px-2 py-1.5" : "gap-2.5 px-2 py-1.5"
             }`}
           >
-            <span className="w-8 h-8 rounded-full bg-red-600 text-white text-xs font-bold flex items-center justify-center shrink-0 shadow-md shadow-red-900/40">
+            <span className="w-8 h-8 rounded-full bg-red-600 text-white text-xs font-semibold flex items-center justify-center shrink-0">
               {initials(name, email)}
             </span>
             {!visuallyCollapsed && (

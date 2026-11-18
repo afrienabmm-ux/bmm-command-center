@@ -1,10 +1,9 @@
 import Link from "next/link";
-import { ClipboardList, Wallet, Layers, PackageCheck, ArrowUp, ArrowDown } from "lucide-react";
+import { ClipboardList, Wallet, PackageCheck } from "lucide-react";
 import { formatCurrency, monthLabel, MONTH_NAMES } from "@/lib/format";
 import { todayInMalaysia } from "@/lib/malaysia-time";
 import { branchLabel, type Branch, type BranchSelection } from "@/lib/branch";
 import StatCard from "@/components/StatCard";
-import CountUp from "@/components/CountUp";
 import CombinedTargetEditor from "./CombinedTargetEditor";
 import BranchBreakdownTable, { getBranchBreakdown, getAllBranchesAchievedTotal } from "./BranchBreakdownTable";
 import MonthlyTrends from "./MonthlyTrends";
@@ -27,35 +26,58 @@ import ClaimStatusPieCard from "./ClaimStatusPieCard";
 import BranchMechanicLeaderboard from "./BranchMechanicLeaderboard";
 import SuspiciousJobsBanner from "./SuspiciousJobsBanner";
 
-// Circular "% of target" gauge for the dashboard banner. Fills up on page
-// load (ring-fill keyframes in globals.css); the number can go past 100%.
-function ProgressRing({ pct }: { pct: number }) {
-  const size = 132;
-  const stroke = 10;
-  const r = (size - stroke) / 2;
-  const c = 2 * Math.PI * r;
-  const offset = c * (1 - Math.min(100, pct) / 100);
+// Month-target dial, drawn like a bike's speedometer: the red sweep is how
+// much of the target is done, and the dark tick is where we should be by
+// today if we were exactly on pace. The number can go past 100%.
+function TargetDial({ pct, expectedPct }: { pct: number; expectedPct: number | null }) {
+  const size = 220;
+  const cx = size / 2;
+  const cy = size / 2;
+  const r = 88;
+  const START = 150; // degrees, clockwise from 3 o'clock
+  const SWEEP = 240;
+  const at = (fraction: number, radius: number) => {
+    const a = ((START + SWEEP * Math.max(0, Math.min(1, fraction))) * Math.PI) / 180;
+    return [cx + radius * Math.cos(a), cy + radius * Math.sin(a)] as const;
+  };
+  const arc = (to: number) => {
+    const [x0, y0] = at(0, r);
+    const [x1, y1] = at(to, r);
+    return `M${x0},${y0} A${r},${r} 0 ${SWEEP * to > 180 ? 1 : 0} 1 ${x1},${y1}`;
+  };
+  const done = Math.min(100, pct) / 100;
+  const reached = pct >= 100;
   return (
-    <div className="relative shrink-0" style={{ width: size, height: size }}>
-      <svg width={size} height={size} className="-rotate-90" aria-hidden="true">
-        <circle cx={size / 2} cy={size / 2} r={r} fill="none" className="stroke-neutral-100" strokeWidth={stroke} />
-        <circle
-          cx={size / 2}
-          cy={size / 2}
-          r={r}
-          fill="none"
-          className={`animate-ring-fill ${pct >= 100 ? "stroke-emerald-500" : "stroke-red-600"}`}
-          strokeWidth={stroke}
-          strokeLinecap="round"
-          strokeDasharray={c}
-          strokeDashoffset={offset}
-          style={{ "--ring-c": `${c}px` } as React.CSSProperties}
-        />
+    <div className="relative shrink-0" style={{ width: size, height: 184 }}>
+      <svg width={size} height={184} aria-hidden="true">
+        {Array.from({ length: 11 }, (_, i) => {
+          const major = i % 5 === 0;
+          const [x0, y0] = at(i / 10, r - 14);
+          const [x1, y1] = at(i / 10, r - (major ? 22 : 18));
+          return <line key={i} x1={x0} y1={y0} x2={x1} y2={y1} strokeWidth={1.5} strokeLinecap="round" className="stroke-neutral-300" />;
+        })}
+        <path d={arc(1)} fill="none" strokeWidth={10} strokeLinecap="round" className="stroke-neutral-100" />
+        {done > 0 && (
+          <path d={arc(done)} fill="none" strokeWidth={10} strokeLinecap="round" className={reached ? "stroke-emerald-600" : "stroke-red-600"} />
+        )}
+        {expectedPct !== null && expectedPct > 0 && (
+          (() => {
+            const [x0, y0] = at(Math.min(100, expectedPct) / 100, r - 11);
+            const [x1, y1] = at(Math.min(100, expectedPct) / 100, r + 11);
+            return <line x1={x0} y1={y0} x2={x1} y2={y1} strokeWidth={3} strokeLinecap="round" className="stroke-neutral-900" />;
+          })()
+        )}
       </svg>
-      <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <CountUp value={pct} kind="percent" className="text-3xl font-bold tabular-nums text-neutral-900" />
-        <span className="text-[11px] font-medium uppercase tracking-wider text-neutral-500 mt-0.5">of target</span>
+      <div className="absolute inset-x-0 top-[72px] flex flex-col items-center">
+        <span className="text-4xl font-semibold tracking-tight tabular-nums text-neutral-900">{pct}%</span>
+        <span className="text-xs text-neutral-500 mt-1">of target</span>
       </div>
+      {expectedPct !== null && (
+        <p className="absolute inset-x-0 bottom-0 flex items-center justify-center gap-1.5 text-xs text-neutral-500">
+          <span aria-hidden="true" className="inline-block w-0.5 h-3 rounded-full bg-neutral-900" />
+          Should be {Math.min(100, expectedPct)}% by today
+        </p>
+      )}
     </div>
   );
 }
@@ -65,7 +87,7 @@ function ProgressRing({ pct }: { pct: number }) {
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section className="space-y-4">
-      <h2 className="text-xs font-semibold uppercase tracking-wider text-neutral-500">{title}</h2>
+      <h2 className="text-base font-semibold text-neutral-900">{title}</h2>
       {children}
     </section>
   );
@@ -159,6 +181,12 @@ export default async function AllBranchesOverview({
     return n;
   })();
 
+  // Where the month should be by today if every working day were on pace —
+  // the same marker the branch cards use, summed across branches.
+  const expectedByToday = revenuePace.branches.reduce((sum, b) => sum + b.expectedByToday, 0);
+  const expectedPct = totals.target > 0 ? Math.round((expectedByToday / totals.target) * 100) : null;
+  const pctRaw = totals.target > 0 ? Math.floor((totals.achieved / totals.target) * 100) : 0;
+
   const serviceRevenueToday = revenuePace.branches.reduce((sum, b) => sum + b.revenueToday, 0);
   const dayLabel = `${day} ${MONTH_NAMES[month - 1]} ${year}`;
 
@@ -179,82 +207,55 @@ export default async function AllBranchesOverview({
   const trendPct = prevAchieved > 0 ? Math.round(((totals.achieved - prevAchieved) / prevAchieved) * 100) : null;
 
   return (
-    <div className="space-y-8 stagger">
+    <div className="space-y-8 enter">
       {/* Headline number first: this month's target vs achieved. */}
-      <div className="relative overflow-hidden rounded-2xl bg-white border border-neutral-200 p-6 md:p-8">
-        <div aria-hidden="true" className="absolute inset-y-0 left-0 w-1 bg-red-600" />
+      <div className="rounded-xl bg-white border border-neutral-200 p-6 md:p-8">
         <div className="grid gap-8 md:grid-cols-[1fr_auto] md:items-center">
           <div className="min-w-0">
-            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-red-700">
-              <Layers size={14} aria-hidden="true" />
-              <span>
-                {onlyBranch ? branchLabel(onlyBranch) : "All Branches"} · {monthLabel(month, year)}
-                {onlyBranch ? "" : " · combined"}
-              </span>
-            </div>
-            <p className="mt-3 text-sm text-neutral-500">Achieved so far</p>
-            <p className="text-4xl md:text-5xl font-bold tracking-tight tabular-nums text-neutral-900">
-              <CountUp value={totals.achieved} kind="currency" />
+            <p className="text-sm text-neutral-500">
+              {onlyBranch ? branchLabel(onlyBranch) : "All branches"} · {monthLabel(month, year)}
             </p>
-            <div className="flex items-center gap-3 mt-2 flex-wrap">
-              <p className="text-sm text-neutral-600">
-                of <span className="font-semibold text-neutral-900 tabular-nums">{formatCurrency(totals.target)}</span> target
-              </p>
+            <p className="mt-2 text-sm text-neutral-600">Achieved so far</p>
+            <p className="text-4xl md:text-5xl font-semibold tracking-tight tabular-nums text-neutral-900">{formatCurrency(totals.achieved)}</p>
+            <p className="mt-2 text-sm text-neutral-600">
+              of <span className="font-medium text-neutral-900 tabular-nums">{formatCurrency(totals.target)}</span> target
               {trendPct !== null && (
-                <span
-                  className={`inline-flex items-center gap-0.5 text-xs font-semibold px-2.5 py-1 rounded-full ${
-                    trendPct >= 0 ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-700"
-                  }`}
-                >
-                  {trendPct >= 0 ? <ArrowUp size={12} aria-hidden="true" /> : <ArrowDown size={12} aria-hidden="true" />}
-                  {Math.abs(trendPct)}% vs {monthLabel(prev.month, prev.year)}
-                </span>
-              )}
-            </div>
-
-            <div
-              className="mt-6 h-2.5 bg-neutral-100 rounded-full overflow-hidden"
-              role="progressbar"
-              aria-valuenow={pct}
-              aria-valuemin={0}
-              aria-valuemax={100}
-              aria-label="Progress to monthly target"
-            >
-              <div
-                className={`h-full rounded-full animate-grow-x ${pct >= 100 ? "bg-emerald-500" : "bg-red-600"}`}
-                style={{ width: `${pct}%` }}
-              />
-            </div>
-            {totals.target > 0 && (
-              <p className="mt-3 text-sm font-medium">
-                {totals.achieved >= totals.target ? (
-                  <span className="text-emerald-700">
-                    Target reached — {formatCurrency(totals.achieved - totals.target)} over
+                <>
+                  {" · "}
+                  <span className={trendPct >= 0 ? "text-emerald-700" : "text-red-700"}>
+                    {Math.abs(trendPct)}% {trendPct >= 0 ? "more" : "less"} than {monthLabel(prev.month, prev.year)}
                   </span>
+                </>
+              )}
+            </p>
+            {totals.target > 0 && (
+              <p className="mt-6 text-sm">
+                {totals.achieved >= totals.target ? (
+                  <span className="text-emerald-700">Target reached, {formatCurrency(totals.achieved - totals.target)} over</span>
                 ) : (
                   <span className="text-neutral-900">
-                    {formatCurrency(totals.target - totals.achieved)} more to reach the target
+                    <span className="tabular-nums">{formatCurrency(totals.target - totals.achieved)}</span> more to reach the target
                     {workingDaysLeft > 0 && (
-                      <span className="text-neutral-500 font-normal">
+                      <span className="text-neutral-500">
                         {" "}
-                        · about {formatCurrency((totals.target - totals.achieved) / workingDaysLeft)} a day for the{" "}
-                        {workingDaysLeft} working day{workingDaysLeft === 1 ? "" : "s"} left
+                        · about <span className="tabular-nums">{formatCurrency((totals.target - totals.achieved) / workingDaysLeft)}</span> a day for
+                        the {workingDaysLeft} working day{workingDaysLeft === 1 ? "" : "s"} left
                       </span>
                     )}
                   </span>
                 )}
               </p>
             )}
+            <div className="mt-4">
+              <CombinedTargetEditor
+                year={year}
+                month={month}
+                branchTargets={rows.reduce((acc, b) => ({ ...acc, [b.branch]: b.target }), {} as Record<Branch, number>)}
+              />
+            </div>
           </div>
 
-          <div className="flex md:flex-col items-center gap-5 md:gap-4">
-            <ProgressRing pct={totals.target > 0 ? Math.floor((totals.achieved / totals.target) * 100) : 0} />
-            <CombinedTargetEditor
-              year={year}
-              month={month}
-              branchTargets={rows.reduce((acc, b) => ({ ...acc, [b.branch]: b.target }), {} as Record<Branch, number>)}
-            />
-          </div>
+          <TargetDial pct={pctRaw} expectedPct={revenuePace.isRealToday ? expectedPct : null} />
         </div>
       </div>
 
@@ -270,21 +271,21 @@ export default async function AllBranchesOverview({
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         <StatCard
           icon={ClipboardList}
-          label={revenuePace.isRealToday ? "Jobsheet Today" : `Jobsheet — ${dayLabel}`}
+          label={revenuePace.isRealToday ? "Jobsheets today" : `Jobsheets, ${dayLabel}`}
           value={todayActivity.jobsheetCount}
           color="text-red-700 bg-red-500/10"
           href="/repairs/walk-in"
         />
         <StatCard
           icon={Wallet}
-          label={revenuePace.isRealToday ? "Service Revenue Today" : `Service Revenue — ${dayLabel}`}
+          label={revenuePace.isRealToday ? "Service revenue today" : `Service revenue, ${dayLabel}`}
           value={formatCurrency(serviceRevenueToday)}
           color="text-emerald-700 bg-emerald-500/10"
           href="/repairs/walk-in"
         />
         <StatCard
           icon={PackageCheck}
-          label={revenuePace.isRealToday ? "Services Combo Today" : `Services Combo — ${dayLabel}`}
+          label={revenuePace.isRealToday ? "Services combos today" : `Services combos, ${dayLabel}`}
           value={todayActivity.packagesSoldCount}
           detail={`${todayActivity.packagesByType.Yamalube} Yamalube · ${todayActivity.packagesByType["Rock Oil"]} Rock Oil`}
           color="text-teal-700 bg-teal-500/10"
@@ -293,16 +294,16 @@ export default async function AllBranchesOverview({
       </div>
       </Section>
 
-      <Section title="This Month">
+      <Section title="This month">
       <RevenuePace
         data={revenuePace}
-        title={onlyBranch ? `Revenue Run-Rate — ${branchLabel(onlyBranch)}` : "Revenue Run-Rate — all branches"}
+        title={onlyBranch ? `Revenue run-rate, ${branchLabel(onlyBranch)}` : "Revenue run-rate, all branches"}
       />
 
       <MonthlyPaceChart
         points={monthlyTargetHistory}
         workingDaysRemaining={revenuePace.branches[0]?.workingDaysRemaining ?? 0}
-        title={onlyBranch ? `Pace to Target — ${branchLabel(onlyBranch)}` : "Pace to Target"}
+        title={onlyBranch ? `Pace to target, ${branchLabel(onlyBranch)}` : "Pace to target"}
       />
 
       {/* Claims and combo sales side by side on wide screens. */}
@@ -316,7 +317,7 @@ export default async function AllBranchesOverview({
       </div>
       </Section>
 
-      <Section title="Last 6 Months">
+      <Section title="Last 6 months">
         <MonthlyTrends points={trendPoints} />
       </Section>
 

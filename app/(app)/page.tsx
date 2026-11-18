@@ -43,7 +43,7 @@ export default async function CommandCenterPage({
     <div className="flex flex-col h-full">
       <PageHeader
         title="Dashboard"
-        subtitle={branchSelection === "all" ? "All branches — after-sales overview" : `${branchLabel(branchSelection)} — after-sales overview`}
+        subtitle={branchSelection === "all" ? "Kapar, Setia Alam and Puncak Alam: target, jobsheets, claims and mechanics" : `${branchLabel(branchSelection)}: target, jobsheets, claims and mechanics`}
         action={
           <div className="flex items-center gap-2">
             <DaySelect year={year} month={month} day={day} basePath="/" />

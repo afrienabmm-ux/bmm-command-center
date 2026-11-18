@@ -79,7 +79,7 @@ export function RevenueTrendChart({ points }: { points: MonthlyTrendPoint[] }) {
   return (
     <div className="bg-white border border-neutral-200 rounded-xl p-5">
       <div className="flex flex-col items-center mb-4 text-center">
-        <p className="text-sm font-semibold text-neutral-900">Revenue: Target vs Achieved</p>
+        <p className="text-sm font-semibold text-neutral-900">Revenue: target vs achieved</p>
         <p className="text-xs text-neutral-500 mt-0.5">Last {points.length} months, all branches combined</p>
         <div className="flex items-center gap-4 text-xs text-neutral-500 mt-2">
           <span className="flex items-center gap-1.5">
@@ -125,7 +125,7 @@ export function RevenueTrendChart({ points }: { points: MonthlyTrendPoint[] }) {
                   >
                     {shortAmount(p.achievedAmount)}
                   </text>
-                  <text x={xAt(i)} y={monthLabelY} textAnchor="middle" className="fill-neutral-500 text-[11px] font-medium uppercase">
+                  <text x={xAt(i)} y={monthLabelY} textAnchor="middle" className="fill-neutral-500 text-[11px]">
                     {p.label}
                   </text>
                 </g>
@@ -139,9 +139,9 @@ export function RevenueTrendChart({ points }: { points: MonthlyTrendPoint[] }) {
 }
 
 const BRANCH_SERIES: { key: Branch; label: string; stroke: string; text: string; dot: string }[] = [
-  { key: "kapar", label: "Kapar (HQ)", stroke: "stroke-red-500", text: "fill-red-600", dot: "bg-red-500" },
-  { key: "setia_alam", label: "Setia Alam", stroke: "stroke-orange-500", text: "fill-orange-600", dot: "bg-orange-500" },
-  { key: "puncak_alam", label: "Puncak Alam", stroke: "stroke-emerald-500", text: "fill-emerald-600", dot: "bg-emerald-500" },
+  { key: "kapar", label: "Kapar (HQ)", stroke: "stroke-red-600", text: "fill-red-700", dot: "bg-red-600" },
+  { key: "setia_alam", label: "Setia Alam", stroke: "stroke-neutral-800", text: "fill-neutral-800", dot: "bg-neutral-800" },
+  { key: "puncak_alam", label: "Puncak Alam", stroke: "stroke-neutral-400", text: "fill-neutral-500", dot: "bg-neutral-400" },
 ];
 
 // Three branches often sit at the exact same count (all 0 most months) —
@@ -178,7 +178,7 @@ export function BranchJobsChart({ points }: { points: MonthlyTrendPoint[] }) {
   return (
     <div className="bg-white border border-neutral-200 rounded-xl p-5">
       <div className="flex flex-col items-center mb-4 text-center">
-        <p className="text-sm font-semibold text-neutral-900">Repair Jobs Completed by Branch</p>
+        <p className="text-sm font-semibold text-neutral-900">Repair jobs completed by branch</p>
         <p className="text-xs text-neutral-500 mt-0.5">Last {points.length} months</p>
         <div className="flex items-center gap-4 text-xs text-neutral-500 mt-2">
           {BRANCH_SERIES.map((s) => (
@@ -203,7 +203,7 @@ export function BranchJobsChart({ points }: { points: MonthlyTrendPoint[] }) {
               const path = points
                 .map((p, i) => `${i === 0 ? "M" : "L"}${xAt(i)},${yAt(p.repairJobsByBranch[s.key]) + SERIES_Y_NUDGE[s.key]}`)
                 .join(" ");
-              return <path key={s.key} d={path} fill="none" strokeWidth={3} className={s.stroke} />;
+              return <path key={s.key} d={path} fill="none" strokeWidth={2} strokeLinejoin="round" className={s.stroke} />;
             })}
             {points.map((p, i) => {
               // The line nudge above is invisible for the lines themselves,
@@ -228,7 +228,8 @@ export function BranchJobsChart({ points }: { points: MonthlyTrendPoint[] }) {
                   {hovered === i && (
                     <line x1={xAt(i)} x2={xAt(i)} y1={PAD_TOP} y2={plotBottom} strokeDasharray="3 3" className="stroke-neutral-300" />
                   )}
-                  {BRANCH_SERIES.map((s) => {
+                  {/* Numbers on the latest month only; hover shows any month. */}
+                  {i === points.length - 1 && BRANCH_SERIES.map((s) => {
                     const value = p.repairJobsByBranch[s.key];
                     if (seen.has(value)) return null;
                     seen.add(value);
@@ -245,7 +246,7 @@ export function BranchJobsChart({ points }: { points: MonthlyTrendPoint[] }) {
                       </text>
                     );
                   })}
-                  <text x={xAt(i)} y={monthLabelY} textAnchor="middle" className="fill-neutral-500 text-[11px] font-medium uppercase">
+                  <text x={xAt(i)} y={monthLabelY} textAnchor="middle" className="fill-neutral-500 text-[11px]">
                     {p.label}
                   </text>
                 </g>

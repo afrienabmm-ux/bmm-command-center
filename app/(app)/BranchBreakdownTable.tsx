@@ -48,7 +48,7 @@ export default function BranchBreakdownTable({ rows }: { rows: BranchBreakdownRo
   return (
     <div className="bg-white border border-neutral-200 rounded-xl overflow-hidden">
       <div className="px-5 py-4 border-b border-neutral-200">
-        <p className="text-sm font-semibold text-neutral-900">Branch Breakdown</p>
+        <p className="text-sm font-semibold text-neutral-900">Branch breakdown</p>
         <p className="text-xs text-neutral-500 mt-0.5">Switch to a branch above to edit its data or its target</p>
       </div>
       <div className="overflow-x-auto">

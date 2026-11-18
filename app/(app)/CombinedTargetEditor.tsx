@@ -39,7 +39,7 @@ export default function CombinedTargetEditor({
         onClick={() => setEditing(true)}
         className="flex items-center gap-1.5 bg-neutral-100 hover:bg-neutral-200 text-neutral-800 text-xs font-medium px-3 py-2 rounded-lg transition-colors"
       >
-        <Pencil size={13} /> Edit Branch Targets
+        <Pencil size={13} /> Edit branch targets
       </button>
 
       {editing && (

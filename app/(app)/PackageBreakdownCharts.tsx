@@ -39,7 +39,7 @@ export default function PackageBreakdownCharts({
   return (
     <div>
       <p className="text-sm font-semibold text-neutral-900 mb-3">
-        {onlyBranch ? "Services Combo Sold" : "Services Combo Sold by Branch"} ({totalSold})
+        {onlyBranch ? "Services combos sold" : "Services combos sold by branch"} ({totalSold})
       </p>
       <div className="grid grid-cols-2 gap-3 mb-3">
         {byType.map((t) => (
@@ -52,7 +52,7 @@ export default function PackageBreakdownCharts({
       <div className="bg-white border border-neutral-200 rounded-xl overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
-            <tr className="bg-neutral-50 text-left text-xs font-medium text-neutral-500 uppercase tracking-wide">
+            <tr className="bg-neutral-50 text-left text-xs font-medium text-neutral-500">
               <th className="px-4 py-2.5">Package</th>
               <th className="px-4 py-2.5">Type</th>
               <th className="px-4 py-2.5">Jobsheet No</th>

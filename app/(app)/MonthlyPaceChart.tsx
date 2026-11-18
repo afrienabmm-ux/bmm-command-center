@@ -17,7 +17,7 @@ const AXIS_TICKS = 5;
 export default function MonthlyPaceChart({
   points,
   workingDaysRemaining,
-  title = "Pace to Target",
+  title = "Pace to target",
 }: {
   points: MonthlyTargetHistoryPoint[];
   workingDaysRemaining: number;
@@ -69,8 +69,8 @@ export default function MonthlyPaceChart({
             ))}
             {target > 0 && (
               <>
-                <line x1={0} x2={width} y1={targetY} y2={targetY} strokeDasharray="6 4" strokeWidth={2} className="stroke-red-400" />
-                <text x={width} y={targetY - 6} textAnchor="end" className="fill-red-500 text-[11px] font-medium">
+                <line x1={0} x2={width} y1={targetY} y2={targetY} strokeDasharray="6 4" strokeWidth={1.5} className="stroke-neutral-500" />
+                <text x={width} y={targetY - 6} textAnchor="end" className="fill-neutral-600 text-[11px] font-medium">
                   Target {shortAmount(target)}
                 </text>
               </>
@@ -97,7 +97,7 @@ export default function MonthlyPaceChart({
                     rx={4}
                     className={
                       isCurrent
-                        ? hovered === i ? "fill-sky-500" : "fill-sky-400"
+                        ? hovered === i ? "fill-red-700" : "fill-red-600"
                         : hovered === i ? "fill-neutral-400" : "fill-neutral-300"
                     }
                   />

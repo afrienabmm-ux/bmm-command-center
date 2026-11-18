@@ -17,7 +17,7 @@ export default function BranchMechanicLeaderboard({ rows }: { rows: MechanicPerf
       <div className="px-5 py-4 border-b border-neutral-200 flex items-center justify-between">
         <div>
           <p className="text-sm font-semibold text-neutral-900 flex items-center gap-1.5">
-            <Trophy size={15} className="text-amber-500" /> Top Mechanics This Branch
+            <Trophy size={16} strokeWidth={1.75} className="text-neutral-400" /> Top mechanics this branch
           </p>
           <p className="text-xs text-neutral-500 mt-0.5">Ranked by total revenue this month</p>
         </div>

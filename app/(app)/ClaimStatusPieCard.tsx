@@ -40,7 +40,7 @@ export default function ClaimStatusPieCard({
       <div className="flex items-start justify-between gap-3 mb-4">
         <div>
           <p className="text-sm font-semibold text-neutral-900">
-            {claimType === "warranty" ? "Warranty Claims by Status" : "Delivery Claims by Status"}
+            {claimType === "warranty" ? "Warranty claims by status" : "Delivery claims by status"}
           </p>
           <p className="text-xs text-neutral-500 mt-0.5">{subtitle}</p>
         </div>
