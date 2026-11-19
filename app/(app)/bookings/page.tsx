@@ -3,6 +3,8 @@ import { listBookings, getDaySettings } from "@/lib/booking-actions";
 import { bookingDbConfigured, minutesNowInMalaysia } from "@/lib/booking-db";
 import { branchLabel } from "@/lib/branch";
 import { todayInMalaysia } from "@/lib/malaysia-time";
+import Link from "next/link";
+import { Settings } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
 import BookingsClient from "./BookingsClient";
 
@@ -31,6 +33,14 @@ export default async function BookingsPage() {
       <PageHeader
         title="Bookings"
         subtitle={`${selection === "all" ? "All branches" : branchLabel(selection)} — customers who booked a service online or through Customer Service`}
+        action={
+          canSetLimits ? (
+            <Link href="/booking-settings" className="inline-flex items-center gap-1.5 rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
+              <Settings className="w-4 h-4" />
+              Limits &amp; closed days
+            </Link>
+          ) : undefined
+        }
       />
       <div className="p-4 md:p-8">
         <BookingsClient
@@ -39,9 +49,6 @@ export default async function BookingsPage() {
           activeBranch={selection}
           today={todayInMalaysia()}
           nowMinutes={nowMinutes}
-          canSetLimits={canSetLimits}
-          isManagement={isManagementLevel(user.role)}
-          homeBranch={user.homeBranch}
         />
       </div>
     </div>

@@ -12,6 +12,7 @@ import {
   TrendingUp,
   UserCog,
   Users,
+  Settings,
   LogOut,
   ChevronLeft,
   ChevronRight,
@@ -105,6 +106,7 @@ export default function Sidebar({
   const bookingNavLinks: NavLink[] = [
     ...(canSeeTeam ? [{ href: "/booking-overview", label: "Booking Overview", icon: Gauge, page: null, color: "text-teal-400" }] : []),
     ...visible([{ href: "/bookings", label: "Bookings", icon: CalendarCheck, page: "bookings", color: "text-teal-500" }]),
+    ...(canSeeTeam || role === "Branch PIC" ? [{ href: "/booking-settings", label: "Booking Settings", icon: Settings, page: null, color: "text-teal-500" }] : []),
     ...(canSeeTeam ? [{ href: "/app-customers", label: "App Customers", icon: Users, page: null, color: "text-teal-600" }] : []),
   ];
   const trailingNavLinks: NavLink[] = [
