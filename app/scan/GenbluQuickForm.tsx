@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useState, useTransition } from "react";
-import { ChevronDown, Search } from "lucide-react";
+import { useMemo, useState, useTransition } from "react";
+import { Check, Search } from "lucide-react";
 import { attachGenbluScreenshotAction, scanGenbluScreenshotForNameAction } from "@/lib/genblu-actions";
-import { BRANCHES, branchLabel, type Branch, type BranchSelection } from "@/lib/branch";
+import { branchLabel, type Branch, type BranchSelection } from "@/lib/branch";
+import { PhotoPicker, BranchPicker, primaryButton } from "./scan-ui";
 import { formatDate } from "@/lib/format";
 import { looseIncludes } from "@/lib/search";
 
@@ -36,9 +37,12 @@ export default function GenbluQuickForm({
   // Jobsheet — New Customer" fields, always.
   forceNewCustomer?: boolean;
 }) {
-  const [hasJobsheet, setHasJobsheet] = useState(!forceNewCustomer);
+  // Chosen on the panel above ("Sign-up, has a jobsheet" / "new customer").
+  const hasJobsheet = !forceNewCustomer;
+  const [readName, setReadName] = useState<string | null>(null);
   const [search, setSearch] = useState("");
-  const [selectedId, setSelectedId] = useState(recentJobs[0]?.jobId ?? "");
+  // Nobody is picked until admin taps a jobsheet (or the screenshot name matches one).
+  const [selectedId, setSelectedId] = useState("");
   const [manualBranch, setManualBranch] = useState<Branch>(branchSelection === "all" ? "kapar" : branchSelection);
   const [manualCustomerName, setManualCustomerName] = useState("");
   const [manualPlateNo, setManualPlateNo] = useState("");
@@ -63,12 +67,30 @@ export default function GenbluQuickForm({
   function handleScreenshotChange(file: File | null) {
     setScreenshot(file);
     setPointsPreview(null);
-    if (file && !hasJobsheet) {
+    setReadName(null);
+    if (file) {
       setScanningName(true);
       scanGenbluScreenshotForNameAction(file)
         .then((result) => {
-          if (result.customerName) setManualCustomerName(result.customerName);
           setPointsPreview(result.pointsPreview);
+          setReadName(result.customerName || null);
+          if (!hasJobsheet) {
+            if (result.customerName) setManualCustomerName(result.customerName);
+          } else if (result.customerName) {
+            // Pre-pick the jobsheet whose name best matches the screenshot.
+            const words = (n: string) => n.toUpperCase().replace(/[^A-Z ]/g, " ").split(/\s+/).filter((w) => w.length > 1 && !["BIN", "BINTI", "BT", "BN", "A/L", "A/P"].includes(w));
+            const want = words(result.customerName);
+            let best: { id: string; score: number } | null = null;
+            for (const j of recentJobs) {
+              const have = words(j.customerName);
+              const score = want.filter((w) => have.includes(w)).length;
+              if (score > 0 && (!best || score > best.score)) best = { id: j.jobId, score };
+            }
+            if (best && best.score >= Math.min(2, want.length)) {
+              setSearch("");
+              setSelectedId(best.id);
+            }
+          }
         })
         .finally(() => setScanningName(false));
     }
@@ -92,17 +114,10 @@ export default function GenbluQuickForm({
     );
   }, [recentJobs, search]);
 
-  // Keep the actual selection in sync with the visible list — if a search
-  // filters out whatever was picked, the dropdown itself no longer shows it
-  // as an option, so silently submitting the old (hidden) pick would be
-  // confusing. Falls back to the first still-visible match instead.
-  useEffect(() => {
-    if (!filteredJobs.some((j) => j.jobId === selectedId)) {
-      setSelectedId(filteredJobs[0]?.jobId ?? "");
-    }
-  }, [filteredJobs, selectedId]);
-
+  // The picked jobsheet always stays at the top of the list (see shownJobs),
+  // so searching never silently swaps who the screenshot goes to.
   const selected = recentJobs.find((j) => j.jobId === selectedId) ?? null;
+  const shownJobs = (selected && !filteredJobs.some((j) => j.jobId === selected.jobId) ? [selected, ...filteredJobs] : filteredJobs).slice(0, 8);
   const branchLocked = branchSelection !== "all";
 
   function handleSubmit(confirmDuplicate = false) {
@@ -155,147 +170,102 @@ export default function GenbluQuickForm({
   const canSubmit = hasJobsheet ? !!selected && !!screenshot : !!manualCustomerName.trim() && !!screenshot;
 
   return (
-    <div className="bg-white border border-neutral-200 rounded-xl p-5">
-      <p className="text-sm font-semibold text-neutral-900">Upload GenBlu Screenshot</p>
-      <p className="text-xs text-neutral-500 mt-0.5 mb-4">
-        {hasJobsheet ? "Pick the customer's jobsheet, then upload their points screenshot." : "Register a new customer who doesn't have a jobsheet, then upload their points screenshot."}
-      </p>
+    <div className="bg-white border border-neutral-200 rounded-2xl p-5 space-y-5">
+      <div>
+        <p className="text-base font-semibold text-neutral-900">{hasJobsheet ? "Sign-up with a jobsheet" : "Sign-up, new customer"}</p>
+        <p className="text-sm text-neutral-500 mt-0.5">
+          {hasJobsheet ? "Photo the GenBlu app screen, then pick the customer's jobsheet" : "Photo the GenBlu app home screen. The name fills in by itself"}
+        </p>
+      </div>
 
-      {!forceNewCustomer && (
-        <div className="flex gap-1 bg-neutral-100 border border-neutral-200 rounded-lg p-1 mb-4">
-          <button
-            type="button"
-            onClick={() => setHasJobsheet(true)}
-            className={`flex-1 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
-              hasJobsheet ? "bg-white text-red-700 shadow-sm" : "text-neutral-600"
-            }`}
-          >
-            Has Jobsheet
-          </button>
-          <button
-            type="button"
-            onClick={() => setHasJobsheet(false)}
-            className={`flex-1 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
-              !hasJobsheet ? "bg-white text-red-700 shadow-sm" : "text-neutral-600"
-            }`}
-          >
-            No Jobsheet — New Customer
-          </button>
-        </div>
+      <PhotoPicker file={screenshot} onChange={handleScreenshotChange} hint="The GenBlu app screen with the customer's name and points" />
+      {screenshot && (
+        <p className={`text-sm ${scanningName ? "text-neutral-500" : readName ? "text-neutral-700" : "rounded-lg bg-amber-50 px-3 py-2 text-amber-800"}`}>
+          {scanningName
+            ? "Reading the screenshot…"
+            : readName
+              ? <>Read from screenshot: <span className="font-medium text-neutral-900">{readName}</span>{pointsPreview ? <> · {pointsPreview}</> : null}</>
+              : "Couldn't read the name from this screenshot. Check the picture, or type the name below."}
+        </p>
       )}
 
       {hasJobsheet ? (
         recentJobs.length === 0 ? (
-          <p className="text-sm text-neutral-500 text-center py-6">No recent jobsheets yet — add one under Scan Jobsheet first.</p>
+          <p className="text-sm text-neutral-500 text-center py-6">No recent jobsheets yet. Add one under Scan Jobsheet first.</p>
         ) : (
-          <div className="space-y-4">
-            <div>
-              <label className="block text-xs font-medium text-neutral-600 mb-1.5">Search by name or plate</label>
-              <div className="relative">
-                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-500" />
-                <input
-                  type="text"
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Type a name or plate no…"
-                  className="w-full bg-neutral-50 border border-neutral-200 rounded-lg pl-8 pr-3 py-2 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
-                />
-              </div>
+          <div>
+            <p className="text-xs font-medium text-neutral-600 mb-1.5">Customer&apos;s jobsheet *</p>
+            <div className="relative">
+              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" aria-hidden="true" />
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search name or plate"
+                className="w-full bg-white border border-neutral-300 rounded-xl pl-9 pr-3 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/60"
+              />
             </div>
-            <div>
-              <label className="block text-xs font-medium text-neutral-600 mb-1.5">Customer / Jobsheet *</label>
-              <div className="relative">
-                <select
-                  value={selectedId}
-                  onChange={(e) => setSelectedId(e.target.value)}
-                  className="w-full appearance-none bg-neutral-50 border border-neutral-200 hover:border-red-300 rounded-xl pl-3.5 pr-9 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50 focus:ring-2 focus:ring-red-100 transition-colors cursor-pointer"
-                >
-                  {filteredJobs.length === 0 && <option value="">No matches</option>}
-                  {filteredJobs.map((j) => (
-                    <option key={j.jobId} value={j.jobId}>
-                      {j.customerName || "—"} · {j.customerPlateNo} · {branchLabel(j.branch)} · {formatDate(j.date)}
-                    </option>
-                  ))}
-                </select>
-                <ChevronDown size={15} className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-500 pointer-events-none" />
-              </div>
-            </div>
+            <ul className="mt-2 space-y-1.5">
+              {shownJobs.map((j) => {
+                const on = j.jobId === selectedId;
+                return (
+                  <li key={j.jobId}>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedId(j.jobId)}
+                      aria-pressed={on}
+                      className={`w-full flex items-center gap-3 rounded-xl border px-3.5 py-2.5 text-left transition-colors ${
+                        on ? "border-red-600 bg-red-50" : "border-neutral-200 bg-white hover:border-neutral-300"
+                      }`}
+                    >
+                      <span className="min-w-0 flex-1">
+                        <span className={`block text-sm truncate ${on ? "font-medium text-red-900" : "text-neutral-900"}`}>{j.customerName || "No name"}</span>
+                        <span className="block text-xs text-neutral-500">
+                          {j.customerPlateNo} · {branchLabel(j.branch)} · {formatDate(j.date)}
+                        </span>
+                      </span>
+                      {on && <Check size={16} className="text-red-600 shrink-0" aria-hidden="true" />}
+                    </button>
+                  </li>
+                );
+              })}
+              {shownJobs.length === 0 && (
+                <li className="text-sm text-neutral-500 py-3">{search.trim() ? "No jobsheet matches that name or plate." : "No jobsheets in the last 2 days. Search by name or plate."}</li>
+              )}
+            </ul>
+            {!search.trim() && <p className="text-xs text-neutral-500 mt-2">Showing the last 2 days. Search to find older jobsheets.</p>}
           </div>
         )
       ) : (
         <div className="space-y-4">
+          <BranchPicker value={manualBranch} onChange={setManualBranch} locked={branchLocked} />
           <div>
-            <label className="block text-xs font-medium text-neutral-600 mb-1.5">Points Screenshot *</label>
-            <input
-              type="file"
-              accept="image/*"
-              onChange={(e) => handleScreenshotChange(e.target.files?.[0] ?? null)}
-              className="w-full text-sm text-neutral-700 file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:bg-neutral-100 file:text-neutral-800 file:text-xs"
-            />
-            <p className="text-[11px] text-neutral-500 mt-1.5">
-              {scanningName ? "Reading the customer's name off the screenshot…" : "Upload the app's home screen — the name below fills in automatically."}
-            </p>
-            {pointsPreview && !scanningName && (
-              <p className="text-[11px] text-amber-700 mt-1">Points read from screenshot: {pointsPreview}</p>
-            )}
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-neutral-600 mb-1.5">Branch</label>
-            <div className="relative">
-              <select
-                value={manualBranch}
-                onChange={(e) => setManualBranch(e.target.value as Branch)}
-                disabled={branchLocked}
-                className="w-full appearance-none bg-neutral-50 border border-neutral-200 hover:border-red-300 rounded-xl pl-3.5 pr-9 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50 focus:ring-2 focus:ring-red-100 transition-colors cursor-pointer disabled:opacity-60"
-              >
-                {BRANCHES.map((b) => (
-                  <option key={b.value} value={b.value}>
-                    {b.label}
-                  </option>
-                ))}
-              </select>
-              <ChevronDown size={15} className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-500 pointer-events-none" />
-            </div>
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-neutral-600 mb-1.5">Customer Name *</label>
+            <label className="block text-xs font-medium text-neutral-600 mb-1.5">Customer name *</label>
             <input
               type="text"
               value={manualCustomerName}
               onChange={(e) => setManualCustomerName(e.target.value)}
-              placeholder={scanningName ? "Reading name from screenshot…" : "Fills in from the screenshot — edit if it's wrong"}
-              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
+              placeholder={scanningName ? "Reading name from screenshot…" : "Fills in from the screenshot"}
+              className="w-full bg-white border border-neutral-300 rounded-xl px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/60"
             />
           </div>
           <div>
-            <label className="block text-xs font-medium text-neutral-600 mb-1.5">Plate No.</label>
+            <label className="block text-xs font-medium text-neutral-600 mb-1.5">Plate no.</label>
             <input
               type="text"
               value={manualPlateNo}
               onChange={(e) => setManualPlateNo(e.target.value)}
-              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
+              className="w-full bg-white border border-neutral-300 rounded-xl px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/60"
             />
           </div>
         </div>
       )}
 
-      {hasJobsheet && (
-        <div className="mt-4">
-          <label className="block text-xs font-medium text-neutral-600 mb-1.5">Points Screenshot *</label>
-          <input
-            type="file"
-            accept="image/*"
-            onChange={(e) => handleScreenshotChange(e.target.files?.[0] ?? null)}
-            className="w-full text-sm text-neutral-700 file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:bg-neutral-100 file:text-neutral-800 file:text-xs"
-          />
-        </div>
-      )}
-
-      {error && <p className="text-sm text-red-700 mt-4">{error}</p>}
+      {error && <p className="text-sm text-red-700">{error}</p>}
 
       {mismatchMessage && (
-        <div className="mt-4 bg-amber-50 border border-amber-200 rounded-lg p-3.5">
-          <p className="text-xs text-amber-800">{mismatchMessage}</p>
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-3.5">
+          <p className="text-sm text-amber-800">{mismatchMessage}</p>
           <input
             type="text"
             value={remark}
@@ -307,20 +277,15 @@ export default function GenbluQuickForm({
             type="button"
             onClick={() => handleSubmit()}
             disabled={isPending || !remark.trim()}
-            className="w-full mt-2 bg-amber-600 hover:bg-amber-500 disabled:opacity-50 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+            className="w-full mt-2 bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white text-sm font-medium px-4 py-2.5 rounded-lg transition-colors"
           >
-            {isPending ? "Uploading…" : "Confirm and Upload"}
+            {isPending ? "Uploading…" : "Confirm and upload"}
           </button>
         </div>
       )}
 
-      <button
-        type="button"
-        onClick={() => handleSubmit()}
-        disabled={isPending || scanningName || !canSubmit || !!mismatchMessage}
-        className="w-full bg-red-500 hover:bg-red-400 disabled:opacity-50 text-white text-sm font-medium px-4 py-2.5 rounded-lg transition-colors mt-4"
-      >
-        {isPending ? "Uploading…" : "Upload"}
+      <button type="button" onClick={() => handleSubmit()} disabled={isPending || scanningName || !canSubmit || !!mismatchMessage} className={primaryButton}>
+        {isPending ? "Uploading…" : "Upload screenshot"}
       </button>
     </div>
   );

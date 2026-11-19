@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { CheckCircle2, ChevronDown } from "lucide-react";
+import { CheckCircle2 } from "lucide-react";
 import { addGenbluTransactionAction } from "@/lib/genblu-actions";
-import { BRANCHES, type Branch, type BranchSelection } from "@/lib/branch";
+import { type Branch, type BranchSelection } from "@/lib/branch";
+import { PhotoPicker, BranchPicker, Toggle, primaryButton } from "./scan-ui";
 import { formatDate } from "@/lib/format";
 import type { GenbluTransaction } from "@/lib/types";
 
@@ -48,23 +49,21 @@ export default function GenbluTransactionForm({ branchSelection }: { branchSelec
 
   if (result) {
     return (
-      <div className="bg-white border border-neutral-200 rounded-xl p-5">
-        <p className="text-sm font-semibold text-emerald-700 flex items-center gap-1.5 mb-1.5">
-          <CheckCircle2 size={16} /> Transaction logged
+      <div className="bg-white border border-neutral-200 rounded-2xl p-5">
+        <p className="text-base font-semibold text-emerald-700 flex items-center gap-2 mb-1">
+          <CheckCircle2 size={18} aria-hidden="true" /> Points saved
         </p>
-        <p className="text-xs text-neutral-500 mb-4">
-          {trackerUpdated
-            ? "This customer's total on the GenBlu Tracker was updated too."
-            : "No matching Tracker entry for this name — Tracker wasn't touched."}
+        <p className="text-sm text-neutral-500 mb-4">
+          {trackerUpdated ? "The customer's GenBlu total was updated too." : "No sign-up found for this name, so only the points were saved."}
         </p>
-        <div className="space-y-2.5 text-sm">
+        <div className="text-sm">
           <Field label="Customer" value={result.customerName} />
-          <Field label="Membership No." value={result.membershipNumber ?? "—"} />
+          <Field label="Membership no." value={result.membershipNumber ?? "—"} />
           <Field label="Category" value={result.productCategory ?? "—"} />
           <Field label="Points" value={String(result.points)} />
           <Field label="Date" value={result.transactionDate ? formatDate(result.transactionDate) : "—"} />
           <Field label="Time" value={result.transactionTime ?? "—"} />
-          <Field label="Service Coupon" value={result.serviceCoupon ? "Yes" : "No"} />
+          <Field label="Service coupon" value={result.serviceCoupon ? "Yes" : "No"} />
         </div>
         {rawText && (
           <details className="mt-3">
@@ -79,82 +78,42 @@ export default function GenbluTransactionForm({ branchSelection }: { branchSelec
             setRawText(null);
             setTrackerUpdated(false);
           }}
-          className="w-full mt-5 bg-neutral-100 hover:bg-neutral-200 text-neutral-800 text-sm font-medium px-4 py-2.5 rounded-lg transition-colors"
+          className="w-full mt-5 bg-neutral-100 hover:bg-neutral-200 text-neutral-800 text-base font-medium px-4 py-3 rounded-xl transition-colors"
         >
-          Log Another
+          Upload another
         </button>
       </div>
     );
   }
 
   return (
-    <div className="bg-white border border-neutral-200 rounded-xl p-5">
-      <p className="text-sm font-semibold text-neutral-900">Log Points Transaction</p>
-      <p className="text-xs text-neutral-500 mt-0.5 mb-4">
-        Photo the GenBlu app's transaction screen — customer, points, and date fill in automatically, nothing to type.
-      </p>
-      <div className="space-y-4">
-        <div>
-          <label className="block text-xs font-medium text-neutral-600 mb-1.5">Branch</label>
-          <div className="relative">
-            <select
-              value={branch}
-              onChange={(e) => setBranch(e.target.value as Branch)}
-              disabled={locked}
-              className="w-full appearance-none bg-neutral-50 border border-neutral-200 hover:border-red-300 rounded-xl pl-3.5 pr-9 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50 focus:ring-2 focus:ring-red-100 transition-colors cursor-pointer disabled:opacity-60"
-            >
-              {BRANCHES.map((b) => (
-                <option key={b.value} value={b.value}>
-                  {b.label}
-                </option>
-              ))}
-            </select>
-            <ChevronDown size={15} className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-500 pointer-events-none" />
-          </div>
-        </div>
-        <div>
-          <label className="block text-xs font-medium text-neutral-600 mb-1.5">Transaction Screenshot *</label>
-          <input
-            type="file"
-            accept="image/*"
-            onChange={(e) => setScreenshot(e.target.files?.[0] ?? null)}
-            className="w-full text-sm text-neutral-700 file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:bg-neutral-100 file:text-neutral-800 file:text-xs"
-          />
-        </div>
-        <label className="flex items-start gap-2 bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-3 cursor-pointer">
-          <input
-            type="checkbox"
-            checked={serviceCoupon}
-            onChange={(e) => setServiceCoupon(e.target.checked)}
-            className="accent-red-500 mt-0.5"
-          />
-          <span className="text-xs text-neutral-700">Customer used a service coupon</span>
-        </label>
-
-        {error && <p className="text-sm text-red-700">{error}</p>}
-        {error && rawText && (
-          <details>
-            <summary className="text-xs text-red-700 cursor-pointer">What Google read from the photo (for troubleshooting)</summary>
-            <pre className="mt-2 bg-white border border-neutral-200 rounded-lg p-3 text-xs text-neutral-700 whitespace-pre-wrap max-h-64 overflow-y-auto">{rawText}</pre>
-          </details>
-        )}
-
-        <button
-          type="button"
-          onClick={() => handleSubmit()}
-          disabled={isPending || !screenshot}
-          className="w-full bg-red-500 hover:bg-red-400 disabled:opacity-50 text-white text-sm font-medium px-4 py-2.5 rounded-lg transition-colors"
-        >
-          {isPending ? "Reading screenshot…" : "Upload"}
-        </button>
+    <div className="bg-white border border-neutral-200 rounded-2xl p-5 space-y-5">
+      <div>
+        <p className="text-base font-semibold text-neutral-900">Points from a service</p>
+        <p className="text-sm text-neutral-500 mt-0.5">Photo the GenBlu points screen. Customer, points and date fill in by themselves</p>
       </div>
+      <PhotoPicker file={screenshot} onChange={setScreenshot} hint="The screen showing the points just given" />
+      <BranchPicker value={branch} onChange={setBranch} locked={locked} />
+      <Toggle label="Customer used a service coupon" on={serviceCoupon} onChange={setServiceCoupon} />
+
+      {error && <p className="text-sm text-red-700">{error}</p>}
+      {error && rawText && (
+        <details>
+          <summary className="text-xs text-neutral-500 cursor-pointer">What Google read from the photo (for troubleshooting)</summary>
+          <pre className="mt-2 bg-white border border-neutral-200 rounded-lg p-3 text-xs text-neutral-700 whitespace-pre-wrap max-h-64 overflow-y-auto">{rawText}</pre>
+        </details>
+      )}
+
+      <button type="button" onClick={() => handleSubmit()} disabled={isPending || !screenshot} className={primaryButton}>
+        {isPending ? "Reading screenshot…" : "Upload screenshot"}
+      </button>
     </div>
   );
 }
 
 function Field({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex items-center justify-between bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5">
+    <div className="flex items-center justify-between border-b border-neutral-100 py-2 last:border-b-0">
       <span className="text-xs text-neutral-500">{label}</span>
       <span className="text-neutral-800 font-medium">{value}</span>
     </div>

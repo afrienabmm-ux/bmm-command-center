@@ -1,15 +1,23 @@
 "use client";
 
 import { useState } from "react";
+import { Coins, UserPlus, ClipboardCheck } from "lucide-react";
 import GenbluQuickForm, { type RecentJobsheetCustomer } from "./GenbluQuickForm";
 import GenbluTransactionForm from "./GenbluTransactionForm";
 import type { BranchSelection } from "@/lib/branch";
 
-// Two different GenBlu tasks share this tab: linking a screenshot to an
-// existing jobsheet customer (enrollment), and logging a points award read
-// straight off the app (for the monthly counts/points totals) — separate
-// enough purposes, with separate effects on the Tracker, that they get
-// their own sub-toggle rather than one form trying to do both.
+type Choice = "log" | "hasJobsheet" | "newCustomer";
+
+const CHOICES: { key: Choice; title: string; detail: string; icon: typeof Coins }[] = [
+  { key: "log", title: "Points from a service", detail: "Screenshot after a visit", icon: Coins },
+  { key: "hasJobsheet", title: "Sign-up, has a jobsheet", detail: "Customer serviced today", icon: ClipboardCheck },
+  { key: "newCustomer", title: "Sign-up, new customer", detail: "No jobsheet", icon: UserPlus },
+];
+
+// GenBlu uploads on the phone page: one question ("what are you uploading?")
+// instead of two rows of tabs. "Points from a service" logs a Point
+// Allocation; the two sign-up choices register the customer (with or
+// without a jobsheet to link to).
 export default function GenbluPanel({
   recentJobs,
   branchSelection,
@@ -20,44 +28,62 @@ export default function GenbluPanel({
   recentJobs: RecentJobsheetCustomer[];
   branchSelection: BranchSelection;
   defaultMode?: "link" | "log";
-  // Sales Advisor's only task is registration — no Point Allocation toggle
-  // to even show them. When set, this pins the panel to one mode and
-  // skips rendering the tab switcher entirely.
+  // Sales Advisor's only task is registration: when set, the choice is
+  // pinned and the question isn't shown.
   onlyMode?: "link" | "log";
-  // Sales Advisor only ever registers brand new customers with no
-  // jobsheet — passed through to GenbluQuickForm to hide its own
-  // Has Jobsheet / No Jobsheet toggle too.
+  // Sales Advisor only ever registers brand new customers with no jobsheet.
   forceNewCustomer?: boolean;
 }) {
-  const [mode, setMode] = useState<"link" | "log">(onlyMode ?? defaultMode);
-  const effectiveMode = onlyMode ?? mode;
+  // Which choices this person gets: everyone sees all three, except
+  // registration-only logins (no points), and new-customer-only logins
+  // (nothing to choose).
+  const visible: Choice[] =
+    onlyMode === "log" ? ["log"] : onlyMode === "link" ? (forceNewCustomer ? ["newCustomer"] : ["hasJobsheet", "newCustomer"]) : ["log", "hasJobsheet", "newCustomer"];
+  const [choice, setChoice] = useState<Choice>(() => {
+    const preferred: Choice = defaultMode === "log" ? "log" : "hasJobsheet";
+    return visible.includes(preferred) ? preferred : visible[0];
+  });
+  const current = visible.includes(choice) ? choice : visible[0];
 
   return (
-    <div>
-      {!onlyMode && (
-        <div className="flex gap-1 bg-neutral-100 border border-neutral-200 rounded-lg p-1 mb-4">
-          <button
-            onClick={() => setMode("link")}
-            className={`flex-1 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-              mode === "link" ? "bg-white text-red-700 shadow-sm" : "text-neutral-600"
-            }`}
-          >
-            GenBlu Register
-          </button>
-          <button
-            onClick={() => setMode("log")}
-            className={`flex-1 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-              mode === "log" ? "bg-white text-red-700 shadow-sm" : "text-neutral-600"
-            }`}
-          >
-            Point Allocation
-          </button>
+    <div className="space-y-4">
+      {visible.length > 1 && (
+        <div className="bg-white border border-neutral-200 rounded-2xl p-4">
+          <p className="text-sm font-medium text-neutral-900 mb-3">What are you uploading?</p>
+          <div className={`grid gap-2 ${visible.length === 3 ? "sm:grid-cols-3" : "sm:grid-cols-2"}`}>
+            {CHOICES.filter((c) => visible.includes(c.key)).map((c) => {
+              const on = current === c.key;
+              const Icon = c.icon;
+              return (
+                <button
+                  key={c.key}
+                  type="button"
+                  onClick={() => setChoice(c.key)}
+                  aria-pressed={on}
+                  className={`flex items-center gap-3 sm:flex-col sm:items-start rounded-xl border px-3.5 py-3 text-left transition-colors ${
+                    on ? "border-red-600 bg-red-50" : "border-neutral-200 bg-white hover:border-neutral-300"
+                  }`}
+                >
+                  <Icon size={18} strokeWidth={1.75} aria-hidden="true" className={on ? "text-red-600" : "text-neutral-400"} />
+                  <span>
+                    <span className={`block text-sm font-medium ${on ? "text-red-800" : "text-neutral-900"}`}>{c.title}</span>
+                    <span className="block text-xs text-neutral-500">{c.detail}</span>
+                  </span>
+                </button>
+              );
+            })}
+          </div>
         </div>
       )}
-      {effectiveMode === "log" ? (
+      {current === "log" ? (
         <GenbluTransactionForm branchSelection={branchSelection} />
       ) : (
-        <GenbluQuickForm recentJobs={recentJobs} branchSelection={branchSelection} forceNewCustomer={forceNewCustomer} />
+        <GenbluQuickForm
+          key={current}
+          recentJobs={recentJobs}
+          branchSelection={branchSelection}
+          forceNewCustomer={current === "newCustomer"}
+        />
       )}
     </div>
   );
