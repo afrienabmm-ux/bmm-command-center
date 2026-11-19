@@ -9,13 +9,9 @@ import {
   Upload,
   CheckCircle2,
   AlertTriangle,
-  User,
-  Bike,
-  ClipboardList,
-  Wrench,
-  Boxes,
-  Sparkles,
   ChevronDown,
+  Camera,
+  Check,
 } from "lucide-react";
 import { addRepairJobAction, updateRepairJobAction } from "@/lib/repairs-actions";
 import { checkCustomerCode, customerCodeIssueMessage } from "@/lib/customer-code";
@@ -46,18 +42,40 @@ function itemsFromJob(job: RepairJob): ItemInput[] {
   }));
 }
 
-// Visual-only grouping used on the phone scan page (variant="scan") — the
-// desktop form stays one flat list, but a long wall of fields on a phone
-// with no landmarks to scroll past feels a lot more tedious than the same
-// fields broken into named steps.
-function SectionHeader({ icon: Icon, title }: { icon: typeof User; title: string }) {
-  return (
-    <div className="flex items-center gap-2 pt-2 pb-1">
-      <div className="w-7 h-7 rounded-lg bg-red-500/10 flex items-center justify-center shrink-0">
-        <Icon size={14} className="text-red-600" />
-      </div>
-      <p className="text-xs font-semibold text-red-700 uppercase tracking-wide">{title}</p>
+// Scan page: one of the "check these 5" boxes. After a scan, a box the scan
+// filled gets a small "From scan" tick; one it couldn't read turns yellow so
+// admin only has to look at those.
+function ScanCheck({ scanned, filled, children }: { scanned: boolean; filled: boolean; children: React.ReactNode }) {
+  if (!scanned) return <div>{children}</div>;
+  return filled ? (
+    <div className="relative">
+      <span className="absolute right-0 top-0 flex items-center gap-1 text-xs text-emerald-700">
+        <Check size={12} aria-hidden="true" /> From scan
+      </span>
+      {children}
     </div>
+  ) : (
+    <div className="rounded-xl bg-amber-50 ring-1 ring-amber-200 p-3 -mx-3">
+      <p className="text-xs text-amber-800 mb-1">Couldn&apos;t read this, type it in</p>
+      {children}
+    </div>
+  );
+}
+
+// "ALIF" -> "Alif" for the mechanic buttons.
+function nameCase(name: string): string {
+  return name.toLowerCase().replace(/(^|[\s(-])([a-z])/g, (_, sep: string, c: string) => sep + c.toUpperCase());
+}
+
+// Scan page: a yes/no question as one on/off switch.
+function ScanSwitch({ label, on, onChange }: { label: string; on: boolean; onChange: (on: boolean) => void }) {
+  return (
+    <button type="button" role="switch" aria-checked={on} onClick={() => onChange(!on)} className="w-full flex items-center justify-between py-3 text-sm text-neutral-800">
+      {label}
+      <span className={`relative w-10 h-6 rounded-full transition-colors ${on ? "bg-red-600" : "bg-neutral-200"}`}>
+        <span className={`absolute top-1 left-1 w-4 h-4 rounded-full bg-white transition-transform ${on ? "translate-x-4" : ""}`} />
+      </span>
+    </button>
   );
 }
 
@@ -403,6 +421,8 @@ export default function WalkInJobForm({
   const [isPending, startTransition] = useTransition();
   const { showError, showInfo, toastNode } = useToast();
   const [isScanning, setIsScanning] = useState(false);
+  // Scan page: the boxes appear after a scan, or when admin chooses to type it in.
+  const [manualEntry, setManualEntry] = useState(false);
   const [scanError, setScanError] = useState<string | null>(null);
   const [scanNotice, setScanNotice] = useState<string | null>(null);
   const [scanMissing, setScanMissing] = useState<string[] | null>(null);
@@ -1002,34 +1022,16 @@ export default function WalkInJobForm({
     });
   }
 
-  return (
-    <div className="max-w-2xl mx-auto">
-      {toastNode}
-      {!isEdit && (
-        <div
-          className={
-            isScan
-              ? "bg-gradient-to-br from-red-600 via-red-700 to-red-800 rounded-2xl p-5 mb-5 shadow-lg shadow-red-900/10"
-              : "bg-red-50 border border-red-200 rounded-xl p-5 mb-4"
-          }
-        >
-          <div className="flex items-start gap-3">
-            <div
-              className={
-                isScan
-                  ? "w-11 h-11 rounded-xl bg-white/15 flex items-center justify-center shrink-0"
-                  : "w-9 h-9 rounded-lg bg-red-500/15 flex items-center justify-center shrink-0"
-              }
-            >
-              <ScanLine size={isScan ? 20 : 17} className={isScan ? "text-white" : "text-red-600"} />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className={isScan ? "text-sm font-semibold text-white" : "text-sm font-semibold text-neutral-900"}>
-                Scan Jobsheet
-              </p>
-              <p className={isScan ? "text-xs text-white/80 mt-0.5 mb-3" : "text-xs text-neutral-500 mt-0.5 mb-3"}>
-                Upload a clear JPG/PNG photo or a PDF of the paper jobsheet — it'll fill in the boxes below for you to check before saving.
-              </p>
+  const scanShowFields = isEdit || manualEntry || scanRawText !== null || isScanning;
+  const moreDetailsFilled = [
+    startedDate, customerPhone, customerCode, model, colour, jobsheetUserId, engineNo, chassisNo,
+    salesNo, salesDate, warrantyCardNo, mileageKm, nextMileageKm, serviceType, nextServiceDate,
+  ].filter((v) => (v ?? "").toString().trim() !== "").length + (items.length > 0 ? 1 : 0);
+
+  // Each field once, so the desktop form and the phone scan page can lay
+  // the same boxes out differently.
+  const f_scanControls = (
+    <>
               <input
                 ref={fileInputRef}
                 type="file"
@@ -1050,17 +1052,18 @@ export default function WalkInJobForm({
                 disabled={isScanning}
                 className={
                   isScan
-                    ? "flex items-center gap-1.5 bg-white hover:bg-red-50 disabled:opacity-60 text-red-700 text-sm font-semibold px-4 py-2.5 rounded-xl shadow-sm transition-colors"
+                    ? "inline-flex items-center justify-center gap-2 bg-red-600 hover:bg-red-700 disabled:opacity-60 text-white text-base font-medium px-5 py-3 rounded-xl transition-colors"
                     : "flex items-center gap-1.5 bg-red-500 hover:bg-red-400 disabled:opacity-50 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
                 }
               >
-                <Upload size={15} /> {isScanning ? "Reading jobsheet…" : "Upload Jobsheet"}
+                {isScan ? <Camera size={18} /> : <Upload size={15} />}{" "}
+                {isScanning ? "Reading jobsheet…" : isScan ? (scanRawText ? "Scan another photo" : "Take photo of jobsheet") : "Upload Jobsheet"}
               </button>
               {scanError && (
                 <p
                   className={
                     isScan
-                      ? "text-xs text-white bg-black/20 rounded-lg px-3 py-2 mt-2"
+                      ? "text-sm text-red-700 mt-3"
                       : "text-xs text-red-700 mt-2"
                   }
                 >
@@ -1071,7 +1074,7 @@ export default function WalkInJobForm({
                 <p
                   className={
                     isScan
-                      ? "text-xs text-white bg-black/20 rounded-lg px-3 py-2 mt-2"
+                      ? "text-sm text-neutral-600 mt-3"
                       : "text-xs text-emerald-700 mt-2"
                   }
                 >
@@ -1096,7 +1099,7 @@ export default function WalkInJobForm({
               )}
               {scanRawText && (
                 <details className="mt-2">
-                  <summary className={isScan ? "text-xs text-white/90 cursor-pointer" : "text-xs text-red-700 cursor-pointer"}>
+                  <summary className={isScan ? "text-xs text-neutral-500 cursor-pointer" : "text-xs text-red-700 cursor-pointer"}>
                     What Google read from the photo (for troubleshooting)
                   </summary>
                   {scanSignatureDebug && (
@@ -1105,7 +1108,10 @@ export default function WalkInJobForm({
                   <pre className="mt-2 bg-white border border-neutral-200 rounded-lg p-3 text-xs text-neutral-700 whitespace-pre-wrap max-h-64 overflow-y-auto">{scanRawText}</pre>
                 </details>
               )}
-              {!isEdit && (
+    </>
+  );
+  const f_signature = (
+    <>
                 <div
                   ref={signatureRef}
                   tabIndex={-1}
@@ -1152,14 +1158,10 @@ export default function WalkInJobForm({
                     <span className="text-xs font-medium text-neutral-700">Customer has signed the jobsheet *</span>
                   </label>
                 </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-      <div className={isScan ? "bg-white border border-neutral-200 rounded-2xl p-5 shadow-sm" : "bg-white border border-neutral-200 rounded-xl p-6"}>
-        <div className="space-y-4">
-          {isScan && <SectionHeader icon={User} title="Customer" />}
+    </>
+  );
+  const f_jobDate = (
+    <>
           <div>
             <label className="block text-xs font-medium text-neutral-600 mb-1.5">Job Date</label>
             <input
@@ -1169,6 +1171,10 @@ export default function WalkInJobForm({
               className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
             />
           </div>
+    </>
+  );
+  const f_customerCode = (
+    <>
           <div>
             <label className="block text-xs font-medium text-neutral-600 mb-1.5">Customer Code</label>
             <input
@@ -1185,6 +1191,10 @@ export default function WalkInJobForm({
               </p>
             )}
           </div>
+    </>
+  );
+  const f_customerName = (
+    <>
           <div>
             <label className="block text-xs font-medium text-neutral-600 mb-1.5">Customer Name *</label>
             <input
@@ -1195,6 +1205,10 @@ export default function WalkInJobForm({
               className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
             />
           </div>
+    </>
+  );
+  const f_phone = (
+    <>
           <div>
             <label className="block text-xs font-medium text-neutral-600 mb-1.5">Phone Number</label>
             <input
@@ -1206,7 +1220,10 @@ export default function WalkInJobForm({
             />
             <p className="text-[11px] text-neutral-500 mt-1">Matches this visit to their e-service card, even if the name is spelled differently.</p>
           </div>
-          {isScan && <SectionHeader icon={Bike} title="Vehicle" />}
+    </>
+  );
+  const f_plate = (
+    <>
           <div>
             <label className="block text-xs font-medium text-neutral-600 mb-1.5">Plate No. *</label>
             <input
@@ -1217,6 +1234,10 @@ export default function WalkInJobForm({
               className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
             />
           </div>
+    </>
+  );
+  const f_userId = (
+    <>
           <div>
             <label className="block text-xs font-medium text-neutral-600 mb-1.5">User ID</label>
             <input
@@ -1226,6 +1247,10 @@ export default function WalkInJobForm({
               className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
             />
           </div>
+    </>
+  );
+  const f_model = (
+    <>
           <div>
             <label className="block text-xs font-medium text-neutral-600 mb-1.5">Model</label>
             <input
@@ -1236,6 +1261,10 @@ export default function WalkInJobForm({
               className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
             />
           </div>
+    </>
+  );
+  const f_colour = (
+    <>
           <div>
             <label className="block text-xs font-medium text-neutral-600 mb-1.5">Colour</label>
             <input
@@ -1245,6 +1274,10 @@ export default function WalkInJobForm({
               className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
             />
           </div>
+    </>
+  );
+  const f_engineNo = (
+    <>
           <div>
             <label className="block text-xs font-medium text-neutral-600 mb-1.5">Engine No.</label>
             <input
@@ -1254,6 +1287,10 @@ export default function WalkInJobForm({
               className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
             />
           </div>
+    </>
+  );
+  const f_chassisNo = (
+    <>
           <div>
             <label className="block text-xs font-medium text-neutral-600 mb-1.5">Chassis No.</label>
             <input
@@ -1263,8 +1300,10 @@ export default function WalkInJobForm({
               className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
             />
           </div>
-          {isScan && <SectionHeader icon={ClipboardList} title="Service Details" />}
-          <div className="grid grid-cols-2 gap-3">
+    </>
+  );
+  const f_jobNo = (
+    <>
             <div>
               <label className="block text-xs font-medium text-neutral-600 mb-1.5">Job No. (jobsheet)</label>
               <input
@@ -1278,6 +1317,10 @@ export default function WalkInJobForm({
               />
               {jobsheetNoProblem && <p className="mt-1 text-[11px] text-red-600">{jobsheetNoProblem}</p>}
             </div>
+    </>
+  );
+  const f_serviceExtras = (
+    <>
             <div>
               <label className="block text-xs font-medium text-neutral-600 mb-1.5">Sales No.</label>
               <input
@@ -1337,8 +1380,10 @@ export default function WalkInJobForm({
                 className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
               />
             </div>
-          </div>
-          {isScan && <SectionHeader icon={Wrench} title="Assignment" />}
+    </>
+  );
+  const f_location = (
+    <>
           <div>
             <label className="block text-xs font-medium text-neutral-600 mb-1.5">Location</label>
             <div className="flex items-center gap-2 flex-wrap">
@@ -1375,6 +1420,10 @@ export default function WalkInJobForm({
               <p className="text-xs text-amber-700 mt-1.5">Pick a mechanic below to set which branch this job belongs to.</p>
             )}
           </div>
+    </>
+  );
+  const f_mechanic = (
+    <>
           <div>
             <label className="block text-xs font-medium text-neutral-600 mb-1.5">Mechanic *</label>
             <div className="relative">
@@ -1411,7 +1460,10 @@ export default function WalkInJobForm({
               <p className="text-xs text-neutral-500 mt-1.5">A mechanic must be assigned before this job can be saved.</p>
             )}
           </div>
-
+    </>
+  );
+  const f_bigItem = (
+    <>
           <div className="flex items-center gap-2">
             <input
               id="is-big-item"
@@ -1424,10 +1476,15 @@ export default function WalkInJobForm({
               Big / heavy item repair — only Heavy Repair mechanics can be assigned
             </label>
           </div>
-
-          {isScan && <SectionHeader icon={Boxes} title="Parts & Cost" />}
+    </>
+  );
+  const f_items = (
+    <>
           <ItemsEditor items={items} onChange={setItems} catalogProducts={catalogProducts} />
-
+    </>
+  );
+  const f_costTotal = (
+    <>
           <div>
             <label className="block text-xs font-medium text-neutral-600 mb-1.5">Cost Total (RM)</label>
             <input
@@ -1448,6 +1505,10 @@ export default function WalkInJobForm({
               <p className="text-xs text-emerald-700 mt-1.5">✓ Matches the jobsheet&apos;s printed TOTAL.</p>
             )}
           </div>
+    </>
+  );
+  const f_endDate = (
+    <>
           <div>
             <label className="block text-xs font-medium text-neutral-600 mb-1.5">End Date</label>
             <input
@@ -1464,8 +1525,10 @@ export default function WalkInJobForm({
               Same as the Job Date unless you change it. Clear it if the bike is still being worked on.
             </p>
           </div>
-          {isScan && <SectionHeader icon={Sparkles} title="Extras" />}
-          <div className="grid grid-cols-2 gap-3">
+    </>
+  );
+  const f_genbluYesNo = (
+    <>
             <div>
               <label className="block text-xs font-medium text-neutral-600 mb-1.5">Customer has GenBlu?</label>
               <div className="flex items-center gap-2">
@@ -1493,6 +1556,10 @@ export default function WalkInJobForm({
                 </button>
               </div>
             </div>
+    </>
+  );
+  const f_comboYesNo = (
+    <>
             <div>
               <label className="block text-xs font-medium text-neutral-600 mb-1.5">Services Combo sold?</label>
               <div className="flex items-center gap-2">
@@ -1523,7 +1590,10 @@ export default function WalkInJobForm({
                 </button>
               </div>
             </div>
-          </div>
+    </>
+  );
+  const f_genbluPanel = (
+    <>
           {hasGenblu && (
             <div>
               {!customerName.trim() ? (
@@ -1611,6 +1681,10 @@ export default function WalkInJobForm({
               )}
             </div>
           )}
+    </>
+  );
+  const f_comboPanel = (
+    <>
           {wantsCombo && (
             <div>
               <label className="block text-xs font-medium text-neutral-600 mb-1.5">Package *</label>
@@ -1644,6 +1718,72 @@ export default function WalkInJobForm({
               </div>
             </div>
           )}
+    </>
+  );
+
+  return (
+    <div className="max-w-2xl mx-auto">
+      {toastNode}
+      {!isEdit && !isScan && (
+        <div
+          className={
+            isScan
+              ? "bg-gradient-to-br from-red-600 via-red-700 to-red-800 rounded-2xl p-5 mb-5 shadow-lg shadow-red-900/10"
+              : "bg-red-50 border border-red-200 rounded-xl p-5 mb-4"
+          }
+        >
+          <div className="flex items-start gap-3">
+            <div
+              className={
+                isScan
+                  ? "w-11 h-11 rounded-xl bg-white/15 flex items-center justify-center shrink-0"
+                  : "w-9 h-9 rounded-lg bg-red-500/15 flex items-center justify-center shrink-0"
+              }
+            >
+              <ScanLine size={isScan ? 20 : 17} className={isScan ? "text-white" : "text-red-600"} />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className={isScan ? "text-sm font-semibold text-white" : "text-sm font-semibold text-neutral-900"}>
+                Scan Jobsheet
+              </p>
+              <p className={isScan ? "text-xs text-white/80 mt-0.5 mb-3" : "text-xs text-neutral-500 mt-0.5 mb-3"}>
+                Upload a clear JPG/PNG photo or a PDF of the paper jobsheet — it'll fill in the boxes below for you to check before saving.
+              </p>
+              {f_scanControls}
+              {!isEdit && <div>{f_signature}</div>}
+            </div>
+          </div>
+        </div>
+      )}
+      {!isScan && (
+      <div className="bg-white border border-neutral-200 rounded-xl p-6">
+        <div className="space-y-4">
+          {f_jobDate}
+          {f_customerCode}
+          {f_customerName}
+          {f_phone}
+          {f_plate}
+          {f_userId}
+          {f_model}
+          {f_colour}
+          {f_engineNo}
+          {f_chassisNo}
+          <div className="grid grid-cols-2 gap-3">
+            {f_jobNo}
+            {f_serviceExtras}
+          </div>
+          {f_location}
+          {f_mechanic}
+          {f_bigItem}
+          {f_items}
+          {f_costTotal}
+          {f_endDate}
+          <div className="grid grid-cols-2 gap-3">
+            {f_genbluYesNo}
+            {f_comboYesNo}
+          </div>
+          {f_genbluPanel}
+          {f_comboPanel}
         </div>
         {!isScan && (
           <div className="flex items-center justify-end gap-3 mt-6 pt-4 border-t border-neutral-200">
@@ -1663,9 +1803,122 @@ export default function WalkInJobForm({
           </div>
         )}
       </div>
+      )}
+      {/* Phone scan page: photo first, then only the 5 boxes that matter;
+          everything else the scan read sits under "More details". */}
+      {isScan && (
+        <div className="space-y-4">
+          {!isEdit && (
+            <div className="bg-white border border-neutral-200 rounded-2xl p-5">
+              {!scanShowFields ? (
+                <div className="border border-dashed border-neutral-300 rounded-xl px-4 py-10 flex flex-col items-center text-center gap-3">
+                  <Camera size={28} strokeWidth={1.5} className="text-neutral-400" aria-hidden="true" />
+                  <div>
+                    <p className="text-base font-medium text-neutral-900">New jobsheet</p>
+                    <p className="text-sm text-neutral-500 mt-1">Take a clear photo of the whole jobsheet. The boxes fill in by themselves.</p>
+                  </div>
+                  <div className="w-full max-w-xs">{f_scanControls}</div>
+                  <button type="button" onClick={() => setManualEntry(true)} className="text-sm text-neutral-500 underline underline-offset-2">
+                    No photo? Type it in instead
+                  </button>
+                </div>
+              ) : (
+                <div className="flex items-start gap-3">
+                  <ScanLine size={18} strokeWidth={1.75} className="text-neutral-400 mt-0.5 shrink-0" aria-hidden="true" />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium text-neutral-900">{scanRawText ? "Jobsheet scanned" : "Typing it in by hand"}</p>
+                    <div className="mt-3">{f_scanControls}</div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {scanShowFields && (
+            <>
+              <div className="bg-white border border-neutral-200 rounded-2xl p-5 space-y-4">
+                <div>
+                  <p className="text-base font-semibold text-neutral-900">{isEdit ? "Jobsheet" : "Check these 5"}</p>
+                  {scanRawText && <p className="text-xs text-neutral-500 mt-0.5">Yellow means the scan couldn&apos;t read it</p>}
+                </div>
+                {isEdit && f_endDate}
+                <ScanCheck scanned={!!scanRawText} filled={!!jobsheetNo.trim()}>{f_jobNo}</ScanCheck>
+                <ScanCheck scanned={!!scanRawText} filled={!!plateNo.trim()}>{f_plate}</ScanCheck>
+                <ScanCheck scanned={!!scanRawText} filled={!!customerName.trim()}>{f_customerName}</ScanCheck>
+                <div>
+                  <label className="block text-xs font-medium text-neutral-600 mb-1.5">Mechanic *</label>
+                  <div className="flex flex-wrap gap-2">
+                    {eligibleMechanics.map((m) => {
+                      const on = mechanicId === m.id;
+                      return (
+                        <button
+                          key={m.id}
+                          type="button"
+                          onClick={() => setMechanicId(m.id)}
+                          aria-pressed={on}
+                          className={`px-3.5 py-2 rounded-lg border text-sm transition-colors ${
+                            on ? "border-red-600 bg-red-50 text-red-800 font-medium" : "border-neutral-200 bg-white text-neutral-700 hover:border-neutral-300"
+                          }`}
+                        >
+                          {nameCase(m.shortName)}
+                          {locationBranch === "all" ? <span className="text-neutral-400"> · {branchLabel(m.branch)}</span> : null}
+                        </button>
+                      );
+                    })}
+                    {eligibleMechanics.length === 0 && <p className="text-sm text-neutral-500">No mechanics for this branch.</p>}
+                  </div>
+                  {isHeavyJob && <p className="text-xs text-amber-700 mt-1.5">Heavy / big item repair: only Heavy Repair mechanics are shown.</p>}
+                </div>
+                <ScanCheck scanned={!!scanRawText} filled={items.length > 0 || Number(revenueAmount) > 0}>{f_costTotal}</ScanCheck>
+
+                <details className="group border-t border-neutral-100 pt-3">
+                  <summary className="flex items-center justify-between cursor-pointer list-none text-sm text-neutral-700 py-1">
+                    <span className="flex items-center gap-1.5">
+                      <ChevronDown size={16} className="text-neutral-400 transition-transform group-open:rotate-180" aria-hidden="true" />
+                      More details{scanRawText ? " (from scan)" : ""}
+                    </span>
+                    <span className="text-xs text-neutral-500 tabular-nums">{moreDetailsFilled} filled</span>
+                  </summary>
+                  <div className="space-y-4 pt-4">
+                    {f_jobDate}
+                    {f_phone}
+                    {f_customerCode}
+                    {f_model}
+                    {f_colour}
+                    {f_userId}
+                    {f_engineNo}
+                    {f_chassisNo}
+                    <div className="grid grid-cols-2 gap-3">{f_serviceExtras}</div>
+                    {f_location}
+                    {f_bigItem}
+                    {f_items}
+                    {!isEdit && f_endDate}
+                  </div>
+                </details>
+              </div>
+
+              <div className="bg-white border border-neutral-200 rounded-2xl px-5 py-2 divide-y divide-neutral-100">
+                <ScanSwitch label="Customer has GenBlu?" on={hasGenblu} onChange={setHasGenblu} />
+                {hasGenblu && <div className="py-3">{f_genbluPanel}</div>}
+                <ScanSwitch
+                  label="Services Combo sold?"
+                  on={wantsCombo}
+                  onChange={(on) => {
+                    setWantsCombo(on);
+                    if (on && comboPackageId) applyPackageItems(comboPackageId);
+                  }}
+                />
+                {wantsCombo && <div className="py-3">{f_comboPanel}</div>}
+              </div>
+
+              {!isEdit && <div>{f_signature}</div>}
+            </>
+          )}
+        </div>
+      )}
       {/* Sticky bottom action bar — a phone tech shouldn't have to scroll
           all the way to the end just to find Save. */}
-      {isScan && (
+      {isScan && scanShowFields && (
         <div className="sticky bottom-0 mt-6 py-3 bg-white/90 backdrop-blur border-t border-neutral-200 flex items-center gap-3">
           <button
             onClick={() => router.push(redirectTo)}
@@ -1676,9 +1929,9 @@ export default function WalkInJobForm({
           <button
             onClick={handleSave}
             disabled={isPending}
-            className="flex-1 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-500 hover:to-red-600 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-semibold px-4 py-3 rounded-xl shadow-sm transition-colors"
+            className="flex-1 bg-red-600 hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed text-white text-base font-medium px-4 py-3 rounded-xl transition-colors"
           >
-            {isPending ? "Saving…" : isEdit ? "Save Changes" : "Add Job"}
+            {isPending ? "Saving…" : isEdit ? "Save changes" : "Save jobsheet"}
           </button>
         </div>
       )}
