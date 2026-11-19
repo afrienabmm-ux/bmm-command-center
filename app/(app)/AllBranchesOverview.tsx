@@ -14,15 +14,12 @@ import { getRevenuePace } from "@/lib/revenue-pace-actions";
 import RevenuePace from "./RevenuePace";
 import MonthlyPaceChart from "./MonthlyPaceChart";
 import {
-  getWarrantyClaimStatusBreakdown,
-  getDeliveryClaimStatusBreakdown,
   getPackageSalesBreakdown,
   getTodayActivity,
 } from "@/lib/dashboard-breakdowns-actions";
 import { getMechanicCommitment } from "@/lib/mechanic-commitment-actions";
 import TodaysJobCheck from "./TodaysJobCheck";
 import PackageBreakdownCharts from "./PackageBreakdownCharts";
-import ClaimStatusPieCard from "./ClaimStatusPieCard";
 import BranchMechanicLeaderboard from "./BranchMechanicLeaderboard";
 import SuspiciousJobsBanner from "./SuspiciousJobsBanner";
 
@@ -130,8 +127,6 @@ export default async function AllBranchesOverview({
     prevAchieved,
     trendPoints,
     revenuePace,
-    claimStatusBreakdown,
-    deliveryClaimStatusBreakdown,
     packageBreakdown,
     mechanicCommitment,
     todayActivity,
@@ -144,8 +139,6 @@ export default async function AllBranchesOverview({
       : getAllBranchesAchievedTotal(prev.year, prev.month),
     getMonthlyTrends(year, month, 6, onlyBranch),
     getRevenuePace(year, month, onlyBranch, day),
-    getWarrantyClaimStatusBreakdown(year, month, onlyBranch),
-    getDeliveryClaimStatusBreakdown(year, month, onlyBranch),
     getPackageSalesBreakdown(year, month),
     isManagement
       ? getMechanicCommitment(onlyBranch)
@@ -306,15 +299,8 @@ export default async function AllBranchesOverview({
         title={onlyBranch ? `Pace to target, ${branchLabel(onlyBranch)}` : "Pace to target"}
       />
 
-      {/* Claims and combo sales side by side on wide screens. */}
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,22rem)_minmax(0,1fr)] xl:items-start">
-        <ClaimStatusPieCard
-          warranty={claimStatusBreakdown}
-          delivery={deliveryClaimStatusBreakdown}
-          subtitle={onlyBranch ? "This month" : "All branches, this month"}
-        />
-        <PackageBreakdownCharts packageBreakdown={packageBreakdown} onlyBranch={onlyBranch} />
-      </div>
+      {/* The claims card was here; hidden since Claims isn't used (Nov 2026). */}
+      <PackageBreakdownCharts packageBreakdown={packageBreakdown} onlyBranch={onlyBranch} />
       </Section>
 
       <Section title="Last 6 months">

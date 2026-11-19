@@ -57,7 +57,6 @@ export default function BranchBreakdownTable({ rows }: { rows: BranchBreakdownRo
             <tr className="text-left text-xs text-neutral-500 border-b border-neutral-200">
               <th className="font-medium px-5 py-3 whitespace-nowrap">Branch</th>
               <th className="font-medium px-5 py-3 whitespace-nowrap">Target vs Achieved</th>
-              <th className="font-medium px-5 py-3 whitespace-nowrap">Approved Claims</th>
               <th className="font-medium px-5 py-3 whitespace-nowrap">Active Repairs</th>
               <th className="font-medium px-5 py-3 whitespace-nowrap">Top Overall (Revenue)</th>
             </tr>
@@ -84,7 +83,6 @@ export default function BranchBreakdownTable({ rows }: { rows: BranchBreakdownRo
                     );
                   })()}
                 </td>
-                <td className="px-5 py-3.5 text-neutral-700 whitespace-nowrap">{b.approvedClaims}</td>
                 <td className="px-5 py-3.5 text-neutral-700 whitespace-nowrap">{b.activeRepairs}</td>
                 <td className="px-5 py-3.5 whitespace-nowrap">
                   {b.topMechanic ? (

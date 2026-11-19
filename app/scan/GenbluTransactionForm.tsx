@@ -5,6 +5,7 @@ import { CheckCircle2 } from "lucide-react";
 import { addGenbluTransactionAction } from "@/lib/genblu-actions";
 import { type Branch, type BranchSelection } from "@/lib/branch";
 import { PhotoPicker, BranchPicker, Toggle, primaryButton } from "./scan-ui";
+import GenbluScreenshotCheck, { useGenbluScreenshotCheck } from "@/components/GenbluScreenshotCheck";
 import { formatDate } from "@/lib/format";
 import type { GenbluTransaction } from "@/lib/types";
 
@@ -22,6 +23,7 @@ export default function GenbluTransactionForm({ branchSelection }: { branchSelec
   const [rawText, setRawText] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const locked = branchSelection !== "all";
+  const check = useGenbluScreenshotCheck();
 
   function handleSubmit(confirmDuplicate = false) {
     if (!screenshot) {
@@ -92,7 +94,18 @@ export default function GenbluTransactionForm({ branchSelection }: { branchSelec
         <p className="text-base font-semibold text-neutral-900">Points from a service</p>
         <p className="text-sm text-neutral-500 mt-0.5">Photo the GenBlu points screen. Customer, points and date fill in by themselves</p>
       </div>
-      <PhotoPicker file={screenshot} onChange={setScreenshot} hint="The screen showing the points just given" />
+      <div>
+        <PhotoPicker
+          file={screenshot}
+          onChange={(f) => {
+            setScreenshot(f);
+            check.run(f);
+          }}
+          label="Photo of points earned"
+          hint="The screen showing the points just given, not the home screen"
+        />
+        <GenbluScreenshotCheck checking={check.checking} result={check.result} />
+      </div>
       <BranchPicker value={branch} onChange={setBranch} locked={locked} />
       <Toggle label="Customer used a service coupon" on={serviceCoupon} onChange={setServiceCoupon} />
 

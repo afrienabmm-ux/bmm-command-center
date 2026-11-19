@@ -25,6 +25,7 @@ import { formatCurrency } from "@/lib/format";
 import { useToast } from "@/lib/useToast";
 import DropdownDate from "@/components/DropdownDate";
 import { takePendingJobsheet } from "@/lib/pending-jobsheet";
+import GenbluScreenshotCheck, { useGenbluScreenshotCheck } from "@/components/GenbluScreenshotCheck";
 import { cleanJobsheetNo, checkJobsheetNo, JOBSHEET_PREFIX } from "@/lib/jobsheet-no";
 
 type ItemInput = { code: string; description: string; quantity: string; price: string };
@@ -386,6 +387,9 @@ export default function WalkInJobForm({
   // screenshot they're already holding.
   const [genbluAllocationScreenshot, setGenbluAllocationScreenshot] = useState<File | null>(null);
   const genbluAllocationFileInputRef = useRef<HTMLInputElement>(null);
+  // Says right after picking whether each GenBlu screenshot will count as a point allocation.
+  const allocationCheck = useGenbluScreenshotCheck();
+  const signupCheck = useGenbluScreenshotCheck();
   const [genbluServiceCoupon, setGenbluServiceCoupon] = useState(false);
   const [wantsCombo, setWantsCombo] = useState(false);
   const [comboPackageId, setComboPackageId] = useState(packages[0]?.id ?? "");
@@ -1610,7 +1614,11 @@ export default function WalkInJobForm({
                     type="file"
                     accept="image/*"
                     className="hidden"
-                    onChange={(e) => setGenbluAllocationScreenshot(e.target.files?.[0] ?? null)}
+                    onChange={(e) => {
+                      const f = e.target.files?.[0] ?? null;
+                      setGenbluAllocationScreenshot(f);
+                      allocationCheck.run(f);
+                    }}
                   />
                   <button
                     type="button"
@@ -1618,7 +1626,7 @@ export default function WalkInJobForm({
                     className="flex items-center gap-1.5 bg-neutral-50 hover:bg-neutral-100 border border-neutral-200 text-neutral-700 text-sm font-medium px-3.5 py-2 rounded-lg transition-colors"
                   >
                     <Upload size={14} />{" "}
-                    {genbluAllocationScreenshot ? genbluAllocationScreenshot.name : "Log GenBlu Points for This Visit (optional)"}
+                    {genbluAllocationScreenshot ? genbluAllocationScreenshot.name : "Photo of points earned today (optional)"}
                   </button>
                   {genbluAllocationScreenshot && (
                     <label className="flex items-center gap-1.5 mt-2 text-xs text-neutral-600">
@@ -1631,9 +1639,13 @@ export default function WalkInJobForm({
                       Redeemed via Service Coupon
                     </label>
                   )}
+                  <GenbluScreenshotCheck
+                    checking={allocationCheck.checking}
+                    result={allocationCheck.result}
+                    onChangePhoto={() => genbluAllocationFileInputRef.current?.click()}
+                  />
                   <p className="text-xs text-neutral-500 mt-1.5">
-                    Upload the points-earned screenshot from this visit to log it under GenBlu Allocations —
-                    leave blank if there's nothing to log yet.
+                    Use the GenBlu screen showing the points earned on this visit, not the home screen. Leave blank if there&apos;s nothing to log yet.
                   </p>
                 </div>
               ) : (
@@ -1652,14 +1664,18 @@ export default function WalkInJobForm({
                     type="file"
                     accept="image/*"
                     className="hidden"
-                    onChange={(e) => setGenbluScreenshot(e.target.files?.[0] ?? null)}
+                    onChange={(e) => {
+                      const f = e.target.files?.[0] ?? null;
+                      setGenbluScreenshot(f);
+                      signupCheck.run(f);
+                    }}
                   />
                   <button
                     type="button"
                     onClick={() => genbluFileInputRef.current?.click()}
                     className="flex items-center gap-1.5 bg-neutral-50 hover:bg-neutral-100 border border-neutral-200 text-neutral-700 text-sm font-medium px-3.5 py-2 rounded-lg transition-colors"
                   >
-                    <Upload size={14} /> {genbluScreenshot ? genbluScreenshot.name : "Upload GenBlu Screenshot"}
+                    <Upload size={14} /> {genbluScreenshot ? genbluScreenshot.name : "Photo of points earned today"}
                   </button>
                   {genbluScreenshot && (
                     <label className="flex items-center gap-1.5 mt-2 text-xs text-neutral-600">
@@ -1672,10 +1688,15 @@ export default function WalkInJobForm({
                       Redeemed via Service Coupon
                     </label>
                   )}
+                  <GenbluScreenshotCheck
+                    checking={signupCheck.checking}
+                    result={signupCheck.result}
+                    onChangePhoto={() => genbluFileInputRef.current?.click()}
+                    balanceNote="It still registers the customer, but won't count as a point allocation. For the allocation, use the screen showing the points earned today."
+                  />
                   <p className="text-xs text-neutral-500 mt-1.5">
-                    Upload their GenBlu screenshot now so it shows up automatically in the GenBlu{" "}
-                    {genbluNewRegistration ? "New Registration (Admin) list" : "Tracker"} <em>and</em> GenBlu Allocations
-                    once this job is saved.
+                    Saved with the jobsheet: the customer goes into the GenBlu{" "}
+                    {genbluNewRegistration ? "new registration (admin) list" : "records"}, and points earned today go into GenBlu Allocations.
                   </p>
                 </div>
               )}

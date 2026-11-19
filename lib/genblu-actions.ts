@@ -538,6 +538,27 @@ export async function scanGenbluScreenshotForNameAction(
   }
 }
 
+// Quick check the moment staff pick a GenBlu screenshot, before saving:
+// "earned" = a points-earned screen (it will go into GenBlu Allocations),
+// "balance" = the app home screen showing the whole balance (it won't),
+// "unknown" = no points could be read. Same reader the save uses, so the
+// answer here always matches what happens on save.
+export async function checkGenbluScreenshotAction(
+  screenshot: File
+): Promise<{ kind: "earned" | "balance" | "unknown"; points: number | null; customerName: string | null }> {
+  await requireApproved();
+  try {
+    const buffer = Buffer.from(await screenshot.arrayBuffer());
+    const { text, words } = await extractTextAndWordsFromImage(buffer.toString("base64"));
+    const reading = extractPointsAccrued(text, words);
+    const customerName = extractTransactionCustomerName(text) || extractHomeScreenCustomerName(text) || null;
+    if (!reading) return { kind: "unknown", points: null, customerName };
+    return { kind: reading.isBalance ? "balance" : "earned", points: reading.value, customerName };
+  } catch {
+    return { kind: "unknown", points: null, customerName: null };
+  }
+}
+
 // Called by app/api/genblu-scan/route.ts — the actual scanning logic a
 // partner's own app can call instead of running its own (weaker) OCR on a
 // GenBlu home-screen screenshot.

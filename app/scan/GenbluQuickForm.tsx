@@ -188,6 +188,11 @@ export default function GenbluQuickForm({
               : "Couldn't read the name from this screenshot. Check the picture, or type the name below."}
         </p>
       )}
+      {screenshot && !scanningName && pointsPreview?.includes("current balance") && (
+        <p className="-mt-2 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-900">
+          This is the home screen: fine for the sign-up, but it won&apos;t count as a point allocation. Points earned today need the screen showing the points given.
+        </p>
+      )}
 
       {hasJobsheet ? (
         recentJobs.length === 0 ? (

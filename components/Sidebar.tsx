@@ -6,7 +6,6 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import {
   LayoutDashboard,
   CalendarCheck,
-  ShieldCheck,
   Wrench as MechanicIcon,
   Smartphone,
   TrendingUp,
@@ -41,7 +40,7 @@ const mainLinks: NavLink[] = [
   { href: "/repairs/walk-in", label: "Jobsheet", icon: ClipboardList, page: "walk-in", color: "text-red-600" },
   { href: "/sales-performance", label: "Sales Performance", icon: TrendingUp, page: "sales-performance", color: "text-sky-500" },
   { href: "/genblu", label: "GenBlu Tracker", icon: Smartphone, page: "genblu", color: "text-pink-500" },
-  { href: "/warranty-claims", label: "Claims", icon: ShieldCheck, page: "warranty-claims", color: "text-amber-500" },
+  // Claims hidden from the menu (not used, Nov 2026). The page and its data are kept.
   { href: "/customers", label: "E-Service Card", icon: CreditCard, page: "customers", color: "text-rose-600" },
   { href: "/reports", label: "Reports", icon: FileBarChart, page: "reports", color: "text-indigo-500" },
 ];
