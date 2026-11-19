@@ -53,19 +53,39 @@ type MatchedRegistration = { id: string; points_accrued: number | null; source: 
 // only ever updates an existing Tracker entry, never creates one, so a
 // points event for someone not yet registered just logs normally with no
 // side effect on the Tracker.
+// Membership numbers like "258-1182-544", compared digits only.
+function sameMember(a: string | null | undefined, b: string | null | undefined): boolean | null {
+  const x = (a ?? "").replace(/\D/g, "");
+  const y = (b ?? "").replace(/\D/g, "");
+  if (!x || !y) return null; // one side unknown: can't tell
+  if (x.length !== y.length) return false;
+  // One mistyped digit (258-7182-544 typed for 258-1182-544) is still the same member.
+  let diff = 0;
+  for (let i = 0; i < x.length; i++) if (x[i] !== y[i]) diff++;
+  return diff <= 1;
+}
+
 async function findMatchingRegistration(
   branch: Branch,
-  customerName: string
+  customerName: string,
+  membershipNumber?: string | null
 ): Promise<MatchedRegistration | null> {
   const { data } = await fetchAllRows((a, b) =>
     supabaseAdmin
       .from("cc_genblu_registrations")
-      .select("id, customer_name, points_accrued, source, created_at")
+      .select("id, customer_name, points_accrued, source, created_at, member_id")
       .eq("branch", branch)
       .order("id")
       .range(a, b),
   );
-  const match = (data ?? []).find((r) => namesLikelyMatch(r.customer_name, customerName));
+  // Two different customers can share a name (two "SALIZA BINTI SIDEK" at
+  // Setia Alam, Nov 2026): a different membership number on both sides
+  // means a different person, so the points never land on the wrong one.
+  // A registration with the same membership number wins over a name-only one.
+  const named = (data ?? []).filter(
+    (r) => namesLikelyMatch(r.customer_name, customerName) && sameMember(r.member_id, membershipNumber) !== false
+  );
+  const match = named.find((r) => sameMember(r.member_id, membershipNumber) === true) ?? named[0];
   return match
     ? { id: match.id, points_accrued: match.points_accrued, source: match.source, created_at: match.created_at }
     : null;
@@ -1397,7 +1417,7 @@ export async function addGenbluTransactionAction(input: {
   // Only updates an existing Tracker entry when the name matches one —
   // never creates a new one, so an unregistered customer's award/deduction
   // still logs here without leaving a stray, mostly-empty Tracker card.
-  const matchedReg = await findMatchingRegistration(input.branch, customerName);
+  const matchedReg = await findMatchingRegistration(input.branch, customerName, membershipNumber);
   if (matchedReg && !isSignupAwardAlreadyCounted(matchedReg, points, transactionDate)) {
     await supabaseAdmin
       .from("cc_genblu_registrations")
@@ -1437,7 +1457,7 @@ export async function getAllBranchesGenbluTransactions(): Promise<GenbluTransact
 export async function deleteGenbluTransactionAction(id: string, branch: Branch): Promise<void> {
   const user = await requireApproved();
   assertCanEditBranch(user, branch);
-  const { data: txn } = await supabaseAdmin.from("cc_genblu_transactions").select("customer_name, points, transaction_date").eq("id", id).single();
+  const { data: txn } = await supabaseAdmin.from("cc_genblu_transactions").select("customer_name, points, transaction_date, membership_number").eq("id", id).single();
   const { error } = await supabaseAdmin.from("cc_genblu_transactions").delete().eq("id", id);
   if (error) throw new Error(error.message);
 
@@ -1445,7 +1465,7 @@ export async function deleteGenbluTransactionAction(id: string, branch: Branch):
   // by-name lookup, so deleting a mistaken entry doesn't leave the
   // Tracker total overstated (or understated, for a deduction).
   if (txn) {
-    const matchedReg = await findMatchingRegistration(branch, txn.customer_name);
+    const matchedReg = await findMatchingRegistration(branch, txn.customer_name, txn.membership_number);
     if (matchedReg && !isSignupAwardAlreadyCounted(matchedReg, txn.points, txn.transaction_date)) {
       await supabaseAdmin
         .from("cc_genblu_registrations")
