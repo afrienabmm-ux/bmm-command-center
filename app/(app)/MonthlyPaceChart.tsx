@@ -140,7 +140,7 @@ export default function MonthlyPaceChart({
         })()}
       </div>
       <p className="text-xs text-neutral-500 mt-2">
-        Last {points.length} months · current month (blue) is month-to-date.
+        Last {points.length} months · current month (red) is month-to-date
       </p>
     </div>
   );

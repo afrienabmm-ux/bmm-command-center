@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { requireApproved, getActiveBranchSelection, isManagementLevel } from "@/lib/current-user";
+import { requireApproved, getActiveBranchSelection, isManagementLevel, hasPageAccess } from "@/lib/current-user";
 import { branchLabel } from "@/lib/branch";
 import { todayInMalaysia } from "@/lib/malaysia-time";
 import PageHeader from "@/components/PageHeader";
@@ -43,7 +43,7 @@ export default async function CommandCenterPage({
     <div className="flex flex-col h-full">
       <PageHeader
         title="Dashboard"
-        subtitle={branchSelection === "all" ? "Kapar, Setia Alam and Puncak Alam: target, jobsheets, claims and mechanics" : `${branchLabel(branchSelection)}: target, jobsheets, claims and mechanics`}
+        subtitle={branchSelection === "all" ? "Kapar, Setia Alam and Puncak Alam: target, jobsheets, GenBlu and mechanics" : `${branchLabel(branchSelection)}: target, jobsheets, GenBlu and mechanics`}
         action={
           <div className="flex items-center gap-2">
             <DaySelect year={year} month={month} day={day} basePath="/" />
@@ -63,6 +63,7 @@ export default async function CommandCenterPage({
           // pattern FIELD_SCANNER_EMAIL already uses elsewhere.
           showSuspiciousJobs={user.email === process.env.SUSPICIOUS_JOBS_ALERT_EMAIL}
           branchSelection={branchSelection}
+          showGenblu={hasPageAccess(user, "genblu")}
         />
       </div>
     </div>

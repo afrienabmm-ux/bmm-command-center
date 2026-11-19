@@ -22,6 +22,8 @@ import TodaysJobCheck from "./TodaysJobCheck";
 import PackageBreakdownCharts from "./PackageBreakdownCharts";
 import BranchMechanicLeaderboard from "./BranchMechanicLeaderboard";
 import SuspiciousJobsBanner from "./SuspiciousJobsBanner";
+import GenbluGlimpse from "./GenbluGlimpse";
+import { getGenbluGlimpse } from "@/lib/genblu-glimpse";
 
 // Month-target dial, drawn like a bike's speedometer: the red sweep is how
 // much of the target is done, and the dark tick is where we should be by
@@ -102,6 +104,7 @@ export default async function AllBranchesOverview({
   isManagement,
   showSuspiciousJobs,
   branchSelection,
+  showGenblu = false,
 }: {
   year: number;
   month: number;
@@ -109,6 +112,7 @@ export default async function AllBranchesOverview({
   isManagement: boolean;
   showSuspiciousJobs: boolean;
   branchSelection: BranchSelection;
+  showGenblu?: boolean;
 }) {
   const prev = previousMonth(year, month);
   const selectedDate = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
@@ -131,6 +135,7 @@ export default async function AllBranchesOverview({
     mechanicCommitment,
     todayActivity,
     branchMechanicRows,
+    genbluGlimpse,
   ] = await Promise.all([
     getBranchBreakdown(year, month),
     showSuspiciousJobs ? getSuspiciousWalkInJobs(onlyBranch) : Promise.resolve([]),
@@ -145,6 +150,7 @@ export default async function AllBranchesOverview({
       : Promise.resolve({ date: "", dailyTargetByBranch: {} as Record<Branch, number>, rows: [] }),
     getTodayActivity(onlyBranch, selectedDate),
     onlyBranch ? getBranchPerformance(onlyBranch, year, month) : Promise.resolve([]),
+    showGenblu ? getGenbluGlimpse(year, month, todayInMalaysia(), onlyBranch) : Promise.resolve(null),
   ]);
 
   // Combined view sums every branch's row; single-branch view just reads
@@ -298,6 +304,8 @@ export default async function AllBranchesOverview({
         workingDaysRemaining={revenuePace.branches[0]?.workingDaysRemaining ?? 0}
         title={onlyBranch ? `Pace to target, ${branchLabel(onlyBranch)}` : "Pace to target"}
       />
+
+      {genbluGlimpse && <GenbluGlimpse data={genbluGlimpse} isRealToday={revenuePace.isRealToday} monthName={monthLabel(month, year)} />}
 
       {/* The claims card was here; hidden since Claims isn't used (Nov 2026). */}
       <PackageBreakdownCharts packageBreakdown={packageBreakdown} onlyBranch={onlyBranch} />
