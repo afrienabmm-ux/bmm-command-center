@@ -74,7 +74,7 @@ export default async function BookingOverviewPage() {
   return (
     <div className="flex flex-col h-full">
       <PageHeader title="Booking Overview" subtitle="BMM ServiceHub at a glance: visitors, sign-ups, bookings and bikes" />
-      <div className="p-4 md:p-8 space-y-8 max-w-6xl">
+      <div className="p-4 md:p-8 space-y-8">
         <section className="space-y-3">
           <h2 className="text-lg font-semibold">People</h2>
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
