@@ -8,6 +8,7 @@ import { supabaseAdmin } from "./supabase-server";
 import { scanJobsheetImage, scanJobsheetPdf } from "./vision";
 import { extractItemsWithAi } from "./ai-item-extract";
 import type { Branch } from "./branch";
+import { cleanJobsheetNo } from "./jobsheet-no";
 import { readPrintedTotal, sameAmount, amountAppears, guessDiscountLabel, guessChargeLabel } from "./jobsheet-total";
 
 export type ScannedJobsheetItem = { code: string; description: string; quantity: number; price: number };
@@ -278,6 +279,79 @@ function extractFields(text: string): Record<string, string> {
 // plus a parts table. Nothing here is trusted blindly: everything it finds
 // is only ever used to pre-fill the Add Job form, which the mechanic still
 // has to check and confirm before saving.
+// ---- Clean-ups after the label-based read (Nov 2026, from re-scanning 42
+// real jobsheets): two-column jobsheets sometimes come back in the wrong
+// reading order, a label and its value land on different lines, or the
+// next box's value bleeds onto the end of this one.
+
+// "JOB CARD" (the page title) or the next label caught on the end of a name.
+function fixCustomerName(raw: string, text: string): string {
+  const strip = (v: string) => v.replace(/\s*\b(JOB\s*CARD|JOBSHEET|JOB\s*NO\.?|JOB\s*DATE|SALES\s*NO\.?)\b.*$/i, "").trim();
+  let name = strip(raw);
+  if (!name) {
+    // "Customer" and "Name :" read on separate lines: take the line that starts with "Name :".
+    const line = text.split("\n").map((l) => l.trim()).find((l) => /^name\s*:/i.test(l));
+    if (line) name = strip(line.replace(/^name\s*:\s*/i, ""));
+  }
+  return name;
+}
+
+// A Malaysian plate: 1-3 letters, 1-4 digits, optional 1-2 letters ("SJQ 4430", "SU 6013 P").
+const PLATE_RE = /\b([A-Z]{1,3})\s?(\d{1,4})(?:\s?([A-Z]{1,2}))?\b/;
+const NOT_PLATE_PREFIX = /^(NO|ID|KM|RM|TEL|PG|QR|SDN|BHD)$/;
+
+function fixPlateNo(raw: string, text: string): string {
+  if (/[A-Z]/i.test(raw) && /\d/.test(raw)) return raw;
+  // Value on the line after "Vehicle No.", or swapped with the next box:
+  // look a short way after the label for the first plate-shaped value.
+  const upper = text.toUpperCase();
+  const at = upper.search(/VEHICLE\s*NO/);
+  if (at < 0) return raw;
+  const windowText = upper.slice(at + 10, at + 160);
+  const re = new RegExp(PLATE_RE.source, "g");
+  for (const m of windowText.matchAll(re)) {
+    if (NOT_PLATE_PREFIX.test(m[1])) continue;
+    return [m[1], m[2], m[3]].filter(Boolean).join(" ");
+  }
+  return raw;
+}
+
+// Model with the mileage number ("VARIO 125 10897") or a short code from the
+// next box ("EGO AVANTIZ AF", "NVX ABS : AF") stuck on the end.
+function fixModel(raw: string, mechanicCode: string): { model: string; strayMileage: string } {
+  let model = raw.trim();
+  let strayMileage = "";
+  model = model.replace(/\s*\bMechanic\b.*$/i, "").trim();
+  model = model.replace(/\s*:\s*\S{0,4}$/, "").trim();
+  const num = model.match(/\s(\d{4,6})$/);
+  if (num) {
+    strayMileage = num[1];
+    model = model.slice(0, num.index).trim();
+  }
+  // The mechanic code from the box next to Model ("EGO AVANTIZ AF").
+  const last = model.split(/\s+/).pop() ?? "";
+  // When the Mechanic Code box read empty, its value wraps onto the Model
+  // line instead ("Model : NVX ABS : AF").
+  const MODEL_ENDINGS = /^(SE|GP|LC|FI|SP|ST|SS|GT|LE|RR|R|S|V)$/i; // real model words, never a mechanic code here
+  const isMechCode = mechanicCode
+    ? last.toUpperCase() === mechanicCode.toUpperCase()
+    : /^[A-Z]{1,2}$/.test(last) && !MODEL_ENDINGS.test(last);
+  if (model.includes(" ") && isMechCode) model = model.slice(0, -last.length).trim();
+  // What's left is only plate letters ("VKB") on a scrambled two-column read:
+  // better blank, so admin types it, than a wrong model saved.
+  if (/^[A-Z]{1,3}$/.test(model)) model = "";
+  return { model, strayMileage };
+}
+
+// The label read can pick up the wrong box on a two-column jobsheet; the
+// number itself (JBA/JBT/JBP + 6 digits) is distinctive enough to find anywhere.
+function fixJobsheetNo(raw: string, text: string): string {
+  const clean = cleanJobsheetNo(raw);
+  if (clean) return clean;
+  const m = text.toUpperCase().match(/\bJB[ATP]\s*-?\s*\d{6}\b/);
+  return m ? (cleanJobsheetNo(m[0]) ?? raw) : raw;
+}
+
 export function parseJobsheetText(text: string): ScannedJobsheet {
   const f = extractFields(text);
   // Customer Code is a dash-separated run of number groups, e.g.
@@ -287,9 +361,8 @@ export function parseJobsheetText(text: string): ScannedJobsheet {
   // off at. Every leading digit group and its dash separators are kept;
   // anything after the last one (like "JOB CARD") is dropped.
   const customerCode = (f.customerCode ?? "").match(/^\d+(?:\s*-\s*\d+)*/)?.[0]?.trim() ?? "";
-  const customerName = f.customerName ?? "";
-  const plateNo = f.plateNo ?? "";
-  const model = f.model ?? "";
+  const customerName = fixCustomerName(f.customerName ?? "", text);
+  const plateNo = fixPlateNo(f.plateNo ?? "", text);
   const colour = f.colour ?? "";
   const engineNo = f.engineNo ?? "";
   const chassisNo = f.chassisNo ?? "";
@@ -298,14 +371,16 @@ export function parseJobsheetText(text: string): ScannedJobsheet {
   // same merged two-column row ("NJ OR ..."), so only the first word is
   // kept rather than the whole captured value.
   const mechanicCode = f.mechanicCode?.match(/^[A-Za-z0-9]+/)?.[0] ?? "";
+  const modelFix = fixModel(f.model ?? "", mechanicCode);
+  const model = modelFix.model;
   const startedDate = f.jobDate ? toIsoDate(f.jobDate) : null;
 
-  const jobsheetNo = f.jobsheetNo ?? "";
+  const jobsheetNo = fixJobsheetNo(f.jobsheetNo ?? "", text);
   const salesNo = f.salesNo ?? "";
   const customerPhone = extractPhoneNumber(salesNo);
   const salesDate = f.salesDate ? (toIsoDate(f.salesDate) ?? "") : "";
   const warrantyCardNo = f.warrantyCardNo ?? "";
-  const mileageKm = f.mileageKm ?? "";
+  const mileageKm = f.mileageKm || modelFix.strayMileage;
   const nextMileageKm = f.nextMileageKm ?? "";
   const serviceType = f.serviceType ?? "";
   const nextServiceDate = f.nextServiceDate ? (toIsoDate(f.nextServiceDate) ?? "") : "";
