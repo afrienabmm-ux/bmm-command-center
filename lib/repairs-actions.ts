@@ -851,8 +851,9 @@ export async function updateRepairJobAction(
     jobsheet_user_id: input.jobsheetUserId ?? "",
   };
   // Keep the displayed job number in sync if the PIC edits/re-scans the
-  // jobsheet's own Job No. field after the job was created.
-  if (input.jobType === "Walk-in" && input.jobsheetNo?.trim()) {
+  // jobsheet's own Job No. field after the job was created. The number is
+  // required on edits too, so it can't be cleared after saving.
+  if (input.jobType === "Walk-in" && input.jobsheetNo !== undefined) {
     const checked = checkJobsheetNo(input.jobsheetNo, targetBranch);
     if ("error" in checked) return checked;
     const newJobNo = checked.jobNo;
