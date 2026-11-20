@@ -48,9 +48,29 @@ export async function markBookingDoneFromJobsheet(branch: string, plate: string,
           ...(b.status === "arrived" ? {} : { status: "arrived", arrived_at: now, status_changed_by: `jobsheet ${jobNo}` }),
         })
         .eq("id", b.id);
+      await notifyBookingDone(b.id);
     }
   } catch {
     // best-effort
+  }
+}
+
+// A booking was ticked Done: the booking site emails "your bike is ready" to the
+// email on that booking (once per booking; it decides). Never throws.
+export async function notifyBookingDone(bookingId: string): Promise<void> {
+  try {
+    const secret = process.env.BOOKING_CARD_SECRET;
+    if (!secret || !bookingId) return;
+    const base = (process.env.BOOKING_SITE_URL ?? "https://bmm-booking.vercel.app").replace(/\/$/, "");
+    await fetch(`${base}/api/staff/booking-done`, {
+      method: "POST",
+      headers: { authorization: `Bearer ${secret}`, "content-type": "application/json" },
+      body: JSON.stringify({ bookingId }),
+      cache: "no-store",
+      signal: AbortSignal.timeout(6000),
+    });
+  } catch {
+    // best-effort: the Done tick is already saved
   }
 }
 

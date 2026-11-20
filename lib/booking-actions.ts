@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { bookingDb } from "./booking-db";
+import { bookingDb, notifyBookingDone } from "./booking-db";
 import { requirePage, assertCanEditBranch, isManagementLevel, type CurrentUser } from "./current-user";
 import type { Branch } from "./branch";
 import { BRANCHES } from "./branch";
@@ -169,6 +169,7 @@ export async function setBookingDoneAction(id: string, done: boolean): Promise<{
     if (done && b.status !== "arrived") Object.assign(update, { status: "arrived", arrived_at: new Date().toISOString(), status_changed_by: user.name });
     const { error: upErr } = await bookingDb.from("bookings").update(update).eq("id", id);
     if (upErr) return { error: "Couldn't update the booking." };
+    if (done) await notifyBookingDone(id);
     revalidatePath("/bookings");
     return {};
   } catch (e) {
