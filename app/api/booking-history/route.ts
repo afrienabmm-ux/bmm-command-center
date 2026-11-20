@@ -5,7 +5,6 @@
 // app's phone number isn't verified, and history shows spending).
 import { timingSafeEqual } from "crypto";
 import { supabaseAdmin } from "@/lib/supabase-server";
-import { fetchAllRows } from "@/lib/fetch-all";
 import { normalizePlate } from "@/lib/plate";
 
 export const runtime = "nodejs";
@@ -68,16 +67,16 @@ export async function POST(req: Request): Promise<Response> {
   if (phone.length < 9 || plates.size === 0) return Response.json({ jobs: [] });
 
   try {
-    const { data, error } = await fetchAllRows((a, b) =>
-      supabaseAdmin
-        .from("cc_repair_jobs")
-        .select(
-          "id, job_no, branch, plate_no, customer_phone, started_date, completed_date, status, model, mileage_km, next_mileage_km, next_service_date, service_type, description, revenue_amount"
-        )
-        .eq("job_type", "Walk-in")
-        .order("id")
-        .range(a, b)
-    );
+    // Looks up only these bikes' job sheets (plate_norm is indexed), not every job sheet.
+    const { data, error } = await supabaseAdmin
+      .from("cc_repair_jobs")
+      .select(
+        "id, job_no, branch, plate_no, customer_phone, started_date, completed_date, status, model, mileage_km, next_mileage_km, next_service_date, service_type, description, revenue_amount"
+      )
+      .eq("job_type", "Walk-in")
+      .in("plate_norm", [...plates])
+      .order("started_date", { ascending: false })
+      .limit(MAX_JOBS * 2);
     if (error) throw new Error(error.message);
 
     const mine = ((data ?? []) as JobRow[])

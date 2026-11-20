@@ -55,10 +55,9 @@ export async function POST(req: Request): Promise<Response> {
       if (isCard(byPhone)) found.set(byPhone.cardNumber, byPhone);
       else if ("choices" in byPhone) queue.push(...byPhone.choices.map((c) => c.plateNo));
     }
-    for (const plate of queue) {
-      const r = await lookupCustomerCardAction(plate);
-      if (isCard(r)) found.set(r.cardNumber, r);
-    }
+    // All bikes at the same time (not one after another); results kept in the saved order.
+    const results = await Promise.all(queue.map((plate) => lookupCustomerCardAction(plate)));
+    for (const r of results) if (isCard(r)) found.set(r.cardNumber, r);
 
     // Nothing by phone or plate: try the exact full name, but only when exactly
     // ONE card has that name, so a common name never shows a stranger's card.
