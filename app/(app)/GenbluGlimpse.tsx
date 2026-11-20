@@ -31,7 +31,7 @@ export default function GenbluGlimpse({ data, isRealToday, monthName }: { data: 
         <Figure
           label="New sign-ups"
           value={n(data.salesmanSignups + data.adminSignups)}
-          sub={`Salesman ${n(data.salesmanSignups)} · Admin ${n(data.adminSignups)}${data.salesmanExisting ? ` · ${n(data.salesmanExisting)} existing` : ""}`}
+          sub={`Salesman ${n(data.salesmanSignups)} · Admin ${n(data.adminSignups)}`}
         />
         {isRealToday && <Figure label="Allocations today" value={n(data.today.counts)} sub={`${n(data.today.points)} points`} />}
       </div>

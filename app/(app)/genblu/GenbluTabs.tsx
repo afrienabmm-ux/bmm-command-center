@@ -36,28 +36,24 @@ export function inGenbluDates(iso: string, fromDate: string, toDate: string): bo
 // mix, with salesman sign-ups who already had points kept on a tab of their
 // own — and Point Allocation (the monthly counts/points log). Tab-switched
 // rather than stacked, same pattern as the Claims page.
-type Tab = "tracker" | "salesman" | "salesmanExisting" | "admin" | "allocations";
+type Tab = "tracker" | "salesman" | "admin" | "allocations";
 
 export default function GenbluTabs({
   registeredDates,
   salesmanDates,
-  salesmanExistingDates,
   adminDates,
   allocationCount,
   tracker,
   salesmanRegistrations,
-  salesmanExistingRegistrations,
   adminRegistrations,
   allocations,
 }: {
   registeredDates: string[];
   salesmanDates: string[];
-  salesmanExistingDates: string[];
   adminDates: string[];
   allocationCount: number;
   tracker: React.ReactNode;
   salesmanRegistrations: React.ReactNode;
-  salesmanExistingRegistrations: React.ReactNode;
   adminRegistrations: React.ReactNode;
   allocations: React.ReactNode;
 }) {
@@ -75,12 +71,12 @@ export default function GenbluTabs({
       [
         ...new Set([
           openingMonth,
-          ...[...registeredDates, ...salesmanDates, ...salesmanExistingDates, ...adminDates].map((d) => malaysiaDate(d).slice(0, 7)),
+          ...[...registeredDates, ...salesmanDates, ...adminDates].map((d) => malaysiaDate(d).slice(0, 7)),
         ]),
       ]
         .sort()
         .reverse(),
-    [openingMonth, registeredDates, salesmanDates, salesmanExistingDates, adminDates]
+    [openingMonth, registeredDates, salesmanDates, adminDates]
   );
   const count = (dates: string[]) => dates.filter((d) => inGenbluDates(d, fromDate, toDate)).length;
   // The GenBlu Tracker tab is hidden (owner's request, Nov 2026). Its records
@@ -89,7 +85,6 @@ export default function GenbluTabs({
   const tabs: { key: Tab; label: string }[] = [
     { key: "allocations", label: `GenBlu Allocations (${allocationCount})` },
     { key: "salesman", label: `New Reg — Salesman (${count(salesmanDates)})` },
-    { key: "salesmanExisting", label: `Salesman — Existing (${count(salesmanExistingDates)})` },
     { key: "admin", label: `New Reg — Admin (${count(adminDates)})` },
   ];
 
@@ -110,7 +105,6 @@ export default function GenbluTabs({
         ))}
       </div>
       <div className={tab === "salesman" ? "" : "hidden"}>{salesmanRegistrations}</div>
-      <div className={tab === "salesmanExisting" ? "" : "hidden"}>{salesmanExistingRegistrations}</div>
       <div className={tab === "admin" ? "" : "hidden"}>{adminRegistrations}</div>
       <div className={tab === "allocations" ? "" : "hidden"}>{allocations}</div>
     </div>

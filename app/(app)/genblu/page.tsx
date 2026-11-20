@@ -100,9 +100,11 @@ export default async function GenbluPage({
   // A truly new member shows 0 points, or 100 with the sign-up bonus. Any
   // other figure, or none read off the screenshot, goes on the Existing tab.
   const fromSalesman = newRegistrations.filter((r) => r.externalSourceId);
-  const isNewMemberPoints = (r: (typeof fromSalesman)[number]) => r.pointsAreActual && (r.points === 0 || r.points === 100);
-  const salesmanRegistrations = fromSalesman.filter(isNewMemberPoints);
-  const salesmanExistingRegistrations = fromSalesman.filter((r) => !isNewMemberPoints(r));
+  // Every salesman sign-up is a new-bike registration (it earns the 100-point
+  // award) even when the customer already had GenBlu points — owner's rule,
+  // Nov 2026. The old "Salesman — Existing" tab is gone; those customers just
+  // show their earlier points on their row.
+  const salesmanRegistrations = fromSalesman;
   const adminRegistrations = newRegistrations.filter((r) => !r.externalSourceId);
 
   return (
@@ -115,7 +117,6 @@ export default async function GenbluPage({
         <GenbluTabs
           registeredDates={trackerRegistrations.map((r) => r.createdAt)}
           salesmanDates={salesmanRegistrations.map((r) => r.createdAt)}
-          salesmanExistingDates={salesmanExistingRegistrations.map((r) => r.createdAt)}
           adminDates={adminRegistrations.map((r) => r.createdAt)}
           allocationCount={pointAllocations.length}
           tracker={
@@ -132,16 +133,6 @@ export default async function GenbluPage({
             <GenbluClient
               registrations={salesmanRegistrations}
               exportName="salesman"
-              mechanics={mechanics}
-              branch={branch}
-              branchSelection={branchSelection}
-              locked={!canViewAllBranches(user)}
-            />
-          }
-          salesmanExistingRegistrations={
-            <GenbluClient
-              registrations={salesmanExistingRegistrations}
-              exportName="salesman-existing"
               mechanics={mechanics}
               branch={branch}
               branchSelection={branchSelection}

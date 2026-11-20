@@ -83,10 +83,13 @@ export async function getGenbluGlimpse(year: number, month: number, today: strin
   }
   for (const r of regs.data) {
     if (!malaysiaDate(r.created_at).startsWith(prefix)) continue;
+    // Every salesman sign-up is a new-bike registration, even for a customer
+    // who already had points; salesmanExisting just says how many had some.
     if (!r.external_source_id) out.adminSignups += 1;
-    // Same split as the GenBlu page: a truly new member shows 0 or 100 points.
-    else if (r.points_accrued !== null && (Number(r.points_accrued) === 0 || Number(r.points_accrued) === 100)) out.salesmanSignups += 1;
-    else out.salesmanExisting += 1;
+    else {
+      out.salesmanSignups += 1;
+      if (r.points_accrued !== null && Number(r.points_accrued) !== 0 && Number(r.points_accrued) !== 100) out.salesmanExisting += 1;
+    }
   }
   return out;
 }

@@ -313,6 +313,11 @@ export default function GenbluClient({
                           <Award size={11} /> ~{r.points.toLocaleString()} ({formatCurrency(r.points)})
                         </span>
                       ))}
+                    {/* Salesman sign-up for a customer who already had points:
+                        still a new-bike registration, just noted. */}
+                    {exportName === "salesman" && r.pointsAreActual && r.points !== 0 && r.points !== 100 && (
+                      <span className="block text-[11px] text-neutral-500 mt-0.5 whitespace-nowrap">Already a member</span>
+                    )}
                   </td>
                   <td className="px-4 py-2.5">
                     <div className="flex items-center gap-1 shrink-0">
