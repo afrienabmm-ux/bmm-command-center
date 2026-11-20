@@ -1,9 +1,8 @@
 // Private link for the separate customer booking app (bmm-booking): returns a
 // logged-in customer's own service history from uploaded job sheets.
-// A job sheet is returned when its plate matches one of the customer's saved bikes
-// AND its phone number is either blank or the same as the customer's. A phone number
-// alone is never enough (the app's phone number isn't verified, and history shows
-// spending). A different phone on the sheet (e.g. a previous owner) hides it.
+// A job sheet is returned when its plate matches one of the customer's saved bikes,
+// whatever phone number is on the sheet. A phone number alone is never enough (the
+// app's phone number isn't verified, and history shows spending).
 import { timingSafeEqual } from "crypto";
 import { supabaseAdmin } from "@/lib/supabase-server";
 import { fetchAllRows } from "@/lib/fetch-all";
@@ -82,11 +81,7 @@ export async function POST(req: Request): Promise<Response> {
     if (error) throw new Error(error.message);
 
     const mine = ((data ?? []) as JobRow[])
-      .filter((j) => {
-        if (!plates.has(normalizePlate(j.plate_no ?? ""))) return false;
-        const sheetPhone = normalizePhone(j.customer_phone ?? "");
-        return sheetPhone === "" || sheetPhone === phone;
-      })
+      .filter((j) => plates.has(normalizePlate(j.plate_no ?? "")))
       .sort((x, y) => (y.started_date ?? "").localeCompare(x.started_date ?? ""))
       .slice(0, MAX_JOBS);
 
