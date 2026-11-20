@@ -13,7 +13,7 @@ import { checkCustomerCode, customerCodeReason } from "./customer-code";
 import { normalizePlate } from "./plate";
 import { checkJobsheetNo } from "./jobsheet-no";
 import { fetchAllRows } from "./fetch-all";
-import { markBookingDoneFromJobsheet } from "./booking-db";
+import { markBookingDoneFromJobsheet, notifyBikeReady } from "./booking-db";
 import { getGenbluPlatePoints, getGenbluTxLite, jobGenbluPoints, type GenbluTxLite, type GenbluPlateInfo } from "./genblu-plates";
 
 type ItemRow = { id: string; code: string; description: string; quantity: number; price: number };
@@ -685,6 +685,7 @@ export async function addRepairJobAction(input: {
   // branch and day) in case the PIC forgot to tick it.
   if (input.jobType === "Walk-in") {
     await markBookingDoneFromJobsheet(input.branch, input.plateNo, input.startedDate || todayInMalaysia(), jobNo);
+    await notifyBikeReady(input.branch, input.plateNo, jobNo, input.completedDate);
   }
   await logActivity(user, `Added ${input.jobType} job`, `${jobNo} — ${input.customerName || input.plateNo} (${input.branch})`);
   revalidatePath("/repairs");
@@ -911,6 +912,10 @@ export async function updateRepairJobAction(
   // Plate fixed after a typo: the matching booking is ticked Done now.
   if (input.jobType === "Walk-in" && priorJob && priorJob.plate_no !== input.plateNo) {
     await markBookingDoneFromJobsheet(targetBranch, input.plateNo, input.startedDate || todayInMalaysia(), (update.job_no as string | undefined) ?? priorJob.job_no);
+  }
+  // Finished walk-in jobsheet: the customer is emailed "your bike is ready" (once per job).
+  if (input.jobType === "Walk-in" && input.completedDate && priorJob) {
+    await notifyBikeReady(targetBranch, input.plateNo, (update.job_no as string | undefined) ?? priorJob.job_no, input.completedDate);
   }
   await logActivity(
     user,

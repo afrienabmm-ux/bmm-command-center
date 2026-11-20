@@ -53,3 +53,23 @@ export async function markBookingDoneFromJobsheet(branch: string, plate: string,
     // best-effort
   }
 }
+
+// Called after a finished Walk-in jobsheet is saved: tells the booking site, which emails
+// the customer "your bike is ready" if that plate is saved in a customer's app account.
+// The booking site decides who gets it and sends each job only once. Never throws.
+export async function notifyBikeReady(branch: string, plate: string, jobNo: string, completedDate: string | null | undefined): Promise<void> {
+  try {
+    const secret = process.env.BOOKING_CARD_SECRET;
+    if (!secret || !plate.trim() || !completedDate) return;
+    const base = (process.env.BOOKING_SITE_URL ?? "https://bmm-booking.vercel.app").replace(/\/$/, "");
+    await fetch(`${base}/api/staff/job-ready`, {
+      method: "POST",
+      headers: { authorization: `Bearer ${secret}`, "content-type": "application/json" },
+      body: JSON.stringify({ jobs: [{ jobNo, plate, branch, completedDate }] }),
+      cache: "no-store",
+      signal: AbortSignal.timeout(6000),
+    });
+  } catch {
+    // best-effort: the jobsheet is already saved
+  }
+}
