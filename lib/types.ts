@@ -189,6 +189,9 @@ export type RepairJob = {
   // Errors tab until this is set, regardless of how many times the job
   // itself is edited.
   signatureIssueResolved: boolean;
+  // Walk-in only: when the customer collected the finished bike, and who ticked it (After-Sales only).
+  pickedUpAt: string | null;
+  pickedUpBy: string;
   // Walk-in only — the original photo of the paper jobsheet, uploaded
   // through Scan Jobsheet. Kept so a manager can look at the real thing
   // whenever the automated reading (item rows, signature check) needs a

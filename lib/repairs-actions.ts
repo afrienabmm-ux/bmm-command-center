@@ -88,6 +88,8 @@ type Row = {
   signature_status: string;
   pic_signature_status: string;
   signature_issue_resolved: boolean;
+  picked_up_at: string | null;
+  picked_up_by: string | null;
   jobsheet_photo_path: string | null;
   remark: string;
   cc_repair_job_items: ItemRow[] | null;
@@ -159,6 +161,8 @@ function toJob(r: Row, genbluPlates: Map<string, GenbluPlateInfo>, genbluTxs: Ge
     signatureStatus: r.signature_status,
     picSignatureStatus: r.pic_signature_status,
     signatureIssueResolved: r.signature_issue_resolved,
+    pickedUpAt: r.picked_up_at ?? null,
+    pickedUpBy: r.picked_up_by ?? "",
     jobsheetPhotoPath: r.jobsheet_photo_path,
     remark: r.remark,
     hasGenblu: genbluPoints !== null,
@@ -945,6 +949,21 @@ export async function resolveSignatureIssueAction(id: string, branch: Branch): P
   const { error } = await supabaseAdmin.from("cc_repair_jobs").update({ signature_issue_resolved: true }).eq("id", id);
   if (error) return { error: error.message };
   await logActivity(user, "Confirmed jobsheet signature", `job ${id}`);
+  revalidatePath("/repairs/walk-in");
+}
+
+// Walk-in only: the customer collected the finished bike. Only After-Sales sets this
+// (the Customer Service Tracker just shows it). Clicking again undoes it.
+export async function setJobPickedUpAction(id: string, branch: Branch, pickedUp: boolean): Promise<{ error: string } | void> {
+  const user = await requireApproved();
+  assertCanEditBranch(user, branch);
+  const { error } = await supabaseAdmin
+    .from("cc_repair_jobs")
+    .update(pickedUp ? { picked_up_at: new Date().toISOString(), picked_up_by: user.name } : { picked_up_at: null, picked_up_by: "" })
+    .eq("id", id)
+    .eq("job_type", "Walk-in");
+  if (error) return { error: error.message };
+  await logActivity(user, pickedUp ? "Marked bike picked up" : "Undid bike picked up", `job ${id}`);
   revalidatePath("/repairs/walk-in");
 }
 
