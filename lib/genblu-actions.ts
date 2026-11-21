@@ -413,7 +413,9 @@ async function analyzeGenbluScreenshot(
   const nameMatches = !condensed || condensedName(text).includes(condensed);
   return {
     nameMatches,
-    pointsReading: extractPointsAccrued(text, words),
+    pointsReading:
+      extractPointsAccrued(text, words) ??
+      ((n) => (n === null ? null : { value: n, isBalance: false }))(extractPointsFromSales(text)),
     membershipNumber: extractMembershipNumber(text),
     productCategory: extractProductCategory(text),
     transactionDate: extractTransactionDate(text),
@@ -553,7 +555,7 @@ export async function checkGenbluScreenshotAction(
     const customerName = extractTransactionCustomerName(text) || extractHomeScreenCustomerName(text) || null;
     // The transaction-screen reader first: it's what "Points from a service"
     // uses on save, so a screen it can read always shows as "earned" here.
-    const awarded = extractTransactionPoints(text);
+    const awarded = extractTransactionPoints(text) ?? extractPointsFromSales(text);
     if (awarded !== null && awarded > 0) return { kind: "earned", points: awarded, customerName };
     const reading = extractPointsAccrued(text, words);
     if (!reading) return { kind: "unknown", points: null, customerName };
@@ -1278,6 +1280,16 @@ function extractProductCategory(text: string): string | null {
   return spent ? spent[1].toUpperCase() : null;
 }
 
+// The newer GenBlu app's "Transaction details" page shows no points number,
+// only "Sales RM 95.0". Points are always the RM amount rounded down (checked
+// on all 885 service awards in the Oct–Nov 2026 export), so read it from that.
+function extractPointsFromSales(text: string): number | null {
+  const m = text.match(/\bSales\b[^\dR]{0,15}RM\s*([\d,]+(?:\.\d+)?)/i);
+  if (!m) return null;
+  const n = Math.floor(Number(m[1].replace(/,/g, "")));
+  return Number.isFinite(n) && n > 0 ? n : null;
+}
+
 function extractTransactionPoints(text: string): number | null {
   const match = text.match(/points[^\d]{0,20}(\d[\d,]{0,6})/i);
   if (!match) return null;
@@ -1367,7 +1379,7 @@ export async function addGenbluTransactionAction(input: {
   }
 
   let customerName = extractTransactionCustomerName(text);
-  let points = extractTransactionPoints(text);
+  let points = extractTransactionPoints(text) ?? extractPointsFromSales(text);
   let membershipNumber = extractMembershipNumber(text);
   let productCategory = extractProductCategory(text);
   let transactionDate = extractTransactionDate(text);
