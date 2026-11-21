@@ -550,8 +550,12 @@ export async function checkGenbluScreenshotAction(
   try {
     const buffer = Buffer.from(await screenshot.arrayBuffer());
     const { text, words } = await extractTextAndWordsFromImage(buffer.toString("base64"));
-    const reading = extractPointsAccrued(text, words);
     const customerName = extractTransactionCustomerName(text) || extractHomeScreenCustomerName(text) || null;
+    // The transaction-screen reader first: it's what "Points from a service"
+    // uses on save, so a screen it can read always shows as "earned" here.
+    const awarded = extractTransactionPoints(text);
+    if (awarded !== null && awarded > 0) return { kind: "earned", points: awarded, customerName };
+    const reading = extractPointsAccrued(text, words);
     if (!reading) return { kind: "unknown", points: null, customerName };
     return { kind: reading.isBalance ? "balance" : "earned", points: reading.value, customerName };
   } catch {
