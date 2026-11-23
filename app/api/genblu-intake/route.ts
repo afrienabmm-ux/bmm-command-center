@@ -8,6 +8,7 @@
 // not two separately-typed copies of the same customers.
 import { createHmac, timingSafeEqual, createHash } from "crypto";
 import { supabaseAdmin } from "@/lib/supabase-server";
+import { fetchAllRows } from "@/lib/fetch-all";
 import type { Branch } from "@/lib/branch";
 import { compressScreenshotForStorage } from "@/lib/vision";
 
@@ -235,7 +236,22 @@ export async function POST(req: Request): Promise<Response> {
   return Response.json({ ok: true }, { status: 201 });
 }
 
-// Reject other verbs explicitly so a mistake is obvious rather than silent.
-export async function GET(): Promise<Response> {
-  return Response.json({ error: "POST only" }, { status: 405 });
+// The Sales Dashboard's "not on GenBlu yet" reminder only knows about the
+// registrations its own salespeople uploaded. A customer registered here at
+// After-Sales would stay on that reminder forever, so it asks for every
+// plate on file (same shared secret as the POST above). Plates only — no
+// names, phones or points leave this app.
+export async function GET(req: Request): Promise<Response> {
+  if (!SECRET) return Response.json({ error: "intake not configured" }, { status: 503 });
+  if (req.headers.get("authorization") !== `Bearer ${SECRET}`) {
+    return Response.json({ error: "unauthorized" }, { status: 401 });
+  }
+  const { data, error } = await fetchAllRows<{ customer_plate_no: string | null }>((a, b) =>
+    supabaseAdmin.from("cc_genblu_registrations").select("customer_plate_no").order("id").range(a, b),
+  );
+  if (error) return Response.json({ error: error.message }, { status: 500 });
+  const plates = [
+    ...new Set((data ?? []).map((r) => String(r.customer_plate_no ?? "").toUpperCase().replace(/[^A-Z0-9]/g, "")).filter(Boolean)),
+  ];
+  return Response.json({ plates });
 }
