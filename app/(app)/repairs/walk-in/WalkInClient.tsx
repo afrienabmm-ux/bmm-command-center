@@ -9,7 +9,6 @@ import {
   deleteRepairJobAction,
   getJobsheetPhotoUrlAction,
   resolveSignatureIssueAction,
-  setJobPickedUpAction,
   searchWalkInJobsAction,
   getCompletedWalkInJobsInRangeAction,
 } from "@/lib/repairs-actions";
@@ -1270,7 +1269,6 @@ function WalkInRow({
   const [deleting, setDeleting] = useState(false);
   const [photoPending, setPhotoPending] = useState(false);
   const [resolving, setResolving] = useState(false);
-  const [pickingUp, setPickingUp] = useState(false);
   const missingSignature = (s: string) => s === "not_detected" || s === "unchecked";
   const isSignatureError = missingSignature(job.signatureStatus) && !job.signatureIssueResolved;
 
@@ -1279,13 +1277,6 @@ function WalkInRow({
     startTransition(async () => {
       await resolveSignatureIssueAction(job.id, job.branch);
       setResolving(false);
-    });
-  }
-  function handlePickedUp() {
-    setPickingUp(true);
-    startTransition(async () => {
-      await setJobPickedUpAction(job.id, job.branch, !job.pickedUpAt);
-      setPickingUp(false);
     });
   }
   const days = daysBetween(job.startedDate, job.completedDate ?? new Date().toISOString().slice(0, 10));
@@ -1424,27 +1415,7 @@ function WalkInRow({
               <Check size={12} /> {resolving ? "Confirming…" : "Confirm Signed"}
             </button>
           )}
-          {canEdit && job.status === "Completed" && (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                handlePickedUp();
-              }}
-              disabled={pickingUp}
-              className={`flex items-center gap-1 text-xs font-medium border px-2 py-1 rounded-lg transition-colors whitespace-nowrap disabled:opacity-50 ${
-                job.pickedUpAt
-                  ? "text-emerald-700 bg-emerald-500/10 border-emerald-500/20 hover:bg-emerald-500/20"
-                  : "text-neutral-600 bg-white border-neutral-300 hover:bg-neutral-50"
-              }`}
-              title={
-                job.pickedUpAt
-                  ? `Picked up ${new Date(job.pickedUpAt).toLocaleString("en-GB", { timeZone: "Asia/Kuala_Lumpur", day: "numeric", month: "short", hour: "numeric", minute: "2-digit" })}${job.pickedUpBy ? ` — ticked by ${job.pickedUpBy}` : ""}. Click to undo.`
-                  : "Tick when the customer has collected the bike"
-              }
-            >
-              <Check size={12} /> {job.pickedUpAt ? "Picked up" : "Pick up"}
-            </button>
-          )}
+          {/* No Pick up button: an uploaded jobsheet means the customer has collected the bike (owner's rule, Nov 2026). */}
           {job.jobsheetPhotoPath && (
             <button
               onClick={(e) => {

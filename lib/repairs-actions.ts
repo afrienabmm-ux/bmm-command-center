@@ -676,6 +676,9 @@ export async function addRepairJobAction(input: {
       signature_status: input.signatureStatus ?? "",
       pic_signature_status: input.picSignatureStatus ?? "",
       jobsheet_photo_path: input.jobsheetPhotoPath ?? null,
+      // An uploaded walk-in jobsheet means the customer has collected the bike
+      // (owner's rule, Nov 2026) — the CS Tracker reads this as "picked up".
+      ...(input.jobType === "Walk-in" ? { picked_up_at: new Date().toISOString(), picked_up_by: "Jobsheet uploaded" } : {}),
     })
     .select("id")
     .single();
