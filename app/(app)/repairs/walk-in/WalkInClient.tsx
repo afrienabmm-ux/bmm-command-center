@@ -281,6 +281,12 @@ export default function WalkInClient({
   // The IC errors tab is a report: rows can be looked at, but not selected,
   // opened for editing or deleted from here (fix the code in the Customer Code report).
   const canEditHere = canEdit && tab !== "ic";
+  // The Errors / IC errors tab buttons count this month only (owner's
+  // request, Nov 2026); the list itself still shows every month, grouped.
+  const [thisMonth] = useState(() => new Date(Date.now() + 8 * 3600_000).toISOString().slice(0, 7));
+  const thisMonthName = new Date(`${thisMonth}-01T00:00:00Z`).toLocaleDateString("en-GB", { timeZone: "UTC", month: "short" });
+  const errorsThisMonth = errors.filter((j) => (j.startedDate ?? "").startsWith(thisMonth)).length;
+  const icErrorsThisMonth = icErrors.filter((j) => (j.startedDate ?? "").startsWith(thisMonth)).length;
   const jobs =
     tab === "active" ? active : tab === "completed" ? rangeResults ?? completed : tab === "ic" ? icErrors : errors;
   const visible = useMemo(() => {
@@ -671,21 +677,23 @@ export default function WalkInClient({
           {errors.length > 0 && (
             <button
               onClick={() => selectTab("errors")}
+              title={`${errorsThisMonth} in ${thisMonthName} · ${errors.length} in total`}
               className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors whitespace-nowrap ${
                 tab === "errors" ? "bg-red-500 text-white" : "text-red-600 hover:text-red-700"
               }`}
             >
-              Errors ({errors.length})
+              Errors ({thisMonthName}: {errorsThisMonth})
             </button>
           )}
           {icErrors.length > 0 && (
             <button
               onClick={() => selectTab("ic")}
+              title={`${icErrorsThisMonth} in ${thisMonthName} · ${icErrors.length} in total`}
               className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors whitespace-nowrap ${
                 tab === "ic" ? "bg-red-500 text-white" : "text-red-600 hover:text-red-700"
               }`}
             >
-              IC errors ({icErrors.length})
+              IC errors ({thisMonthName}: {icErrorsThisMonth})
             </button>
           )}
         </div>
