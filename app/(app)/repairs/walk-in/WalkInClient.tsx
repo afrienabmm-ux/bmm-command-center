@@ -312,6 +312,48 @@ export default function WalkInClient({
   const filterKey = [tab, query, dateFrom, dateTo, brandFilter].join("|");
   const [showAllFor, setShowAllFor] = useState<string | null>(null);
   const showAllRows = showAllFor === filterKey;
+  // Errors and IC errors are grouped by month (latest first) with a count per
+  // month, so old and new problems don't mix (owner's request, Nov 2026).
+  const byMonth = tab === "errors" || tab === "ic";
+  function renderRows(rows: typeof jobs) {
+    const one = (job: (typeof jobs)[number]) => (
+      <WalkInRow
+        showIc={tab === "ic"}
+        key={job.id}
+        job={job}
+        showBranch={false}
+        mechanicLabel={mechanicLabel(job.mechanicId)}
+        editable={canEditHere && tab === "active"}
+        canEdit={canEditHere}
+        canResolveErrors={canResolveErrors}
+        highlight={job.id === highlightId}
+        selected={selectedIds.has(job.id)}
+        onToggleSelect={() => toggleSelectOne(job.id)}
+      />
+    );
+    if (!byMonth) return rows.map(one);
+    const monthOf = (j: (typeof jobs)[number]) => (j.startedDate ?? "").slice(0, 7);
+    const sorted = [...rows].sort((a, b) => monthOf(b).localeCompare(monthOf(a)));
+    const counts = new Map<string, number>();
+    for (const j of sorted) counts.set(monthOf(j), (counts.get(monthOf(j)) ?? 0) + 1);
+    return sorted.map((job, i) => {
+      const m = monthOf(job);
+      const header =
+        i === 0 || monthOf(sorted[i - 1]) !== m ? (
+          <tr key={`m-${m}`} className="bg-red-50/60">
+            <td colSpan={(canEditHere ? 1 : 0) + 13} className="px-5 py-2 text-sm font-semibold text-neutral-900">
+              {m ? new Date(`${m}-01T00:00:00Z`).toLocaleDateString("en-GB", { timeZone: "UTC", month: "long", year: "numeric" }) : "No date"}
+              <span className="font-normal text-neutral-500">
+                {" "}
+                · {counts.get(m)} {tab === "ic" ? "IC error" : "error"}
+                {counts.get(m) === 1 ? "" : "s"}
+              </span>
+            </td>
+          </tr>
+        ) : null;
+      return header ? [header, one(job)] : one(job);
+    });
+  }
 
   // Coming back from a jobsheet: put the filters back first, then the scroll
   // position once the rows it depends on have actually loaded.
@@ -887,38 +929,10 @@ export default function WalkInClient({
                           {branchLabel(g.branch)} — {g.total} job{g.total === 1 ? "" : "s"}
                         </td>
                       </tr>
-                      {g.rows.map((job) => (
-                        <WalkInRow
-                          showIc={tab === "ic"}
-                          key={job.id}
-                          job={job}
-                          showBranch={false}
-                          mechanicLabel={mechanicLabel(job.mechanicId)}
-                          editable={canEditHere && tab === "active"}
-                          canEdit={canEditHere}
-                          canResolveErrors={canResolveErrors}
-                          highlight={job.id === highlightId}
-                          selected={selectedIds.has(job.id)}
-                          onToggleSelect={() => toggleSelectOne(job.id)}
-                        />
-                      ))}
+                      {renderRows(g.rows)}
                     </Fragment>
                   ))
-                : displayed.map((job) => (
-                    <WalkInRow
-                      showIc={tab === "ic"}
-                      key={job.id}
-                      job={job}
-                      showBranch={false}
-                      mechanicLabel={mechanicLabel(job.mechanicId)}
-                      editable={canEditHere && tab === "active"}
-                      canEdit={canEditHere}
-                      canResolveErrors={canResolveErrors}
-                      highlight={job.id === highlightId}
-                      selected={selectedIds.has(job.id)}
-                      onToggleSelect={() => toggleSelectOne(job.id)}
-                    />
-                  ))}
+                : renderRows(displayed)}
               {hiddenRows > 0 && (
                 <tr>
                   <td colSpan={13 + (canEditHere ? 1 : 0)} className="px-5 py-3 text-center">
