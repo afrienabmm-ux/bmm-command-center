@@ -437,6 +437,8 @@ export default function WalkInJobForm({
   // when the "Signature" label couldn't be found at all). Existing jobs
   // start confirmed since there's nothing new to check unless re-scanned.
   const [signatureDetected, setSignatureDetected] = useState<boolean | null>(null);
+  // A computer copy of the job card (not a photo of paper) needs no signature.
+  const [computerCopy, setComputerCopy] = useState(false);
   const [signatureConfirmed, setSignatureConfirmed] = useState(isEdit);
   const [jobsheetPhotoPath, setJobsheetPhotoPath] = useState<string | null>(job?.jobsheetPhotoPath ?? null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -516,8 +518,9 @@ export default function WalkInJobForm({
       // as pen strokes), so the PIC always has to look at the photo and
       // confirm it themselves. The detector's result is shown below only
       // as a hint, not a substitute for that check.
-      setSignatureConfirmed(false);
-      if (scanned.signatureDetected !== true) {
+      setComputerCopy(!!scanned.computerCopy);
+      setSignatureConfirmed(!!scanned.computerCopy);
+      if (!scanned.computerCopy && scanned.signatureDetected !== true) {
         showError(
           "No customer signature detected on this jobsheet. Please check that the customer has signed it, or take a clearer photo and scan again."
         );
@@ -803,7 +806,9 @@ export default function WalkInJobForm({
     // so editing a job without rescanning doesn't wipe out whatever status
     // was recorded the first time it was scanned.
     const signatureStatus: string | undefined = scanRawText
-      ? signatureDetected === true
+      ? computerCopy
+        ? "computer_copy"
+        : signatureDetected === true
         ? "detected"
         : signatureDetected === false
           ? "not_detected"
@@ -1121,20 +1126,25 @@ export default function WalkInJobForm({
                   ref={signatureRef}
                   tabIndex={-1}
                   className={`mt-3 border rounded-lg p-3 ${
-                    signatureDetected === false ? "bg-red-50 border-red-200" : "bg-white border-neutral-200"
+                    !computerCopy && signatureDetected === false ? "bg-red-50 border-red-200" : "bg-white border-neutral-200"
                   }`}
                 >
-                  {signatureDetected === true && (
+                  {computerCopy && (
+                    <p className="text-xs text-emerald-700 flex items-center gap-1.5">
+                      <CheckCircle2 size={14} /> Computer copy of the job card: no signature needed.
+                    </p>
+                  )}
+                  {!computerCopy && signatureDetected === true && (
                     <p className="text-xs text-emerald-700 flex items-center gap-1.5">
                       <CheckCircle2 size={14} /> Looks like a customer signature is on the jobsheet — please check the photo and confirm below.
                     </p>
                   )}
-                  {signatureDetected === false && (
+                  {!computerCopy && signatureDetected === false && (
                     <p className="text-xs text-red-700 font-medium flex items-center gap-1.5">
                       <AlertTriangle size={14} /> No customer sign detected — please ask the customer to sign the jobsheet before saving.
                     </p>
                   )}
-                  {signatureDetected === null && scanRawText && (
+                  {!computerCopy && signatureDetected === null && scanRawText && (
                     <p className="text-xs text-neutral-500">
                       Couldn&apos;t check the photo for a signature — please confirm it by hand.
                     </p>

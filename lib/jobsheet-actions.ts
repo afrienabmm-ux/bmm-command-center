@@ -48,6 +48,9 @@ export type ScannedJobsheet = {
   // troubleshooting panel so miscalibration can be diagnosed from a real
   // photo instead of guessed at.
   signatureDebug: string;
+  // A clean digital job card from the system (not a photo of paper): it can
+  // never carry a signature, so it passes the signature check by itself.
+  computerCopy: boolean;
   // Same best-effort check, for the "Authorised Signature" (branch/PIC)
   // line instead of the customer's.
   picSignatureDetected: boolean | null;
@@ -648,6 +651,7 @@ export function parseJobsheetText(text: string): ScannedJobsheet {
     rawText: text,
     signatureDetected: null,
     signatureDebug: "",
+    computerCopy: false,
     picSignatureDetected: null,
     picSignatureDebug: "",
   };
@@ -807,7 +811,7 @@ export async function scanJobsheet(
     // same OCR and ink-residual signature check as a phone photo, instead
     // of a separate PDF-only text pipeline with its own weaker,
     // text-based signature guess.
-    const { text, signatureDetected, signatureDebug, picSignatureDetected, picSignatureDebug } =
+    const { text, signatureDetected, signatureDebug, picSignatureDetected, picSignatureDebug, computerCopy } =
       mimeType === "application/pdf" ? await scanJobsheetPdf(base64File) : await scanJobsheetImage(base64File);
     if (!text.trim()) {
       return { error: "Couldn't read any text from that file — try a clearer, well-lit photo." };
@@ -831,7 +835,7 @@ export async function scanJobsheet(
     const reconciled = reconcileWithPrintedTotal(normalizeDiscountItems(parsed.items, discounts), lookup, discounts, text);
     parsed.items = reconciled.items;
     parsed.printedTotal = reconciled.printedTotal;
-    return { data: { ...parsed, signatureDetected, signatureDebug, picSignatureDetected, picSignatureDebug } };
+    return { data: { ...parsed, signatureDetected, signatureDebug, picSignatureDetected, picSignatureDebug, computerCopy } };
   } catch (err) {
     const message = err instanceof Error ? err.message : "";
     if (/deadline/i.test(message)) {

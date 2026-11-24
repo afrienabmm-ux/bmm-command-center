@@ -655,13 +655,42 @@ export type JobsheetScanResult = {
   // either line can be missing independently of the other.
   picSignatureDetected: boolean | null;
   picSignatureDebug: string;
+  // A clean digital job card from the system — no signature needed.
+  computerCopy: boolean;
 };
 
 // Same OCR pipeline as extractTextFromImage, plus a best-effort check of
 // both signature lines — kept separate so GenBlu screenshot scanning
 // (which has no signature box) doesn't pay for the extra image work.
-export async function scanJobsheetImage(base64Image: string): Promise<JobsheetScanResult> {
+// A job card exported straight from the system (a clean digital page, not a
+// photo or scan of the paper) can never carry a signature — it says "No
+// Signature Is Required". Such a page is mostly pure white with pure white
+// corners; a phone photo of paper always has shadows and grey paper. Scanned
+// PDFs are left out on purpose: they look just as clean but are real paper
+// copies (Nov 2026, checked against 93 hand-sorted jobsheets).
+export async function looksLikeComputerCopy(buffer: Buffer): Promise<boolean> {
+  try {
+    const { data, info } = await sharp(buffer).greyscale().resize(200).raw().toBuffer({ resolveWithObject: true });
+    const { width: w, height: h } = info;
+    let white = 0;
+    for (const v of data) if (v >= 235) white++;
+    const cw = Math.max(2, Math.floor(w / 20));
+    const ch = Math.max(2, Math.floor(h / 20));
+    const cornerMean = (x0: number, y0: number) => {
+      let sum = 0;
+      for (let y = y0; y < y0 + ch; y++) for (let x = x0; x < x0 + cw; x++) sum += data[y * w + x];
+      return sum / (cw * ch);
+    };
+    const corners = [cornerMean(0, 0), cornerMean(w - cw, 0), cornerMean(0, h - ch), cornerMean(w - cw, h - ch)];
+    return white / data.length >= 0.7 && Math.min(...corners) >= 230;
+  } catch {
+    return false;
+  }
+}
+
+export async function scanJobsheetImage(base64Image: string, opts: { fromPdf?: boolean } = {}): Promise<JobsheetScanResult> {
   const rawBuffer = Buffer.from(base64Image, "base64");
+  const computerCopy = opts.fromPdf ? false : await looksLikeComputerCopy(rawBuffer);
   let buffer: Buffer;
   try {
     buffer = await preprocessForOcr(rawBuffer);
@@ -685,6 +714,7 @@ export async function scanJobsheetImage(base64Image: string): Promise<JobsheetSc
     signatureDebug: customerCheck.debug,
     picSignatureDetected: picCheck.result,
     picSignatureDebug: picCheck.debug,
+    computerCopy,
   };
 }
 
@@ -750,5 +780,5 @@ export async function scanJobsheetPdf(base64Pdf: string): Promise<JobsheetScanRe
   } catch {
     throw new Error("Couldn't read that PDF — please upload a photo (JPG or PNG) instead.");
   }
-  return scanJobsheetImage(imageBuffer.toString("base64"));
+  return scanJobsheetImage(imageBuffer.toString("base64"), { fromPdf: true });
 }
