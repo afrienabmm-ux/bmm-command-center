@@ -17,6 +17,7 @@ import GenbluClient from "./GenbluClient";
 import GenbluMonthlySummary from "./GenbluMonthlySummary";
 import GenbluTransactionsList from "./GenbluTransactionsList";
 import GenbluTabs from "./GenbluTabs";
+import { isNewBikeAward } from "@/lib/genblu-rules";
 
 export const dynamic = "force-dynamic";
 
@@ -71,11 +72,12 @@ export default async function GenbluPage({
   // Screenshot links are made when someone opens a screenshot, not here —
   // signing all ~700 on every visit was the slowest part of this page.
   const transactionsWithUrls = transactions;
-  // Exactly 100 points = a salesman's new-bike award, not a point allocation
+  // Up to October 2026, exactly 100 points = a salesman's new-bike award, not a
+  // point allocation; from November every admin upload is an allocation (see lib/genblu-rules.ts)
   // (owner's rule, Nov 2026) — listed separately so the tab count, the
   // summary table and the main list all show the same number.
-  const pointAllocations = transactionsWithUrls.filter((t) => Number(t.points) !== 100);
-  const newBikeAwards = transactionsWithUrls.filter((t) => Number(t.points) === 100);
+  const pointAllocations = transactionsWithUrls.filter((t) => !isNewBikeAward(t.points, t.transactionDate));
+  const newBikeAwards = transactionsWithUrls.filter((t) => isNewBikeAward(t.points, t.transactionDate));
   const withUrls = registrations.map((r) => ({
     ...r,
     // Same customer uploaded again for another visit (different time/

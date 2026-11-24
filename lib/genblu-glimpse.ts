@@ -2,6 +2,7 @@ import "server-only";
 import { supabaseAdmin } from "./supabase-server";
 import { fetchAllRows } from "./fetch-all";
 import { BRANCHES, type Branch } from "./branch";
+import { isNewBikeAward } from "./genblu-rules";
 
 // Numbers for the "GenBlu this month" card on the home dashboard. Counted
 // the same way as the GenBlu page: 100-point awards are new-bike awards,
@@ -16,7 +17,6 @@ export type GenbluGlimpse = {
   byBranch: { branch: Branch; label: string; counts: number; points: number }[];
 };
 
-const NEW_BIKE_POINTS = 100;
 
 function malaysiaDate(iso: string): string {
   return new Date(new Date(iso).getTime() + 8 * 3600_000).toISOString().slice(0, 10);
@@ -65,7 +65,7 @@ export async function getGenbluGlimpse(year: number, month: number, today: strin
   };
   for (const t of tx.data) {
     const pts = Number(t.points);
-    if (pts === NEW_BIKE_POINTS) {
+    if (isNewBikeAward(pts, t.transaction_date)) {
       out.newBike += 1;
       continue;
     }

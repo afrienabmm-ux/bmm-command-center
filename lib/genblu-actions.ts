@@ -11,6 +11,7 @@ import { extractGenbluEventWithAi } from "./ai-genblu-extract";
 import { logActivity } from "./activity-log";
 import { normalizeName, namesLikelyMatch, expandNameConnectors } from "./name-matching";
 import { fetchAllRows } from "./fetch-all";
+import { isNewBikeAward } from "./genblu-rules";
 
 const BUCKET = "genblu-screenshots";
 
@@ -1522,7 +1523,6 @@ export type GenbluMonthlySummaryRow = { branch: Branch | "unknown"; label: strin
 // Exactly 100 points is a salesman's new-bike award, not a service point
 // allocation (owner's rule, Nov 2026) — left out of this table so it tallies
 // with the spreadsheet's point-allocation tab, and counted separately.
-const NEW_BIKE_POINTS = 100;
 
 export async function getGenbluMonthlySummary(
   year: number,
@@ -1546,7 +1546,7 @@ export async function getGenbluMonthlySummary(
   const total = { counts: 0, points: 0 };
   const newBike = { counts: 0, points: 0 };
   for (const row of data ?? []) {
-    if (Number(row.points) === NEW_BIKE_POINTS) {
+    if (isNewBikeAward(row.points, row.transaction_date)) {
       newBike.counts += 1;
       newBike.points += Number(row.points);
       continue;

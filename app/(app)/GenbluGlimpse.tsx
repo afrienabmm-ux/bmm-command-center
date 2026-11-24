@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import type { GenbluGlimpse as Data } from "@/lib/genblu-glimpse";
 
+
 function Figure({ label, value, sub }: { label: string; value: string; sub?: string }) {
   return (
     <div>
@@ -27,7 +28,7 @@ export default function GenbluGlimpse({ data, isRealToday, monthName }: { data: 
       </div>
       <div className="mt-4 grid grid-cols-2 lg:grid-cols-4 gap-x-6 gap-y-5">
         <Figure label="Point allocations" value={n(data.allocations.counts)} sub={`${n(data.allocations.points)} points`} />
-        <Figure label="New-bike awards" value={n(data.newBike)} sub="100 points each" />
+        {data.newBike > 0 && <Figure label="New-bike awards" value={n(data.newBike)} sub="100 points each, up to Oct 2026" />}
         <Figure
           label="New sign-ups"
           value={n(data.salesmanSignups + data.adminSignups)}
