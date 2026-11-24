@@ -10,7 +10,7 @@ import type { RepairJob, RepairJobItem, RepairStatus, JobType, ApprovalStatus, Q
 import { BRANCHES, type Branch } from "./branch";
 import { normalizeName } from "./name-matching";
 import { checkCustomerCode, customerCodeReason } from "./customer-code";
-import { normalizePlate } from "./plate";
+import { normalizePlate, checkPlateNo } from "./plate";
 import { checkJobsheetNo } from "./jobsheet-no";
 import { fetchAllRows } from "./fetch-all";
 import { markBookingDoneFromJobsheet, notifyBikeReady } from "./booking-db";
@@ -639,7 +639,7 @@ export async function addRepairJobAction(input: {
       job_no: jobNo,
       customer_name: input.customerName,
       customer_phone: input.customerPhone ?? "",
-      plate_no: input.plateNo,
+      plate_no: checkPlateNo(input.plateNo).plate || input.plateNo,
       job_type: input.jobType,
       mechanic_id: input.mechanicId,
       description: input.description,
@@ -828,7 +828,7 @@ export async function updateRepairJobAction(
   const update: Record<string, unknown> = {
     customer_name: input.customerName,
     customer_phone: input.customerPhone ?? "",
-    plate_no: input.plateNo,
+    plate_no: checkPlateNo(input.plateNo).plate || input.plateNo,
     mechanic_id: input.mechanicId,
     description: input.description,
     revenue_amount: revenueAmount,

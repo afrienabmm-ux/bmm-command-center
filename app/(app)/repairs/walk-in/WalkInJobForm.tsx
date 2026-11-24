@@ -27,6 +27,7 @@ import DropdownDate from "@/components/DropdownDate";
 import { takePendingJobsheet } from "@/lib/pending-jobsheet";
 import GenbluScreenshotCheck, { useGenbluScreenshotCheck } from "@/components/GenbluScreenshotCheck";
 import { cleanJobsheetNo, checkJobsheetNo, JOBSHEET_PREFIX } from "@/lib/jobsheet-no";
+import { checkPlateNo } from "@/lib/plate";
 
 type ItemInput = { code: string; description: string; quantity: string; price: string };
 
@@ -1235,8 +1236,16 @@ export default function WalkInJobForm({
               type="text"
               value={plateNo}
               onChange={(e) => setPlateNo(e.target.value)}
+              onBlur={() => setPlateNo((v) => checkPlateNo(v).plate || v)}
+              placeholder="e.g. VQK7445"
               className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:border-red-500/50"
             />
+            {plateNo.trim() && !checkPlateNo(plateNo).valid && (
+              <p className="text-xs text-amber-700 mt-1.5 flex items-center gap-1">
+                <AlertTriangle size={12} className="shrink-0" />
+                {checkPlateNo(plateNo).problem} Please check it against the bike. You can still save.
+              </p>
+            )}
           </div>
     </>
   );

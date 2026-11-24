@@ -9,6 +9,7 @@ import { scanJobsheetImage, scanJobsheetPdf } from "./vision";
 import { extractItemsWithAi } from "./ai-item-extract";
 import type { Branch } from "./branch";
 import { cleanJobsheetNo } from "./jobsheet-no";
+import { checkPlateNo } from "./plate";
 import { readPrintedTotal, sameAmount, amountAppears, guessDiscountLabel, guessChargeLabel } from "./jobsheet-total";
 
 export type ScannedJobsheetItem = { code: string; description: string; quantity: number; price: number };
@@ -362,7 +363,7 @@ export function parseJobsheetText(text: string): ScannedJobsheet {
   // anything after the last one (like "JOB CARD") is dropped.
   const customerCode = (f.customerCode ?? "").match(/^\d+(?:\s*-\s*\d+)*/)?.[0]?.trim() ?? "";
   const customerName = fixCustomerName(f.customerName ?? "", text);
-  const plateNo = fixPlateNo(f.plateNo ?? "", text);
+  const plateNo = checkPlateNo(fixPlateNo(f.plateNo ?? "", text)).plate;
   const colour = f.colour ?? "";
   const engineNo = f.engineNo ?? "";
   const chassisNo = f.chassisNo ?? "";
