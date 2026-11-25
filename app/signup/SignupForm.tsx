@@ -1,15 +1,27 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useRef, useState } from "react";
 import Link from "next/link";
 import { Eye, EyeOff } from "lucide-react";
 import { signUpAction, type AuthResult } from "@/lib/auth-actions";
+import RobotCheck, { ROBOT_CHECK_KEY, type RobotCheckHandle } from "@/components/RobotCheck";
 
 export default function SignupForm() {
   const [state, formAction, isPending] = useActionState<AuthResult, FormData>(
-    (_prev, formData) => signUpAction(formData),
+    async (_prev, formData) => {
+      const result = await signUpAction(formData);
+      // Each robot-check token works once; get a fresh one for the next try.
+      if (result && "error" in result) robot.current?.reset();
+      return result;
+    },
     undefined
   );
+  const robot = useRef<RobotCheckHandle>(null);
+  const [robotToken, setRobotToken] = useState<string | null>(null);
+  // If the Cloudflare box can't load, don't lock people out: let them try,
+  // and the sign-in itself says so if the robot check is required.
+  const [robotFailed, setRobotFailed] = useState(false);
+  const waitingForRobot = !!ROBOT_CHECK_KEY && !robotToken && !robotFailed;
   const [showPassword, setShowPassword] = useState(false);
 
   if (state && "needsEmailConfirmation" in state) {
@@ -65,14 +77,17 @@ export default function SignupForm() {
         </div>
       </div>
 
+      <input type="hidden" name="captchaToken" value={robotToken ?? ""} />
+      <RobotCheck ref={robot} onToken={setRobotToken} onFail={() => setRobotFailed(true)} />
+
       {state && "error" in state ? <p className="text-sm text-red-700">{state.error}</p> : null}
 
       <button
         type="submit"
-        disabled={isPending}
+        disabled={isPending || waitingForRobot}
         className="w-full bg-red-500 hover:bg-red-400 disabled:opacity-50 text-white text-sm font-medium py-2.5 rounded-lg transition-colors"
       >
-        {isPending ? "Creating account…" : "Create account"}
+        {isPending ? "Creating account…" : waitingForRobot ? "Checking you’re not a robot…" : "Create account"}
       </button>
 
       <p className="text-sm text-neutral-500 text-center">

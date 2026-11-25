@@ -9,6 +9,17 @@ import { REMEMBER_ME_COOKIE, REMEMBER_ME_MAX_AGE } from "./auth-cookie";
 
 export type AuthResult = { error: string } | { needsEmailConfirmation: true } | void;
 
+// Cloudflare robot check: the login, sign-up and change-password boxes send a
+// one-time token; Supabase checks it once Bot Protection is on there.
+function robotOption(token: unknown) {
+  const t = String(token ?? "").trim();
+  return t ? { captchaToken: t } : {};
+}
+const ROBOT_FAILED = "The robot check didn't go through. Wait for the Cloudflare box to finish, then try again. If it keeps failing, refresh the page.";
+function isRobotError(error: { code?: string; message?: string }) {
+  return error.code === "captcha_failed" || /captcha/i.test(error.message ?? "");
+}
+
 export async function signUpAction(formData: FormData): Promise<AuthResult> {
   const email = String(formData.get("email") || "").trim();
   const password = String(formData.get("password") || "");
@@ -24,10 +35,10 @@ export async function signUpAction(formData: FormData): Promise<AuthResult> {
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
-    options: { data: { name } },
+    options: { data: { name }, ...robotOption(formData.get("captchaToken")) },
   });
 
-  if (error) return { error: error.message };
+  if (error) return { error: isRobotError(error) ? ROBOT_FAILED : error.message };
   if (data.user) await logActivity({ id: data.user.id, name, email }, "Signed up");
   if (!data.session) return { needsEmailConfirmation: true };
 
@@ -43,8 +54,13 @@ export async function signInAction(formData: FormData): Promise<AuthResult> {
   if (!email || !password) return { error: "Enter your email and password." };
 
   const supabase = await createAuthClient(rememberMe);
-  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email,
+    password,
+    options: robotOption(formData.get("captchaToken")),
+  });
 
+  if (error && isRobotError(error)) return { error: ROBOT_FAILED };
   if (error) return { error: "Incorrect email or password." };
 
   // A plain marker cookie, not a secret — just tells middleware (on every
@@ -102,7 +118,8 @@ export async function signOutAction(): Promise<void> {
 // to an already-logged-in session can't silently take it over.
 export async function changeOwnPasswordAction(
   currentPassword: string,
-  newPassword: string
+  newPassword: string,
+  captchaToken?: string | null
 ): Promise<{ error: string } | void> {
   if (newPassword.length < 8) return { error: "New password must be at least 8 characters." };
 
@@ -115,7 +132,9 @@ export async function changeOwnPasswordAction(
   const { error: verifyError } = await supabase.auth.signInWithPassword({
     email: user.email,
     password: currentPassword,
+    options: robotOption(captchaToken),
   });
+  if (verifyError && isRobotError(verifyError)) return { error: ROBOT_FAILED };
   if (verifyError) return { error: "Current password is incorrect." };
 
   const { error } = await supabase.auth.updateUser({ password: newPassword });
