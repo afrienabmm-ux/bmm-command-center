@@ -68,7 +68,11 @@ const nextConfig: NextConfig = {
   // Don't advertise "X-Powered-By: Next.js" on every response.
   poweredByHeader: false,
   async headers() {
-    return [{ source: "/:path*", headers: SECURITY_HEADERS }];
+    return [
+      { source: "/:path*", headers: SECURITY_HEADERS },
+      // Staff alerts helper: never cached, so devices always get the latest copy.
+      { source: "/sw.js", headers: [{ key: "Cache-Control", value: "no-cache, no-store, must-revalidate" }] },
+    ];
   },
   experimental: {
     // Jobsheet photos sent to the Scan Jobsheet server action, base64

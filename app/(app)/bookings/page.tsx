@@ -1,4 +1,4 @@
-import { requirePage, getActiveBranchSelection, isManagementLevel } from "@/lib/current-user";
+import { requirePage, getActiveBranchSelection, isManagementLevel, canViewAllBranches } from "@/lib/current-user";
 import { listBookings, getDaySettings } from "@/lib/booking-actions";
 import { bookingDbConfigured, minutesNowInMalaysia } from "@/lib/booking-db";
 import { branchLabel } from "@/lib/branch";
@@ -7,6 +7,7 @@ import Link from "next/link";
 import { Settings } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
 import BookingsClient from "./BookingsClient";
+import StaffAlerts from "@/components/StaffAlerts";
 
 export const dynamic = "force-dynamic";
 
@@ -43,6 +44,7 @@ export default async function BookingsPage() {
         }
       />
       <div className="p-4 md:p-8">
+        <StaffAlerts canPickAll={canViewAllBranches(user)} defaultBranch={selection} />
         <BookingsClient
           bookings={bookings}
           settings={settings}
