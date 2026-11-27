@@ -6,7 +6,6 @@ import { timingSafeEqual } from "crypto";
 import { lookupCustomerCardAction, type MembershipLookup } from "@/lib/customer-registration-actions";
 import { STAMP_REWARDS } from "@/lib/membership";
 import { supabaseAdmin } from "@/lib/supabase-server";
-import { fetchAllRows } from "@/lib/fetch-all";
 
 export const runtime = "nodejs";
 export const maxDuration = 15;
@@ -47,31 +46,41 @@ export async function POST(req: Request): Promise<Response> {
 
   try {
     const found = new Map<string, MembershipLookup>();
-    const queue = [...plates];
+    const keep = (r: unknown) => {
+      if (isCard(r)) found.set(r.cardNumber, r);
+    };
 
-    // A phone number may match several cards (one per bike): look each one up by its plate.
-    if (phone.replace(/\D/g, "").length >= 9) {
-      const byPhone = await lookupCustomerCardAction(phone);
-      if (isCard(byPhone)) found.set(byPhone.cardNumber, byPhone);
-      else if ("choices" in byPhone) queue.push(...byPhone.choices.map((c) => c.plateNo));
+    // Phone and every saved plate are looked up at the same time (not one after another).
+    // A phone number may match several cards (one per bike): those are then looked up by plate.
+    const [byPhone, ...byPlate] = await Promise.all([
+      phone.replace(/\D/g, "").length >= 9 ? lookupCustomerCardAction(phone) : Promise.resolve(null),
+      ...plates.map((plate) => lookupCustomerCardAction(plate)),
+    ]);
+    keep(byPhone);
+    byPlate.forEach(keep);
+    if (byPhone && "choices" in byPhone) {
+      const asked = new Set(plates.map((p) => p.trim().toUpperCase()));
+      const more = byPhone.choices.map((c) => c.plateNo).filter((p) => !asked.has(p.trim().toUpperCase()));
+      (await Promise.all(more.map((plate) => lookupCustomerCardAction(plate)))).forEach(keep);
     }
-    // All bikes at the same time (not one after another); results kept in the saved order.
-    const results = await Promise.all(queue.map((plate) => lookupCustomerCardAction(plate)));
-    for (const r of results) if (isCard(r)) found.set(r.cardNumber, r);
 
     // Nothing by phone or plate: try the exact full name, but only when exactly
     // ONE card has that name, so a common name never shows a stranger's card.
+    // The database does the name search (it used to download every card to search here).
     const name = typeof body.name === "string" ? sameName(body.name) : "";
     if (found.size === 0 && name.length >= 3) {
-      const { data: all, error } = await fetchAllRows((a, b) =>
-        supabaseAdmin.from("cc_customer_cards").select("customer_name, plate_no").order("id").range(a, b)
-      );
+      const pattern = name
+        .split(" ")
+        .map((w) => w.replace(/[\\%_]/g, (c) => "\\" + c)) // % and _ are wildcards in a name search
+        .join("%");
+      const { data: hits, error } = await supabaseAdmin
+        .from("cc_customer_cards")
+        .select("customer_name, plate_no")
+        .ilike("customer_name", `%${pattern}%`)
+        .limit(20);
       if (error) throw new Error(error.message);
-      const same = (all ?? []).filter((c) => sameName(c.customer_name ?? "") === name);
-      if (same.length === 1) {
-        const r = await lookupCustomerCardAction(same[0].plate_no);
-        if (isCard(r)) found.set(r.cardNumber, r);
-      }
+      const same = (hits ?? []).filter((c) => sameName(c.customer_name ?? "") === name);
+      if (same.length === 1) keep(await lookupCustomerCardAction(same[0].plate_no));
     }
 
     return Response.json({
