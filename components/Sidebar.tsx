@@ -26,7 +26,6 @@ import {
   X,
 } from "lucide-react";
 import { signOutAction, changeOwnPasswordAction } from "@/lib/auth-actions";
-import RobotCheck, { ROBOT_CHECK_KEY, type RobotCheckHandle } from "@/components/RobotCheck";
 import type { Role } from "@/lib/current-user";
 import type { PageKey } from "@/lib/permissions";
 import ModalPortal from "@/components/ModalPortal";
@@ -286,11 +285,6 @@ function ChangePasswordModal({ onClose }: { onClose: () => void }) {
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
   const [isPending, startTransition] = useTransition();
-  // Checking the current password is a real sign-in, so it needs the robot check too.
-  const robot = useRef<RobotCheckHandle>(null);
-  const [robotToken, setRobotToken] = useState<string | null>(null);
-  const [robotFailed, setRobotFailed] = useState(false);
-  const waitingForRobot = !!ROBOT_CHECK_KEY && !robotToken && !robotFailed;
 
   function handleSave() {
     if (newPassword.length < 8) {
@@ -298,9 +292,8 @@ function ChangePasswordModal({ onClose }: { onClose: () => void }) {
       return;
     }
     startTransition(async () => {
-      const result = await changeOwnPasswordAction(currentPassword, newPassword, robotToken);
+      const result = await changeOwnPasswordAction(currentPassword, newPassword);
       if (result && "error" in result) {
-        robot.current?.reset();
         setError(result.error);
         return;
       }
@@ -370,9 +363,6 @@ function ChangePasswordModal({ onClose }: { onClose: () => void }) {
                 </button>
               </div>
             </div>
-            <div className="mt-3">
-              <RobotCheck ref={robot} onToken={setRobotToken} onFail={() => setRobotFailed(true)} />
-            </div>
             {error && <p className="text-sm text-red-700 mt-2">{error}</p>}
             <div className="flex items-center justify-end gap-3 mt-6">
               <button
@@ -383,7 +373,7 @@ function ChangePasswordModal({ onClose }: { onClose: () => void }) {
               </button>
               <button
                 onClick={handleSave}
-                disabled={isPending || waitingForRobot || !currentPassword || !newPassword}
+                disabled={isPending || !currentPassword || !newPassword}
                 className="bg-red-500 hover:bg-red-400 disabled:opacity-50 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
               >
                 {isPending ? "Saving…" : "Save"}

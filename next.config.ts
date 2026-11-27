@@ -43,12 +43,11 @@ const PDFJS_TRACE_INCLUDES = ["./node_modules/pdfjs-dist/**/*", "./node_modules/
 // the server, so the browser itself only talks to this site and Supabase.
 const CSP = [
   "default-src 'self'",
-  "script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com" + (process.env.NODE_ENV === "development" ? " 'unsafe-eval'" : ""),
+  "script-src 'self' 'unsafe-inline'" + (process.env.NODE_ENV === "development" ? " 'unsafe-eval'" : ""),
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob: https://*.supabase.co",
   "font-src 'self' data:",
-  "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://challenges.cloudflare.com",
-  "frame-src https://challenges.cloudflare.com", // Cloudflare robot check on the login page
+  "connect-src 'self' https://*.supabase.co wss://*.supabase.co",
   "worker-src 'self' blob:",
   "media-src 'self' blob:",
   "object-src 'none'",
